@@ -1,0 +1,306 @@
+﻿@page "/personal-form"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Net.Http.Headers
+@inject PersonalService PersonalService
+@inject AlmacenService AlmacenService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject HttpClient Http
+
+<h3>Nuevo Empleado</h3>
+
+<EditForm Model="personal" OnValidSubmit="SavePersonal">
+    <DataAnnotationsValidator />
+
+    <div class="row">
+        <div class="col-md-6 mt-3">
+            <label>Nombres:</label>
+            <InputText @bind-Value="personal.Nombres" class="form-control" />
+        </div>
+        <div class="col-md-6 mt-3">
+            <label>Apellidos:</label>
+            <InputText @bind-Value="personal.Apellidos" class="form-control" />
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mt-3">
+            <label>Doc Identidad:</label>
+            <InputSelect @bind-Value="personal.DocIdentidad" class="form-control">
+                <option value="DNI">DNI</option>
+                <option value="C.E">C.E</option>
+                <option value="PASAPORTE">PASAPORTE</option>
+            </InputSelect>
+        </div>
+        <div class="col-md-6 mt-3">
+            <label>Número de Documento:</label>
+            <InputText @bind-Value="personal.NumeroDocIdentidad" class="form-control" />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-4 mt-3">
+            <label>RUC:</label>
+            <InputText @bind-Value="personal.Ruc" class="form-control" maxlength="10" />
+        </div>
+        <div class="col-md-4 mt-3">
+            <label>Sexo:</label>
+            <InputSelect @bind-Value="personal.Sexo" class="form-control" >
+                <option value="MASCULINO">MASCULINO</option>
+                <option value="FEMENINO">FEMENINO</option>
+            </InputSelect>
+        </div>
+        <div class="col-md-4 mt-3">
+            <label>Fecha de Nacimiento:</label>
+            <InputDate @bind-Value="personal.FechaNacimiento" class="form-control" />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6 mt-3">
+            <label>Teléfono:</label>
+            <InputText @bind-Value="personal.Telefono" class="form-control" maxlength="9" />
+        </div>
+        <div class="col-md-6 mt-3">
+            <label>Celular:</label>
+            <InputText @bind-Value="personal.Celular" class="form-control" maxlength="9" />
+        </div>
+    </div>
+    <label class="mt-3">Email:</label>
+    <InputText @bind-Value="personal.Email" class="form-control" />
+    <div class="row">
+        <div class="col-md-6 mt-3">
+            <label>Estado Civil:</label>
+            <InputSelect @bind-Value="personal.EstadoCivil" class="form-control">
+                <option value="SOLTERO">SOLTERO</option>
+                <option value="CASADO">CASADO</option>
+                <option value="VIUDO">VIUDO</option>
+                <option value="DIVORCIADO">DIVORCIADO</option>
+                <option value="CONVIVIENTE">CONVIVIENTE</option>
+            </InputSelect>
+        </div>
+        <div class="col-md-6 mt-3">
+            <label>Tipo Empleado:</label>
+            <InputSelect @bind-Value="personal.TipoEmpleado" class="form-control">
+                <option value="EMPLEADO">EMPLEADO</option>
+            </InputSelect>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mt-3">
+            <label>Lugar de Nacimiento:</label>
+            <InputText @bind-Value="personal.LugarNacimiento" class="form-control" />
+        </div>
+        <div class="col-md-6 mt-3">
+            <label>Nacionalidad:</label>
+            <InputText @bind-Value="personal.Nacionalidad" class="form-control" />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6 mt-3">
+            <label>Grado de Instrucción:</label>
+            <InputText @bind-Value="personal.GradoInstruccion" class="form-control" />
+        </div>
+        <div class="col-md-6 mt-3">
+            <label>Especialidad:</label>
+            <InputText @bind-Value="personal.Especialidad" class="form-control" />
+        </div>
+    </div>
+    <div class="row mt-3">
+        <div class="col-md-6">
+            <label>Local (Almacén):</label>
+            <InputSelect @bind-Value="personal.IdAlmacen" class="form-control">
+                <option value="" disabled>Seleccione un almacén</option>
+                @if (almacenes != null)
+                {
+                    @foreach (var almacen in almacenes)
+                    {
+                        <option value="@almacen.IdAlmacen">@almacen.Nombre</option>
+                    }
+                }
+            </InputSelect>
+        </div>
+        <div class="col-md-6">
+            <label>Cargo:</label>
+            <InputSelect @bind-Value="personal.Cargo" class="form-control">
+                <option value="ADMINISTRADOR">ADMINISTRADOR</option>
+                <option value="CAJERO">CAJERO</option>
+                <option value="VENDEDOR">VENDEDOR</option>
+                <option value="PREVENCION">PREVENCION</option>
+                <option value="ENCARGADO">ENCARGADO</option>
+                <option value="APOYO ADMIN">APOYO ADMIN</option>
+                <option value="CONTADOR">CONTADOR</option>
+                <option value="TESORERO">TESORERO</option>
+                <option value="EMISOR NC">EMISOR NC</option>
+            </InputSelect>
+        </div>
+    </div>
+    <div class="row mt-3">
+        <div class="col-md-4">
+            <label>Fecha de Registro:</label>
+            <InputDate @bind-Value="personal.FechaRegistro" class="form-control" disabled />
+        </div>
+        <div class="col-md-4">
+            <label>Estado:</label>
+            <InputSelect @bind-Value="personal.Estado" class="form-control">
+                <option value="true">Activo</option>
+                <option value="false">Inactivo</option>
+            </InputSelect>
+        </div>
+        <div class="col-md-4">
+            <label>Fecha de Ingreso</label>
+            <InputDate @bind-Value="personal.FechaIngreso" class="form-control" />
+        </div>
+    </div>
+    <label class="mt-3">Subir Foto:</label>
+    <InputFile OnChange="ProcesarImagen" accept="image/*" />
+    <!--  <button @onclick ="EnviarImagen">Subir Imagen</button> -->
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <button @onclick="Cancel" class="btn btn-secondary ms-2">Cancelar</button>
+    </div>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(resizedImage))
+{
+    <img src="@resizedImage" alt="Imagen Redimensionada" width="200" />
+}
+
+@code {
+    private PersonalDTO personal = new();
+    private List<AlmacenDTO>? almacenes;
+    private string? resizedImage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        personal.FechaRegistro = DateTime.Today;
+        almacenes = await AlmacenService.GetAlmacenes();
+
+        // Asignar valores predeterminados si están vacíos
+        personal.DocIdentidad ??= "DNI";  // Predeterminado: DNI
+        personal.Sexo ??= "MASCULINO"; // Predeterminado: MASCULINO
+        personal.EstadoCivil ??= "SOLTERO"; // Predeterminado: SOLTERO
+        personal.TipoEmpleado ??= "EMPLEADO"; // Predeterminado: EMPLEADO
+        personal.Cargo ??= "CAJERO"; //Predeterminado: CAJERO
+        if (almacenes != null && almacenes.Any())
+        {
+            personal.IdAlmacen ??= almacenes.FirstOrDefault()?.IdAlmacen ?? 0; // Primer almacén disponible
+        }
+        
+    }
+
+    private async Task SavePersonal()
+    {
+        try
+        {
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(personal)); // Muestra los datos en la consola del navegador
+
+            bool success = await PersonalService.CreatePersonal(personal);
+            if (success)
+            {
+                Navigation.NavigateTo("/personal");
+            }
+            else
+            {
+                Console.WriteLine("Error al guardar el empleado. La API devolvió un estado de error.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en SavePersonal: {ex.Message}");
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/personal");
+    }
+
+    /*private async Task UploadPhoto(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            using var stream = file.OpenReadStream();
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            personal.Foto = ms.ToArray();
+        }
+    }*/
+
+    private async Task ProcesarImagen(InputFileChangeEventArgs e)
+        {
+            var archivo = e.File;
+            if (archivo != null)
+            {
+    Console.WriteLine($"Archivo seleccionado: {archivo.Name}, Tamaño: {archivo.Size}");
+
+    // Evitar archivos demasiado grandes (Máx. 1MB)
+    if (archivo.Size > 1_000_000)
+    {
+        Console.WriteLine("La imagen es demasiado grande. Selecciona una más pequeña.");
+        return;
+    }
+
+    try
+    {
+        using var stream = archivo.OpenReadStream();
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var bytes = ms.ToArray();
+
+        // Convertir a Base64
+        personal.Foto = Convert.ToBase64String(bytes);
+
+        // Actualizar la UI
+        StateHasChanged();
+
+        // Llamar a la función JavaScript para redimensionar la imagen
+        await JS.InvokeVoidAsync("resizeImage", archivo, 300, 300, DotNetObjectReference.Create(this));
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error en ProcesarImagen: {ex.Message}");
+    }
+            }
+            else
+            {
+    Console.WriteLine("No se seleccionó ninguna imagen.");
+            }
+        }
+
+    // Método que será llamado desde JavaScript
+    [JSInvokable]
+    public Task SetResizedImage(string base64Image)
+    {
+        resizedImage = base64Image;
+        StateHasChanged(); // Actualiza la UI
+        return Task.CompletedTask;
+    }
+    /*
+    private async Task EnviarImagen()
+    {
+        if (!string.IsNullOrEmpty(resizedImage))
+        {
+            var base64Data = resizedImage.Split(',')[1];
+            var bytes = Convert.FromBase64String(base64Data);
+
+            using var content = new MultipartFormDataContent();
+            var imageContent = new ByteArrayContent(bytes);
+            imageContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+            content.Add(imageContent, "foto", "imagen.jpg");
+
+            try
+            {
+                var response = await Http.PostAsync("https://localhost:7246/api/personal/UploadFoto", content);
+                response.EnsureSuccessStatusCode();
+                Console.WriteLine("Imagen subida correctamente.");
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"Error al enviar la imagen: {ex.Message}");
+            }
+        }
+    }*/
+}

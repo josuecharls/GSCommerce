@@ -1,0 +1,20 @@
+﻿@page "/"
+@using GSCommerce.Client.Services
+
+<h1>Bienvenido a GSCommerce</h1>
+
+<p>Hola, @userName 👋. Usa el menú para navegar por el sistema.</p>
+
+
+@code {
+    [Inject] AuthService AuthService { get; set; } = null!;
+    [Inject] CustomAuthStateProvider AuthStateProvider { get; set; } = null!;
+    [Inject] NavigationManager Navigation { get; set; } = null!;
+
+    private string? userName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        userName = await AuthService.GetUserName();
+    }
+}

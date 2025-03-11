@@ -1,0 +1,89 @@
+﻿@page "/personal/edit/{id:int}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject PersonalService PersonalService
+@inject NavigationManager Navigation
+@inject HttpClient Http
+
+<h3>Editar Personal</h3>
+
+@if (personal != null)
+{
+    <div class="card p-4 shadow-lg">
+        <form @onsubmit="GuardarCambios">
+            <div class="mb-3">
+                <label class="form-label">Nombres</label>
+                <input type="text" class="form-control" @bind="personal.Nombres" required />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Apellidos</label>
+                <input type="text" class="form-control" @bind="personal.Apellidos" required />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Documento de Identidad</label>
+                <input type="text" class="form-control" @bind="personal.NumeroDocIdentidad" required />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Celular</label>
+                <input type="text" class="form-control" @bind="personal.Celular" required maxlength="9" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" @bind="personal.Email" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Cargo</label>
+                <input type="text" class="form-control" @bind="personal.Cargo" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Fecha de Ingreso</label>
+                <input type="date" class="form-control" @bind="personal.FechaIngreso" />
+            </div>
+
+            <div class="text-center">
+                <button type="submit" class="btn btn-success me-2">Guardar Cambios</button>
+                <button type="button" class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+            </div>
+        </form>
+    </div>
+}
+else
+{
+    <p>Cargando datos...</p>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }  // Aquí nos aseguramos de que sea un entero
+
+    private PersonalDTO? personal;
+
+    protected override async Task OnInitializedAsync()
+    {
+        personal = await PersonalService.GetPersonalById(id);
+        if (personal == null)
+        {
+            Navigation.NavigateTo("/personal");
+        }
+    }
+
+    private async Task GuardarCambios()
+    {
+        if (personal != null)
+        {
+            await PersonalService.UpdatePersonal(id, personal);
+            Navigation.NavigateTo("/personal");
+        }
+    }
+
+    private void Cancelar()
+    {
+        Navigation.NavigateTo("/personal");
+    }
+}

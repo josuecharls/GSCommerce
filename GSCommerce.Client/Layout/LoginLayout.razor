@@ -1,0 +1,46 @@
+﻿@inherits LayoutComponentBase
+
+<div class="login-container">
+    <div class="login-card">
+        @Body
+    </div>
+</div>
+
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #141E30, #243B55); /* Azul oscuro moderno */
+        padding: 20px;
+    }
+
+    .login-card {
+        background: rgba(255, 255, 255, 0.1); /* Transparente con efecto cristal */
+        backdrop-filter: blur(10px); /* Desenfoque estilo glassmorphism */
+        border-radius: 20px;
+        box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.2);
+        text-align: center;
+        width: 100%;
+        max-width: 450px;
+        padding: 40px;
+        animation: fadeIn 0.5s ease-in-out;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    @@keyframes fadeIn {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
+</style>

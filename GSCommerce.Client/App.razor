@@ -1,0 +1,50 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    @if (authenticationState?.User?.Identity?.IsAuthenticated == false)
+                    {
+                        // Evitar redirección infinita en la página de login
+                        if (!Navigation.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase))
+                        {
+                            Navigation.NavigateTo("/login", true);
+                        }
+                    }
+                    else
+                    {
+                        <p>No tienes permisos para ver esta página.</p>
+                    }
+                </NotAuthorized>
+            </AuthorizeRouteView>
+        </Found>
+        <NotFound>
+            @code {
+        protected override void OnInitialized()
+        {
+            // Evitar redirección infinita en la página de login
+            if (!Navigation.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo("/login", true);
+            }
+        }
+            }
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? authenticationStateTask { get; set; }
+    private AuthenticationState? authenticationState;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (authenticationStateTask != null)
+        {
+            authenticationState = await authenticationStateTask;
+        }
+    }
+}

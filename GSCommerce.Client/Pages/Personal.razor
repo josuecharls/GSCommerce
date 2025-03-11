@@ -1,0 +1,292 @@
+﻿@page "/personal"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject PersonalService PersonalService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@using Microsoft.AspNetCore.Components.Forms
+
+<h3>Lista de Personal</h3>
+
+<!-- Botón para crear un nuevo empleado -->
+<button @onclick="CreateNewPersonal" class="btn btn-success">+ Nuevo Empleado</button>
+
+<input type="text" @bind="searchTerm" placeholder="Buscar por nombre..." />
+<button @onclick="SearchPersonal">Buscar</button>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Cargo</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (personalList.Any())
+        {
+            @foreach (var p in personalList)
+            {
+                <tr>
+                    <td>@p.Nombres @p.Apellidos</td>
+                    <td>@p.Cargo</td>
+                    <td class="text-center">
+                        <button @onclick="() => ShowPhoto(p.IdPersonal)" class="btn btn-info btn-sm me-1">
+                            <i class="bi bi-image"></i> Ver Foto
+                        </button>
+                        <button @onclick="() => EditPersonal(p.IdPersonal)" class="btn btn-warning btn-sm me-1">
+                            <i class="bi bi-pencil-square"></i>
+                        </button>
+                        <button @onclick="() => ConfirmDeletePersonal(p.IdPersonal, p.Nombres)" class="btn btn-danger btn-sm">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="3" class="text-center">Cargando... Espere...</td></tr>
+        }
+    </tbody>
+</table>
+<!-- Controles de paginación -->
+<div class="d-flex justify-content-between">
+    <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(!CanPrev)">
+        <i class="bi bi-arrow-left"></i> Anterior
+    </button>
+    <span>Página @currentPage de @totalPages</span>
+    <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanNext)">
+        Siguiente <i class="bi bi-arrow-right"></i>
+    </button>
+</div>
+
+<!-- Modal de Confirmación para Eliminar -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <p>¿Desea eliminar a <strong>@deletePersonalName</strong> de la base de datos?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger" @onclick="DeleteConfirmed">Sí</button>
+                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal para ver y cambiar foto -->
+@if (showPhotoModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Foto de @selectedPersonal?.Nombres</h5>
+                    <button type="button" class="btn-close" @onclick="ClosePhotoModal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    @if (!string.IsNullOrEmpty(photoUrl))
+                    {
+                        <img src="@photoUrl" alt="Foto" class="img-fluid img-thumbnail" style="max-width: 300px; max-height: 300px;" />
+                    }
+                    else
+                    {
+                        <p>No hay foto disponible.</p>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <InputFile OnChange="OnFileSelected" accept="image/*" />
+                    <button class="btn btn-primary" @onclick="UploadPhoto">Actualizar Foto</button>
+                    <button class="btn btn-secondary" @onclick="ClosePhotoModal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+
+
+@code {
+    private List<PersonalDTO> personalList = new();
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int totalPages;
+    private string searchTerm = "";
+    private bool isDeleting = false;
+    private PersonalDTO? selectedPersonal;
+    private string? photoUrl;
+    private byte[]? selectedFile;
+    private bool showPhotoModal = false;
+    private bool showDeleteModal = false;
+    private int deletePersonalId;
+    private string deletePersonalName = "";
+
+    private void ShowPhoto(int id)
+    {
+        selectedPersonal = personalList.FirstOrDefault(p => p.IdPersonal == id);
+        if (selectedPersonal != null)
+        {
+            // Agregar un parámetro único a la URL de la imagen para forzar la recarga
+            photoUrl = $"https://localhost:7246/api/Personal/foto/{id}?t={DateTime.Now.Ticks}";
+            showPhotoModal = true;
+        }
+    }
+
+    private void ClosePhotoModal()
+    {
+        showPhotoModal = false;
+        photoUrl = null;
+    }
+
+    private void ConfirmDeletePersonal(int id, string name)
+    {
+        deletePersonalId = id;
+        deletePersonalName = name;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        deletePersonalId = 0;
+        deletePersonalName = "";
+    }
+
+    private async Task DeleteConfirmed()
+    {
+        if (!isDeleting && deletePersonalId > 0)
+        {
+            isDeleting = true;
+            try
+            {
+                if (await PersonalService.DeletePersonal(deletePersonalId))
+                {
+                    await LoadPersonals();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al eliminar: {ex.Message}");
+            }
+            isDeleting = false;
+            CloseDeleteModal();
+        }
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            var buffer = new byte[file.Size];
+            await file.OpenReadStream().ReadAsync(buffer);
+            selectedFile = buffer;
+        }
+    }
+
+    private async Task UploadPhoto()
+    {
+        if (selectedPersonal == null || selectedFile == null)
+        {
+            Console.WriteLine("Error: No hay imagen seleccionada.");
+            return;
+        }
+
+        // Convertir la imagen a Base64
+        string base64Image = Convert.ToBase64String(selectedFile);
+
+        // Crear el objeto PersonalDTO con todos los campos requeridos
+        var updatedData = new PersonalDTO
+            {
+                IdPersonal = selectedPersonal.IdPersonal,
+                Nombres = selectedPersonal.Nombres,
+                Apellidos = selectedPersonal.Apellidos,
+                DocIdentidad = selectedPersonal.DocIdentidad,
+                NumeroDocIdentidad = selectedPersonal.NumeroDocIdentidad,
+                Sexo = selectedPersonal.Sexo,
+                TipoEmpleado = selectedPersonal.TipoEmpleado,
+                Foto = base64Image
+            };
+
+        Console.WriteLine($"Enviando imagen Base64 de tamaño: {base64Image.Length} caracteres");
+
+        bool success = await PersonalService.UpdatePhoto(selectedPersonal.IdPersonal, updatedData);
+        if (success)
+        {
+            Console.WriteLine("Foto actualizada correctamente.");
+            // Actualizar la URL de la foto con un parámetro único para forzar la recarga
+            photoUrl = $"https://localhost:7246/api/Personal/foto/{selectedPersonal.IdPersonal}?t={DateTime.Now.Ticks}";
+            ClosePhotoModal();
+        }
+        else
+        {
+            Console.WriteLine("Error al actualizar la foto.");
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPersonals();
+    }
+
+    private async Task LoadPersonals()
+    {
+        try
+        {
+            var response = await PersonalService.GetPersonalList(currentPage, pageSize, searchTerm);
+            personalList = response.Data;
+            totalPages = response.TotalPages;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar personal: {ex.Message}");
+        }
+    }
+
+    private async Task SearchPersonal()
+    {
+        currentPage = 1;
+        await LoadPersonals();
+    }
+
+    private async Task PrevPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await LoadPersonals();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            await LoadPersonals();
+        }
+    }
+
+    private void CreateNewPersonal()
+    {
+        Navigation.NavigateTo("/personal-form"); // Redirige a la pantalla de creación
+    }
+
+    private void EditPersonal(int id)
+    {
+        Navigation.NavigateTo($"/personal/edit/{id}");
+    }
+
+    private bool CanPrev => currentPage > 1;
+    private bool CanNext => currentPage < totalPages;
+}

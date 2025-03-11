@@ -1,0 +1,54 @@
+﻿@using GSCommerce.Client.Services
+@inherits LayoutComponentBase
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+    <main>
+    <div class="main">
+        <div class="top-row">
+                <button class="btn btn-primary" @onclick="Logout">Cerrar Sesión</button>
+        </div>
+
+        <div class="content px-4">
+            @Body
+        </div>
+    </div>
+    </main>
+</div>
+
+@code {
+
+    [Inject] AuthService AuthService { get; set; } = null!;
+    [Inject] CustomAuthStateProvider AuthStateProvider { get; set; } = null!;
+    [Inject] NavigationManager Navigation { get; set; } = null!;
+
+    private string? userName;
+
+    private async Task Logout()
+    {
+        await AuthStateProvider.MarkUserAsLoggedOut();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}
+
+
+@*@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+
+<div class="page">
+    @if (!IsLoginPage)
+    {
+        <NavMenu />
+    }
+    <div class="main">
+        <div class="content px-4">
+            @Body
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool IsLoginPage => Navigation.Uri.Contains("/login");
+} *@

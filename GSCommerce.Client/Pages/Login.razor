@@ -1,0 +1,168 @@
+﻿@page "/login"
+@layout LoginLayout
+@using Blazored.LocalStorage
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@inject AuthService AuthService
+@inject CustomAuthStateProvider AuthStateProvider
+
+<style>
+    .login-header img {
+        width: 120px;
+        margin-bottom: 15px;
+    }
+
+    .login-header h1 {
+        font-size: 24px;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 10px;
+    }
+
+    .login-header p {
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+        text-align: left;
+    }
+
+        .form-group label {
+            font-weight: 500;
+            color: white;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+            .form-group input:focus {
+                border-color: #4fc3f7;
+                outline: none;
+            }
+
+    .btn-login {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #4fc3f7, #1e88e5);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+        .btn-login:hover {
+            background: linear-gradient(135deg, #1e88e5, #4fc3f7);
+        }
+
+    .error-message {
+        color: #ff6b6b;
+        margin-top: 10px;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .footer-text {
+        margin-top: 20px;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.8);
+    }
+</style>
+
+@if (isAuthenticated)
+{
+    Navigation.NavigateTo("/");
+}
+else
+{
+    <div class="login-header">
+        <img src="/imagen/LogoGSC.png" alt="Logo GSCommerce" />
+        <h1>Bienvenido a GSCommerce</h1>
+        <p>Por favor, inicia sesión para continuar</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-message">@errorMessage</div>
+    }
+
+    <div class="form-group">
+        <label>Usuario</label>
+        <input type="text" @bind="loginRequest.Usuario" placeholder="Ingresa tu usuario" />
+    </div>
+
+    <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" @bind="loginRequest.Password" placeholder="Ingresa tu contraseña" />
+    </div>
+
+    <button class="btn-login" @onclick="HandleLogin">Iniciar Sesión</button>
+
+    <div class="footer-text">
+        © 2025 GSCommerce - Creado por Cipiriano Corporation
+    </div>
+}
+
+@code {
+    private LoginRequest loginRequest = new()
+        {
+            Usuario = string.Empty,
+            Password = string.Empty
+        };
+
+    private string? errorMessage;
+    private bool isAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        isAuthenticated = !string.IsNullOrEmpty(token); // Si hay token, está autenticado
+
+        Console.WriteLine($"🔹 Usuario autenticado: {isAuthenticated}");
+    }
+
+    private async Task HandleLogin()
+    {
+        var success = await AuthService.Login(loginRequest);
+        if (success)
+        {
+            var token = await LocalStorage.GetItemAsync<string>("authToken");
+            var cargo = await LocalStorage.GetItemAsync<string>("Cargo");
+
+            Console.WriteLine($"🔹 Token obtenido para autenticar: {token}");
+            Console.WriteLine($"🔹 Cargo obtenido: {cargo}");
+
+            if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(cargo))
+            {
+                await AuthStateProvider.MarkUserAsAuthenticated(token, cargo);
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                Console.WriteLine("❌ Error: Token o Cargo son nulos, autenticación fallida.");
+                errorMessage = "Hubo un problema al autenticar. Intente nuevamente.";
+            }
+        }
+        else
+        {
+            errorMessage = "Credenciales inválidas.";
+        }
+    }
+}

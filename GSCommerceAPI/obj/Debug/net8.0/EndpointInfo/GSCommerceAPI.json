@@ -1,0 +1,3237 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "GSCommerceAPI",
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/Almacen": {
+      "get": {
+        "tags": [
+          "Almacen"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Almacen"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Almacen"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Almacen"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Almacen"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Almacen"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Almacen"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Almacen"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Almacen"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Almacen"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Almacen"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Almacen/{id}": {
+      "get": {
+        "tags": [
+          "Almacen"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Almacen"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Almacen"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Almacen"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Almacen"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Almacen"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Almacen"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Almacen"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Almacen"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Articulos": {
+      "get": {
+        "tags": [
+          "Articulos"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Articulo"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Articulo"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Articulo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Articulos"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Articulo"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Articulo"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Articulo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Articulo"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Articulo"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Articulo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Articulos/{id}": {
+      "get": {
+        "tags": [
+          "Articulos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Articulo"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Articulo"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Articulo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Articulos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Articulo"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Articulo"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Articulo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Articulos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Clientes": {
+      "get": {
+        "tags": [
+          "Clientes"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Cliente"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Cliente"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Cliente"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Clientes/{id}": {
+      "get": {
+        "tags": [
+          "Clientes"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cliente"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cliente"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cliente"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Clientes"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Cliente"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Cliente"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Cliente"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Clientes"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Personal": {
+      "get": {
+        "tags": [
+          "Personal"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Personal"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Personal"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Personal"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Personal"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Personal"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Personal"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Personal"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Personal"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Personal"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Personal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Personal/{id}": {
+      "get": {
+        "tags": [
+          "Personal"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Personal"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Personal"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Personal"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Personal"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Personal"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Personal"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Personal"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Personal"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Personal/foto/{id}": {
+      "get": {
+        "tags": [
+          "Personal"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Personal/UploadFoto": {
+      "post": {
+        "tags": [
+          "Personal"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Personal/UploadFoto/{id}": {
+      "put": {
+        "tags": [
+          "Personal"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Usuarios": {
+      "get": {
+        "tags": [
+          "Usuarios"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Usuario"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Usuario"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Usuario"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Usuarios"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Usuario"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Usuario"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Usuario"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usuario"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usuario"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usuario"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Usuarios/{id}": {
+      "get": {
+        "tags": [
+          "Usuarios"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usuario"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usuario"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usuario"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Usuarios"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Usuario"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Usuario"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Usuario"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Usuarios"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/WeatherForecast": {
+      "get": {
+        "tags": [
+          "WeatherForecast"
+        ],
+        "operationId": "GetWeatherForecast",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeatherForecast"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeatherForecast"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeatherForecast"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Almacen": {
+        "type": "object",
+        "properties": {
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "esTienda": {
+            "type": "boolean"
+          },
+          "direccion": {
+            "type": "string",
+            "nullable": true
+          },
+          "dpd": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "celular": {
+            "type": "string",
+            "nullable": true
+          },
+          "razonSocial": {
+            "type": "string",
+            "nullable": true
+          },
+          "ruc": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "ubigeo": {
+            "type": "string",
+            "nullable": true
+          },
+          "certificado": {
+            "type": "string",
+            "nullable": true
+          },
+          "passwordCertificado": {
+            "type": "string",
+            "nullable": true
+          },
+          "abreviacion": {
+            "type": "string",
+            "nullable": true
+          },
+          "usuarioSol": {
+            "type": "string",
+            "nullable": true
+          },
+          "claveSol": {
+            "type": "string",
+            "nullable": true
+          },
+          "afectoIgv": {
+            "type": "boolean"
+          },
+          "almacenCuenta": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AlmacenCuentum"
+            },
+            "nullable": true
+          },
+          "aperturaCierreCajas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AperturaCierreCaja"
+            },
+            "nullable": true
+          },
+          "ingresosEgresosCabeceras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IngresosEgresosCabecera"
+            },
+            "nullable": true
+          },
+          "kardices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Kardex"
+            },
+            "nullable": true
+          },
+          "movimientosCabeceras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovimientosCabecera"
+            },
+            "nullable": true
+          },
+          "personals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Personal"
+            },
+            "nullable": true
+          },
+          "resumenCierreDeCajas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResumenCierreDeCaja"
+            },
+            "nullable": true
+          },
+          "serieCorrelativos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SerieCorrelativo"
+            },
+            "nullable": true
+          },
+          "stockAlmacens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockAlmacen"
+            },
+            "nullable": true
+          },
+          "tomaInventarios": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TomaInventario"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AlmacenCuentum": {
+        "type": "object",
+        "properties": {
+          "idAlmacenCuenta": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "banco": {
+            "type": "string",
+            "nullable": true
+          },
+          "cuenta": {
+            "type": "string",
+            "nullable": true
+          },
+          "cci": {
+            "type": "string",
+            "nullable": true
+          },
+          "idAlmacenNavigation": {
+            "$ref": "#/components/schemas/Almacen"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AlmacenDTO": {
+        "type": "object",
+        "properties": {
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "esTienda": {
+            "type": "boolean"
+          },
+          "direccion": {
+            "type": "string",
+            "nullable": true
+          },
+          "dpd": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "celular": {
+            "type": "string",
+            "nullable": true
+          },
+          "razonSocial": {
+            "type": "string",
+            "nullable": true
+          },
+          "ruc": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "ubigeo": {
+            "type": "string",
+            "nullable": true
+          },
+          "certificado": {
+            "type": "string",
+            "nullable": true
+          },
+          "passwordCertificado": {
+            "type": "string",
+            "nullable": true
+          },
+          "abreviacion": {
+            "type": "string",
+            "nullable": true
+          },
+          "usuarioSol": {
+            "type": "string",
+            "nullable": true
+          },
+          "claveSol": {
+            "type": "string",
+            "nullable": true
+          },
+          "afectoIgv": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AperturaCierreCaja": {
+        "type": "object",
+        "properties": {
+          "idAperturaCierre": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idUsuario": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date"
+          },
+          "fondoFijo": {
+            "type": "number",
+            "format": "double"
+          },
+          "saldoInicial": {
+            "type": "number",
+            "format": "double"
+          },
+          "ventaDia": {
+            "type": "number",
+            "format": "double"
+          },
+          "ingresos": {
+            "type": "number",
+            "format": "double"
+          },
+          "egresos": {
+            "type": "number",
+            "format": "double"
+          },
+          "saldoFinal": {
+            "type": "number",
+            "format": "double"
+          },
+          "estado": {
+            "type": "string",
+            "nullable": true
+          },
+          "observacionApertura": {
+            "type": "string",
+            "nullable": true
+          },
+          "observacionCierre": {
+            "type": "string",
+            "nullable": true
+          },
+          "idAlmacenNavigation": {
+            "$ref": "#/components/schemas/Almacen"
+          },
+          "idUsuarioNavigation": {
+            "$ref": "#/components/schemas/Usuario"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Articulo": {
+        "type": "object",
+        "properties": {
+          "idArticulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "descripcion": {
+            "type": "string",
+            "nullable": true
+          },
+          "descripcionCorta": {
+            "type": "string",
+            "nullable": true
+          },
+          "familia": {
+            "type": "string",
+            "nullable": true
+          },
+          "linea": {
+            "type": "string",
+            "nullable": true
+          },
+          "marca": {
+            "type": "string",
+            "nullable": true
+          },
+          "material": {
+            "type": "string",
+            "nullable": true
+          },
+          "modelo": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "detalle": {
+            "type": "string",
+            "nullable": true
+          },
+          "talla": {
+            "type": "string",
+            "nullable": true
+          },
+          "idProveedor": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unidadAlmacen": {
+            "type": "string",
+            "nullable": true
+          },
+          "monedaCosteo": {
+            "type": "string",
+            "nullable": true
+          },
+          "precioCompra": {
+            "type": "number",
+            "format": "double"
+          },
+          "precioVenta": {
+            "type": "number",
+            "format": "double"
+          },
+          "fechaRegistro": {
+            "type": "string",
+            "format": "date"
+          },
+          "foto": {
+            "type": "string",
+            "format": "byte",
+            "nullable": true
+          },
+          "codigoBarra": {
+            "type": "string",
+            "format": "byte",
+            "nullable": true
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "estacion": {
+            "type": "string",
+            "nullable": true
+          },
+          "comprobanteDeVentaDetalles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComprobanteDeVentaDetalle"
+            },
+            "nullable": true
+          },
+          "idProveedorNavigation": {
+            "$ref": "#/components/schemas/Proveedor"
+          },
+          "kardices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Kardex"
+            },
+            "nullable": true
+          },
+          "movimientosDetalles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovimientosDetalle"
+            },
+            "nullable": true
+          },
+          "ordenDeCompraDetalles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrdenDeCompraDetalle"
+            },
+            "nullable": true
+          },
+          "stockAlmacens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockAlmacen"
+            },
+            "nullable": true
+          },
+          "tomaInventarioDetalles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TomaInventarioDetalle"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Cliente": {
+        "type": "object",
+        "properties": {
+          "idCliente": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tipoDocumento": {
+            "type": "string",
+            "nullable": true
+          },
+          "dniruc": {
+            "type": "string",
+            "nullable": true
+          },
+          "nombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "direccion": {
+            "type": "string",
+            "nullable": true
+          },
+          "dpd": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "celular": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "comprobanteDeVentaCabeceras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComprobanteDeVentaCabecera"
+            },
+            "nullable": true
+          },
+          "notaDeCreditoCabeceras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotaDeCreditoCabecera"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ComprobanteDeVentaCabecera": {
+        "type": "object",
+        "properties": {
+          "idComprobante": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idTipoDocumento": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "serie": {
+            "type": "string",
+            "nullable": true
+          },
+          "numero": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "idCliente": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "dniruc": {
+            "type": "string",
+            "nullable": true
+          },
+          "nombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "direccion": {
+            "type": "string",
+            "nullable": true
+          },
+          "tipoCambio": {
+            "type": "number",
+            "format": "double"
+          },
+          "subTotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "igv": {
+            "type": "number",
+            "format": "double"
+          },
+          "total": {
+            "type": "number",
+            "format": "double"
+          },
+          "redondeo": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "apagar": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "idVendedor": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idCajero": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "estado": {
+            "type": "string",
+            "nullable": true
+          },
+          "fechaHoraRegistro": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "idUsuarioAnula": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "fechaHoraUsuarioAnula": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "generoNc": {
+            "type": "string",
+            "nullable": true
+          },
+          "comprobanteDeVentaDetalles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComprobanteDeVentaDetalle"
+            },
+            "nullable": true
+          },
+          "detallePagoVenta": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetallePagoVentum"
+            },
+            "nullable": true
+          },
+          "idClienteNavigation": {
+            "$ref": "#/components/schemas/Cliente"
+          },
+          "idTipoDocumentoNavigation": {
+            "$ref": "#/components/schemas/TipoDocumentoVentum"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ComprobanteDeVentaDetalle": {
+        "type": "object",
+        "properties": {
+          "idComprobante": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "item": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idArticulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "descripcion": {
+            "type": "string",
+            "nullable": true
+          },
+          "unidadMedida": {
+            "type": "string",
+            "nullable": true
+          },
+          "cantidad": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "precio": {
+            "type": "number",
+            "format": "double"
+          },
+          "porcentajeDescuento": {
+            "type": "number",
+            "format": "double"
+          },
+          "total": {
+            "type": "number",
+            "format": "double"
+          },
+          "idArticuloNavigation": {
+            "$ref": "#/components/schemas/Articulo"
+          },
+          "idComprobanteNavigation": {
+            "$ref": "#/components/schemas/ComprobanteDeVentaCabecera"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DetallePagoVentum": {
+        "type": "object",
+        "properties": {
+          "idDetallePagoVenta": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idComprobante": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idTipoPagoVenta": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "soles": {
+            "type": "number",
+            "format": "double"
+          },
+          "dolares": {
+            "type": "number",
+            "format": "double"
+          },
+          "datos": {
+            "type": "string",
+            "nullable": true
+          },
+          "vuelto": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "porcentajeTarjetaSoles": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "porcentajeTarjetaDolares": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "idComprobanteNavigation": {
+            "$ref": "#/components/schemas/ComprobanteDeVentaCabecera"
+          },
+          "idTipoPagoVentaNavigation": {
+            "$ref": "#/components/schemas/TipoPagoVentum"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GuiaRemisionCabecera": {
+        "type": "object",
+        "properties": {
+          "idGuiaRemision": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idMovimiento": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "serie": {
+            "type": "string",
+            "nullable": true
+          },
+          "numero": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "direccionOrigen": {
+            "type": "string",
+            "nullable": true
+          },
+          "dpdorigen": {
+            "type": "string",
+            "nullable": true
+          },
+          "tipoDestinatario": {
+            "type": "string",
+            "nullable": true
+          },
+          "razonSocialNombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "rucdnice": {
+            "type": "string",
+            "nullable": true
+          },
+          "direccionDestino": {
+            "type": "string",
+            "nullable": true
+          },
+          "dpddestino": {
+            "type": "string",
+            "nullable": true
+          },
+          "observaciones": {
+            "type": "string",
+            "nullable": true
+          },
+          "idUsuario": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "estado": {
+            "type": "string",
+            "nullable": true
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idProveedor": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idTipoDocumento": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idAlmacenDestino": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "guiaRemisionDetalles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GuiaRemisionDetalle"
+            },
+            "nullable": true
+          },
+          "idMovimientoNavigation": {
+            "$ref": "#/components/schemas/MovimientosCabecera"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GuiaRemisionDetalle": {
+        "type": "object",
+        "properties": {
+          "idGuiaRemision": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "item": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idArticulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "descripcionArticulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "cantidad": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unidadMedida": {
+            "type": "string",
+            "nullable": true
+          },
+          "idGuiaRemisionNavigation": {
+            "$ref": "#/components/schemas/GuiaRemisionCabecera"
+          }
+        },
+        "additionalProperties": false
+      },
+      "IngresosEgresosCabecera": {
+        "type": "object",
+        "properties": {
+          "idIngresoEgreso": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idUsuario": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "naturaleza": {
+            "type": "string",
+            "nullable": true
+          },
+          "tipo": {
+            "type": "string",
+            "nullable": true
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "glosa": {
+            "type": "string",
+            "nullable": true
+          },
+          "monto": {
+            "type": "number",
+            "format": "double"
+          },
+          "idProveedor": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idAlmacenDestino": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idCajeroDestino": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "fechaRegistro": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "estado": {
+            "type": "string",
+            "nullable": true
+          },
+          "idAlmacenGasto": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idAlmacenNavigation": {
+            "$ref": "#/components/schemas/Almacen"
+          },
+          "idUsuarioNavigation": {
+            "$ref": "#/components/schemas/Usuario"
+          },
+          "ingresosEgresosDetalles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IngresosEgresosDetalle"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "IngresosEgresosDetalle": {
+        "type": "object",
+        "properties": {
+          "idDetalleIngresoEgreso": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idIngresoEgreso": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "forma": {
+            "type": "string",
+            "nullable": true
+          },
+          "detalle": {
+            "type": "string",
+            "nullable": true
+          },
+          "monto": {
+            "type": "number",
+            "format": "double"
+          },
+          "banco": {
+            "type": "string",
+            "nullable": true
+          },
+          "cuenta": {
+            "type": "string",
+            "nullable": true
+          },
+          "imagen": {
+            "type": "string",
+            "format": "byte",
+            "nullable": true
+          },
+          "idIngresoEgresoNavigation": {
+            "$ref": "#/components/schemas/IngresosEgresosCabecera"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Kardex": {
+        "type": "object",
+        "properties": {
+          "idKardex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idArticulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "tipoMovimiento": {
+            "type": "string",
+            "nullable": true
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "saldoInicial": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cantidad": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "saldoFinal": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "valor": {
+            "type": "number",
+            "format": "double"
+          },
+          "origen": {
+            "type": "string",
+            "nullable": true
+          },
+          "noKardexGeneral": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "idAlmacenNavigation": {
+            "$ref": "#/components/schemas/Almacen"
+          },
+          "idArticuloNavigation": {
+            "$ref": "#/components/schemas/Articulo"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoginRequest": {
+        "required": [
+          "password",
+          "usuario"
+        ],
+        "type": "object",
+        "properties": {
+          "usuario": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "MovimientosCabecera": {
+        "type": "object",
+        "properties": {
+          "idMovimiento": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tipo": {
+            "type": "string",
+            "nullable": true
+          },
+          "motivo": {
+            "type": "string",
+            "nullable": true
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "descripcion": {
+            "type": "string",
+            "nullable": true
+          },
+          "idProveedor": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idAlmacenDestinoOrigen": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idOc": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idUsuario": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fechaHoraRegistro": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "idGuiaRemision": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idUsuarioConfirma": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "fechaHoraConfirma": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "estado": {
+            "type": "string",
+            "nullable": true
+          },
+          "guiaRemisionCabeceras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GuiaRemisionCabecera"
+            },
+            "nullable": true
+          },
+          "idAlmacenNavigation": {
+            "$ref": "#/components/schemas/Almacen"
+          },
+          "idOcNavigation": {
+            "$ref": "#/components/schemas/OrdenDeCompraCabecera"
+          },
+          "movimientosDetalles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovimientosDetalle"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "MovimientosDetalle": {
+        "type": "object",
+        "properties": {
+          "idMovimiento": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "item": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idArticulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "descripcionArticulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "cantidad": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "valor": {
+            "type": "number",
+            "format": "double"
+          },
+          "idArticuloNavigation": {
+            "$ref": "#/components/schemas/Articulo"
+          },
+          "idMovimientoNavigation": {
+            "$ref": "#/components/schemas/MovimientosCabecera"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NotaDeCreditoCabecera": {
+        "type": "object",
+        "properties": {
+          "idNc": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idTipoDocumento": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "serie": {
+            "type": "string",
+            "nullable": true
+          },
+          "numero": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "referencia": {
+            "type": "string",
+            "nullable": true
+          },
+          "idMotivo": {
+            "type": "string",
+            "nullable": true
+          },
+          "idCliente": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dniruc": {
+            "type": "string",
+            "nullable": true
+          },
+          "nombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "direccion": {
+            "type": "string",
+            "nullable": true
+          },
+          "subTotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "igv": {
+            "type": "number",
+            "format": "double"
+          },
+          "total": {
+            "type": "number",
+            "format": "double"
+          },
+          "redondeo": {
+            "type": "number",
+            "format": "double"
+          },
+          "afavor": {
+            "type": "number",
+            "format": "double"
+          },
+          "idUsuario": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "estado": {
+            "type": "string",
+            "nullable": true
+          },
+          "fechaHoraRegistro": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "empleada": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "idUsuarioAnula": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "fechaHoraUsuarioAnula": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "idClienteNavigation": {
+            "$ref": "#/components/schemas/Cliente"
+          },
+          "idTipoDocumentoNavigation": {
+            "$ref": "#/components/schemas/TipoDocumentoVentum"
+          },
+          "notaDeCreditoDetalles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotaDeCreditoDetalle"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "NotaDeCreditoDetalle": {
+        "type": "object",
+        "properties": {
+          "idNc": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "item": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idArticulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "descripcion": {
+            "type": "string",
+            "nullable": true
+          },
+          "unidadMedida": {
+            "type": "string",
+            "nullable": true
+          },
+          "cantidad": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "precio": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "porcentajeDescuento": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "total": {
+            "type": "number",
+            "format": "double"
+          },
+          "idNcNavigation": {
+            "$ref": "#/components/schemas/NotaDeCreditoCabecera"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OrdenDeCompraCabecera": {
+        "type": "object",
+        "properties": {
+          "idOc": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idProveedor": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "numeroOc": {
+            "type": "string",
+            "nullable": true
+          },
+          "fechaOc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rucproveedor": {
+            "type": "string",
+            "nullable": true
+          },
+          "nombreProveedor": {
+            "type": "string",
+            "nullable": true
+          },
+          "direccionProveedor": {
+            "type": "string",
+            "nullable": true
+          },
+          "moneda": {
+            "type": "string",
+            "nullable": true
+          },
+          "tipoCambio": {
+            "type": "number",
+            "format": "double"
+          },
+          "formaPago": {
+            "type": "string",
+            "nullable": true
+          },
+          "sinIgv": {
+            "type": "boolean"
+          },
+          "fechaEntrega": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "atencion": {
+            "type": "string",
+            "nullable": true
+          },
+          "glosa": {
+            "type": "string",
+            "nullable": true
+          },
+          "importeSubTotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "importeIgv": {
+            "type": "number",
+            "format": "double"
+          },
+          "importeTotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "estadoEmision": {
+            "type": "boolean"
+          },
+          "fechaEmision": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "estadoAtencion": {
+            "type": "string",
+            "nullable": true
+          },
+          "fechaAtencionTotal": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "fechaAnulado": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "fechaCierre": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "idUsuarioRegistra": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "fechaRegistra": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "idUsuarioRegistraNavigation": {
+            "$ref": "#/components/schemas/Usuario"
+          },
+          "movimientosCabeceras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovimientosCabecera"
+            },
+            "nullable": true
+          },
+          "ordenDeCompraDetalles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrdenDeCompraDetalle"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "OrdenDeCompraDetalle": {
+        "type": "object",
+        "properties": {
+          "idOc": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "item": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idArticulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "descripcionArticulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "unidadMedida": {
+            "type": "string",
+            "nullable": true
+          },
+          "cantidad": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "costoUnitario": {
+            "type": "number",
+            "format": "double"
+          },
+          "total": {
+            "type": "number",
+            "format": "double"
+          },
+          "idArticuloNavigation": {
+            "$ref": "#/components/schemas/Articulo"
+          },
+          "idOcNavigation": {
+            "$ref": "#/components/schemas/OrdenDeCompraCabecera"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Personal": {
+        "type": "object",
+        "properties": {
+          "idPersonal": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nombres": {
+            "type": "string",
+            "nullable": true
+          },
+          "apellidos": {
+            "type": "string",
+            "nullable": true
+          },
+          "docIdentidad": {
+            "type": "string",
+            "nullable": true
+          },
+          "numeroDocIdentidad": {
+            "type": "string",
+            "nullable": true
+          },
+          "ruc": {
+            "type": "string",
+            "nullable": true
+          },
+          "sexo": {
+            "type": "string",
+            "nullable": true
+          },
+          "fechaNacimiento": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "direccion": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "celular": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "estadoCivil": {
+            "type": "string",
+            "nullable": true
+          },
+          "tipoEmpleado": {
+            "type": "string",
+            "nullable": true
+          },
+          "lugarNacimiento": {
+            "type": "string",
+            "nullable": true
+          },
+          "nacionalidad": {
+            "type": "string",
+            "nullable": true
+          },
+          "gradoInstruccion": {
+            "type": "string",
+            "nullable": true
+          },
+          "especialidad": {
+            "type": "string",
+            "nullable": true
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "cargo": {
+            "type": "string",
+            "nullable": true
+          },
+          "fechaIngreso": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "fechaRegistro": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "foto": {
+            "type": "string",
+            "format": "byte",
+            "nullable": true
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "idAlmacenNavigation": {
+            "$ref": "#/components/schemas/Almacen"
+          },
+          "usuarios": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Usuario"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PersonalDTO": {
+        "type": "object",
+        "properties": {
+          "idPersonal": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nombres": {
+            "type": "string",
+            "nullable": true
+          },
+          "apellidos": {
+            "type": "string",
+            "nullable": true
+          },
+          "docIdentidad": {
+            "type": "string",
+            "nullable": true
+          },
+          "numeroDocIdentidad": {
+            "type": "string",
+            "nullable": true
+          },
+          "ruc": {
+            "type": "string",
+            "nullable": true
+          },
+          "sexo": {
+            "type": "string",
+            "nullable": true
+          },
+          "fechaNacimiento": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "direccion": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "celular": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "estadoCivil": {
+            "type": "string",
+            "nullable": true
+          },
+          "tipoEmpleado": {
+            "type": "string",
+            "nullable": true
+          },
+          "lugarNacimiento": {
+            "type": "string",
+            "nullable": true
+          },
+          "nacionalidad": {
+            "type": "string",
+            "nullable": true
+          },
+          "gradoInstruccion": {
+            "type": "string",
+            "nullable": true
+          },
+          "especialidad": {
+            "type": "string",
+            "nullable": true
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "cargo": {
+            "type": "string",
+            "nullable": true
+          },
+          "fechaIngreso": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "fechaRegistro": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "foto": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "idAlmacenNavigation": {
+            "$ref": "#/components/schemas/AlmacenDTO"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Proveedor": {
+        "type": "object",
+        "properties": {
+          "idProveedor": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tipoDocumento": {
+            "type": "string",
+            "nullable": true
+          },
+          "ruc": {
+            "type": "string",
+            "nullable": true
+          },
+          "tipoPersona": {
+            "type": "string",
+            "nullable": true
+          },
+          "nombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "nombreComercial": {
+            "type": "string",
+            "nullable": true
+          },
+          "direccion": {
+            "type": "string",
+            "nullable": true
+          },
+          "dpd": {
+            "type": "string",
+            "nullable": true
+          },
+          "pais": {
+            "type": "string",
+            "nullable": true
+          },
+          "formaPago": {
+            "type": "string",
+            "nullable": true
+          },
+          "banco": {
+            "type": "string",
+            "nullable": true
+          },
+          "cuenta": {
+            "type": "string",
+            "nullable": true
+          },
+          "cci": {
+            "type": "string",
+            "nullable": true
+          },
+          "contacto": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "celular": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "articulos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Articulo"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResumenCierreDeCaja": {
+        "type": "object",
+        "properties": {
+          "idResumen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idUsuario": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date"
+          },
+          "idGrupo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "grupo": {
+            "type": "string",
+            "nullable": true
+          },
+          "detalle": {
+            "type": "string",
+            "nullable": true
+          },
+          "monto": {
+            "type": "number",
+            "format": "double"
+          },
+          "fechaRegistro": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "idAlmacenNavigation": {
+            "$ref": "#/components/schemas/Almacen"
+          },
+          "idUsuarioNavigation": {
+            "$ref": "#/components/schemas/Usuario"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SerieCorrelativo": {
+        "type": "object",
+        "properties": {
+          "idSerieCorrelativo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idTipoDocumentoVenta": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "serie": {
+            "type": "string",
+            "nullable": true
+          },
+          "correlativo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "idAlmacenNavigation": {
+            "$ref": "#/components/schemas/Almacen"
+          },
+          "idTipoDocumentoVentaNavigation": {
+            "$ref": "#/components/schemas/TipoDocumentoVentum"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StockAlmacen": {
+        "type": "object",
+        "properties": {
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idArticulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "stock": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idAlmacenNavigation": {
+            "$ref": "#/components/schemas/Almacen"
+          },
+          "idArticuloNavigation": {
+            "$ref": "#/components/schemas/Articulo"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TipoDocumentoVentum": {
+        "type": "object",
+        "properties": {
+          "idTipoDocumentoVenta": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "descripcion": {
+            "type": "string",
+            "nullable": true
+          },
+          "abreviatura": {
+            "type": "string",
+            "nullable": true
+          },
+          "manual": {
+            "type": "boolean"
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "comprobanteDeVentaCabeceras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComprobanteDeVentaCabecera"
+            },
+            "nullable": true
+          },
+          "notaDeCreditoCabeceras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotaDeCreditoCabecera"
+            },
+            "nullable": true
+          },
+          "serieCorrelativos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SerieCorrelativo"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TipoPagoVentum": {
+        "type": "object",
+        "properties": {
+          "idTipoPagoVenta": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tipo": {
+            "type": "string",
+            "nullable": true
+          },
+          "descripcion": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "detallePagoVenta": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetallePagoVentum"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TomaInventario": {
+        "type": "object",
+        "properties": {
+          "idTomaInventario": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idAlmacen": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "estadoToma": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "intervienen": {
+            "type": "string",
+            "nullable": true
+          },
+          "idAlmacenNavigation": {
+            "$ref": "#/components/schemas/Almacen"
+          },
+          "tomaInventarioDetalles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TomaInventarioDetalle"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TomaInventarioDetalle": {
+        "type": "object",
+        "properties": {
+          "idTomaInventarioDetalle": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idTomaInventario": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "idArticulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "cantidad": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "sobrante": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "faltante": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idArticuloNavigation": {
+            "$ref": "#/components/schemas/Articulo"
+          },
+          "idTomaInventarioNavigation": {
+            "$ref": "#/components/schemas/TomaInventario"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Usuario": {
+        "type": "object",
+        "properties": {
+          "idUsuario": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "idPersonal": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "estado": {
+            "type": "boolean"
+          },
+          "clave": {
+            "type": "string",
+            "format": "byte",
+            "nullable": true
+          },
+          "aperturaCierreCajas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AperturaCierreCaja"
+            },
+            "nullable": true
+          },
+          "idPersonalNavigation": {
+            "$ref": "#/components/schemas/Personal"
+          },
+          "ingresosEgresosCabeceras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IngresosEgresosCabecera"
+            },
+            "nullable": true
+          },
+          "ordenDeCompraCabeceras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrdenDeCompraCabecera"
+            },
+            "nullable": true
+          },
+          "resumenCierreDeCajas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResumenCierreDeCaja"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WeatherForecast": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "temperatureC": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "temperatureF": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

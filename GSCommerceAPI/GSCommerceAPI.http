@@ -1,0 +1,6 @@
+@GSCommerceAPI_HostAddress = http://localhost:5051
+
+GET {{GSCommerceAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
