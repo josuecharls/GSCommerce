@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "GSCommerce.Client",
   "resources": {
-    "hash": "sha256-cO9TL4eKft3gB7fjzyZ0Igjr6sFzy5Tkj4YBPX7owrY=",
+    "hash": "sha256-aBjCSP5CWbhGlwtowNaKjnxz6XDTs9NgNx5g8JQ4iZ0=",
     "jsModuleNative": {
       "dotnet.native.8.0.12.6vijxu4gk0.js": "sha256-B6DNRvFeCUi3jbx9uKpuj+hV9cN0KG4RdZj1FgBZwj8="
     },
@@ -216,10 +216,10 @@
       "mscorlib.wasm": "sha256-QoC5hTKpDNO6efLnEvYwV9OJBXvYRq8/1yGhNZKiNCw=",
       "netstandard.wasm": "sha256-JT2F4bYWJpaSGq+iD0ITLpWxsDhMUjhqje9RpBtTg7w=",
       "System.Private.CoreLib.wasm": "sha256-fvIPBcvgvsRuWrKi2LGQsLYvcKUSnyIuBUsE3LJu/0Y=",
-      "GSCommerce.Client.wasm": "sha256-JuNxLapjM4q/VVKPEY8ziyRIhmznXV7g95yccr8v61k="
+      "GSCommerce.Client.wasm": "sha256-cjD/YIwFUtYkZ05rmKEPmqIBAVl8sX+oqwzvzTEzUts="
     },
     "pdb": {
-      "GSCommerce.Client.pdb": "sha256-V5QPFpzdYTL48+yaMAVfpo8RN6IrhKmkEMpblbEWmgY="
+      "GSCommerce.Client.pdb": "sha256-8Ik692PKDJr0Lwd3d4g8BtXE09/JH9xvsk8U4A33eCw="
     }
   },
   "cacheBootResources": true,

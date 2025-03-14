@@ -3,78 +3,46 @@
   "WorkspaceRootPath": "D:\\GSCommerce\\GSCommerce\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\pages\\maestros.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\pages\\maestros.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\pages\\almacenedit.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\pages\\almacenedit.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\pages\\almacenform.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\pages\\almacenform.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\pages\\personaledit.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\pages\\personaledit.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\services\\almacenservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\services\\almacenservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\pages\\almacen.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\pages\\almacen.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\pages\\home.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\pages\\home.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{04077866-85A7-471E-985A-03612D688B64}|GSCommerceAPI\\GSCommerceAPI.csproj|d:\\gscommerce\\gscommerce\\gscommerceapi\\controllers\\articuloscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{04077866-85A7-471E-985A-03612D688B64}|GSCommerceAPI\\GSCommerceAPI.csproj|solutionrelative:gscommerceapi\\controllers\\articuloscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\layout\\loginlayout.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\layout\\loginlayout.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{04077866-85A7-471E-985A-03612D688B64}|GSCommerceAPI\\GSCommerceAPI.csproj|d:\\gscommerce\\gscommerce\\gscommerceapi\\controllers\\almacencontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{04077866-85A7-471E-985A-03612D688B64}|GSCommerceAPI\\GSCommerceAPI.csproj|solutionrelative:gscommerceapi\\controllers\\almacencontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\layout\\mainlayout.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\layout\\mainlayout.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\layout\\navmenu.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\layout\\navmenu.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\pages\\login.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\pages\\login.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\pages\\redirecttologin.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\pages\\redirecttologin.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\services\\authservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\services\\authservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{04077866-85A7-471E-985A-03612D688B64}|GSCommerceAPI\\GSCommerceAPI.csproj|d:\\gscommerce\\gscommerce\\gscommerceapi\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{04077866-85A7-471E-985A-03612D688B64}|GSCommerceAPI\\GSCommerceAPI.csproj|solutionrelative:gscommerceapi\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\app.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\app.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\services\\customauthstateprovider.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\services\\customauthstateprovider.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{04077866-85A7-471E-985A-03612D688B64}|GSCommerceAPI\\GSCommerceAPI.csproj|d:\\gscommerce\\gscommerce\\gscommerceapi\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{04077866-85A7-471E-985A-03612D688B64}|GSCommerceAPI\\GSCommerceAPI.csproj|solutionrelative:gscommerceapi\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\properties\\launchsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\layout\\mainlayout.razor.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\layout\\mainlayout.razor.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|d:\\gscommerce\\gscommerce\\gscommerce.client\\wwwroot\\manifest.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{C6D7701A-5A2F-4B7A-A869-F7941F52FC8D}|GSCommerce.Client\\GSCommerce.Client.csproj|solutionrelative:gscommerce.client\\wwwroot\\manifest.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+      "AbsoluteMoniker": "D:0:0:{04077866-85A7-471E-985A-03612D688B64}|GSCommerceAPI\\GSCommerceAPI.csproj|d:\\gscommerce\\gscommerce\\gscommerceapi\\controllers\\personalcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{04077866-85A7-471E-985A-03612D688B64}|GSCommerceAPI\\GSCommerceAPI.csproj|solutionrelative:gscommerceapi\\controllers\\personalcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
     {
-      "Orientation": 1,
+      "Orientation": 0,
       "VerticalTabListWidth": 256,
       "DocumentGroups": [
         {
-          "DockedHeight": 200,
-          "SelectedChildIndex": 3,
+          "DockedWidth": 200,
+          "SelectedChildIndex": -1,
           "Children": [
             {
               "$type": "Bookmark",
@@ -83,210 +51,116 @@
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "Almacen.razor",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\Almacen.razor",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\Pages\\Almacen.razor",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\Almacen.razor",
-              "RelativeToolTip": "GSCommerce.Client\\Pages\\Almacen.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAPAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-03-11T21:36:39.816Z",
-              "EditorCaption": ""
-            },
+            }
+          ]
+        },
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "Maestros.razor",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\Maestros.razor",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\Pages\\Maestros.razor",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\Maestros.razor",
-              "RelativeToolTip": "GSCommerce.Client\\Pages\\Maestros.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAAGAAAAAAAAAA==",
+              "Title": "AlmacenEdit.razor",
+              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\AlmacenEdit.razor",
+              "RelativeDocumentMoniker": "GSCommerce.Client\\Pages\\AlmacenEdit.razor",
+              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\AlmacenEdit.razor",
+              "RelativeToolTip": "GSCommerce.Client\\Pages\\AlmacenEdit.razor",
+              "ViewState": "AgIAAA8AAAAAAAAAAAAAABwAAAASAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-03-11T21:33:04.866Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "Login.razor",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\Login.razor",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\Pages\\Login.razor",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\Login.razor",
-              "RelativeToolTip": "GSCommerce.Client\\Pages\\Login.razor",
-              "ViewState": "AgIAAGAAAAAAAAAAAAAAAHkAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-03-11T06:11:12.843Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "NavMenu.razor",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Layout\\NavMenu.razor",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\Layout\\NavMenu.razor",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Layout\\NavMenu.razor",
-              "RelativeToolTip": "GSCommerce.Client\\Layout\\NavMenu.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAKAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-03-11T10:01:23.019Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "Home.razor",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\Home.razor",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\Pages\\Home.razor",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\Home.razor",
-              "RelativeToolTip": "GSCommerce.Client\\Pages\\Home.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAYAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-03-11T08:40:49.7Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": "RedirectToLogin.razor",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\RedirectToLogin.razor",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\Pages\\RedirectToLogin.razor",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\RedirectToLogin.razor",
-              "RelativeToolTip": "GSCommerce.Client\\Pages\\RedirectToLogin.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-03-11T09:29:16.836Z",
+              "WhenOpened": "2025-03-13T22:13:28.509Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 4,
-              "Title": "MainLayout.razor",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Layout\\MainLayout.razor",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\Layout\\MainLayout.razor",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Layout\\MainLayout.razor",
-              "RelativeToolTip": "GSCommerce.Client\\Layout\\MainLayout.razor",
-              "ViewState": "AgIAAAIAAAAAAAAAAAAAAA8AAAAOAAAAAAAAAA==",
+              "Title": "Almacen.razor",
+              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\Almacen.razor",
+              "RelativeDocumentMoniker": "GSCommerce.Client\\Pages\\Almacen.razor",
+              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\Almacen.razor",
+              "RelativeToolTip": "GSCommerce.Client\\Pages\\Almacen.razor",
+              "ViewState": "AgIAAKsAAAAAAAAAAAAAALkAAAArAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-03-11T08:51:27.353Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-03-13T22:12:27.338Z"
             },
             {
               "$type": "Document",
               "DocumentIndex": 3,
-              "Title": "LoginLayout.razor",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Layout\\LoginLayout.razor",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\Layout\\LoginLayout.razor",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Layout\\LoginLayout.razor",
-              "RelativeToolTip": "GSCommerce.Client\\Layout\\LoginLayout.razor",
-              "ViewState": "AgIAACQAAAAAAAAAAAAAAB8AAAAGAAAAAAAAAA==",
+              "Title": "AlmacenService.cs",
+              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Services\\AlmacenService.cs",
+              "RelativeDocumentMoniker": "GSCommerce.Client\\Services\\AlmacenService.cs",
+              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Services\\AlmacenService.cs",
+              "RelativeToolTip": "GSCommerce.Client\\Services\\AlmacenService.cs",
+              "ViewState": "AgIAAGQAAAAAAAAAAAAcwCcAAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-12T17:40:55.164Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "ArticulosController.cs",
+              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerceAPI\\Controllers\\ArticulosController.cs",
+              "RelativeDocumentMoniker": "GSCommerceAPI\\Controllers\\ArticulosController.cs",
+              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerceAPI\\Controllers\\ArticulosController.cs",
+              "RelativeToolTip": "GSCommerceAPI\\Controllers\\ArticulosController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAAAfAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-13T22:11:18.386Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "AlmacenController.cs",
+              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerceAPI\\Controllers\\AlmacenController.cs",
+              "RelativeDocumentMoniker": "GSCommerceAPI\\Controllers\\AlmacenController.cs",
+              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerceAPI\\Controllers\\AlmacenController.cs",
+              "RelativeToolTip": "GSCommerceAPI\\Controllers\\AlmacenController.cs",
+              "ViewState": "AgIAACMAAAAAAAAAAAAswDIAAAAiAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-12T17:53:33.402Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "PersonalController.cs",
+              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerceAPI\\Controllers\\PersonalController.cs",
+              "RelativeDocumentMoniker": "GSCommerceAPI\\Controllers\\PersonalController.cs",
+              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerceAPI\\Controllers\\PersonalController.cs",
+              "RelativeToolTip": "GSCommerceAPI\\Controllers\\PersonalController.cs",
+              "ViewState": "AgIAAHwAAAAAAAAAAAAiwFsAAAAvAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-12T05:15:35.184Z"
+            }
+          ]
+        },
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "AlmacenForm.razor",
+              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\AlmacenForm.razor",
+              "RelativeDocumentMoniker": "GSCommerce.Client\\Pages\\AlmacenForm.razor",
+              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\AlmacenForm.razor",
+              "RelativeToolTip": "GSCommerce.Client\\Pages\\AlmacenForm.razor",
+              "ViewState": "AgIAAEIAAAAAAAAAAAAAAD0AAAAuAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-03-11T09:38:49.289Z",
+              "WhenOpened": "2025-03-13T22:12:17.872Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
-              "Title": "AuthService.cs",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Services\\AuthService.cs",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\Services\\AuthService.cs",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Services\\AuthService.cs",
-              "RelativeToolTip": "GSCommerce.Client\\Services\\AuthService.cs",
-              "ViewState": "AgIAABEAAAAAAAAAAAAQwCYAAABIAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-11T19:56:50.276Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 10,
-              "Title": "App.razor",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\App.razor",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\App.razor",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\App.razor",
-              "RelativeToolTip": "GSCommerce.Client\\App.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAADEAAAABAAAAAAAAAA==",
+              "DocumentIndex": 2,
+              "Title": "PersonalEdit.razor",
+              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\PersonalEdit.razor",
+              "RelativeDocumentMoniker": "GSCommerce.Client\\Pages\\PersonalEdit.razor",
+              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Pages\\PersonalEdit.razor",
+              "RelativeToolTip": "GSCommerce.Client\\Pages\\PersonalEdit.razor",
+              "ViewState": "AgIAAB4AAAAAAAAAAAAAADAAAAAMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-03-11T09:22:42.275Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 9,
-              "Title": "AuthController.cs",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerceAPI\\Controllers\\AuthController.cs",
-              "RelativeDocumentMoniker": "GSCommerceAPI\\Controllers\\AuthController.cs",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerceAPI\\Controllers\\AuthController.cs",
-              "RelativeToolTip": "GSCommerceAPI\\Controllers\\AuthController.cs",
-              "ViewState": "AgIAAAkAAAAAAAAAAAAAAF0AAAANAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-11T10:22:09.171Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 11,
-              "Title": "CustomAuthStateProvider.cs",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Services\\CustomAuthStateProvider.cs",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\Services\\CustomAuthStateProvider.cs",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Services\\CustomAuthStateProvider.cs",
-              "RelativeToolTip": "GSCommerce.Client\\Services\\CustomAuthStateProvider.cs",
-              "ViewState": "AgIAACIAAAAAAAAAAAAIwDIAAAAXAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-11T09:44:10.561Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 12,
-              "Title": "appsettings.json",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerceAPI\\appsettings.json",
-              "RelativeDocumentMoniker": "GSCommerceAPI\\appsettings.json",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerceAPI\\appsettings.json",
-              "RelativeToolTip": "GSCommerceAPI\\appsettings.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABEAAAAGAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-03-11T10:27:10.869Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 13,
-              "Title": "launchSettings.json",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Properties\\launchSettings.json",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\Properties\\launchSettings.json",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Properties\\launchSettings.json",
-              "RelativeToolTip": "GSCommerce.Client\\Properties\\launchSettings.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAADAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-03-11T09:35:51.863Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 14,
-              "Title": "MainLayout.razor.css",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Layout\\MainLayout.razor.css",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\Layout\\MainLayout.razor.css",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\Layout\\MainLayout.razor.css",
-              "RelativeToolTip": "GSCommerce.Client\\Layout\\MainLayout.razor.css",
-              "ViewState": "AgIAAAMAAAAAAAAAAAAAABIAAAAQAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003000|",
-              "WhenOpened": "2025-03-11T09:20:57.726Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 15,
-              "Title": "manifest.json",
-              "DocumentMoniker": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\wwwroot\\manifest.json",
-              "RelativeDocumentMoniker": "GSCommerce.Client\\wwwroot\\manifest.json",
-              "ToolTip": "D:\\GSCommerce\\GSCommerce\\GSCommerce.Client\\wwwroot\\manifest.json",
-              "RelativeToolTip": "GSCommerce.Client\\wwwroot\\manifest.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAWAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-03-11T08:48:25.191Z"
+              "WhenOpened": "2025-03-13T22:11:54.567Z"
             }
           ]
         }

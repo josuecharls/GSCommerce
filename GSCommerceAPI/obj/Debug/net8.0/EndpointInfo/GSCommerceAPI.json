@@ -18,7 +18,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Almacen"
+                    "$ref": "#/components/schemas/AlmacenDTO"
                   }
                 }
               },
@@ -26,7 +26,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Almacen"
+                    "$ref": "#/components/schemas/AlmacenDTO"
                   }
                 }
               },
@@ -34,7 +34,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Almacen"
+                    "$ref": "#/components/schemas/AlmacenDTO"
                   }
                 }
               }
@@ -85,6 +85,45 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/Almacen/list": {
+      "get": {
+        "tags": [
+          "Almacen"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -1286,33 +1325,6 @@
             "nullable": true
           },
           "estado": {
-            "type": "boolean"
-          },
-          "ubigeo": {
-            "type": "string",
-            "nullable": true
-          },
-          "certificado": {
-            "type": "string",
-            "nullable": true
-          },
-          "passwordCertificado": {
-            "type": "string",
-            "nullable": true
-          },
-          "abreviacion": {
-            "type": "string",
-            "nullable": true
-          },
-          "usuarioSol": {
-            "type": "string",
-            "nullable": true
-          },
-          "claveSol": {
-            "type": "string",
-            "nullable": true
-          },
-          "afectoIgv": {
             "type": "boolean"
           }
         },

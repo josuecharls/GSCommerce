@@ -1,0 +1,137 @@
+﻿@page "/almacen-form"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject AlmacenService AlmacenService
+@inject NavigationManager Navigation
+
+<h3>Crear Nuevo Almacén</h3>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (successMessage != null)
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <EditForm Model="@almacen" OnValidSubmit="@HandleValidSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="row">
+                <!-- Nombre -->
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Nombre</label>
+                        <InputText @bind-Value="almacen.Nombre" class="form-control" required />
+                        <ValidationMessage For="@(() => almacen.Nombre)" class="text-danger" />
+                    </div>
+                </div>
+
+                <!-- Dirección -->
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Dirección</label>
+                        <InputText @bind-Value="almacen.Direccion" class="form-control" required />
+                        <ValidationMessage For="@(() => almacen.Direccion)" class="text-danger" />
+                    </div>
+                </div>
+
+                <!-- Dpt (Departamento, Provincia, Distrito) -->
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Dpt (Departamento, Provincia, Distrito)</label>
+                        <InputText @bind-Value="almacen.Dpd" class="form-control" />
+                    </div>
+                </div>
+
+                <!-- Teléfono -->
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <InputText @bind-Value="almacen.Telefono" class="form-control"/>       
+                    </div>
+                </div>
+
+                <!-- Celular -->
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Celular</label>
+                        <InputText @bind-Value="almacen.Celular" class="form-control"/>
+                    </div>
+                </div>
+
+                <!-- Razón Social -->
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Razón Social</label>
+                        <InputText @bind-Value="almacen.RazonSocial" class="form-control" />
+                    </div>
+                </div>
+
+                <!-- RUC -->
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>RUC</label>
+                        <InputText @bind-Value="almacen.Ruc" class="form-control" pattern="^\d{10}$" required />
+                        <ValidationMessage For="@(() => almacen.Ruc)" class="text-danger" />
+                    </div>
+                </div>
+
+                <!-- Estado -->
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <InputSelect @bind-Value="almacen.Estado" class="form-control">
+                            <option value="true">Habilitado</option>
+                            <option value="false">Inhabilitado</option>
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <!-- ¿Es Tienda? -->
+                <div class="col-md-12">
+                    <div class="form-group form-check">
+                        <InputCheckbox @bind-Value="almacen.EsTienda" class="form-check-input" />
+                        <label class="form-check-label">¿Es Tienda?</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="mt-3 d-flex justify-content-between">
+                <button type="submit" class="btn btn-primary">Guardar</button>
+                <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private AlmacenDTO almacen = new();
+    private string? errorMessage;
+    private string? successMessage;
+
+    private async Task HandleValidSubmit()
+    {
+        var success = await AlmacenService.CreateAlmacen(almacen);
+        if (success)
+        {
+            successMessage = "Almacén creado exitosamente.";
+            await Task.Delay(1500);
+            Navigation.NavigateTo("/almacen");
+        }
+        else
+        {
+            errorMessage = "Error al crear el almacén. Intente nuevamente.";
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/almacen");
+    }
+}
