@@ -34,6 +34,14 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWxtYWNlbi5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[D:/GSCommerce/GSCommerce/GSCommerce.Client/Pages/AlmacenEdit.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWxtYWNlbkVkaXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/GSCommerce/GSCommerce/GSCommerce.Client/Pages/AlmacenForm.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWxtYWNlbkZvcm0ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [D:/GSCommerce/GSCommerce/GSCommerce.Client/Pages/Counter.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ291bnRlci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 

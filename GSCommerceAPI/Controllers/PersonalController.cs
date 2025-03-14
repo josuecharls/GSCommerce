@@ -58,6 +58,7 @@ namespace GSCommerceAPI.Controllers
             }
             return personal;
         }
+
         //GET: api/personal/foto/numero (Obtener la foto de un registro por ID)
         [HttpGet("foto/{id}")]
         public async Task<IActionResult> GetFoto(int id)

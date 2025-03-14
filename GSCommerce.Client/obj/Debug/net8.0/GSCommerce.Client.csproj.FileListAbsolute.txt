@@ -1069,3 +1069,4 @@ D:\GSCommerce\GSCommerce\GSCommerce.Client\obj\Debug\net8.0\GSCommerce.Client.dl
 D:\GSCommerce\GSCommerce\GSCommerce.Client\obj\Debug\net8.0\refint\GSCommerce.Client.dll
 D:\GSCommerce\GSCommerce\GSCommerce.Client\obj\Debug\net8.0\GSCommerce.Client.pdb
 D:\GSCommerce\GSCommerce\GSCommerce.Client\obj\Debug\net8.0\ref\GSCommerce.Client.dll
+D:\GSCommerce\GSCommerce\GSCommerce.Client\obj\Debug\net8.0\GSCommerce.Client.sourcelink.json

@@ -1,0 +1,81 @@
+﻿@page "/almacen/edit/{id:int}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject AlmacenService AlmacenService
+@inject NavigationManager Navigation
+@inject HttpClient Http
+
+<h3>Editar Almacén</h3>
+
+@if (almacen != null)
+{
+    <div class="card p-4 shadow-lg">
+        <form @onsubmit="GuardarCambios">
+            <div class="mb-3">
+                <label class="form-label">Nombre</label>
+                <input type="text" class="form-control" @bind="almacen.Nombre" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Dirección</label>
+                <input type="text" class="form-control" @bind="almacen.Direccion" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Departamento, Provincia, Distrito</label>
+                <input type="text" class="form-control" @bind="almacen.Dpd" required/>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">RUC</label>
+                <input type="text" class="form-control" @bind="almacen.Ruc" required />
+            </div>
+            <div class="mb-3">
+            <label class="form-label">Razon Social</label>
+            <input type="text" class="form-control" @bind="almacen.RazonSocial" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Celular</label>
+                <input type="text" class="form-control" @bind="almacen.Celular" required/>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Teléfono</label>
+                <input type="text" class="form-control" @bind="almacen.Telefono" required/>
+            </div>
+
+            <div class="text-center">
+                <button type="submit" class="btn btn-success me-2">Guardar Cambios</button>
+                <button type="button" class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+            </div>
+        </form>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; } // Aquí nos aseguramos de que el id sea un entero
+
+    private AlmacenDTO? almacen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacen = await AlmacenService.GetAlmacenById(id);
+        if (almacen == null)
+        {
+            Navigation.NavigateTo("/almacen");
+        }
+    }
+
+    private async Task GuardarCambios()
+    {
+        if (almacen != null)
+        {
+            await AlmacenService.UpdateAlmacen(id, almacen);
+            Navigation.NavigateTo("/almacen");
+        }
+    }
+
+    private void Cancelar()
+    {
+        Navigation.NavigateTo("/almacen");
+    }   
+
+}
+

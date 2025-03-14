@@ -196,3 +196,4 @@ D:\GSCommerce\GSCommerce\GSCommerceAPI\bin\Debug\net8.0\Blazored.LocalStorage.dl
 D:\GSCommerce\GSCommerce\GSCommerceAPI\bin\Debug\net8.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
 D:\GSCommerce\GSCommerce\GSCommerceAPI\bin\Debug\net8.0\Microsoft.AspNetCore.Components.Authorization.dll
 D:\GSCommerce\GSCommerce\GSCommerceAPI\bin\Debug\net8.0\Microsoft.Bcl.Memory.dll
+D:\GSCommerce\GSCommerce\GSCommerceAPI\obj\Debug\net8.0\GSCommerceAPI.sourcelink.json
