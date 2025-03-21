@@ -3,16 +3,19 @@
 @using GSCommerce.Client.Services
 @inject AlmacenService AlmacenService
 @inject NavigationManager Navigation
+ 
 @using Microsoft.AspNetCore.Components.Forms
 
-<h3>Lista de Tiendas</h3>
 
-<button @onclick="CreateNewAlmacen" class="btn btn-success">+ Nuevo Almacén</button>
+<h3>📦 Lista de Almacenes</h3>
 
-<input type="text" @bind="searchTerm" placeholder="Buscar por nombre..." />
-<button @onclick="SearchAlmacen">Buscar</button>
+<button @onclick="CreateNewAlmacen" class="btn btn-success mb-3">+ Nuevo Almacén</button>
 
-<table class="table">
+<input type="text" @bind="searchTerm" placeholder="Buscar por nombre..." class="form-control mb-2" />
+<button @onclick="SearchAlmacen" class="btn btn-primary">🔍 Buscar</button>
+
+<table class="table table-striped">
+ 
     <thead>
         <tr>
             <th>Nombre</th>
@@ -34,10 +37,17 @@
                     <td>@a.RazonSocial</td>
                     <td class="text-center">
                         <button @onclick="() => EditAlmacen(a.IdAlmacen)" class="btn btn-warning btn-sm me-1">
+ 
                             <i class="bi bi-pencil-square"></i>
                         </button>
                         <button @onclick="() => ConfirmDeleteAlmacen(a.IdAlmacen, a.Nombre)" class="btn btn-danger btn-sm">
                             <i class="bi bi-trash"></i>
+ 
+                            <i class="bi bi-pencil-square"></i> Editar
+                        </button>
+                        <button @onclick="() => ConfirmDeleteAlmacen(a.IdAlmacen, a.Nombre)" class="btn btn-danger btn-sm">
+                            <i class="bi bi-trash"></i> Eliminar
+ 
                         </button>
                     </td>
                 </tr>
@@ -45,6 +55,7 @@
         }
         else
         {
+ 
             <tr><td colspan="3" class="text-center">Cargando... Espere...</td></tr>
         }
     </tbody>
@@ -52,11 +63,11 @@
 <!-- Controles de paginación -->
 <div class="d-flex justify-content-between">
     <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(!CanPrev)">
-        <i class="bi bi-arrow-left"></i> Anterior
+        ⬅️ Anterior
     </button>
     <span>Página @currentPage de @totalPages</span>
     <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanNext)">
-        Siguiente <i class="bi bi-arrow-right"></i>
+        Siguiente ➡️
     </button>
 </div>
 
@@ -67,6 +78,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
+ 
                     <h5 class="modal-title">Confirmar Eliminación</h5>
                     <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
                 </div>
@@ -76,6 +88,17 @@
                 <div class="modal-footer">
                     <button class="btn btn-danger" @onclick="DeleteConfirmed">Sí</button>
                     <button class="btn btn-secondary" @onclick="CloseDeleteModal">No</button>
+ 
+                    <h5 class="modal-title">⚠️ Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <p>¿Desea eliminar el almacén <strong>@deleteAlmacenName</strong> de la base de datos?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger" @onclick="DeleteConfirmed">🗑️ Sí</button>
+                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">❌ No</button>
+ 
                 </div>
             </div>
         </div>
@@ -87,47 +110,12 @@
     private int currentPage = 1;
     private int pageSize = 10;
     private int totalPages;
-    private string searchTerm="";
+    private string searchTerm = "";
     private bool isDeleting = false;
     private bool showDeleteModal = false;
-    private PersonalDTO? selectedAlmacen;
     private int deleteAlmacenId;
     private string deleteAlmacenName = "";
-
-    private void ConfirmDeleteAlmacen(int id, string name)
-    {
-        deleteAlmacenId = id;
-        deleteAlmacenName = name;
-        showDeleteModal = true;
-    }
-
-    private void CloseDeleteModal()
-    {
-        showDeleteModal = false;
-        deleteAlmacenId = 0;
-        deleteAlmacenName = "";
-    }
-
-    private async Task DeleteConfirmed()
-    {
-        if (!isDeleting && deleteAlmacenId > 0)
-        {
-            isDeleting = true;
-            try
-            {
-                if (await AlmacenService.DeleteAlmacen(deleteAlmacenId))
-                {
-                    await LoadAlmacen();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error al eliminar: {ex.Message}");
-            }
-            isDeleting = false;
-            CloseDeleteModal();
-        }
-    }
+ 
 
     protected override async Task OnInitializedAsync()
     {
@@ -138,13 +126,13 @@
     {
         try
         {
-            var response = await AlmacenService.GetAlmacenList(currentPage,pageSize,searchTerm);
+            var response = await AlmacenService.GetAlmacenList(currentPage, pageSize, searchTerm);
             almacenList = response.Data;
             totalPages = response.TotalPages;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al cargar almacenes: {ex.Message}");
+            Console.WriteLine($"⚠️ Error al cargar almacenes: {ex.Message}");
         }
     }
 
@@ -182,7 +170,41 @@
         Navigation.NavigateTo($"/almacen/edit/{id}");
     }
 
+    private void ConfirmDeleteAlmacen(int id, string name)
+    {
+        deleteAlmacenId = id;
+        deleteAlmacenName = name;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        deleteAlmacenId = 0;
+        deleteAlmacenName = "";
+    }
+
+    private async Task DeleteConfirmed()
+    {
+        if (!isDeleting && deleteAlmacenId > 0)
+        {
+            isDeleting = true;
+            try
+            {
+                if (await AlmacenService.DeleteAlmacen(deleteAlmacenId))
+                {
+                    await LoadAlmacen();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Error al eliminar: {ex.Message}");
+            }
+            isDeleting = false;
+            CloseDeleteModal();
+        }
+    }
+
     private bool CanPrev => currentPage > 1;
     private bool CanNext => currentPage < totalPages;
-
 }

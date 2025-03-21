@@ -20,8 +20,7 @@ namespace GSCommerceAPI.Controllers
             _context = context;
         }
 
-
-
+ 
         // GET: api/almacenes (Obtener todos los almacenes)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<AlmacenDTO>>> GetAlmacens()
@@ -44,7 +43,29 @@ namespace GSCommerceAPI.Controllers
 
             return Ok(almacenes);
         }
-        // GET: api/almacenes/list (Obtener todos los almacenes con paginación)
+
+        // GET: api/almacen/5 (Obtener un almacén por ID)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Almacen>> GetAlmacen(int id)
+        {
+            var almacen = await _context.Almacens.FindAsync(id);
+            if (almacen == null)
+            {
+                return NotFound();
+            }
+            return Ok(almacen);
+        }
+
+        // POST: api/almacen (Crear un nuevo almacén)
+        [HttpPost]
+        public async Task<ActionResult<Almacen>> PostAlmacen(Almacen almacen)
+        {
+            _context.Almacens.Add(almacen);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetAlmacen), new { id = almacen.IdAlmacen }, almacen);
+        }
+
         [HttpGet("list")]
         public async Task<ActionResult> GetAlmacenList(
     [FromQuery] int page = 1,
@@ -87,29 +108,7 @@ namespace GSCommerceAPI.Controllers
             return Ok(response);
         }
 
-        // GET: api/almacenes/5 (Obtener un almacén por ID)
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Almacen>> GetAlmacen(int id)
-        {
-            var almacen = await _context.Almacens.FindAsync(id);
-            if (almacen == null)
-            {
-                return NotFound();
-            }
-            return almacen;
-        }
-
-        // POST: api/almacenes (Crear un nuevo almacén)
-        [HttpPost]
-        public async Task<ActionResult<Almacen>> PostAlmacen(Almacen almacen)
-        {
-            _context.Almacens.Add(almacen);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetAlmacen), new { id = almacen.IdAlmacen }, almacen);
-        }
-
-        // PUT: api/almacenes/5 (Actualizar un almacén)
+        // PUT: api/almacen/5 (Actualizar un almacén)
         [HttpPut("{id}")]
         public async Task<IActionResult> PutAlmacen(int id, Almacen almacen)
         {
@@ -139,7 +138,7 @@ namespace GSCommerceAPI.Controllers
             return NoContent();
         }
 
-        // DELETE: api/almacenes/5 (Eliminar un almacén)
+        // DELETE: api/almacen/5 (Eliminar un almacén)
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAlmacen(int id)
         {

@@ -21,6 +21,9 @@
         public string? Ruc { get; set; }
 
         public bool Estado { get; set; }
+ 
 
+ 
+ 
     }
 }

@@ -39,6 +39,11 @@ namespace GSCommerce.Client.Services
             }
         }
 
+ 
+ 
+
+        // Obtener lista de almacenes con paginación y búsqueda
+ 
         public async Task<AlmacenResponse> GetAlmacenList(int page, int pageSize, string search = "")
         {
             try
@@ -78,7 +83,11 @@ namespace GSCommerce.Client.Services
             }
         }
 
+ 
 
+ 
+        // Obtener un almacén por ID
+ 
         public async Task<AlmacenDTO?> GetAlmacenById(int id)
         {
             try
@@ -91,6 +100,7 @@ namespace GSCommerce.Client.Services
             }
         }
 
+ 
         public async Task<bool> CreateAlmacen(AlmacenDTO almacen)
         {
             try
@@ -105,6 +115,8 @@ namespace GSCommerce.Client.Services
             }
         }
 
+        // Actualizar un almacén existente
+ 
         public async Task<bool> UpdateAlmacen(int id, AlmacenDTO almacen)
         {
             try
@@ -119,6 +131,10 @@ namespace GSCommerce.Client.Services
             }
         }
 
+ 
+ 
+        // Eliminar un almacén por ID
+ 
         public async Task<bool> DeleteAlmacen(int id)
         {
             try
@@ -133,6 +149,10 @@ namespace GSCommerce.Client.Services
             }
         }
 
+ 
+ 
+        // Clase para manejar la respuesta con paginación
+ 
         public class AlmacenResponse
         {
             public int TotalItems { get; set; }

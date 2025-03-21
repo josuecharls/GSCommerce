@@ -1,0 +1,138 @@
+﻿@page "/proveedor/edit/{id:int}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject ProveedorService ProveedorService
+@inject NavigationManager Navigation
+
+<h3>✏️ Editar Proveedor</h3>
+
+@if (!isLoading)
+{
+    <div class="card p-4">
+        <div class="row">
+            <!-- Columna Izquierda -->
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Nombre</label>
+                    <input type="text" class="form-control" @bind="proveedor.Nombre" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Nombre Comercial</label>
+                    <input type="text" class="form-control" @bind="proveedor.NombreComercial" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">RUC</label>
+                    <input type="text" class="form-control" @bind="proveedor.Ruc" maxlength="11" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Tipo de Persona</label>
+                    <select class="form-control" @bind="proveedor.TipoPersona">
+                        <option value="Natural">Natural</option>
+                        <option value="Jurídica">Jurídica</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Dirección</label>
+                    <input type="text" class="form-control" @bind="proveedor.Direccion" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Departamento, Provincia, Distrito (DPD)</label>
+                    <input type="text" class="form-control" @bind="proveedor.Dpd" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">País</label>
+                    <input type="text" class="form-control" @bind="proveedor.Pais" />
+                </div>
+            </div>
+
+            <!-- Columna Derecha -->
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Forma de Pago</label>
+                    <input type="text" class="form-control" @bind="proveedor.FormaPago" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Banco</label>
+                    <input type="text" class="form-control" @bind="proveedor.Banco" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Número de Cuenta</label>
+                    <input type="text" class="form-control" @bind="proveedor.Cuenta" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">CCI</label>
+                    <input type="text" class="form-control" @bind="proveedor.Cci" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Contacto</label>
+                    <input type="text" class="form-control" @bind="proveedor.Contacto" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Teléfono</label>
+                    <input type="text" class="form-control" @bind="proveedor.Telefono" maxlength="9" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Celular</label>
+                    <input type="text" class="form-control" @bind="proveedor.Celular" maxlength="9" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Estado</label>
+                    <select class="form-control" @bind="proveedor.Estado">
+                        <option value="true">Activo</option>
+                        <option value="false">Inactivo</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones -->
+        <div class="text-center mt-3">
+            <button class="btn btn-primary" @onclick="UpdateProveedor">💾 Guardar Cambios</button>
+            <button class="btn btn-danger" @onclick="Cancel">❌ Cancelar</button>
+        </div>
+    </div>
+}
+else
+{
+    <p>⏳ Cargando...</p>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private ProveedorDTO proveedor = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        var data = await ProveedorService.GetProveedorById(Id);
+
+        if (data != null)
+        {
+            proveedor = data;
+        }
+        else
+        {
+            Navigation.NavigateTo("/proveedor");
+        }
+
+        isLoading = false;
+    }
+
+    private async Task UpdateProveedor()
+    {
+        isLoading = true;
+        var success = await ProveedorService.UpdateProveedor(Id, proveedor);
+        isLoading = false;
+
+        if (success)
+        {
+            Navigation.NavigateTo("/proveedor");
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/proveedor");
+    }
+}

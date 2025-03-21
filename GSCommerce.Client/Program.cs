@@ -13,6 +13,8 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddScoped<PersonalService>();
 builder.Services.AddScoped<AlmacenService>();
+builder.Services.AddScoped<ProveedorService>();
+builder.Services.AddScoped<ArticuloService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<CustomAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
