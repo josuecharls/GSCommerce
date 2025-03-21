@@ -1,0 +1,200 @@
+﻿@page "/articulos"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject ArticuloService ArticuloService
+@inject NavigationManager Navigation
+
+<h3>📦 Lista de Artículos</h3>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <button class="btn btn-success" @onclick="CreateNewArticulo">+ Nuevo Artículo</button>
+    <div class="input-group w-50">
+        <input type="text" class="form-control" placeholder="Buscar por descripción..." @bind="searchTerm" />
+        <button class="btn btn-primary" @onclick="SearchArticulos">🔍 Buscar</button>
+    </div>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Código</th>
+            <th>Descripción</th>
+            <th>Precio Compra</th>
+            <th>Precio Venta</th>
+            <th>Estado</th>
+            <th class="text-center">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (articuloList.Any())
+        {
+            @foreach (var a in articuloList)
+            {
+                <tr>
+                    <td>@a.IdArticulo</td>
+                    <td>@a.Descripcion</td>
+                    <td>S/. @a.PrecioCompra</td>
+                    <td>S/. @a.PrecioVenta</td>
+                    <td>
+                        @if (a.Estado)
+                        {
+                            <span class="badge bg-success">Activo</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Inactivo</span>
+                        }
+                    </td>
+                    <td class="text-center">
+                        <button @onclick="() => EditArticulo(a.IdArticulo)" class="btn btn-warning btn-sm me-1">
+                            ✏️ Editar
+                        </button>
+                        <button @onclick="() => ConfirmDeleteArticulo(a.IdArticulo, a.Descripcion)" class="btn btn-danger btn-sm">
+                            🗑 Eliminar
+                        </button>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="6" class="text-center">Cargando... Espere...</td></tr>
+        }
+    </tbody>
+</table>
+
+<!-- Controles de paginación -->
+<div class="d-flex justify-content-between">
+    <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(!CanPrev)">
+        ◀️ Anterior
+    </button>
+    <span>Página @currentPage de @totalPages</span>
+    <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanNext)">
+        Siguiente ▶️
+    </button>
+</div>
+
+<!-- Modal de Confirmación para Eliminar -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <p>¿Desea eliminar el artículo <strong>@deleteArticuloName</strong> de la base de datos?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger" @onclick="DeleteConfirmed">Sí</button>
+                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ArticuloDTO> articuloList = new();
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int totalPages;
+    private string searchTerm = "";
+    private bool isDeleting = false;
+    private bool showDeleteModal = false;
+    private int deleteArticuloId;
+    private string deleteArticuloName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadArticulos();
+    }
+
+    private async Task LoadArticulos()
+    {
+        try
+        {
+            var response = await ArticuloService.GetArticulos(currentPage, pageSize, searchTerm);
+            articuloList = response.Data;
+            totalPages = response.TotalPages;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error al cargar artículos: {ex.Message}");
+        }
+    }
+
+    private async Task SearchArticulos()
+    {
+        currentPage = 1;
+        await LoadArticulos();
+    }
+
+    private async Task PrevPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await LoadArticulos();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            await LoadArticulos();
+        }
+    }
+
+    private void CreateNewArticulo()
+    {
+        Navigation.NavigateTo("/articulo-form");
+    }
+
+    private void EditArticulo(string id)
+    {
+        Navigation.NavigateTo($"/articulo/edit/{id}");
+    }
+
+    private void ConfirmDeleteArticulo(string id, string name)
+    {
+        deleteArticuloId = int.Parse(id);
+        deleteArticuloName = name;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        deleteArticuloId = 0;
+        deleteArticuloName = "";
+    }
+
+    private async Task DeleteConfirmed()
+    {
+        if (!isDeleting && deleteArticuloId > 0)
+        {
+            isDeleting = true;
+            try
+            {
+                if (await ArticuloService.DeleteArticulo(deleteArticuloId.ToString()))
+                {
+                    await LoadArticulos();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error al eliminar artículo: {ex.Message}");
+            }
+            isDeleting = false;
+            CloseDeleteModal();
+        }
+    }
+
+    private bool CanPrev => currentPage > 1;
+    private bool CanNext => currentPage < totalPages;
+}

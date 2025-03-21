@@ -21,19 +21,5 @@
         public string? Ruc { get; set; }
 
         public bool Estado { get; set; }
-
-        public string? Ubigeo { get; set; }
-
-        public string? Certificado { get; set; }
-
-        public string? PasswordCertificado { get; set; }
-
-        public string? Abreviacion { get; set; }
-
-        public string? UsuarioSol { get; set; }
-
-        public string? ClaveSol { get; set; }
-
-        public bool AfectoIgv { get; set; }
     }
 }

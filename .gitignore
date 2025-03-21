@@ -1,0 +1,26 @@
+## Ignore Visual Studio files
+.vs/
+*.user
+*.suo
+
+## Build results
+bin/
+obj/
+
+## Others
+*.log
+*.vsidx
+*.dbmdl
+*.pdb
+*.cache
+*.tmp
+*.ide
+*.DS_Store
+
+## Runtime files
+GSCommerce.Client/wwwroot/css/bootstrap/bootstrap.min.css
+GSCommerce.Client/wwwroot/js/site.js
+GSCommerce.Client/wwwroot/service-worker.js
+
+## Rider
+.idea/

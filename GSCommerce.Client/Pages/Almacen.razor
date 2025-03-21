@@ -1,6 +1,186 @@
 ﻿@page "/almacen"
-<h3>Almacen</h3>
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject AlmacenService AlmacenService
+@inject NavigationManager Navigation
+
+<h3>📦 Lista de Almacenes</h3>
+
+<button @onclick="CreateNewAlmacen" class="btn btn-success mb-3">+ Nuevo Almacén</button>
+
+<input type="text" @bind="searchTerm" placeholder="Buscar por nombre..." class="form-control mb-2" />
+<button @onclick="SearchAlmacen" class="btn btn-primary">🔍 Buscar</button>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Dirección</th>
+            <th>Departamento</th>
+            <th>Razón Social</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (almacenList.Any())
+        {
+            @foreach (var a in almacenList)
+            {
+                <tr>
+                    <td>@a.Nombre</td>
+                    <td>@a.Direccion</td>
+                    <td>@a.Dpd</td>
+                    <td>@a.RazonSocial</td>
+                    <td class="text-center">
+                        <button @onclick="() => EditAlmacen(a.IdAlmacen)" class="btn btn-warning btn-sm me-1">
+                            <i class="bi bi-pencil-square"></i> Editar
+                        </button>
+                        <button @onclick="() => ConfirmDeleteAlmacen(a.IdAlmacen, a.Nombre)" class="btn btn-danger btn-sm">
+                            <i class="bi bi-trash"></i> Eliminar
+                        </button>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="5" class="text-center">📌 No hay almacenes registrados.</td></tr>
+        }
+    </tbody>
+</table>
+
+<!-- Controles de paginación -->
+<div class="d-flex justify-content-between">
+    <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(!CanPrev)">
+        ⬅️ Anterior
+    </button>
+    <span>Página @currentPage de @totalPages</span>
+    <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanNext)">
+        Siguiente ➡️
+    </button>
+</div>
+
+<!-- Modal de Confirmación para Eliminar -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">⚠️ Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <p>¿Desea eliminar el almacén <strong>@deleteAlmacenName</strong> de la base de datos?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger" @onclick="DeleteConfirmed">🗑️ Sí</button>
+                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">❌ No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
+    private List<AlmacenDTO> almacenList = new();
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int totalPages;
+    private string searchTerm = "";
+    private bool isDeleting = false;
+    private bool showDeleteModal = false;
+    private int deleteAlmacenId;
+    private string deleteAlmacenName = "";
 
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAlmacen();
+    }
+
+    private async Task LoadAlmacen()
+    {
+        try
+        {
+            var response = await AlmacenService.GetAlmacenList(currentPage, pageSize, searchTerm);
+            almacenList = response.Data;
+            totalPages = response.TotalPages;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠️ Error al cargar almacenes: {ex.Message}");
+        }
+    }
+
+    private async Task SearchAlmacen()
+    {
+        currentPage = 1;
+        await LoadAlmacen();
+    }
+
+    private async Task PrevPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await LoadAlmacen();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            await LoadAlmacen();
+        }
+    }
+
+    private void CreateNewAlmacen()
+    {
+        Navigation.NavigateTo("/almacen-form");
+    }
+
+    private void EditAlmacen(int id)
+    {
+        Navigation.NavigateTo($"/almacen/edit/{id}");
+    }
+
+    private void ConfirmDeleteAlmacen(int id, string name)
+    {
+        deleteAlmacenId = id;
+        deleteAlmacenName = name;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        deleteAlmacenId = 0;
+        deleteAlmacenName = "";
+    }
+
+    private async Task DeleteConfirmed()
+    {
+        if (!isDeleting && deleteAlmacenId > 0)
+        {
+            isDeleting = true;
+            try
+            {
+                if (await AlmacenService.DeleteAlmacen(deleteAlmacenId))
+                {
+                    await LoadAlmacen();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Error al eliminar: {ex.Message}");
+            }
+            isDeleting = false;
+            CloseDeleteModal();
+        }
+    }
+
+    private bool CanPrev => currentPage > 1;
+    private bool CanNext => currentPage < totalPages;
 }

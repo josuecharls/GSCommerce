@@ -1,0 +1,171 @@
+﻿@page "/articulo-form"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject ArticuloService ArticuloService
+@inject ProveedorService ProveedorService
+@inject NavigationManager Navigation
+
+<h3>📌 Nuevo Artículo</h3>
+
+@if (!isLoading)
+{
+    <div class="card p-4">
+        <div class="row">
+            <!-- Izquierda -->
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Código</label>
+                    <input type="text" class="form-control" @bind="articulo.IdArticulo" readonly />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Descripción</label>
+                    <input type="text" class="form-control" @bind="articulo.Descripcion" readonly />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Descripción Corta</label>
+                    <input type="text" class="form-control" @bind="articulo.DescripcionCorta" readonly />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Familia</label>
+                    <select class="form-control" @bind="articulo.Familia" @bind:event="onchange">
+                        <option>Seleccionar</option>
+                        <option value="Pantalón">Pantalón</option>
+                        <option value="Camisa">Camisa</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Línea</label>
+                    <input type="text" class="form-control" @bind="articulo.Linea" @oninput="ActualizarDescripcion" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Marca</label>
+                    <input type="text" class="form-control" @bind="articulo.Marca" @oninput="ActualizarDescripcion" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Material</label>
+                    <input type="text" class="form-control" @bind="articulo.Material" @oninput="ActualizarDescripcion" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Modelo</label>
+                    <input type="text" class="form-control" @bind="articulo.Modelo" @oninput="ActualizarDescripcion" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Color</label>
+                    <input type="text" class="form-control" @bind="articulo.Color" @oninput="ActualizarDescripcion" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Talla</label>
+                    <input type="text" class="form-control" @bind="articulo.Talla" @oninput="ActualizarDescripcion" />
+                </div>
+            </div>
+
+            <!-- Derecha -->
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Proveedor</label>
+                    <select class="form-control" @bind="articulo.IdProveedor">
+                        <option>Seleccionar</option>
+                        @foreach (var proveedor in proveedores)
+                        {
+                            <option value="@proveedor.IdProveedor">@proveedor.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Unidad de Almacén</label>
+                    <input type="text" class="form-control" @bind="articulo.UnidadAlmacen" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Moneda de Costeo</label>
+                    <select class="form-control" @bind="articulo.MonedaCosteo">
+                        <option value="SOLES">Soles</option>
+                        <option value="DOLARES">Dólares</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Precio Compra</label>
+                    <input type="number" class="form-control" @bind="articulo.PrecioCompra" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Precio Venta</label>
+                    <input type="number" class="form-control" @bind="articulo.PrecioVenta" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Estado</label>
+                    <select class="form-control" @bind="articulo.Estado">
+                        <option value="true">Activo</option>
+                        <option value="false">Inactivo</option>
+                    </select>
+                </div>
+
+                <!-- Imagen del artículo -->
+                <div class="mb-3 text-center">
+                    <label class="form-label">Imagen del artículo</label><br />
+                    <img src="@articulo.Foto" class="img-thumbnail" width="100" />
+                    <input type="file" class="form-control mt-2" @onchange="UploadImage" />
+                </div>
+
+                <!-- Código de barras -->
+                <div class="mb-3 text-center">
+                    <label class="form-label">Código de Barras</label><br />
+                    <img src="https://barcodeapi.org/api/128/@articulo.IdArticulo" class="img-thumbnail" width="150" />
+                    <div><strong>@articulo.IdArticulo</strong></div>
+                    <button class="btn btn-secondary mt-2" @onclick="PrintBarcode">📄 Imprimir</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones -->
+        <div class="text-center mt-3">
+            <button class="btn btn-primary" @onclick="SaveArticulo">💾 Guardar</button>
+            <button class="btn btn-danger" @onclick="Cancel">❌ Cancelar</button>
+        </div>
+    </div>
+}
+else
+{
+    <p>Cargando...</p>
+}
+
+@code {
+    private ArticuloDTO articulo = new();
+    private List<ProveedorDTO>? proveedores = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        articulo.IdArticulo = await ArticuloService.GetNuevoIdArticulo();
+        proveedores = await ProveedorService.GetProveedores();
+        isLoading = false;
+    }
+
+    private void ActualizarDescripcion()
+    {
+        articulo.Descripcion = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Color} {articulo.Talla}";
+        articulo.DescripcionCorta = $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Color} {articulo.Talla}";
+    }
+
+    private async Task SaveArticulo()
+    {
+        if (await ArticuloService.CreateArticulo(articulo))
+        {
+            Navigation.NavigateTo("/articulos");
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/articulos");
+    }
+
+    private void PrintBarcode()
+    {
+        Navigation.NavigateTo($"/barcode-print?codigo={articulo.IdArticulo}&descripcion={Uri.EscapeDataString(articulo.DescripcionCorta)}");
+    }
+
+    private void UploadImage(ChangeEventArgs e)
+    {
+        // Implementar lógica para subir imagen
+    }
+}
