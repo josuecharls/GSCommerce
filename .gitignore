@@ -1,0 +1,33 @@
+# Build folders
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio folders
+.vs/
+
+# JetBrains Rider
+.idea/
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Blazor cache
+wwwroot/_framework/
+**/GeneratedMSBuildEditorConfig.editorconfig
+**/*.assets.cache
+**/*.AssemblyInfo.cs
+**/*.AssemblyInfoInputs.cache
+
+# Others
+*.dbmdl
+*.log
+*.pdb
+*.tmp
+*.vsidx
+*.bak
