@@ -4,6 +4,7 @@
 @inject ArticuloService ArticuloService
 @inject ProveedorService ProveedorService
 @inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Forms
 
 <h3>📌 Nuevo Artículo</h3>
 
@@ -57,6 +58,9 @@
                     <label class="form-label">Talla</label>
                     <input type="text" class="form-control" @bind="articulo.Talla" @oninput="ActualizarDescripcion" />
                 </div>
+                <div>
+
+                </div>
             </div>
 
             <!-- Derecha -->
@@ -101,16 +105,26 @@
                 <!-- Imagen del artículo -->
                 <div class="mb-3 text-center">
                     <label class="form-label">Imagen del artículo</label><br />
-                    <img src="@articulo.Foto" class="img-thumbnail" width="100" />
-                    <input type="file" class="form-control mt-2" @onchange="UploadImage" />
+                    <img src="@articulo.Foto" class="img-thumbnail" width="100" style="display: @(string.IsNullOrEmpty(articulo.Foto) ? "none" : "block")" />
+                    <InputFile OnChange="UploadImage" accept="image/*" />
                 </div>
 
                 <!-- Código de barras -->
                 <div class="mb-3 text-center">
                     <label class="form-label">Código de Barras</label><br />
-                    <img src="https://barcodeapi.org/api/128/@articulo.IdArticulo" class="img-thumbnail" width="150" />
+                    <img src="https://barcodeapi.org/api/128/@(articulo.IdArticulo)" class="img-thumbnail" width="150" />
                     <div><strong>@articulo.IdArticulo</strong></div>
                     <button class="btn btn-secondary mt-2" @onclick="PrintBarcode">📄 Imprimir</button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Estación</label>
+                    <input type="text" class="form-control" @bind="articulo.Estacion" @oninput="ActualizarDescripcion" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Detalle</label>
+                    <input type="text" class="form-control" @bind="articulo.Detalle" @oninput="ActualizarDescripcion" />
                 </div>
             </div>
         </div>
@@ -138,6 +152,9 @@ else
         articulo.IdArticulo = await ArticuloService.GetNuevoIdArticulo();
         proveedores = await ProveedorService.GetProveedores();
         isLoading = false;
+
+        //Para elegir automáticamente el id de articulo en el codigo de barras
+        articulo.CodigoBarra = articulo.IdArticulo.ToString();
     }
 
     private void ActualizarDescripcion()
@@ -148,10 +165,21 @@ else
 
     private async Task SaveArticulo()
     {
-        if (await ArticuloService.CreateArticulo(articulo))
+        if (string.IsNullOrEmpty(articulo.UnidadAlmacen) || articulo.UnidadAlmacen == "string")
         {
-            Navigation.NavigateTo("/articulos");
+            Console.WriteLine("❌ UnidadAlmacen no puede ser 'string'");
+            return;
         }
+
+        // Validar foto
+        if (string.IsNullOrEmpty(articulo.Foto))
+        {
+            Console.WriteLine("❌ Debe subir una imagen del artículo");
+            return;
+        }
+
+        var creado = await ArticuloService.CreateArticulo(articulo);
+        if (creado) Navigation.NavigateTo("/articulos");
     }
 
     private void Cancel()
@@ -164,8 +192,17 @@ else
         Navigation.NavigateTo($"/barcode-print?codigo={articulo.IdArticulo}&descripcion={Uri.EscapeDataString(articulo.DescripcionCorta)}");
     }
 
-    private void UploadImage(ChangeEventArgs e)
+    private async Task UploadImage(InputFileChangeEventArgs e)
     {
-        // Implementar lógica para subir imagen
+        var file = e.File;
+        if (file != null)
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 5_000_000); // 5MB
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var imageBytes = ms.ToArray();
+            var base64 = Convert.ToBase64String(imageBytes);
+            articulo.Foto = $"data:{file.ContentType};base64,{base64}";
+        }
     }
 }

@@ -1,8 +1,10 @@
 ﻿using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using GSCommerce.Client.Models;
+using System.Text.Json.Serialization;
 
 namespace GSCommerce.Client.Services
 {
@@ -15,6 +17,38 @@ namespace GSCommerce.Client.Services
             _httpClient = httpClient;
         }
 
+       /* public async Task<List<ArticuloDTO>?> GetArticulosList()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("api/articulos");
+                var jsonResponse = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"🔹 JSON recibido en GetArticulos(): {jsonResponse}");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"❌ Error en la API: Código {response.StatusCode}");
+                    return new List<ArticuloDTO>();
+                }
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                // Deserializa como ArticuloResponse y devuelve solo la propiedad Data
+                var result = await JsonSerializer.DeserializeAsync<ArticuloResponse>(
+                    await response.Content.ReadAsStreamAsync(), options);
+
+                return result?.Data ?? new List<ArticuloDTO>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Excepción en GetArticulos(): {ex.Message}");
+                return new List<ArticuloDTO>();
+            }
+        }*/
+
         // Obtener la lista de artículos con paginación y búsqueda
         public async Task<ArticuloResponse> GetArticulos(int page, int pageSize, string search = "")
         {
@@ -24,8 +58,14 @@ namespace GSCommerce.Client.Services
             {
                 TotalItems = 0,
                 TotalPages = 0,
-                Data = []
+                Data = new List<ArticuloDTO>()
             };
+        }
+
+        public async Task<bool> UploadFoto(ArticuloDTO articulo)
+        {
+            var response = await _httpClient.PostAsJsonAsync($"api/articulos/UploadFoto", articulo);
+            return response.IsSuccessStatusCode;
         }
 
         // Obtener un artículo por ID
@@ -57,7 +97,7 @@ namespace GSCommerce.Client.Services
         // Crear un nuevo artículo
         public async Task<bool> CreateArticulo(ArticuloDTO articulo)
         {
-            var response = await _httpClient.PostAsJsonAsync("api/articulos", articulo);
+            var response = await _httpClient.PostAsJsonAsync("api/articulos/Upload", articulo);
             return response.IsSuccessStatusCode;
         }
 
@@ -89,14 +129,6 @@ namespace GSCommerce.Client.Services
                 Console.WriteLine($"Error eliminando artículo: {ex.Message}");
                 return false;
             }
-        }
-
-        // Subir imagen del artículo
-        public async Task<bool> UploadImage(string id, string base64Image)
-        {
-            var request = new ArticuloDTO { IdArticulo = id, Foto = base64Image };
-            var response = await _httpClient.PutAsJsonAsync($"api/articulos/UploadFoto/{id}", request);
-            return response.IsSuccessStatusCode;
         }
 
         public class ArticuloResponse

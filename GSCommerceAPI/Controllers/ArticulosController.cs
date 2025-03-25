@@ -3,6 +3,7 @@ using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
 
 namespace GSCommerceAPI.Controllers
 {
@@ -19,7 +20,10 @@ namespace GSCommerceAPI.Controllers
 
         // GET: api/articulos (Obtener todos los artículos con paginación y búsqueda)
         [HttpGet]
-        public async Task<IActionResult> GetArticulos([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+        public async Task<ActionResult<IEnumerable<Articulo>>> GetArticulos(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? search = null)
         {
             var query = _context.Articulos.AsQueryable();
 
@@ -53,20 +57,172 @@ namespace GSCommerceAPI.Controllers
 
         // GET: api/articulos/{id} (Obtener un artículo por ID)
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetArticulo(string id)
+        public async Task<ActionResult<Articulo>> GetArticulo(string id)
         {
             var articulo = await _context.Articulos.FindAsync(id);
-            return articulo == null ? NotFound() : Ok(articulo);
+            if (articulo == null)
+            {
+                return NotFound();
+            }
+            return articulo;
+        }
+
+        [HttpGet("foto/{id}")]
+        public async Task<IActionResult> GetFoto(string id)
+        {
+            var articulo = await _context.Articulos.FindAsync(id);
+            if (articulo == null || articulo.Foto == null)
+                return NotFound("No se encontró la imagen");
+            return File(articulo.Foto, "image/jpeg");
         }
 
         // POST: api/articulos (Crear un nuevo artículo)
         [HttpPost]
-        public async Task<ActionResult<Articulo>> PostArticulo(Articulo articulo)
+        public async Task<IActionResult> CreateArticulo([FromBody] ArticuloDTO articuloDto)
         {
-            _context.Articulos.Add(articulo);
-            await _context.SaveChangesAsync();
+            if (articuloDto == null)
+                return BadRequest("No se ha recibido el artículo");
 
-            return CreatedAtAction(nameof(GetArticulo), new { id = articulo.IdArticulo }, articulo);
+            try
+            {
+                var articulo = new Articulo
+                {
+                    IdArticulo = articuloDto.IdArticulo,
+                    Descripcion = articuloDto.Descripcion,
+                    DescripcionCorta = articuloDto.DescripcionCorta,
+                    Familia = articuloDto.Familia,
+                    Linea = articuloDto.Linea,
+                    Marca = articuloDto.Marca,
+                    Material = articuloDto.Material,
+                    Modelo = articuloDto.Modelo,
+                    Color = articuloDto.Color,
+                    Detalle = articuloDto.Detalle,
+                    Talla = articuloDto.Talla,
+                    IdProveedor = articuloDto.IdProveedor,
+                    UnidadAlmacen = articuloDto.UnidadAlmacen,
+                    MonedaCosteo = articuloDto.MonedaCosteo,
+                    PrecioCompra = articuloDto.PrecioCompra,
+                    PrecioVenta = articuloDto.PrecioVenta,
+                    FechaRegistro = articuloDto.FechaRegistro,
+                    Estado = articuloDto.Estado,
+                    Estacion = articuloDto.Estacion,
+                    CodigoBarra = !string.IsNullOrEmpty(articuloDto.CodigoBarra) ? Encoding.UTF8.GetBytes(articuloDto.CodigoBarra) : null
+                    // ❌ No incluir Foto aquí aún, se sube por separado
+                };
+
+                _context.Articulos.Add(articulo);
+                await _context.SaveChangesAsync();
+
+                return Ok(articulo);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error al crear artículo: {ex.Message}");
+            }
+        }
+
+        [HttpPost("UploadFoto")]
+        public async Task<IActionResult> SubirFoto([FromBody] ArticuloDTO dto)
+        {
+            if (dto == null || string.IsNullOrEmpty(dto.Foto))
+                return BadRequest("No se ha enviado ninguna imagen válida");
+
+            try
+            {
+                if (!IsValidBase64(dto.Foto))
+                    return BadRequest("Imagen Base64 inválida.");
+
+                var articulo = await _context.Articulos.FindAsync(dto.IdArticulo);
+                if (articulo == null)
+                    return NotFound("Artículo no encontrado");
+
+                var base64Data = dto.Foto.Contains(",")
+                    ? dto.Foto.Substring(dto.Foto.IndexOf(",") + 1)
+                    : dto.Foto;
+
+                articulo.Foto = Convert.FromBase64String(base64Data);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { Mensaje = "Imagen actualizada correctamente" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error al procesar imagen: {ex.Message}");
+            }
+        }
+
+        [HttpPut("UploadFoto/{id}")]
+        public async Task<IActionResult> ModificarFoto(string id, [FromBody] ArticuloDTO articuloDto)
+        {
+            if (articuloDto == null || string.IsNullOrEmpty(articuloDto.Foto))
+                return BadRequest("No se ha enviado una imagen válida");
+
+            try
+            {
+                if (!IsValidBase64(articuloDto.Foto))
+                    return BadRequest("La imagen enviada no es un Base64 válido.");
+
+                byte[] fotoBytes = Convert.FromBase64String(articuloDto.Foto);
+                var articulo = await _context.Articulos.FindAsync(id);
+                if (articulo == null)
+                    return NotFound("No se encontró el artículo");
+
+                articulo.Foto = fotoBytes;
+                await _context.SaveChangesAsync();
+
+                return Ok(new { Mensaje = "Imagen actualizada correctamente", Tamaño = fotoBytes.Length });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error al procesar la imagen: {ex.Message}");
+            }
+        }
+
+        [HttpPost("Upload")]
+        public async Task<IActionResult> SubirArticulo([FromBody] ArticuloDTO articuloDto)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(articuloDto.Foto))
+                    return BadRequest("Debe enviar una imagen en base64.");
+
+                var nuevoArticulo = new Articulo
+                {
+                    IdArticulo = articuloDto.IdArticulo,
+                    Descripcion = articuloDto.Descripcion,
+                    DescripcionCorta = articuloDto.DescripcionCorta,
+                    Familia = articuloDto.Familia,
+                    Linea = articuloDto.Linea,
+                    Marca = articuloDto.Marca,
+                    Material = articuloDto.Material,
+                    Modelo = articuloDto.Modelo,
+                    Color = articuloDto.Color,
+                    Detalle = articuloDto.Detalle,
+                    Talla = articuloDto.Talla,
+                    IdProveedor = articuloDto.IdProveedor,
+                    UnidadAlmacen = articuloDto.UnidadAlmacen,
+                    MonedaCosteo = articuloDto.MonedaCosteo,
+                    PrecioCompra = articuloDto.PrecioCompra,
+                    PrecioVenta = articuloDto.PrecioVenta,
+                    FechaRegistro = articuloDto.FechaRegistro,
+                    CodigoBarra = !string.IsNullOrEmpty(articuloDto.CodigoBarra) ? Encoding.UTF8.GetBytes(articuloDto.CodigoBarra) : null,
+                    Estacion = articuloDto.Estacion,
+                    Estado = articuloDto.Estado,
+                    Foto = !string.IsNullOrEmpty(articuloDto.Foto)? Convert.FromBase64String(articuloDto.Foto.Split(',')[1]) : null
+                };  
+
+                _context.Articulos.Add(nuevoArticulo);
+                await _context.SaveChangesAsync();
+                return Ok(nuevoArticulo);
+            }
+            catch (FormatException ex)
+            {
+                return BadRequest("Formato de imagen inválido. Asegúrese de enviar un Base64 válido.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error interno: {ex.Message}");
+            }
         }
 
         // PUT: api/articulos/{id} (Actualizar un artículo)
@@ -113,39 +269,6 @@ namespace GSCommerceAPI.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
-        }
-
-        // PUT: api/articulos/UploadFoto/{id} (Actualizar solo la imagen del artículo)
-        [HttpPut("UploadFoto/{id}")]
-        public async Task<IActionResult> ModificarFoto(string id, [FromBody] ArticuloDTO articuloDto)
-        {
-            if (articuloDto == null || string.IsNullOrEmpty(articuloDto.Foto))
-                return BadRequest("No se ha enviado ninguna imagen válida");
-
-            try
-            {
-                if (!IsValidBase64(articuloDto.Foto))
-                    return BadRequest("La imagen enviada no es un Base64 válido.");
-
-                byte[] fotoBytes = Convert.FromBase64String(articuloDto.Foto);
-
-                var articulo = await _context.Articulos.FindAsync(id);
-                if (articulo == null)
-                    return NotFound("No se encontró el artículo");
-
-                articulo.Foto = fotoBytes;
-                await _context.SaveChangesAsync();
-
-                return Ok(new { Mensaje = "Imagen actualizada correctamente", Tamaño = fotoBytes.Length });
-            }
-            catch (FormatException ex)
-            {
-                return BadRequest($"Error al procesar la imagen: Formato Base64 inválido - {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Error inesperado: {ex.Message}");
-            }
         }
 
         private bool ArticuloExists(string id)
