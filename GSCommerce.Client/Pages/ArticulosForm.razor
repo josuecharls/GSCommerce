@@ -1,4 +1,5 @@
 ﻿@page "/articulo-form"
+@page "/articulo-form/{dummy}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject ArticuloService ArticuloService
@@ -114,7 +115,7 @@
                     <label class="form-label">Código de Barras</label><br />
                     <img src="https://barcodeapi.org/api/128/@(articulo.IdArticulo)" class="img-thumbnail" width="150" />
                     <div><strong>@articulo.IdArticulo</strong></div>
-                    <button class="btn btn-secondary mt-2" @onclick="PrintBarcode">📄 Imprimir</button>
+                    <button class="btn btn-secondary mt-2" @onclick="() => mostrarModal = true">📄 Imprimir</button>
                 </div>
             </div>
             <div class="col-md-6">
@@ -135,17 +136,102 @@
             <button class="btn btn-danger" @onclick="Cancel">❌ Cancelar</button>
         </div>
     </div>
+        <style>
+        @@media print {
+    body * {
+        visibility: hidden !important;
+    }
+
+    .modal,
+    .modal-backdrop {
+        visibility: hidden !important;
+    }
+
+    .etiqueta-imprimir,
+    .etiqueta-imprimir * {
+        visibility: visible !important;
+    }
+
+    .etiqueta-imprimir {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 58mm; /* Ajusta si tu etiqueta es más chica */
+        height: auto;
+        margin: auto;
+        padding: 5mm;
+        font-size: 10pt;
+        page-break-inside: avoid;
+        background: white;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    @@page {
+        margin: 0;
+    }
+}
+    </style>
 }
 else
 {
     <p>Cargando...</p>
 }
+@if (mostrarModal)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content p-4 text-center">
+                <h4>🖨️ Imprimir Etiqueta</h4>
+                <hr />
+                <div class="etiqueta-imprimir">
+                    <img src="https://barcodeapi.org/api/128/@(articulo.IdArticulo)" width="200" />
+                    <div style="font-weight:bold; margin-top:6px">@articulo.DescripcionCorta</div>
+                    <div style="font-size:small">Código: @articulo.IdArticulo</div>
+                </div>
+                <div class="mt-3 no-print">
+                    <button class="btn btn-success me-2" @onclick="Imprimir">🖨️ Imprimir</button>
+                    <button class="btn btn-secondary" @onclick="()=> mostrarModal = false">❌ Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
+    
+    [Parameter]
+    public string? dummy { get; set; }
     private ArticuloDTO articulo = new();
     private List<ProveedorDTO>? proveedores = new();
     private bool isLoading = true;
+    private bool yaInicializado = false;
+    private bool mostrarModal = false;
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!yaInicializado)
+        {
+            isLoading = true;
+
+            articulo = new ArticuloDTO(); // Reinicia los datos
+            articulo.IdArticulo = await ArticuloService.GetNuevoIdArticulo();
+            articulo.CodigoBarra = articulo.IdArticulo;
+
+            proveedores = await ProveedorService.GetProveedores();
+
+            yaInicializado = true;
+            isLoading = false;
+
+            StateHasChanged(); // Vuelve a renderizar
+        }
+    }
+
+    /*
     protected override async Task OnInitializedAsync()
     {
         isLoading = true;
@@ -155,7 +241,14 @@ else
 
         //Para elegir automáticamente el id de articulo en el codigo de barras
         articulo.CodigoBarra = articulo.IdArticulo.ToString();
-    }
+    }*/
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
+private async Task Imprimir()
+{
+    await JS.InvokeVoidAsync("window.print");
+}
 
     private void ActualizarDescripcion()
     {
@@ -189,8 +282,9 @@ else
 
     private void PrintBarcode()
     {
-        Navigation.NavigateTo($"/barcode-print?codigo={articulo.IdArticulo}&descripcion={Uri.EscapeDataString(articulo.DescripcionCorta)}");
+        Navigation.NavigateTo($"/barcode-print/{articulo.IdArticulo}/{Uri.EscapeDataString(articulo.DescripcionCorta)}");
     }
+
 
     private async Task UploadImage(InputFileChangeEventArgs e)
     {

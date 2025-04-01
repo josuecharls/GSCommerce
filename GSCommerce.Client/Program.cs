@@ -16,8 +16,12 @@ builder.Services.AddScoped<AlmacenService>();
 builder.Services.AddScoped<ProveedorService>();
 builder.Services.AddScoped<ArticuloService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<CustomAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
+builder.Services.AddScoped<MovimientoGuiaService>();
+builder.Services.AddScoped<OrdenCompraService>();
+builder.Services.AddScoped<StockService>();
 builder.Services.AddAuthorizationCore();
 
 

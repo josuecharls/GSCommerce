@@ -1,0 +1,298 @@
+﻿@page "/guias-form/{tipo}"
+@page "/guias-form/{tipo}/{idOC:int?}"
+@inject NavigationManager Navigation
+@inject MovimientoGuiaService MovimientoGuiaService
+@inject AlmacenService AlmacenService
+@inject IJSRuntime JS
+@inject ProveedorService ProveedorService
+@inject OrdenCompraService OrdenCompraService
+
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+
+@if (isLoading)
+{
+    <p>Cargando...</p>
+}
+else
+{
+    <h3>@titulo</h3>
+
+    <div class="card p-4 mb-3">
+        <div class="row">
+            <div class="col-md-4">
+                <label class="form-label">📦 Almacén</label>
+                <select class="form-control" @bind="guia.IdAlmacen">
+                    <option disabled value="0">-- Seleccionar --</option>
+                    @foreach (var a in almacenes)
+                    {
+                        <option value="@a.IdAlmacen">@a.Nombre</option>
+                    }
+                </select>
+            </div>
+
+            @if (mostrarDestino)
+            {
+                <div class="col-md-4">
+                    <label class="form-label">🚚 Almacén Destino</label>
+                    <select class="form-control" @bind="guia.IdAlmacenDestinoOrigen">
+                        <option disabled value="0">-- Seleccionar --</option>
+                        @foreach (var a in almacenes)
+                        {
+                            <option value="@a.IdAlmacen">@a.Nombre</option>
+                        }
+                    </select>
+                </div>
+            }
+
+            <div class="col-md-4">
+                <label class="form-label">🎯 Motivo</label>
+                <select class="form-control" @bind="guia.Motivo">
+                    @foreach (var m in motivos)
+                    {
+                        <option value="@m">@m</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        @if (mostrarProveedor)
+        {
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <label class="form-label">🏢 Proveedor</label>
+                    <select class="form-control" @bind="guia.IdProveedor">
+                        <option disabled value="">-- Seleccionar --</option>
+                        @foreach (var p in proveedores)
+                        {
+                            <option value="@p.IdProveedor">@p.Nombre</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        }
+
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <label class="form-label">📝 Descripción</label>
+                <textarea class="form-control" rows="2" @bind="guia.Descripcion"></textarea>
+            </div>
+        </div>
+    </div>
+    <h5>📦 Detalle de Artículos</h5>
+    <table class="table table-bordered">
+        <thead class="table-light">
+            <tr>
+                <th>#</th>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th class="text-end">Cantidad</th>
+                <th class="text-end">Valor</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var d in guia.Detalles)
+            {
+                <tr>
+                    <td>@d.Item</td>
+                    <td><input class="form-control" @bind="d.IdArticulo" /></td>
+                    <td><input class="form-control" @bind="d.DescripcionArticulo" /></td>
+                    <td><input class="form-control text-end" type="number" @bind="d.Cantidad" /></td>
+                    <td><input class="form-control text-end" type="number" step="0.01" @bind="d.Valor" /></td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" @onclick="@(() => QuitarArticulo(d))">❌</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <button class="btn btn-outline-primary mb-3" @onclick="AgregarArticulo">+ Agregar Artículo</button>
+
+    <div class="alert alert-info">🔢 Total artículos: <strong>@totalArticulos</strong></div>
+    <div class="text-center mt-3">
+        <button class="btn btn-success" @onclick="Guardar">💾 Guardar</button>
+        <button class="btn btn-secondary" @onclick="Cancelar">❌ Cancelar</button>
+    </div>
+}
+
+@code {
+    [Parameter] public string tipo { get; set; } = "Ingreso"; // Ingreso, Egreso, Transferencia, IngresoXOC
+    [Parameter] public int? idOC { get; set; }
+
+    private MovimientoGuiaDTO guia = new();
+    private List<AlmacenDTO> almacenes = new();
+    private List<ProveedorDTO> proveedores = new();
+    private List<string> motivos = new();
+    private bool isLoading = true;
+    private string titulo = "";
+    private int totalArticulos = 0;
+    private string tipoMovimiento = ""; // I, E, T
+
+    private bool mostrarDestino => tipo == "Transferencia" || tipo == "IngresoXOC";
+    private bool mostrarProveedor => tipo == "Ingreso" || tipo == "IngresoXOC" || guia.Motivo == "DEVOLUCION A PROVEEDOR";
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        proveedores = await ProveedorService.GetProveedores() ?? new();
+
+        guia.Fecha = DateTime.Now;
+        guia.IdUsuario = 1; // ← esto debe venir del login
+        guia.Estado = "E";
+
+        tipoMovimiento = tipo switch
+        {
+            "Ingreso" => "I",
+            "Egreso" => "E",
+            "Transferencia" => "T",
+            "IngresoXOC" => "I", // mismo que Ingreso
+            _ => "I"
+        };
+
+        titulo = tipo switch
+        {
+            "Ingreso" => "📥 Nueva Guía de Ingreso",
+            "Egreso" => "📤 Nueva Guía de Egreso",
+            "Transferencia" => "🔁 Nueva Transferencia",
+            "IngresoXOC" => "📦 Ingreso por Orden de Compra",
+            _ => "📥 Nueva Guía"
+        };
+
+        CargarMotivos();
+
+        // Si es IngresoXOC: aquí debería cargarse info de la OC
+        if (tipo == "IngresoXOC" && idOC.HasValue)
+        {
+            var orden = await OrdenCompraService.ObtenerOrdenPorId(idOC.Value);
+
+            if (orden != null)
+            {
+                guia.IdOc = orden.IdOc;
+                guia.Motivo = "COMPRA A PROVEEDOR";
+                guia.IdProveedor = orden.IdProveedor;
+                guia.Descripcion = $"Ingreso de artículos según OC {orden.NumeroOc}";
+                guia.Detalles = orden.Detalles.Select(d => new MovimientoDetalleDTO
+                    {
+                        Item = d.Item,
+                        IdArticulo = d.IdArticulo,
+                        DescripcionArticulo = d.DescripcionArticulo,
+                        Cantidad = d.Cantidad,
+                        Valor = d.CostoUnitario
+                    }).ToList();
+            }
+            else
+            {
+                await MostrarAlerta("❌ No se pudo obtener datos de la orden de compra.");
+                Navigation.NavigateTo("/guias?tipo=" + tipo);
+                return;
+            }
+        }
+        else
+        {
+            guia.Motivo = motivos.FirstOrDefault() ?? "";
+            guia.Detalles = new List<MovimientoDetalleDTO>
+    {
+        new MovimientoDetalleDTO { Item = 1, Cantidad = 1, Valor = 0 }
+    };
+        }
+
+        guia.Detalles = new List<MovimientoDetalleDTO>();
+        guia.Detalles.Add(new MovimientoDetalleDTO { Item = 1, Cantidad = 1, Valor = 0 });
+        CalcularTotalArticulos();
+
+        isLoading = false;
+
+
+    }
+
+    //Cancelar
+    private void Cancelar()
+    {
+        Navigation.NavigateTo("/guias?tipo=" + tipo); // Redirige con filtro
+    }
+
+    private async Task Guardar()
+    {
+        // Limpia detalles vacíos o inválidos
+        guia.Detalles = guia.Detalles
+            .Where(d => !string.IsNullOrWhiteSpace(d.IdArticulo) && d.Cantidad > 0)
+            .ToList();
+
+        if (!guia.Detalles.Any())
+        {
+            await MostrarAlerta("Debe ingresar al menos un artículo con cantidad válida.");
+            return;
+        }
+
+        // Asegura que los items estén correctamente enumerados
+        ReordenarItems();
+
+        // Asigna el tipo real (I, E, T) antes de enviar
+        guia.Tipo = tipoMovimiento;
+
+        var ok = await MovimientoGuiaService.CreateMovimiento(guia);
+
+        if (ok)
+        {
+            Navigation.NavigateTo("/guias?tipo=" + tipo); // Redirige con filtro
+        }
+        else
+        {
+            await MostrarAlerta("❌ Ocurrió un error al guardar la guía.");
+        }
+    }
+
+    private async Task MostrarAlerta(string mensaje)
+    {
+        await JS.InvokeVoidAsync("alert", mensaje);
+    }
+
+    private void AgregarArticulo()
+    {
+        int nuevoItem = guia.Detalles.Count + 1;
+        guia.Detalles.Add(new MovimientoDetalleDTO
+            {
+                Item = nuevoItem,
+                Cantidad = 1,
+                Valor = 0
+            });
+
+        CalcularTotalArticulos();
+    }
+
+    private void QuitarArticulo(MovimientoDetalleDTO item)
+    {
+        guia.Detalles.Remove(item);
+        ReordenarItems();
+        CalcularTotalArticulos();
+    }
+
+    private void ReordenarItems()
+    {
+        int i = 1;
+        foreach (var d in guia.Detalles)
+        {
+            d.Item = i++;
+        }
+    }
+
+    private void CalcularTotalArticulos()
+    {
+        totalArticulos = guia.Detalles.Sum(d => d.Cantidad);
+    }
+
+    private void CargarMotivos()
+    {
+        motivos = tipo switch
+        {
+            "Ingreso" => new List<string> { "INGRESO STOCK", "DEVOLUCION A CLIENTE" },
+            "Egreso" => new List<string> { "SALIDA MERCADERIA", "DEVOLUCION A PROVEEDOR" },
+            "Transferencia" => new List<string> { "TRANSFERENCIA EGRESO", "TRANSFERENCIA INGRESO" },
+            "IngresoXOC" => new List<string> { "COMPRA A PROVEEDOR" },
+            _ => new List<string>()
+        };
+    }
+}

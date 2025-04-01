@@ -1,0 +1,90 @@
+﻿@page "/cliente-form"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject ClienteService ClienteService
+@inject NavigationManager Navigation
+
+<h3>👤 Nuevo Cliente</h3>
+
+<div class="card p-4">
+    <EditForm Model="cliente" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Tipo Documento</label>
+                    <select class="form-control" @bind="cliente.TipoDocumento">
+                        <option value="DNI">DNI</option>
+                        <option value="RUC">RUC</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">DNI/RUC</label>
+                    <InputText class="form-control" @bind-Value="cliente.Dniruc" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Nombre</label>
+                    <InputText class="form-control" @bind-Value="cliente.Nombre" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Dirección</label>
+                    <InputText class="form-control" @bind-Value="cliente.Direccion" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">DPD</label>
+                    <InputText class="form-control" @bind-Value="cliente.Dpd" />
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Teléfono</label>
+                    <InputText class="form-control" @bind-Value="cliente.Telefono" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Celular</label>
+                    <InputText class="form-control" @bind-Value="cliente.Celular" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <InputText class="form-control" @bind-Value="cliente.Email" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Estado</label>
+                    <select class="form-control" @bind="cliente.Estado">
+                        <option value="true">Activo</option>
+                        <option value="false">Inactivo</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <button type="submit" class="btn btn-primary">💾 Guardar</button>
+            <button class="btn btn-danger" @onclick="Cancel">❌ Cancelar</button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private ClienteDTO cliente = new();
+
+    private async Task HandleValidSubmit()
+    {
+        var creado = await ClienteService.CreateCliente(cliente);
+        if (creado)
+        {
+            Navigation.NavigateTo("/clientes");
+        }
+        else
+        {
+            Console.WriteLine("❌ Error al guardar cliente");
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/clientes");
+    }
+}

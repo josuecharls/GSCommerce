@@ -1,0 +1,181 @@
+﻿@page "/guias"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.WebUtilities
+@inject NavigationManager Navigation
+@inject MovimientoGuiaService MovimientoGuiaService
+@inject IJSRuntime JS
+
+<h3>📋 Guías de Movimiento</h3>
+
+<select class="form-select mb-2" @bind="tipoFiltro">
+    <option value="Ingreso">Ingreso</option>
+    <option value="Egreso">Egreso</option>
+    <option value="Transferencia">Transferencia</option>
+</select>
+
+<button @onclick="CreateNewGuia" class="btn btn-success mb-3">+ Nueva Guía</button>
+
+<input type="text" @bind="searchTerm" placeholder="Buscar por descripción o motivo..." class="form-control mb-2" />
+<button @onclick="SearchGuias" class="btn btn-primary">🔍 Buscar</button>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Tipo</th>
+            <th>Motivo</th>
+            <th>Descripción</th>
+            <th>Almacén</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (guias.Any())
+        {
+            @foreach (var g in guias)
+            {
+                <tr>
+                    <td>@g.IdMovimiento</td>
+                    <td>@g.Tipo</td>
+                    <td>@g.Motivo</td>
+                    <td>@g.Descripcion</td>
+                    <td>@g.IdAlmacen</td>
+                    <td>@g.Fecha.ToString("yyyy-MM-dd")</td>
+                    <td>
+                        @if (g.Estado == "A")
+                        {
+                            <span class="badge bg-danger">Anulado</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success">Emitido</span>
+                        }
+                    </td>
+                    <td class="text-center">
+                        <button @onclick="() => EditGuia(g.IdMovimiento)" class="btn btn-warning btn-sm me-1" disabled="@(g.Estado == "A")">
+                            ✏️ Editar
+                        </button>
+                        <button class="btn btn-danger btn-sm me-1" @onclick="() => AnularGuia(g.IdMovimiento)" disabled="@(g.Estado == "A")">
+                            🛑 Anular
+                        </button>
+                        @if (g.Motivo == "TRANSFERENCIA INGRESO" && g.Estado == "E" && g.IdUsuarioConfirma == null)
+                        {
+                            <button class="btn btn-info btn-sm" @onclick="() => Confirmar(g.IdMovimiento)">✅ Confirmar</button>
+                        }
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="8" class="text-center">No hay guías registradas.</td></tr>
+        }
+    </tbody>
+
+</table>
+
+<!-- Paginación -->
+<div class="d-flex justify-content-between">
+    <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(!CanPrev)">⬅️ Anterior</button>
+    <span>Página @currentPage de @totalPages</span>
+    <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanNext)">Siguiente ➡️</button>
+</div>
+
+@code {
+    private List<MovimientoGuiaDTO> guias = new();
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int totalPages = 1;
+    private string searchTerm = "";
+    private string tipoFiltro = "Ingreso";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("tipo", out var tipoQuery))
+        {
+            tipoFiltro = tipoQuery;
+        }
+
+        await LoadGuias();
+    }
+
+    private async Task LoadGuias()
+    {
+        // ✅ Ahora los parámetros están en el orden correcto:
+        var result = await MovimientoGuiaService.GetGuiasList(currentPage, pageSize, searchTerm, tipoFiltro);
+        guias = result.Data;
+        totalPages = result.TotalPages;
+    }
+
+    private async Task Confirmar(int id)
+    {
+        var ok = await MovimientoGuiaService.ConfirmarTransferencia(id);
+        if (ok)
+        {
+            await LoadGuias(); // Refresca
+        }
+    }
+
+    private async Task SearchGuias()
+    {
+        currentPage = 1;
+        await LoadGuias();
+    }
+
+    private void CreateNewGuia()
+    {
+        Navigation.NavigateTo($"/guias-form/{tipoFiltro}");
+    }
+
+    private void EditGuia(int id)
+    {
+        Navigation.NavigateTo($"/guias/edit/{id}");
+    }
+
+    private async Task PrevPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await LoadGuias();
+        }
+    }
+
+    private async Task AnularGuia(int id)
+    {
+        var confirmado = await JS.InvokeAsync<bool>("confirm", $"¿Estás seguro de anular la guía #{id}?");
+        if (!confirmado) return;
+
+        var ok = await MovimientoGuiaService.AnularGuia(id);
+        if (ok)
+        {
+            await LoadGuias();
+        }
+        else
+        {
+            Console.WriteLine("❌ No se pudo anular la guía.");
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            await LoadGuias();
+        }
+    }
+
+    private void ConfirmDeleteGuia(int id)
+    {
+        // Aquí podrías agregar un modal de confirmación
+        Console.WriteLine($"🗑️ Eliminar guía {id} (pendiente de implementación)");
+    }
+
+    private bool CanPrev => currentPage > 1;
+    private bool CanNext => currentPage < totalPages;
+}

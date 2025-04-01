@@ -50,9 +50,16 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("nuevo-id")]
         public async Task<IActionResult> GetNuevoIdArticulo()
         {
-            var lastArticulo = await _context.Articulos.OrderByDescending(a => a.IdArticulo).FirstOrDefaultAsync();
-            int newId = lastArticulo != null ? int.Parse(lastArticulo.IdArticulo) + 1 : 1;
-            return Ok(newId.ToString("D6")); // Formato 000001, 000002, etc.
+            var lastId = await _context.Articulos
+    .Select(a => a.IdArticulo)
+    .ToListAsync();
+
+            int maxId = lastId
+                .Select(id => int.TryParse(id, out var num) ? num : 0)
+                .Max();
+
+            string newId = (maxId + 1).ToString("D6");
+            return Ok(newId);
         }
 
         // GET: api/articulos/{id} (Obtener un artículo por ID)

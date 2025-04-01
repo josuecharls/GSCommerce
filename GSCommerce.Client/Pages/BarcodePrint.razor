@@ -1,0 +1,41 @@
+﻿@page "/barcode-print"
+@page "/barcode-print/{codigo}/{descripcion}"
+
+@inject NavigationManager Navigation
+
+<h3 class="text-center">🖨️ Imprimir Etiqueta</h3>
+
+@if (!string.IsNullOrEmpty(Codigo))
+{
+    <div class="text-center mt-4" style="border: 1px dashed gray; padding: 1rem;">
+        <img src="https://barcodeapi.org/api/128/@Codigo" width="200" />
+        <div style="font-size: 18px; font-weight: bold; margin-top: 0.5rem;">@Descripcion</div>
+        <div style="font-size: 14px;">Código: @Codigo</div>
+    </div>
+
+    <div class="text-center mt-3">
+        <button class="btn btn-success" @onclick="Imprimir">🖨️ Imprimir</button>
+        <button class="btn btn-secondary ms-2" @onclick="Volver">↩️ Volver</button>
+    </div>
+}
+else
+{
+    <p>Cargando código de barras...</p>
+}
+
+@code {
+    [Parameter] public string? Codigo { get; set; }
+    [Parameter] public string? Descripcion { get; set; }
+
+    private void Imprimir()
+    {
+        JS.InvokeVoidAsync("window.print");
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/articulos");
+    }
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+}

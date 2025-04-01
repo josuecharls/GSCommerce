@@ -1,4 +1,5 @@
-﻿using GSCommerceAPI.Data;
+﻿using GSCommerce.Client.Models;
+using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,73 +17,169 @@ namespace GSCommerceAPI.Controllers
             _context = context;
         }
 
-        // GET: api/clientes (Obtener todos los clientes)
+        // GET: api/clientes?page=1&pageSize=10&search=texto
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Cliente>>> GetClientes()
+        public async Task<IActionResult> GetClientes(int page = 1, int pageSize = 10, string? search = null)
         {
-            return await _context.Clientes.ToListAsync();
+            var query = _context.Clientes.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(c =>
+                    c.Nombre.Contains(search) ||
+                    c.Dniruc.Contains(search));
+            }
+
+            var totalItems = await query.CountAsync();
+            var clientes = await query
+                .OrderBy(c => c.Nombre)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(c => new ClienteDTO
+                {
+                    IdCliente = c.IdCliente,
+                    TipoDocumento = c.TipoDocumento,
+                    Dniruc = c.Dniruc,
+                    Nombre = c.Nombre,
+                    Direccion = c.Direccion,
+                    Dpd = c.Dpd,
+                    Telefono = c.Telefono,
+                    Celular = c.Celular,
+                    Email = c.Email,
+                    Estado = c.Estado
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                TotalItems = totalItems,
+                TotalPages = (int)Math.Ceiling((double)totalItems / pageSize),
+                Data = clientes
+            });
         }
-        // GET: api/clientes/5 (Obtener un cliente por ID)
+
+        // GET: api/clientes/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Cliente>> GetCliente(int id) // 👈 Cambiar string por int
+        public async Task<ActionResult<ClienteDTO>> GetCliente(int id)
         {
             var cliente = await _context.Clientes.FindAsync(id);
-            if (cliente == null)
+            if (cliente == null) return NotFound();
+
+            return new ClienteDTO
             {
-                return NotFound();
-            }
-            return cliente;
+                IdCliente = cliente.IdCliente,
+                TipoDocumento = cliente.TipoDocumento,
+                Dniruc = cliente.Dniruc,
+                Nombre = cliente.Nombre,
+                Direccion = cliente.Direccion,
+                Dpd = cliente.Dpd,
+                Telefono = cliente.Telefono,
+                Celular = cliente.Celular,
+                Email = cliente.Email,
+                Estado = cliente.Estado
+            };
         }
 
-        // PUT: api/clientes/5 (Actualizar un cliente)
+        // POST: api/clientes
+        [HttpPost]
+        public async Task<IActionResult> CreateCliente([FromBody] ClienteDTO dto)
+        {
+            var cliente = new Cliente
+            {
+                TipoDocumento = dto.TipoDocumento,
+                Dniruc = dto.Dniruc,
+                Nombre = dto.Nombre,
+                Direccion = dto.Direccion,
+                Dpd = dto.Dpd,
+                Telefono = dto.Telefono,
+                Celular = dto.Celular,
+                Email = dto.Email,
+                Estado = dto.Estado
+            };
+
+            _context.Clientes.Add(cliente);
+            await _context.SaveChangesAsync();
+            dto.IdCliente = cliente.IdCliente;
+
+            return Ok(dto);
+        }
+
+        // PUT: api/clientes/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCliente(int id, Cliente cliente) // Cambiar string por int
+        public async Task<IActionResult> UpdateCliente(int id, [FromBody] ClienteDTO dto)
         {
-            if (id != cliente.IdCliente) // Ahora ambos son int
+            if (id != dto.IdCliente) return BadRequest("ID no coincide");
+
+            var cliente = await _context.Clientes.FindAsync(id);
+            if (cliente == null) return NotFound();
+
+            cliente.TipoDocumento = dto.TipoDocumento;
+            cliente.Dniruc = dto.Dniruc;
+            cliente.Nombre = dto.Nombre;
+            cliente.Direccion = dto.Direccion;
+            cliente.Dpd = dto.Dpd;
+            cliente.Telefono = dto.Telefono;
+            cliente.Celular = dto.Celular;
+            cliente.Email = dto.Email;
+            cliente.Estado = dto.Estado;
+
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+        // GET: api/clientes/list?page=1&pageSize=10&search=texto
+        [HttpGet("list")]
+        public async Task<ActionResult> GetClientesList(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] string? search = null)
+        {
+            var query = _context.Clientes.AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
             {
-                return BadRequest();
+                query = query.Where(c => c.Nombre.Contains(search) || c.Dniruc.Contains(search));
             }
 
-            _context.Entry(cliente).State = EntityState.Modified;
+            var totalItems = await query.CountAsync();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ClientesExists(id))
+            var clienteList = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(c => new ClienteDTO
                 {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+                    IdCliente = c.IdCliente,
+                    TipoDocumento = c.TipoDocumento,
+                    Dniruc = c.Dniruc,
+                    Nombre = c.Nombre,
+                    Direccion = c.Direccion,
+                    Dpd = c.Dpd,
+                    Telefono = c.Telefono,
+                    Celular = c.Celular,
+                    Email = c.Email,
+                    Estado = c.Estado
+                })
+                .ToListAsync();
 
-            return NoContent();
+            var response = new
+            {
+                TotalItems = totalItems,
+                TotalPages = (int)Math.Ceiling((double)totalItems / pageSize),
+                Data = clienteList
+            };
+
+            return Ok(response);
         }
 
-        // DELETE: api/clientes/5 (Eliminar un cliente)
+        // DELETE: api/clientes/5
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteCliente(int id) // Cambiar string por int
+        public async Task<IActionResult> DeleteCliente(int id)
         {
             var cliente = await _context.Clientes.FindAsync(id);
-            if (cliente == null)
-            {
-                return NotFound();
-            }
+            if (cliente == null) return NotFound();
 
             _context.Clientes.Remove(cliente);
             await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        private bool ClientesExists(int id) // Cambiar string por int
-        {
-            return _context.Clientes.Any(e => e.IdCliente == id);
+            return Ok();
         }
     }
 }

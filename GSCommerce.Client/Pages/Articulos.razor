@@ -152,7 +152,7 @@
 
     private void CreateNewArticulo()
     {
-        Navigation.NavigateTo("/articulo-form");
+        Navigation.NavigateTo("/articulo-form/" + Guid.NewGuid().ToString());
     }
 
     private void EditArticulo(string id)

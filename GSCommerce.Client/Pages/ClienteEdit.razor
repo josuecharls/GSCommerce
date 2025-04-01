@@ -1,0 +1,107 @@
+﻿@page "/cliente/edit/{id:int}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject ClienteService ClienteService
+@inject NavigationManager Navigation
+
+<h3>✏️ Editar Cliente</h3>
+
+@if (cliente == null)
+{
+    <p>Cargando cliente...</p>
+}
+else
+{
+    <EditForm Model="cliente" OnValidSubmit="UpdateCliente">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="card p-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Tipo Documento</label>
+                        <select class="form-control" @bind="cliente.TipoDocumento">
+                            <option value="DNI">DNI</option>
+                            <option value="RUC">RUC</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">DNI/RUC</label>
+                        <input type="text" class="form-control" @bind="cliente.Dniruc" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" class="form-control" @bind="cliente.Nombre" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <input type="text" class="form-control" @bind="cliente.Direccion" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Departamento</label>
+                        <input type="text" class="form-control" @bind="cliente.Dpd" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Teléfono</label>
+                        <input type="text" class="form-control" @bind="cliente.Telefono" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Celular</label>
+                        <input type="text" class="form-control" @bind="cliente.Celular" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" @bind="cliente.Email" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Estado</label>
+                        <select class="form-control" @bind="cliente.Estado">
+                            <option value="true">Activo</option>
+                            <option value="false">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-3">
+                <button type="submit" class="btn btn-primary">💾 Guardar Cambios</button>
+                <button type="button" class="btn btn-secondary ms-2" @onclick="Volver">↩️ Cancelar</button>
+            </div>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private ClienteDTO? cliente;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cliente = await ClienteService.GetClienteById(id);
+    }
+
+    private async Task UpdateCliente()
+    {
+        if (cliente != null)
+        {
+            var success = await ClienteService.UpdateCliente(cliente.IdCliente, cliente);
+            if (success)
+            {
+                Navigation.NavigateTo("/clientes");
+            }
+            else
+            {
+                Console.WriteLine("❌ Error actualizando cliente");
+            }
+        }
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/clientes");
+    }
+}

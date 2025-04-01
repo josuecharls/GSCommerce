@@ -2,6 +2,44 @@ html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+
+    .modal,
+    .modal-backdrop {
+        visibility: hidden !important;
+    }
+
+    .etiqueta-imprimir,
+    .etiqueta-imprimir * {
+        visibility: visible !important;
+    }
+
+    .etiqueta-imprimir {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 58mm; /* Ajusta si tu etiqueta es más chica */
+        height: auto;
+        margin: auto;
+        padding: 5mm;
+        font-size: 10pt;
+        page-break-inside: avoid;
+        background: white;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    @page {
+        margin: 0;
+    }
+}
+
 h1:focus {
     outline: none;
 }
