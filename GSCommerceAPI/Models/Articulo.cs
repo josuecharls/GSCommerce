@@ -47,6 +47,8 @@ public partial class Articulo
 
     public string? Estacion { get; set; }
 
+    public virtual ICollection<ArticuloVariante> ArticuloVariantes { get; set; } = new List<ArticuloVariante>();
+
     public virtual ICollection<ComprobanteDeVentaDetalle> ComprobanteDeVentaDetalles { get; set; } = new List<ComprobanteDeVentaDetalle>();
 
     public virtual Proveedor IdProveedorNavigation { get; set; } = null!;

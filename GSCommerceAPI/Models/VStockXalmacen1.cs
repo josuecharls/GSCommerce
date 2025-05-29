@@ -26,4 +26,8 @@ public partial class VStockXalmacen1
     public double? PrecioVenta { get; set; }
 
     public double? ValorVenta { get; set; }
+
+    public int? StockMinimo { get; set; }
+
+    public bool EstaBajoMinimo { get; set; }
 }

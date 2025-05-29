@@ -1,0 +1,87 @@
+﻿@using GSCommerce.Client.Models
+@inject IJSRuntime JS
+
+<div class="ticket" id="ticket">
+    <h3>INVERSORES NOMBRE EIRL</h3>
+    <div class="text-center">RUC: 12345678901</div>
+    <div class="text-center">CALLE PROGRESO</div>
+    <h4>BOLETA DE VENTA ELECTRÓNICA</h4>
+    <div class="text-center">B001-000123</div>
+    <div class="line"></div>
+
+    <div>Fecha: @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
+    <div>Cliente: @clienteNombre</div>
+    <div>DNI/RUC: @clienteDocumento</div>
+
+    <div class="line"></div>
+    <table>
+        <thead>
+            <tr><th>Cant.</th><th>Producto</th><th class="text-right">Total</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Detalles)
+            {
+                <tr>
+                    <td>@item.Cantidad</td>
+                    <td>@item.DescripcionItem</td>
+                    <td class="text-right">@item.Total.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="line"></div>
+    <div>SUBTOTAL: <span class="text-right">@Subtotal.ToString("N2")</span></div>
+    <div>IGV: <span class="text-right">@Igv.ToString("N2")</span></div>
+    <div><strong>TOTAL: <span class="text-right">@Total.ToString("N2")</span></strong></div>
+
+    <div class="line"></div>
+    <div><strong>FORMA DE PAGO:</strong></div>
+    @foreach (var pago in Pagos)
+    {
+        <div>
+            @pago.FormaPago
+            @if (!string.IsNullOrWhiteSpace(pago.CodigoVerificacion))
+            {
+                <span>- Cód. Verif: @pago.CodigoVerificacion</span>
+            }
+        </div>
+    }
+
+    @if (Vuelto > 0)
+    {
+        <div>VUELTO: @Vuelto.ToString("N2")</div>
+    }
+
+    <div class="line"></div>
+    <div class="text-center">
+        <small>NO HAY DEVOLUCIÓN DE DINERO TRAS CAMBIO DE PRENDA</small><br />
+        <small>REPRESENTACIÓN IMPRESA DEL COMPROBANTE</small>
+    </div>
+    <div class="text-center mt-1">
+        <img src="@qrUrl" width="120" />
+    </div>
+    <div class="text-center"><small>HASH: @Hash</small></div>
+</div>
+
+<div class="text-center mt-2">
+    <button class="btn btn-sm btn-primary" @onclick="Imprimir">🖨️ Imprimir</button>
+</div>
+
+@code {
+    [Parameter] public string clienteNombre { get; set; } = "";
+    [Parameter] public string clienteDocumento { get; set; } = "";
+    [Parameter] public List<VentaDetalleDTO> Detalles { get; set; } = new();
+    [Parameter] public List<DetallePagoDTO> Pagos { get; set; } = new();
+    [Parameter] public decimal Subtotal { get; set; }
+    [Parameter] public decimal Igv { get; set; }
+    [Parameter] public decimal Total { get; set; }
+    [Parameter] public decimal Vuelto { get; set; }
+    [Parameter] public string qrUrl { get; set; } = "";
+    [Parameter] public string Hash { get; set; } = "";
+
+    private async Task Imprimir()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+}

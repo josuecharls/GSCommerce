@@ -1,0 +1,34 @@
+﻿.ticket {
+    width: 280px;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.3em;
+    padding: 10px;
+}
+
+    .ticket h3, .ticket h4 {
+        text-align: center;
+        margin: 0;
+    }
+
+    .ticket .line {
+        border-top: 1px dashed #000;
+        margin: 5px 0;
+    }
+
+    .ticket .text-right {
+        text-align: right;
+    }
+
+    .ticket .text-center {
+        text-align: center;
+    }
+
+    .ticket table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .ticket th, .ticket td {
+        padding: 2px 0;
+    }

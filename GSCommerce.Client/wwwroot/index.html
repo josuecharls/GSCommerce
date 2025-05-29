@@ -36,8 +36,27 @@
         }
     </script>
 
-    <script src="js/xlsx.full.min.js"></script>
-    <script src="js/excelExport.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        window.exportToExcel = (headers, rows, filename) => {
+            const wb = XLSX.utils.book_new();
+            const wsData = [headers, ...rows];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "Hoja1");
+            XLSX.writeFile(wb, filename + ".xlsx");
+        };
+    </script>
+    <script>
+        window.abrirTicket = function (contenidoHtml) {
+            var ventana = window.open('', '_blank', 'width=300,height=600');
+            ventana.document.write(contenidoHtml);
+            ventana.document.close();
+        };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.1/jspdf.umd.min.js"></script>
+    <script src="js/pdfHelper.js"></script>
+    <script src="js/printHelper.js"></script>
 </body>
 
 </html>

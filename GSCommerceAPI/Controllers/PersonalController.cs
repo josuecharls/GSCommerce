@@ -70,6 +70,25 @@ namespace GSCommerceAPI.Controllers
             // Asegurar que se devuelva como imagen directamente
             return new FileContentResult(personal.Foto, "image/jpeg"); // O "image/png" según el tipo de imagen
         }
+
+        [HttpGet("vendedores-por-almacen/{idAlmacen}")]
+        public async Task<IActionResult> ObtenerVendedoresPorAlmacen(int idAlmacen)
+        {
+            var vendedores = await _context.Personals
+                .Where(p => p.Cargo == "VENDEDOR" && p.IdAlmacen == idAlmacen && p.Estado)
+                .Select(p => new PersonalDTO
+                {
+                    IdPersonal = p.IdPersonal,
+                    Nombres = p.Nombres,
+                    Apellidos = p.Apellidos,
+                    Cargo = p.Cargo,
+                    IdAlmacen = p.IdAlmacen
+                }).ToListAsync();
+
+            return Ok(vendedores);
+        }
+
+
         // POST: api/personal (Crear un nuevo registro)
         [HttpPost]
         public async Task<ActionResult<Personal>> CreatePersonal(Personal personal)

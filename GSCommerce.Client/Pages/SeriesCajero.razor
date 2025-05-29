@@ -1,0 +1,145 @@
+﻿@page "/series-cajero"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Models.Series
+@using GSCommerce.Client.Services
+@inject AlmacenService AlmacenService
+@inject UsuarioService UsuarioService
+@inject AsignacionSerieCajeroService SerieCorrelativoService
+@inject IJSRuntime JS
+
+<h3>Asignación de Series por Cajero</h3>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label>Almacén:</label>
+        <select class="form-select" @onchange="OnAlmacenChange">
+            @foreach (var alm in almacenes)
+            {
+                <option value="@alm.IdAlmacen">@alm.Nombre</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label>Cajero:</label>
+        <select class="form-select" @onchange="OnCajeroChange">
+            @foreach (var caj in cajeros)
+            {
+                <option value="@caj.IdUsuario">@caj.Nombre</option>
+            }
+        </select>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <h5>Series Disponibles</h5>
+        <ul class="list-group">
+            @foreach (var serie in seriesDisponibles)
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    @serie.DocumentoSerie
+                    <button class="btn btn-success btn-sm" @onclick="() => AsignarSerie(serie)">➕</button>
+                </li>
+            }
+        </ul>
+    </div>
+    <div class="col-md-2 text-center d-flex align-items-center justify-content-center">
+        <i class="bi bi-arrow-left-right fs-1"></i>
+    </div>
+    <div class="col-md-5">
+        <h5>Series Asignadas</h5>
+        <ul class="list-group">
+            @foreach (var serie in seriesAsignadas)
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    @serie.DocumentoSerie
+                    <button class="btn btn-danger btn-sm" @onclick="() => QuitarSerie(serie)">❌</button>
+                </li>
+            }
+        </ul>
+    </div>
+</div>
+
+<div class="text-end mt-3">
+    <button class="btn btn-primary" @onclick="GuardarAsignaciones">Guardar Asignación</button>
+</div>
+
+@code {
+    private List<AlmacenDTO> almacenes = new();
+    private List<UsuarioDTO> cajeros = new();
+    private List<VSeriesXalmacen1> seriesDisponibles = new();
+    private List<VSeriesXcajero1> seriesAsignadas = new();
+
+    private int idAlmacenSeleccionado;
+    private int idCajeroSeleccionado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        if (almacenes.Any())
+        {
+            idAlmacenSeleccionado = almacenes.First().IdAlmacen;
+            await CargarCajerosYSeries();
+        }
+    }
+
+    private async Task OnAlmacenChange(ChangeEventArgs e)
+    {
+        idAlmacenSeleccionado = int.Parse(e.Value.ToString());
+        await CargarCajerosYSeries();
+    }
+
+    private async Task OnCajeroChange(ChangeEventArgs e)
+    {
+        idCajeroSeleccionado = int.Parse(e.Value.ToString());
+        await CargarSeriesAsignadas();
+    }
+
+    private async Task CargarCajerosYSeries()
+    {
+        cajeros = await UsuarioService.ObtenerCajerosAsync(idAlmacenSeleccionado);
+        seriesDisponibles = await SerieCorrelativoService.ObtenerSeriesDisponibles(idAlmacenSeleccionado);
+        if (cajeros.Any())
+        {
+            idCajeroSeleccionado = cajeros.First().IdUsuario;
+            await CargarSeriesAsignadas();
+        }
+    }
+
+    private async Task CargarSeriesAsignadas()
+    {
+        seriesAsignadas = await SerieCorrelativoService.ObtenerSeriesAsignadas(idCajeroSeleccionado, idAlmacenSeleccionado);
+    }
+
+    private void AsignarSerie(VSeriesXalmacen1 serie)
+    {
+        seriesDisponibles.Remove(serie);
+        seriesAsignadas.Add(new VSeriesXcajero1
+            {
+                IdSerieCorrelativo = serie.IdSerieCorrelativo,
+                IdUsuario = idCajeroSeleccionado,
+                IdAlmacen = idAlmacenSeleccionado,
+                DocumentoSerie = serie.DocumentoSerie
+            });
+    }
+
+    private void QuitarSerie(VSeriesXcajero1 serie)
+    {
+        seriesAsignadas.Remove(serie);
+        seriesDisponibles.Add(new VSeriesXalmacen1
+            {
+                IdSerieCorrelativo = serie.IdSerieCorrelativo,
+                IdAlmacen = serie.IdAlmacen,
+                DocumentoSerie = serie.DocumentoSerie
+            });
+    }
+
+    private async Task GuardarAsignaciones()
+    {
+        var response = await SerieCorrelativoService.AsignarSeriesACajero(idCajeroSeleccionado, idAlmacenSeleccionado, seriesAsignadas);
+        if (response)
+            await JS.InvokeVoidAsync("alert", "✅ Asignación guardada correctamente.");
+        else
+            await JS.InvokeVoidAsync("alert", "❌ Error al guardar asignación.");
+    }
+}

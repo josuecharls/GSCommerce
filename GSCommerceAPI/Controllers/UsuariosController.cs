@@ -1,4 +1,5 @@
-﻿using GSCommerceAPI.Data;
+﻿using GSCommerce.Client.Models;
+using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -75,6 +76,21 @@ namespace GSCommerceAPI.Controllers
             }
 
             return NoContent();
+        }
+
+        [HttpGet("cajeros/{idAlmacen}")]
+        public async Task<ActionResult<IEnumerable<Usuario>>> ObtenerCajerosPorAlmacen(int idAlmacen)
+        {
+            var cajeros = await _context.Usuarios
+                .Where(u => u.IdPersonalNavigation.Cargo == "CAJERO" && u.IdPersonalNavigation.IdAlmacen == idAlmacen && u.Estado == true)
+                .Select(u => new UsuarioDTO
+                {
+                    IdUsuario = u.IdUsuario,
+                    Nombre = u.Nombre
+                })
+                .ToListAsync();
+
+            return Ok(cajeros);
         }
 
         // DELETE: api/usuarios/5 (Eliminar un usuario)

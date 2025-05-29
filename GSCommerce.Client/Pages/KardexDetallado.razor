@@ -1,0 +1,152 @@
+﻿@page "/kardex-detallado"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject KardexDetalladoService KardexDetalladoService
+@inject AlmacenService AlmacenService
+@inject IJSRuntime JS
+
+<h3>📘 Kardex Detallado</h3>
+
+<div class="card p-4">
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label>Almacén</label>
+            <select class="form-control" @bind="idAlmacen">
+                <option value="0">-- Todos --</option>
+                @foreach (var almacen in almacenes)
+                {
+                    <option value="@almacen.IdAlmacen">@almacen.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label>Desde</label>
+            <input type="date" class="form-control" @bind="fechaDesde" />
+        </div>
+        <div class="col-md-3">
+            <label>Hasta</label>
+            <input type="date" class="form-control" @bind="fechaHasta" />
+        </div>
+        <div class="col-md-3">
+            <label>Código o Nombre</label>
+            <input type="text" class="form-control" @bind="textoBusqueda" @onkeypress="OnKeyEnter" />
+        </div>
+    </div>
+
+    <div class="text-end mb-2">
+        <button class="btn btn-primary" @onclick="BuscarKardex">🔍 Consultar</button>
+        <button class="btn btn-success ms-2" @onclick="ExportarAExcel">📤 Excel</button>
+    </div>
+
+    @if (isLoading)
+    {
+        <p>🔄 Cargando movimientos...</p>
+    }
+    else if (kardexData.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Almacén</th>
+                        <th>Código</th>
+                        <th>Artículo</th>
+                        <th>Operación</th>
+                        <th>Entrada</th>
+                        <th>Salida</th>
+                        <th>Saldo Final</th>
+                        <th>Valor Entrada</th>
+                        <th>Valor Salida</th>
+                        <th>Valor Final</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in kardexData)
+                    {
+                        <tr>
+                            <td>@item.Fecha?.ToString("dd/MM/yyyy")</td>
+                            <td>@item.Almacen</td>
+                            <td>@item.Codigo</td>
+                            <td>@item.Articulo</td>
+                            <td>@item.Operacion</td>
+                            <td>@item.Entrada</td>
+                            <td>@item.Salida</td>
+                            <td>@item.SaldoFinal</td>
+                            <td>@item.ValorizadoEntrada?.ToString("0.00")</td>
+                            <td>@item.ValorizadoSalida?.ToString("0.00")</td>
+                            <td>@item.ValorizadoFinal?.ToString("0.00")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="text-end mt-2">
+            <small>@kardexData.Count registro(s)</small>
+        </div>
+    }
+    else
+    {
+        <p>⚠️ No se encontraron movimientos.</p>
+    }
+</div>
+
+@code {
+    private List<KardexDetalladoDTO> kardexData = new();
+    private List<AlmacenDTO> almacenes = new();
+    private int idAlmacen = 0;
+    private DateTime fechaDesde = DateTime.Today.AddMonths(-1);
+    private DateTime fechaHasta = DateTime.Today;
+    private string textoBusqueda = "";
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacenes = await AlmacenService.GetAlmacenes();
+    }
+
+    private async Task BuscarKardex()
+    {
+        isLoading = true;
+        kardexData = await KardexDetalladoService.ObtenerKardexDetallado(
+            textoBusqueda,
+            idAlmacen == 0 ? null : idAlmacen,
+            fechaDesde,
+            fechaHasta
+        );
+        isLoading = false;
+    }
+
+    private async Task ExportarAExcel()
+    {
+        var headers = new[]
+        {
+        "Almacén", "Código", "Artículo", "Operación", "Entrada", "Salida",
+        "Saldo Final", "Valor Entrada", "Valor Salida", "Valor Final"
+    };
+
+        var datos = kardexData.Select(k => new object[]
+        {
+        k.Almacen,
+        k.Codigo,
+        k.Articulo,
+        k.Operacion,
+        k.Entrada,
+        k.Salida,
+        k.SaldoFinal,
+        k.ValorizadoEntrada?.ToString("0.00"),
+        k.ValorizadoSalida?.ToString("0.00"),
+        k.ValorizadoFinal?.ToString("0.00")
+        }).ToArray();
+
+        await JS.InvokeVoidAsync("exportToExcel", headers, datos, "KardexDetallado");
+    }
+
+    private async Task OnKeyEnter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await BuscarKardex();
+        }
+    }
+}

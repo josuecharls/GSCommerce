@@ -15,7 +15,7 @@ namespace GSCommerce.Client.Services
             _httpClient = httpClient;
         }
 
-        public async Task<List<StockDTO>> GetStock(int? idAlmacen = null, bool incluirStockCero = false, string? search = null)
+        public async Task<List<StockDTO>> GetStock(int? idAlmacen = null, bool incluirStockCero = false, string? search = null, int filtroBusqueda = 1)
         {
             try
             {
@@ -25,6 +25,7 @@ namespace GSCommerce.Client.Services
                     url += $"idAlmacen={idAlmacen}&";
 
                 url += $"incluirStockCero={incluirStockCero.ToString().ToLower()}";
+                url += $"&filtroBusqueda={filtroBusqueda}";
 
                 if (!string.IsNullOrWhiteSpace(search))
                     url += $"&search={search}";

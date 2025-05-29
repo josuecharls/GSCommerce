@@ -1,0 +1,61 @@
+﻿@page "/generar-xml"
+@using GSCommerce.Client.Models.SUNAT
+@using GSCommerce.Client.Helpers
+@inject IJSRuntime JS
+
+<h3>🧾 Generador de XML SUNAT (modo prueba)</h3>
+
+<button class="btn btn-primary" @onclick="GeneradorXML">Generar XML</button>
+
+@if (!string.IsNullOrEmpty(xmlGenerado))
+{
+    <div class="mt-3">
+        <label><strong>Resultado XML:</strong></label>
+        <textarea class="form-control" rows="25">@xmlGenerado</textarea>
+    </div>
+}
+
+@code {
+    private string xmlGenerado = string.Empty;
+
+    private void GeneradorXML()
+    {
+        var comprobante = new ComprobanteCabeceraDTO
+            {
+                IdComprobante = 1,
+                TipoDocumento = "01",
+                Serie = "F001",
+                Numero = 123,
+                FechaEmision = DateTime.Today,
+                HoraEmision = new TimeSpan(14, 30, 0),
+                SubTotal = 100,
+                Igv = 18,
+                Total = 118,
+                MontoLetras = "CIENTO DIECIOCHO CON 00/100 SOLES",
+                RucEmisor = "20567891234",
+                RazonSocialEmisor = "EMPRESA SAC",
+                DireccionEmisor = "Av. Ejemplo 123",
+                UbigeoEmisor = "150101",
+                DocumentoCliente = "47683219",
+                TipoDocumentoCliente = "1",
+                NombreCliente = "Carlos Pérez",
+                DireccionCliente = "Jr. Los Sauces 456",
+                Detalles = new List<ComprobanteDetalleDTO>
+            {
+                new ComprobanteDetalleDTO
+                {
+                    Item = 1,
+                    CodigoItem = "A001",
+                    DescripcionItem = "Producto de prueba",
+                    Cantidad = 2,
+                    PrecioUnitarioSinIGV = 50,
+                    PrecioUnitarioConIGV = 59,
+                    IGV = 18
+                }
+            }
+            };
+
+        var xmlService = new GeneradorsXML(); // 👈 esta clase tendrá el método GenerarXMLDesdeDTO
+        xmlGenerado = xmlService.GenerarXMLDesdeDTO(comprobante);
+    }
+}

@@ -6,32 +6,17 @@
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                 <NotAuthorized>
-                    @if (authenticationState?.User?.Identity?.IsAuthenticated == false)
-                    {
-                        // Evitar redirección infinita en la página de login
-                        if (!Navigation.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase))
-                        {
-                            Navigation.NavigateTo("/login", true);
-                        }
-                    }
-                    else
-                    {
-                        <p>No tienes permisos para ver esta página.</p>
-                    }
+                    <RedirectToLogin />
                 </NotAuthorized>
+                <Authorizing>
+                    <p class="text-center mt-5">⏳ Restaurando sesión...</p>
+                </Authorizing>
             </AuthorizeRouteView>
         </Found>
         <NotFound>
-            @code {
-        protected override void OnInitialized()
-        {
-            // Evitar redirección infinita en la página de login
-            if (!Navigation.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase))
-            {
-                Navigation.NavigateTo("/login", true);
-            }
-        }
-            }
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p class="text-danger text-center mt-5">Página no encontrada</p>
+            </LayoutView>
         </NotFound>
     </Router>
 </CascadingAuthenticationState>

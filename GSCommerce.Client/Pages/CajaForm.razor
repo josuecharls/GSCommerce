@@ -1,0 +1,175 @@
+﻿@page "/cajita"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject CajaService CajaService
+@inject AuthService AuthService
+@inject IJSRuntime JS
+
+<h3>Gestión de Caja</h3>
+
+@if (cargando)
+{
+    <p><em>Cargando...</em></p>
+}
+else
+{
+    <div class="mb-3">
+        <label>Fecha:</label>
+        <input type="date" class="form-control" @bind="fechaSeleccionada" />
+    </div>
+
+    <div class="alert alert-info">
+        <strong>Estado:</strong> @estadoCaja
+    </div>
+
+    @if (estadoCaja == "NO APERTURADA")
+    {
+        <div class="mb-3">
+            <label>Fondo Fijo:</label>
+            <input type="number" class="form-control" @bind="fondoFijo" min="0" step="0.01" />
+        </div>
+        <div class="mb-3">
+            <label>Observación:</label>
+            <input class="form-control" @bind="observacion" />
+        </div>
+        <button class="btn btn-success" @onclick="AperturarCaja">Aperturar Caja</button>
+    }
+    else if (estadoCaja == "LIQUIDADA")
+    {
+        <div class="mb-3">
+            <label>Observación de Cierre:</label>
+            <input class="form-control" @bind="observacion" />
+        </div>
+        <button class="btn btn-danger" @onclick="CerrarCaja">Cerrar Caja</button>
+        <button class="btn btn-secondary me-2" @onclick="ImprimirArqueo">
+            <i class="bi bi-printer"></i> Imprimir Arqueo
+        </button>
+    }
+    else if (estadoCaja == "CERRADA")
+    {
+        <div class="alert alert-success">Caja ya fue cerrada.</div>
+        <button class="btn btn-secondary me-2" @onclick="ImprimirArqueo">
+            <i class="bi bi-printer"></i> Imprimir Arqueo
+        </button>
+    }
+}
+
+@code {
+    private bool cargando = true;
+    private string estadoCaja = string.Empty;
+    private DateOnly fechaSeleccionada = DateOnly.FromDateTime(DateTime.Today);
+    private string FechaSeleccionadaString
+
+    {
+        get => fechaSeleccionada.ToString("yyyy-MM-dd");
+        set
+        {
+            if (DateTime.TryParse(value, out var fecha))
+            {
+                fechaSeleccionada = DateOnly.FromDateTime(fecha);
+            }
+        }
+    }
+
+    private decimal fondoFijo = 100.00m;
+    private string observacion = string.Empty;
+    private int idApertura = 0;
+    private int idUsuario;
+    private int idAlmacen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        idUsuario = await AuthService.GetUserId() ?? 0;
+        idAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
+
+        if (idAlmacen == 0)
+        {
+            estadoCaja = "⚠️ Error: No se encontró almacén asignado.";
+            cargando = false;
+            return;
+        }
+
+        await VerificarEstadoCaja();
+        cargando = false;
+    }
+
+    private async Task OnFechaChanged(ChangeEventArgs e)
+    {
+        fechaSeleccionada = DateOnly.Parse(e.Value?.ToString() ?? DateTime.Today.ToString("yyyy-MM-dd"));
+        await VerificarEstadoCaja();
+    }
+
+    private async Task VerificarEstadoCaja()
+    {
+        var apertura = await CajaService.ObtenerAperturaAsync(idUsuario, idAlmacen, fechaSeleccionada);
+        if (apertura == null)
+        {
+            estadoCaja = "NO APERTURADA";
+            idApertura = 0;
+        }
+        else if (apertura.Estado == "L")
+        {
+            estadoCaja = "LIQUIDADA";
+            idApertura = apertura.IdAperturaCierre;
+        }
+        else if (apertura.Estado == "C")
+        {
+            estadoCaja = "CERRADA";
+            idApertura = apertura.IdAperturaCierre;
+        }
+        else
+        {
+            estadoCaja = "APERTURADA";
+        }
+    }
+
+    private async Task AperturarCaja()
+    {
+        var apertura = new AperturaCierreCajaDTO
+            {
+                IdUsuario = idUsuario,
+                IdAlmacen = idAlmacen,
+                Fecha = fechaSeleccionada,
+                FondoFijo = fondoFijo,
+                SaldoInicial = 0,
+                Estado = "A",
+                ObservacionApertura = observacion
+            };
+
+        var exito = await CajaService.RegistrarAperturaAsync(apertura);
+        if (exito)
+        {
+            await VerificarEstadoCaja();
+        }
+    }
+
+    private async Task CerrarCaja()
+    {
+        var apertura = await CajaService.ObtenerAperturaAsync(idUsuario, idAlmacen, fechaSeleccionada);
+        idApertura = 0;
+        if (apertura != null)
+        {
+            apertura.Estado = "C";
+            apertura.ObservacionCierre = observacion;
+            idApertura = apertura.IdAperturaCierre;
+
+            var exito = await CajaService.RegistrarCierreAsync(apertura.IdAperturaCierre, apertura);
+            if (exito)
+            {
+                await VerificarEstadoCaja();
+            }
+        }
+    }
+
+    private async Task ImprimirArqueo()
+    {
+        if (idApertura <= 0)
+        {
+            Console.WriteLine("❌ No hay apertura seleccionada para imprimir.");
+            return;
+        }
+
+        var url = $"https://localhost:7246/api/caja/arqueo-pdf/{idApertura}";
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+}

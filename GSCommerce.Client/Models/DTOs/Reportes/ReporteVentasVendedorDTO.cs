@@ -1,0 +1,11 @@
+﻿namespace GSCommerce.Client.Models.DTOs.Reportes
+{
+    public class ReporteVentasVendedorDTO
+    {
+        public string NombreVendedor { get; set; } = "";
+        public int TotalVentas { get; set; }
+        public int TotalClientes { get; set; }
+        public decimal MontoTotal { get; set; }
+        public decimal TicketPromedio => TotalVentas > 0 ? MontoTotal / TotalVentas : 0;
+    }
+}

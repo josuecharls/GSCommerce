@@ -22,8 +22,19 @@ builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>
 builder.Services.AddScoped<MovimientoGuiaService>();
 builder.Services.AddScoped<OrdenCompraService>();
 builder.Services.AddScoped<StockService>();
+builder.Services.AddScoped<ArticuloVarianteService>();
+builder.Services.AddScoped<KardexService>();
+builder.Services.AddScoped<KardexDetalladoService>();
+builder.Services.AddScoped<VentaService>();
+builder.Services.AddScoped<SerieCorrelativoService>();
+builder.Services.AddScoped<TipoDocumentoVentaService>();
+builder.Services.AddScoped<ReniecService>();
+builder.Services.AddScoped<CajaService>();
+builder.Services.AddScoped<AuxiliaresVariosService>();
+builder.Services.AddScoped<UsuarioService>();
+builder.Services.AddScoped<AsignacionSerieCajeroService>();
+builder.Services.AddScoped<ReporteService>();
 builder.Services.AddAuthorizationCore();
-
 
 // Configurar HttpClient para conectarse al backend
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7246") });

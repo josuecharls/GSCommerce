@@ -1,4 +1,5 @@
-﻿using GSCommerceAPI.Data;
+﻿using GSCommerce.Client.Pages;
+using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -50,8 +51,20 @@ namespace GSCommerceAPI.Controllers
 
             string cargo = user.IdPersonalNavigation?.Cargo ?? "USUARIO"; // Si no tiene cargo, se le asigna "USUARIO"
             var token = GenerateJwtToken(user, cargo);
+            int? almacenId = await _context.AperturaCierreCajas
+            .Where(a => a.IdUsuario == user.IdUsuario)
+            .OrderByDescending(a => a.Fecha)
+            .Select(a => (int?)a.IdAlmacen)
+            .FirstOrDefaultAsync();
 
-            return Ok(new { Token = token, UserId = user.IdUsuario, Nombre = user.Nombre, Cargo = cargo });
+            return Ok(new
+            {
+                Token = token,
+                UserId = user.IdUsuario,
+                Nombre = user.Nombre,
+                Cargo = cargo,
+                IdAlmacen = almacenId
+            });
         }
 
         // Este método simula la obtención de la contraseña desde la base de datos

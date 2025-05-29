@@ -1,8 +1,10 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 
 namespace GSCommerceAPI.Models;
 
+[Keyless]
 public partial class VKardexGeneral
 {
     public int IdKardex { get; set; }
@@ -23,7 +25,7 @@ public partial class VKardexGeneral
 
     public decimal? PrecioVenta { get; set; }
 
-    public DateOnly? Fecha { get; set; }
+    public DateTime? Fecha { get; set; }
 
     public string Operacion { get; set; } = null!;
 

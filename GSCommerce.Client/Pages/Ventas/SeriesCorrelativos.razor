@@ -1,0 +1,174 @@
+﻿@page "/series-correlativos"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject AlmacenService AlmacenService
+@inject TipoDocumentoVentaService TipoDocService
+@inject SerieCorrelativoService SerieService
+
+<h3>Administrar Series y Correlativos</h3>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <label>Seleccionar Almacén:</label>
+        <select class="form-select" @bind="idAlmacenSeleccionado" @bind:event="onchange">
+            <option value="">-- Seleccione un almacén --</option>
+            @foreach (var a in almacenes)
+            {
+                <option value="@a.IdAlmacen">@a.Nombre</option>
+            }
+        </select>
+    </div>
+</div>
+
+@if (idAlmacenSeleccionado > 0)
+{
+    <button class="btn btn-primary mb-3" @onclick="Nuevo">+ Nueva Serie</button>
+
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Tipo Documento</th>
+                <th>Serie</th>
+                <th>Correlativo</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in series)
+            {
+                <tr>
+                    <td>@s.NombreTipoDocumento</td>
+                    <td>@s.Serie</td>
+                    <td>@s.Correlativo</td>
+                    <td>@(s.Estado ? "ACTIVO" : "INACTIVO")</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm" @onclick="(() => Editar(s))">✏️</button>
+                        <button class="btn btn-danger btn-sm" @onclick="(() => Eliminar(s.IdSerieCorrelativo))">🗑️</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @if (modoFormulario)
+    {
+        <EditForm Model="@formulario" OnValidSubmit="Guardar">
+            <DataAnnotationsValidator />
+            <div class="card p-3">
+                <div class="mb-2">
+                    <label>Tipo Documento:</label>
+                    <select class="form-select" @bind="formulario.IdTipoDocumentoVenta" disabled="@(!esNuevo)">
+                        @foreach (var tipo in tiposDocumento)
+                        {
+                            <option value="@tipo.IdTipoDocumentoVenta">@tipo.Descripcion</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label>Serie:</label>
+                    <InputText class="form-control" @bind-Value="formulario.Serie" disabled="@(!esNuevo)" />
+                </div>
+                <div class="mb-2">
+                    <label>Correlativo:</label>
+                    <InputNumber class="form-control" @bind-Value="formulario.Correlativo" />
+                </div>
+                <div class="mb-2">
+                    <label>Estado:</label>
+                    <select class="form-select" @bind="formulario.Estado">
+                        <option value="true">ACTIVO</option>
+                        <option value="false">INACTIVO</option>
+                    </select>
+                </div>
+                <div>
+                    <button class="btn btn-success me-2" type="submit">Guardar</button>
+                    <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+                </div>
+            </div>
+        </EditForm>
+    }
+}
+
+@code {
+    private int idAlmacenSeleccionado = 0;
+    private List<AlmacenDTO> almacenes = new();
+    private List<TipoDocumentoVentaDTO> tiposDocumento = new();
+    private List<SerieCorrelativoDTO> series = new();
+
+    private SerieCorrelativoDTO formulario = new();
+    private bool modoFormulario = false;
+    private bool esNuevo = true;
+
+    private async Task OnAlmacenSeleccionadoChanged()
+    {
+        if (idAlmacenSeleccionado > 0)
+        {
+            await CargarSeries();
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        tiposDocumento = await TipoDocService.GetTiposDocumento() ?? new();
+    }
+
+    private async Task CargarSeries()
+    {
+        if (idAlmacenSeleccionado > 0)
+        {
+            series = await SerieService.ObtenerPorAlmacenAsync(idAlmacenSeleccionado);
+            modoFormulario = false;
+        }
+    }
+
+    private void Nuevo()
+    {
+        formulario = new SerieCorrelativoDTO
+        {
+            IdAlmacen = idAlmacenSeleccionado,
+            Estado = true
+        };
+        esNuevo = true;
+        modoFormulario = true;
+    }
+
+    private void Editar(SerieCorrelativoDTO serie)
+    {
+        formulario = new SerieCorrelativoDTO
+        {
+            IdSerieCorrelativo = serie.IdSerieCorrelativo,
+            IdAlmacen = serie.IdAlmacen,
+            IdTipoDocumentoVenta = serie.IdTipoDocumentoVenta,
+            Serie = serie.Serie,
+            Correlativo = serie.Correlativo,
+            Estado = serie.Estado
+        };
+        esNuevo = false;
+        modoFormulario = true;
+    }
+
+    private async Task Guardar()
+    {
+        bool exito = esNuevo
+            ? await SerieService.CrearSerieAsync(formulario)
+            : await SerieService.ActualizarSerieAsync(formulario);
+
+        if (exito)
+        {
+            await CargarSeries();
+            modoFormulario = false;
+        }
+    }
+
+    private void Cancelar()
+    {
+        modoFormulario = false;
+    }
+
+    private async Task Eliminar(int id)
+    {
+        bool exito = await SerieService.EliminarSerieAsync(id);
+        if (exito)
+            await CargarSeries();
+    }
+}

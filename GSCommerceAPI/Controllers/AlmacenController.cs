@@ -37,7 +37,8 @@ namespace GSCommerceAPI.Controllers
                     Celular = a.Celular,
                     RazonSocial = a.RazonSocial,
                     Ruc = a.Ruc,
-                    Estado = a.Estado
+                    Estado = a.Estado,
+                    Ubigeo = a.Ubigeo
                 })
                 .ToListAsync();
 

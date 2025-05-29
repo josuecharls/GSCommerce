@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
+using GSCommerce.Client.Models;
 
 namespace GSCommerceAPI.Controllers
 {
@@ -19,8 +20,10 @@ namespace GSCommerceAPI.Controllers
         // ✅ GET: api/stock
         [HttpGet]
         public async Task<IActionResult> GetStock(
-            [FromQuery] int? idAlmacen = null,
-            [FromQuery] bool incluirStockCero = false)
+    [FromQuery] int? idAlmacen = null,
+    [FromQuery] bool incluirStockCero = false,
+    [FromQuery] int filtroBusqueda = 1, // 1: Código, 2: Descripción
+    [FromQuery] string? search = null)
         {
             var query = _context.VStockXalmacen1s.AsQueryable();
 
@@ -30,10 +33,33 @@ namespace GSCommerceAPI.Controllers
             if (!incluirStockCero)
                 query = query.Where(s => s.Stock > 0);
 
-            var resultado = await query
-                .OrderBy(s => s.Descripcion)
-                .ToListAsync();
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                if (filtroBusqueda == 1)
+                    query = query.Where(s => s.IdArticulo.Contains(search));
+                else if (filtroBusqueda == 2)
+                    query = query.Where(s => s.Descripcion.Contains(search));
+            }
 
+            var resultado = await query
+    .OrderBy(s => s.Descripcion)
+    .Select(s => new StockDTO
+    {
+        IdAlmacen = s.IdAlmacen,
+        Almacen = s.Almacen,
+        Familia = s.Familia,
+        Linea = s.Linea,
+        IdArticulo = s.IdArticulo,
+        Descripcion = s.Descripcion,
+        Stock = s.Stock,
+        PrecioCompra = s.PrecioCompra,
+        ValorCompra = s.ValorCompra,
+        PrecioVenta = s.PrecioVenta,
+        ValorVenta = s.ValorVenta,
+        StockMinimo = s.StockMinimo,
+        EstaBajoMinimo = s.StockMinimo.HasValue && s.Stock < s.StockMinimo.Value
+    })
+    .ToListAsync();
             return Ok(resultado);
         }
     }

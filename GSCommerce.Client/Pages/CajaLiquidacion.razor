@@ -1,0 +1,217 @@
+﻿@page "/caja/liquidacion"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject CajaService CajaService
+@inject AuthService AuthService
+
+<h3>Liquidación de Venta Diaria</h3>
+
+@if (cargando)
+{
+    <p><em>Cargando datos...</em></p>
+}
+else
+{
+    <div class="mb-3">
+        <label>Fecha:</label>
+        <input type="date" class="form-control" @bind="fechaSeleccionada"/>
+    </div>
+
+    <div class="alert alert-secondary">
+        <p><strong>Usuario:</strong> @usuario</p>
+        <p><strong>Cajero:</strong> @cajero</p>
+        <p><strong>Estado:</strong> @estadoCaja</p>
+    </div>
+
+    @if (ventas?.Any() == true)
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Descripción</th>
+                    <th>Datos</th>
+                    <th>Serie</th>
+                    <th>Número</th>
+                    <th>Fecha</th>
+                    <th>Total</th>
+                    <th>Soles</th>
+                    <th>Dólares</th>
+                    <th>Vuelto</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var v in ventas)
+                {
+                    <tr>
+                        <td>@v.Descripcion</td>
+                        <td>@v.Datos</td>
+                        <td>@v.Serie</td>
+                        <td>@v.Numero</td>
+                        <td>@v.Fecha.ToShortDateString()</td>
+                        <td>@v.Total.ToString("N2")</td>
+                        <td>@v.Soles.ToString("N2")</td>
+                        <td>@v.Dolares.ToString("N2")</td>
+                        <td>@(v.Vuelto ?? 0).ToString("N2")</td>
+                        <td>@v.Estado</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="alert alert-info">
+            <p><strong>Total Venta:</strong> @totalVenta.ToString("N2")</p>
+            <p><strong>Total Tarjeta:</strong> @totalTarjeta.ToString("N2")</p>
+            <p><strong>Total N.C.:</strong> @totalNC.ToString("N2")</p>
+            <p><strong>Total Final:</strong> @totalFinal.ToString("N2")</p>
+        </div>
+
+        /*@if (estadoCaja == "APERTURADA")
+        {
+            <button class="btn btn-primary" @onclick="LiquidarCaja">Liquidar Caja</button>
+        }*/
+    }
+    
+    @if (estadoCaja == "APERTURADA")
+    {
+        <button class="btn btn-primary" @onclick="LiquidarCaja">Liquidar Caja</button>
+    }
+    /*
+    else
+    {
+        <p>No hay ventas para esta fecha.</p>
+    }*/
+}
+
+@code {
+    private bool cargando = true;
+    private string usuario = "";
+    private string cajero = "";
+    private string estadoCaja = "";
+    private DateOnly fechaSeleccionada = DateOnly.FromDateTime(DateTime.Today);
+    private string fechaSeleccionadaString
+    {
+        get => fechaSeleccionada.ToString("yyyy-MM-dd");
+        set
+        {
+            if (DateTime.TryParse(value, out var fecha))
+                fechaSeleccionada = DateOnly.FromDateTime(fecha);
+        }
+    }
+
+    private List<VCierreVentaDiaria1DTO> ventas = new();
+    private List<ResumenCierreDeCajaDTO> resumen = new();
+    private decimal totalVenta = 0;
+    private decimal totalTarjeta = 0;
+    private decimal totalNC = 0;
+    private decimal totalFinal = 0;
+    private int idUsuario;
+    private int idAlmacen;
+    private int idApertura;
+
+    protected override async Task OnInitializedAsync()
+    {
+        idUsuario = await AuthService.GetUserId() ?? 0;
+        idAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
+        await CargarDatos();
+        cargando = false;
+    }
+
+    private async Task OnFechaChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var fecha))
+        {
+            fechaSeleccionada = DateOnly.FromDateTime(fecha);
+            await CargarDatos();
+        }
+    }
+
+    private async Task CargarDatos()
+    {
+        ventas.Clear();
+        resumen.Clear();
+        totalVenta = 0;
+        totalTarjeta = 0;
+        totalNC = 0;
+        totalFinal = 0;
+
+        var apertura = await CajaService.ObtenerAperturaAsync(idUsuario, idAlmacen, fechaSeleccionada);
+        if (apertura == null)
+        {
+            estadoCaja = "NO APERTURADA";
+            return;
+        }
+
+        idApertura = apertura.IdAperturaCierre;
+        estadoCaja = apertura.Estado == "L" ? "LIQUIDADA" : apertura.Estado == "C" ? "CERRADA" : "APERTURADA";
+        usuario = apertura.NombreUsuario ?? "";
+        cajero = apertura.NombreCajero ?? "";
+
+        ventas = await CajaService.ObtenerVentasDiariasAsync(idAlmacen, fechaSeleccionada) ?? new();
+
+        foreach (var venta in ventas)
+        {
+            switch (venta.Descripcion.Split(" ")[0])
+            {
+                case "Efectivo":
+                    totalFinal += venta.Soles - (venta.Vuelto ?? 0);
+                    break;
+                case "Tarjeta":
+                case "Online":
+                    totalTarjeta += venta.Soles;
+                    resumen.Add(new()
+                    {
+                        IdUsuario = idUsuario,
+                        IdAlmacen = idAlmacen,
+                        Fecha = fechaSeleccionada,
+                        IdGrupo = 6,
+                        Grupo = "VENTA TARJETA/ONLINE",
+                        Detalle = venta.Descripcion,
+                        Monto = venta.Soles
+                    });
+                    break;
+                case "N.C.":
+                    totalNC += venta.Soles;
+                    resumen.Add(new()
+                    {
+                        IdUsuario = idUsuario,
+                        IdAlmacen = idAlmacen,
+                        Fecha = fechaSeleccionada,
+                        IdGrupo = 7,
+                        Grupo = "VENTA POR N.C.",
+                        Detalle = "N.C. N° " + venta.Datos,
+                        Monto = venta.Soles
+                    });
+                    break;
+            }
+        }
+
+        totalVenta = totalFinal + totalTarjeta + totalNC;
+        resumen.Add(new()
+        {
+            IdUsuario = idUsuario,
+            IdAlmacen = idAlmacen,
+            Fecha = fechaSeleccionada,
+            IdGrupo = 2,
+            Grupo = "VENTA DIARIA",
+            Detalle = $"TOTAL DE VENTAS DEL: {fechaSeleccionadaString}",
+            Monto = totalVenta
+        });
+    }
+
+    private async Task LiquidarCaja()
+    {
+        var dto = new LiquidacionVentaDTO
+        {
+            IdAperturaCierre = idApertura,
+            Total = totalVenta,
+            Resumenes = resumen
+        };
+
+        var exito = await CajaService.LiquidarCajaAsync(dto);
+        if (exito)
+        {
+            estadoCaja = "LIQUIDADA";
+        }
+    }
+}

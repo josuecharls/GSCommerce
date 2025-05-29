@@ -49,6 +49,12 @@ namespace GSCommerce.Client.Services
             return response.IsSuccessStatusCode;
         }
 
+        public async Task<List<PersonalDTO>> ObtenerVendedoresPorAlmacen(int idAlmacen)
+        {
+            return await _httpClient.GetFromJsonAsync<List<PersonalDTO>>($"api/personal/vendedores-por-almacen/{idAlmacen}")
+                ?? new List<PersonalDTO>();
+        }
+
         public async Task<bool> UpdatePersonal(int id, PersonalDTO personal)
         {
             try

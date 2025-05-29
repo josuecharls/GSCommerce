@@ -1,0 +1,97 @@
+﻿@page "/reportes/ventas-vendedor"
+@using System.Text
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@inject VentaService VentaService
+@inject IJSRuntime JS
+
+<h3>📊 Reporte de Ventas por Vendedor</h3>
+
+<div class="row mb-3">
+    <div class="col-md-3">
+        <label>Desde:</label>
+        <InputDate @bind-Value="desde" class="form-control" />
+    </div>
+    <div class="col-md-3">
+        <label>Hasta:</label>
+        <InputDate @bind-Value="hasta" class="form-control" />
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="Buscar">🔍 Buscar</button>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-success w-100" @onclick="ExportarPDF">📄 Exportar a PDF</button>
+    </div>
+</div>
+
+@if (reporte.Any())
+{
+    <table class="table table-bordered">
+        <thead class="table-light">
+            <tr>
+                <th>Vendedor</th>
+                <th>Total Ventas</th>
+                <th>Total Clientes</th>
+                <th>Monto Total</th>
+                <th>Ticket Promedio</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in reporte)
+            {
+                <tr>
+                    <td>@r.NombreVendedor</td>
+                    <td>@r.TotalVentas</td>
+                    <td>@r.TotalClientes</td>
+                    <td>S/ @r.MontoTotal:N2</td>
+                    <td>S/ @r.TicketPromedio:N2</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="alert alert-info text-center">No se encontraron resultados para ese rango de fechas.</div>
+}
+
+@code {
+    private DateTime desde = DateTime.Today;
+    private DateTime hasta = DateTime.Today;
+    private List<ReporteVentasVendedorDTO> reporte = new();
+
+    private async Task Buscar()
+    {
+        reporte = await VentaService.ObtenerReportePorVendedor(desde, hasta);
+    }
+
+    private async Task ExportarPDF()
+    {
+        var html = GenerarHtmlPDF();
+        await JS.InvokeVoidAsync("generarPDFDesdeHTML", html, $"Reporte_Ventas_{DateTime.Now:yyyyMMdd_HHmmss}");
+    }
+
+    private string GenerarHtmlPDF()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<div style='font-family:Arial; font-size:14px;'>");
+        sb.AppendLine("<h2 style='text-align:center;'>Reporte de Ventas por Vendedor</h2>");
+        sb.AppendLine($"<p><strong>Desde:</strong> {desde:dd/MM/yyyy} <strong>Hasta:</strong> {hasta:dd/MM/yyyy}</p>");
+        sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
+        sb.AppendLine("<thead><tr><th>Vendedor</th><th>Ventas</th><th>Clientes</th><th>Monto Total</th><th>Ticket Promedio</th></tr></thead>");
+        sb.AppendLine("<tbody>");
+        foreach (var r in reporte)
+        {
+            sb.AppendLine("<tr>");
+            sb.AppendLine($"<td>{r.NombreVendedor}</td>");
+            sb.AppendLine($"<td>{r.TotalVentas}</td>");
+            sb.AppendLine($"<td>{r.TotalClientes}</td>");
+            sb.AppendLine($"<td>S/ {r.MontoTotal:N2}</td>");
+            sb.AppendLine($"<td>S/ {r.TicketPromedio:N2}</td>");
+            sb.AppendLine("</tr>");
+        }
+        sb.AppendLine("</tbody></table>");
+        sb.AppendLine("</div>");
+        return sb.ToString();
+    }
+}

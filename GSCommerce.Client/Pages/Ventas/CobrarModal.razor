@@ -1,0 +1,157 @@
+﻿@using GSCommerce.Client.Models
+
+<div class="modal fade @(Mostrar ? "show d-block" : "")" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Cobrar Venta</h5>
+                <button type="button" class="btn-close" @onclick="Cerrar" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+
+                <div class="mb-3">
+                    <label>Forma de Pago:</label>
+                    <select class="form-select" @bind="pagoSeleccionado">
+                        <option value="EFECTIVO">EFECTIVO</option>
+                        <option value="VISA">VISA</option>
+                        <option value="YAPE">YAPE</option>
+                        <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                        <option value="NOTA CREDITO">NOTA CREDITO</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label>Monto:</label>
+                    <input type="number" class="form-control" @bind="montoPago" min="0" step="0.01" />
+                </div>
+                @if (pagoSeleccionado == "EFECTIVO")
+                {
+                    <div class="mb-3">
+                        <label>Vuelto:</label>
+                        <input class="form-control" value="@VueltoCalculado.ToString("N2")" readonly />
+                    </div>
+                }
+                @if (pagoSeleccionado == "VISA")
+                {
+                    <div class="mb-3">
+                        <label>4 últimos dígitos de la tarjeta:</label>
+                        <input class="form-control" maxlength="4" @bind="codigoVerificacion" />
+                    </div>
+                }
+                @if (pagoSeleccionado == "YAPE")
+                {
+                    <div class="mb-3">
+                        <label>3 dígitos de verificación:</label>
+                        <input class="form-control" maxlength="3" @bind="codigoVerificacion" />
+                    </div>
+                }
+                <div class="text-end mb-2">
+                    <button class="btn btn-secondary me-2" @onclick="AgregarPago">Agregar Pago</button>
+                </div>
+
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Forma</th>
+                            <th>Monto</th>
+                            <th>Cod. Verif.</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var pago in pagos)
+                        {
+                            <tr>
+                                <td>@pago.FormaPago</td>
+                                <td>@pago.Monto.ToString("N2")</td>
+                                <td>@pago.CodigoVerificacion</td>
+                                <td><button class="btn btn-danger btn-sm" @onclick="() => EliminarPago(pago)">X</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                @if (VueltoCalculado > 0)
+                {
+                    <div class="text-end text-success">
+                        <h5>Vuelto: @VueltoCalculado.ToString("N2")</h5>
+                    </div>
+                }
+                <div class="text-end">
+                    <h5>Total Pagado: @TotalPagado.ToString("N2")</h5>
+                    <h5>Falta: @(Math.Max(0, MontoTotal - TotalPagado).ToString("N2"))</h5>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" @onclick="ConfirmarPago" disabled="@(!PuedeConfirmar)">Confirmar Pago</button>
+                <button type="button" class="btn btn-secondary" @onclick="Cerrar">Cancelar</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public decimal MontoTotal { get; set; }
+    [Parameter] public EventCallback<List<DetallePagoDTO>> OnConfirmado { get; set; }
+    [Parameter] public EventCallback OnCancelado { get; set; }
+    public bool Mostrar { get; set; }
+
+    private string pagoSeleccionado = "EFECTIVO";
+    private decimal montoPago;
+    private string? codigoVerificacion;
+    private List<DetallePagoDTO> pagos = new();
+
+    private decimal TotalPagado => pagos.Sum(p => p.Monto);
+    private decimal VueltoCalculado =>
+    pagos.Where(p => p.FormaPago == "EFECTIVO").Sum(p => p.Monto) > MontoTotal
+        ? pagos.Where(p => p.FormaPago == "EFECTIVO").Sum(p => p.Monto) - MontoTotal
+        : 0;
+    private bool PuedeConfirmar => TotalPagado >= MontoTotal;
+
+    public void Abrir()
+    {
+        pagos.Clear();
+        montoPago = 0;
+        codigoVerificacion = null;
+        pagoSeleccionado = "EFECTIVO";
+        Mostrar = true;
+    }
+
+    private void Cerrar()
+    {
+        Mostrar = false;
+        OnCancelado.InvokeAsync();
+    }
+
+    private void AgregarPago()
+    {
+        if (montoPago > 0)
+        {
+            pagos.Add(new DetallePagoDTO
+                {
+                    FormaPago = pagoSeleccionado,
+                    Monto = montoPago,
+                    CodigoVerificacion = codigoVerificacion
+                });
+
+            montoPago = 0;
+            codigoVerificacion = null;
+            pagoSeleccionado = "EFECTIVO";
+        }
+    }
+
+    private void EliminarPago(DetallePagoDTO pago)
+    {
+        pagos.Remove(pago);
+    }
+
+    private async Task ConfirmarPago()
+    {
+        Mostrar = false;
+        await OnConfirmado.InvokeAsync(pagos);
+    }
+}

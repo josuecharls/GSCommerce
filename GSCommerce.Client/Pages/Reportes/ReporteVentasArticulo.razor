@@ -1,0 +1,111 @@
+﻿@page "/reportes/ventas-articulo"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@using System.Text
+@inject ArticuloService ArticuloService
+@inject ReporteService ReporteService
+@inject IJSRuntime JS
+
+<h3 class="mb-4 fw-bold text-uppercase">📦 Reporte por Artículo</h3>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <label>Mes:</label>
+        <InputDate @bind-Value="fechaSeleccionada" class="form-control" />
+    </div>
+    <div class="col-md-4">
+        <label>Artículo:</label>
+        <select class="form-select" @bind="idArticuloSeleccionado">
+            <option value="">-- Seleccione --</option>
+            @foreach (var art in articulos)
+            {
+                <option value="@art.IdArticulo">@art.Descripcion</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button class="btn btn-success w-100" @onclick="ExportarReportePDF">📄 Generar PDF</button>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(mensaje))
+{
+    <div class="alert alert-warning text-center">@mensaje</div>
+}
+
+@code {
+    private DateTime fechaSeleccionada = DateTime.Today;
+    private string? idArticuloSeleccionado;
+    private List<ArticuloDTO> articulos = new();
+    private string mensaje = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        articulos = await ArticuloService.ObtenerTodos();
+    }
+
+    private async Task ExportarReportePDF()
+    {
+        mensaje = string.Empty;
+
+        if (idArticuloSeleccionado == null)
+        {
+            mensaje = "⚠️ Debes seleccionar un artículo.";
+            return;
+        }
+
+        var mes = fechaSeleccionada.Month;
+        var anio = fechaSeleccionada.Year;
+
+        var reporte = await ReporteService.ObtenerReportePorArticulo(idArticuloSeleccionado, mes, anio);
+
+        if (reporte == null)
+        {
+            mensaje = "❌ No se encontró información para ese artículo.";
+            return;
+        }
+
+        var html = GenerarHtmlPDF_Articulo(reporte);
+        await JS.InvokeVoidAsync("generarPDFDesdeHTML", html, "Reporte_Ventas_Articulo.pdf");
+    }
+
+    private string GenerarHtmlPDF_Articulo(ReporteArticuloDTO articulo)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<div style='font-family:Arial; font-size:12px;'>");
+        sb.AppendLine("<h2 style='text-align:center;'>REPORTE POR ARTÍCULO</h2>");
+        sb.AppendLine($"<p><strong>Artículo:</strong> {articulo.Descripcion}</p>");
+
+        sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
+        sb.AppendLine("<thead><tr><th>Almacén</th><th>Ingreso</th><th>Venta</th><th>Stock</th><th>% Venta</th></tr></thead>");
+        sb.AppendLine("<tbody>");
+        foreach (var d in articulo.DetallePorAlmacen)
+        {
+            sb.AppendLine("<tr>");
+            sb.AppendLine($"<td>{d.NombreAlmacen}</td>");
+            sb.AppendLine($"<td>{d.Ingreso}</td>");
+            sb.AppendLine($"<td>{d.Venta}</td>");
+            sb.AppendLine($"<td>{d.Stock}</td>");
+            sb.AppendLine($"<td>{d.PorcentajeVenta:N2}%</td>");
+            sb.AppendLine("</tr>");
+        }
+        sb.AppendLine("</tbody></table>");
+        sb.AppendLine("<br/>");
+
+        sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:60%;'>");
+        sb.AppendLine("<thead><tr><th>Almacén</th><th>Total Ventas por Mes</th></tr></thead>");
+        sb.AppendLine("<tbody>");
+        foreach (var t in articulo.TotalVentasMensual)
+        {
+            sb.AppendLine("<tr>");
+            sb.AppendLine($"<td>{t.NombreAlmacen}</td>");
+            sb.AppendLine($"<td>S/ {t.MontoTotal:N2}</td>");
+            sb.AppendLine("</tr>");
+        }
+        sb.AppendLine("</tbody></table>");
+        sb.AppendLine("</div>");
+
+        return sb.ToString();
+    }
+}

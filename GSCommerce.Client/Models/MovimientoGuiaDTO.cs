@@ -17,6 +17,7 @@ namespace GSCommerce.Client.Models
         public int? IdOc { get; set; }
         public int IdUsuario { get; set; }
         public string Estado { get; set; } = "E"; // E = Emitido
+        public DateTime FechaHoraRegistro { get; set; } = DateTime.Now;
 
         // Detalles
         public List<MovimientoDetalleDTO> Detalles { get; set; } = new();

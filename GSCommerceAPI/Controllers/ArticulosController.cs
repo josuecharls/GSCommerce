@@ -18,6 +18,29 @@ namespace GSCommerceAPI.Controllers
             _context = context;
         }
 
+        [HttpGet("todos")]
+        public async Task<ActionResult<List<ArticuloDTO>>> ObtenerTodos()
+        {
+            try
+            {
+                var articulos = await _context.Articulos
+                    .Select(a => new ArticuloDTO
+                    {
+                        IdArticulo = a.IdArticulo,
+                        Descripcion = a.Descripcion
+                    })
+                    .ToListAsync();
+
+                return Ok(articulos);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("🔥 ERROR API ARTICULOS: " + ex.Message);
+                return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+            }
+        }
+
+
         // GET: api/articulos (Obtener todos los artículos con paginación y búsqueda)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Articulo>>> GetArticulos(
@@ -276,6 +299,44 @@ namespace GSCommerceAPI.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // GET: api/articulos/codigo/{codigo}
+        [HttpGet("codigo/{codigo}")]
+        public async Task<ActionResult<ArticuloDTO>> GetArticuloPorCodigo(string codigo)
+        {
+            var articulo = await _context.Articulos.FirstOrDefaultAsync(a => a.IdArticulo == codigo);
+
+            if (articulo == null)
+                return NotFound();
+
+            var dto = new ArticuloDTO
+            {
+                IdArticulo = articulo.IdArticulo,
+                Descripcion = articulo.Descripcion,
+                DescripcionCorta = articulo.DescripcionCorta,
+                Familia = articulo.Familia,
+                Linea = articulo.Linea,
+                Marca = articulo.Marca,
+                Material = articulo.Material,
+                Modelo = articulo.Modelo,
+                Color = articulo.Color,
+                Detalle = articulo.Detalle,
+                Talla = articulo.Talla,
+                IdProveedor = articulo.IdProveedor,
+                UnidadAlmacen = articulo.UnidadAlmacen,
+                MonedaCosteo = articulo.MonedaCosteo,
+                PrecioCompra = articulo.PrecioCompra,
+                PrecioVenta = articulo.PrecioVenta,
+                //La fecha de registro es el del mismo momento que se crea
+                FechaRegistro = articulo.FechaRegistro,
+                Foto = null, // Puedes cargar foto aparte si quieres optimizar
+                CodigoBarra = articulo.CodigoBarra != null ? Encoding.UTF8.GetString(articulo.CodigoBarra) : null,
+                Estado = articulo.Estado,
+                Estacion = articulo.Estacion
+            };
+
+            return Ok(dto);
         }
 
         private bool ArticuloExists(string id)

@@ -6,6 +6,7 @@
 @inject IJSRuntime JS
 @inject ProveedorService ProveedorService
 @inject OrdenCompraService OrdenCompraService
+@inject ArticuloService ArticuloService
 
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
@@ -96,7 +97,9 @@ else
             {
                 <tr>
                     <td>@d.Item</td>
-                    <td><input class="form-control" @bind="d.IdArticulo" /></td>
+                    <td><input class="form-control"
+               @bind="d.IdArticulo"
+               @onblur="() => BuscarArticulo(d)" /></td>
                     <td><input class="form-control" @bind="d.DescripcionArticulo" /></td>
                     <td><input class="form-control text-end" type="number" @bind="d.Cantidad" /></td>
                     <td><input class="form-control text-end" type="number" step="0.01" @bind="d.Valor" /></td>
@@ -119,6 +122,8 @@ else
 @code {
     [Parameter] public string tipo { get; set; } = "Ingreso"; // Ingreso, Egreso, Transferencia, IngresoXOC
     [Parameter] public int? idOC { get; set; }
+    [Inject] AuxiliaresVariosService AuxiliaresVariosService { get; set; } = default!;
+
 
     private MovimientoGuiaDTO guia = new();
     private List<AlmacenDTO> almacenes = new();
@@ -208,6 +213,25 @@ else
 
     }
 
+    //PARA BUSCAR EL ARTICULO
+    private async Task BuscarArticulo(MovimientoDetalleDTO d)
+    {
+        if (string.IsNullOrWhiteSpace(d.IdArticulo))
+            return;
+
+        var art = await ArticuloService.GetArticuloById(d.IdArticulo);
+
+        if (art != null)
+        {
+            d.DescripcionArticulo = art.Descripcion;
+        }
+        else
+        {
+            d.DescripcionArticulo = "";
+            await MostrarAlerta($"❌ Artículo '{d.IdArticulo}' no encontrado.");
+        }
+    }
+
     //Cancelar
     private void Cancelar()
     {
@@ -233,7 +257,7 @@ else
         // Asigna el tipo real (I, E, T) antes de enviar
         guia.Tipo = tipoMovimiento;
 
-        var ok = await MovimientoGuiaService.CreateMovimiento(guia);
+        var ok = await MovimientoGuiaService.CreateMovimientoConSP(guia);
 
         if (ok)
         {
@@ -284,15 +308,9 @@ else
         totalArticulos = guia.Detalles.Sum(d => d.Cantidad);
     }
 
-    private void CargarMotivos()
+    private async Task CargarMotivos()
     {
-        motivos = tipo switch
-        {
-            "Ingreso" => new List<string> { "INGRESO STOCK", "DEVOLUCION A CLIENTE" },
-            "Egreso" => new List<string> { "SALIDA MERCADERIA", "DEVOLUCION A PROVEEDOR" },
-            "Transferencia" => new List<string> { "TRANSFERENCIA EGRESO", "TRANSFERENCIA INGRESO" },
-            "IngresoXOC" => new List<string> { "COMPRA A PROVEEDOR" },
-            _ => new List<string>()
-        };
+        motivos = await AuxiliaresVariosService.ObtenerMotivosPorTipo(tipo);
+        guia.Motivo = motivos.FirstOrDefault() ?? "";
     }
 }

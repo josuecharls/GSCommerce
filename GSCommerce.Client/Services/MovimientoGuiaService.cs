@@ -141,6 +141,12 @@ namespace GSCommerce.Client.Services
             }
         }
 
+        public async Task<bool> CreateMovimientoConSP(MovimientoGuiaDTO guia)
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/movimientos-guias/registrar-con-sp", guia);
+            return response.IsSuccessStatusCode;
+        }
+
         public class MovimientoGuiaResponse
         {
             public int TotalItems { get; set; }

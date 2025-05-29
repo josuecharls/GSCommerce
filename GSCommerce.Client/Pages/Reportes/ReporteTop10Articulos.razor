@@ -1,0 +1,61 @@
+﻿@page "/reportes/top10-articulos"
+@using GSCommerce.Client.Models.DTOs.Reportes
+@inject ReporteService ReporteService
+
+<h3>🔥 Top 10 Productos Más Vendidos</h3>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label>Desde:</label>
+        <InputDate @bind-Value="desde" class="form-control" />
+    </div>
+    <div class="col-md-4">
+        <label>Hasta:</label>
+        <InputDate @bind-Value="hasta" class="form-control" />
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
+    </div>
+</div>
+
+@if (top10.Any())
+{
+    <table class="table table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>#</th>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Cantidad Vendida</th>
+                <th>Total Importe</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in top10.Select((r, i) => new { r, i }))
+            {
+                <tr>
+                    <td>@(item.i + 1)</td>
+                    <td>@item.r.Codigo</td>
+                    <td>@item.r.Descripcion</td>
+                    <td>@item.r.TotalUnidadesVendidas</td>
+                    <td>S/ @item.r.TotalImporte:N2</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="alert alert-warning text-center">No se encontraron ventas para el rango seleccionado.</div>
+}
+
+@code {
+    private List<TopArticuloDTO> top10 = new();
+    private DateTime desde = DateTime.Today.AddDays(-30);
+    private DateTime hasta = DateTime.Today;
+
+    private async Task Buscar()
+    {
+        top10 = await ReporteService.ObtenerTop10Articulos(desde, hasta);
+    }
+}

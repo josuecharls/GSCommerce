@@ -5,6 +5,7 @@
 @inject ArticuloService ArticuloService
 @inject ProveedorService ProveedorService
 @inject NavigationManager Navigation
+@inject ArticuloVarianteService ArticuloVarianteService
 @using Microsoft.AspNetCore.Components.Forms
 
 <h3>📌 Nuevo Artículo</h3>
@@ -136,23 +137,23 @@
             <button class="btn btn-danger" @onclick="Cancel">❌ Cancelar</button>
         </div>
     </div>
-        <style>
+    <style>
         @@media print {
-    body * {
+        body * {
         visibility: hidden !important;
-    }
+        }
 
-    .modal,
-    .modal-backdrop {
+        .modal,
+        .modal-backdrop {
         visibility: hidden !important;
-    }
+        }
 
-    .etiqueta-imprimir,
-    .etiqueta-imprimir * {
+        .etiqueta-imprimir,
+        .etiqueta-imprimir * {
         visibility: visible !important;
-    }
+        }
 
-    .etiqueta-imprimir {
+        .etiqueta-imprimir {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -164,16 +165,16 @@
         font-size: 10pt;
         page-break-inside: avoid;
         background: white;
-    }
+        }
 
-    .no-print {
+        .no-print {
         display: none !important;
-    }
+        }
 
-    @@page {
+        @@page {
         margin: 0;
-    }
-}
+        }
+        }
     </style>
 }
 else
@@ -201,9 +202,48 @@ else
         </div>
     </div>
 }
+@if (!string.IsNullOrEmpty(articulo.IdArticulo))
+{
+    <hr />
+    <h5>🎨 Variantes de Color / Talla</h5>
+
+    <div class="mb-3 row">
+        <div class="col-md-4">
+            <input type="text" class="form-control" placeholder="Color" @bind="nuevaVariante.Color" />
+        </div>
+        <div class="col-md-4">
+            <input type="text" class="form-control" placeholder="Talla" @bind="nuevaVariante.Talla" />
+        </div>
+        <div class="col-md-4">
+            <button class="btn btn-success w-100" @onclick="AgregarVariante">➕ Agregar Variante</button>
+        </div>
+    </div>
+
+    <table class="table table-bordered table-sm">
+        <thead>
+            <tr>
+                <th>Color</th>
+                <th>Talla</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var v in variantes)
+            {
+                <tr>
+                    <td>@v.Color</td>
+                    <td>@v.Talla</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => EliminarVariante(v.IdVariante)">🗑️</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
 
 @code {
-    
+
     [Parameter]
     public string? dummy { get; set; }
     private ArticuloDTO articulo = new();
@@ -211,9 +251,14 @@ else
     private bool isLoading = true;
     private bool yaInicializado = false;
     private bool mostrarModal = false;
+    private ArticuloVarianteDTO nuevaVariante = new();
+    private List<ArticuloVarianteDTO> variantes = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+
+        articulo.Estado = true;
+
         if (!yaInicializado)
         {
             isLoading = true;
@@ -228,6 +273,7 @@ else
             isLoading = false;
 
             StateHasChanged(); // Vuelve a renderizar
+            await CargarVariantes();
         }
     }
 
@@ -241,14 +287,14 @@ else
 
         //Para elegir automáticamente el id de articulo en el codigo de barras
         articulo.CodigoBarra = articulo.IdArticulo.ToString();
-    }*/
+        }*/
 
     [Inject] private IJSRuntime JS { get; set; } = default!;
 
-private async Task Imprimir()
-{
-    await JS.InvokeVoidAsync("window.print");
-}
+    private async Task Imprimir()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
 
     private void ActualizarDescripcion()
     {
@@ -273,6 +319,34 @@ private async Task Imprimir()
 
         var creado = await ArticuloService.CreateArticulo(articulo);
         if (creado) Navigation.NavigateTo("/articulos");
+    }
+
+    private async Task AgregarVariante()
+    {
+        if (string.IsNullOrWhiteSpace(nuevaVariante.Color) || string.IsNullOrWhiteSpace(nuevaVariante.Talla))
+            return;
+
+        nuevaVariante.IdArticulo = articulo.IdArticulo;
+
+        var exito = await ArticuloVarianteService.RegistrarVariante(nuevaVariante);
+        if (exito)
+        {
+            await CargarVariantes();
+            nuevaVariante = new();
+        }
+    }
+
+    private async Task EliminarVariante(int id)
+    {
+        var exito = await ArticuloVarianteService.EliminarVariante(id);
+        if (exito)
+            await CargarVariantes();
+    }
+
+    private async Task CargarVariantes()
+    {
+        if (!string.IsNullOrEmpty(articulo.IdArticulo))
+            variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
     }
 
     private void Cancel()

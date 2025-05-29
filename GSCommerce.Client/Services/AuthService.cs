@@ -36,11 +36,17 @@ namespace GSCommerce.Client.Services
                 await _localStorage.SetItemAsync("authToken", result.Token);
                 await _localStorage.SetItemAsync("userName", result.Nombre);
                 await _localStorage.SetItemAsync("userId", result.UserId);
+                await _localStorage.SetItemAsync("IdAlmacen", result.IdAlmacen);
                 await _localStorage.SetItemAsync("Cargo", result.Cargo);
 
                 return true;
             }
             return false;
+        }
+
+        public async Task<int?> GetUserAlmacenId()
+        {
+            return await _localStorage.GetItemAsync<int>("IdAlmacen");
         }
 
         public async Task Logout()
@@ -80,6 +86,19 @@ namespace GSCommerce.Client.Services
             var identity = new ClaimsIdentity(jwtToken.Claims, "jwt");
             return new ClaimsPrincipal(identity);
         }
+
+        public async Task<DatosEmisor?> ObtenerDatosEmisorAsync()
+        {
+            return await _httpClient.GetFromJsonAsync<DatosEmisor>("api/ventas/emisor");
+        }
+    }
+
+    public class DatosEmisor
+    {
+        public string Ruc { get; set; } = string.Empty;
+        public string RazonSocial { get; set; } = string.Empty;
+        public string Direccion { get; set; } = string.Empty;
+        public string Ubigeo { get; set; } = string.Empty;
     }
 
     public class LoginRequest
@@ -94,5 +113,6 @@ namespace GSCommerce.Client.Services
         public int UserId { get; set; }
         public required string Nombre { get; set; }
         public required string Cargo { get; set; } // Se añade el Cargo en la respuesta
+        public int IdAlmacen { get; set; }  // Se añade el almacen
     }
 }

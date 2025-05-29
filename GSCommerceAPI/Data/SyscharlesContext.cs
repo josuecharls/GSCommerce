@@ -26,6 +26,8 @@ public partial class SyscharlesContext : DbContext
 
     public virtual DbSet<Articulo> Articulos { get; set; }
 
+    public virtual DbSet<ArticuloVariante> ArticuloVariantes { get; set; }
+
     public virtual DbSet<ArticulosBk> ArticulosBks { get; set; }
 
     public virtual DbSet<AsignacionSerieCajero> AsignacionSerieCajeros { get; set; }
@@ -237,12 +239,8 @@ public partial class SyscharlesContext : DbContext
     public virtual DbSet<Xyz> Xyzs { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (!optionsBuilder.IsConfigured)
-        {
-            // Se deja vacío para evitar hardcodear la cadena de conexión
-        }
-    }
+        => optionsBuilder.UseSqlServer("Server=localhost;Database=SYSCHARLES;User Id=sa;Password=4pfzqo0yE@;TrustServerCertificate=True;");
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Abc>(entity =>
@@ -436,6 +434,28 @@ public partial class SyscharlesContext : DbContext
                 .HasForeignKey(d => d.IdProveedor)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Articulo_Proveedor");
+        });
+
+        modelBuilder.Entity<ArticuloVariante>(entity =>
+        {
+            entity.HasKey(e => e.IdVariante).HasName("PK__Articulo__4ACF8F0FE1C1A42D");
+
+            entity.ToTable("ArticuloVariante", "Maestros");
+
+            entity.Property(e => e.Color)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.IdArticulo)
+                .HasMaxLength(6)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.Talla)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.IdArticuloNavigation).WithMany(p => p.ArticuloVariantes)
+                .HasForeignKey(d => d.IdArticulo)
+                .HasConstraintName("FK_ArticuloVariante_Articulo");
         });
 
         modelBuilder.Entity<ArticulosBk>(entity =>

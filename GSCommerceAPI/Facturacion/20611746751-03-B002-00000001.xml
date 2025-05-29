@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:sac="urn:sunat:names:specification:ubl:peru:schema:xsd:SunatAggregateComponents-1" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ext:UBLExtensions>
+<ext:UBLExtension><ext:ExtensionContent><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>3Q6TRA5MkuyL18frSRrntOjv06s=</DigestValue></Reference></SignedInfo><SignatureValue>ZO874mqyfaw/YHuwTeCedNHaoltiQPEcVS4G8VF/kex+zm4/kY8x/Wl7lj+g7fXiTj+Uger5yRhNDbz56RRAm2DJeYkQG90N2CZLKPViFppBjfDbDH+GatPW96geW6TeOI+8PyON3X4nTFaEVfglpRNFx3x5cuEpLKMD9QlkvtLSUFlUPaHMvdxS4MPxnDvjIdzATlNOJ6bpXIBmylcj6atenWian/DUhDL5zQsN1UgFQF0dpgMP8PnImTnLEUInilACqBjZ1Vc07nWVOK+JCnxZFrAzEPFZdqEg7Uk+f5s5i3JbXcDl8dPBpMIqoyHXWTCtBjhGgj9BrLAoTTa89A==</SignatureValue><KeyInfo><X509Data><X509Certificate>MIIIpDCCBoygAwIBAgIUH7VHFQxVTg5z9gp1O5B4cfOq4EgwDQYJKoZIhvcNAQELBQAwbzELMAkGA1UEBhMCUEUxPDA6BgNVBAoMM1JlZ2lzdHJvIE5hY2lvbmFsIGRlIElkZW50aWZpY2FjacOzbiB5IEVzdGFkbyBDaXZpbDEiMCAGA1UEAwwZRUNFUC1SRU5JRUMgQ0EgQ2xhc3MgMSBJSTAeFw0yNTA1MTcwMjIxNDNaFw0yODA1MTYwMjIxNDNaMIIBAzELMAkGA1UEBhMCUEUxEjAQBgNVBAgMCUxJTUEtTElNQTEaMBgGA1UEBwwRU0FOVElBR08gREUgU1VSQ08xJTAjBgNVBAoMHElOVkVSU0lPTkVTIExZTUFSSU4gRS5JLlIuTC4xGjAYBgNVBGEMEU5UUlBFLTIwNjExNzQ2NzUxMSEwHwYDVQQLDBhFUkVQX1NVTkFUXzIwMjUwMDA2ODIyMjMxFDASBgNVBAsMCzIwNjExNzQ2NzUxMUgwRgYDVQQDDD98fFVTTyBUUklCVVRBUklPfHwgSU5WRVJTSU9ORVMgTFlNQVJJTiBFLkkuUi5MLiBDRFQgMjA2MTE3NDY3NTEwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCXdqOSnJFrZR/28DdbW/ck8B3iOYR9j4fCqgbJpxkHiJZYmaqaM98FQZq3IZvHHShM0lzMhIeVR4jpzFrJH5zWMq3jOoq38VRLKFvQheg2lEbJeK4wdKsED016HI3wM9PWSHE1qrfZkA6eirtFOeE41xI5slFr4UtQ8KOTtoDZAp8Bx2U78mT1/naXjwrEnBCRvMBvPnqOboBqvOqywWkUHmqQNlvYO+S/YE5q3aXolftC2KF5iZxCBRJBXES7y+b9QFISYZqBn+y6bIpwpIlh78ISkTyKWSzPphrkD0ZhiMnpUt8rMuu2LJI8MdUvjYa2cdM7a45yrO0jGXV3iAMdAgMBAAGjggOgMIIDnDAMBgNVHRMBAf8EAjAAMB8GA1UdIwQYMBaAFMx9H1biib++Q+2V38FGe79L/d0lMHAGCCsGAQUFBwEBBGQwYjA5BggrBgEFBQcwAoYtaHR0cDovL2NydC5yZW5pZWMuZ29iLnBlL3Jvb3QzL2NhY2xhc3MxaWkuY3J0MCUGCCsGAQUFBzABhhlodHRwOi8vb2NzcC5yZW5pZWMuZ29iLnBlMIICNwYDVR0gBIICLjCCAiowdwYRKwYBBAGCk2QCAQMBAGWHaAAwYjAxBggrBgEFBQcCARYlaHR0cHM6Ly93d3cucmVuaWVjLmdvYi5wZS9yZXBvc2l0b3J5LzAtBggrBgEFBQcCARYhUG9s7XRpY2EgR2VuZXJhbCBkZSBDZXJ0aWZpY2FjafNuMIHEBhErBgEEAYKTZAIBAwEAZ4doADCBrjAyBggrBgEFBQcCARYmaHR0cHM6Ly9wa2kucmVuaWVjLmdvYi5wZS9yZXBvc2l0b3Jpby8weAYIKwYBBQUHAgIwbB5qAEQAZQBjAGwAYQByAGEAYwBpAPMAbgAgAGQAZQAgAFAAcgDhAGMAdABpAGMAYQBzACAAZABlACAAQwBlAHIAdABpAGYAaQBjAGEAYwBpAPMAbgAgAEUAQwBFAFAALQBSAEUATgBJAEUAQzCB5wYRKwYBBAGCk2QCAQMBAWeHcwMwgdEwgc4GCCsGAQUFBwICMIHBHoG+AEMAZQByAHQAaQBmAGkAYwBhAGQAbwAgAEQAaQBnAGkAdABhAGwAIABUAHIAaQBiAHUAdABhAHIAaQBvACAAcABhAHIAYQAgAEEAZwBlAG4AdABlACAAQQB1AHQAbwBtAGEAdABpAHoAYQBkAG8AIABDAGwAYQBzAHMAIAAxACwAIABlAG4AIABjAHUAbQBwAGwAaQBtAGkAZQBuAHQAbwAgAGQAZQBsACAARABMACAATgC6ACAAMQAzADcAMDATBgNVHSUEDDAKBggrBgEFBQcDBDB6BgNVHR8EczBxMDagNKAyhjBodHRwOi8vY3JsLnJlbmllYy5nb2IucGUvY3JsL3NoYTIvY2FjbGFzczFpaS5jcmwwN6A1oDOGMWh0dHA6Ly9jcmwyLnJlbmllYy5nb2IucGUvY3JsL3NoYTIvY2FjbGFzczFpaS5jcmwwHQYDVR0OBBYEFBFNp5z6u37+YGj9DiCKehNMTtSBMA4GA1UdDwEB/wQEAwIGwDANBgkqhkiG9w0BAQsFAAOCAgEATO8mL1z0VzFfBIDuqDJwzSqiie6VnKqMQu4+bW5rV4K+5LJ/IiWy8Xqh3Waf7d1CvWLjgu+orFzFT5jQRL/MI94qGTlDHNRqSyXDzKpsN6meEGpOzlzCyXnd4RPOiRdbFq4ok/qnWD1Cc1nxiGilTYlRsQIacu/ibmH7euZdq2jEoFKkzi0l0gWPzaEJjcjHgB/RNXY8+C3zgNqBIgAi+hcU6vJFXxlntvhpOoP3piGcq1+2PZt4YvtMhvG/Yx4aFN8VdfkMkSL6djQdIE4+Ymux1S0fdOPvGk5cPx/6yvwITFcfYIhyA5pHjvkNt4hw8/yG60lty8AWnCQqeRGN4nQEUmi9q7sTjyjgqzAjrHHgOvHKGGT69nFqI7tDhSirTu/dVZzqLdegvkfBTuyGFk8kuJWXPRUknwvHT9h1d5fLzkR729AixOEP1IPwRuRHOhwadNCOX5C+Qnq1PoYJi44bPmEZkKuT/KVQnxUpfRDvk/G35Z8yONFQ46S01Rt+rSM8yogStHc7Vcc5tUbZru9/Un7izO+DGC2EvX8fCjFYcdxJHLUJgodIVn6xUu6E83LeRQPxM1PBCwL9wMPTfz+moP7VFla/lpjmz8DSeNGoAo1y1FDj++SawiYT2e+kVNoBJLT1gIwaI05uGUFN2OGcU2X/60oOfoF3yjGMddQ=</X509Certificate></X509Data></KeyInfo></Signature></ext:ExtensionContent></ext:UBLExtension>
+</ext:UBLExtensions>
+<cbc:UBLVersionID>2.1</cbc:UBLVersionID>
+<cbc:CustomizationID>2.0</cbc:CustomizationID>
+<cbc:ID>B002-00000001</cbc:ID>
+<cbc:IssueDate>2025-05-18</cbc:IssueDate>
+<cbc:IssueTime>10:00:00</cbc:IssueTime>
+<cbc:InvoiceTypeCode>03</cbc:InvoiceTypeCode>
+<cbc:Note languageLocaleID="1000"><![CDATA[CIEN Y 00/20 SOLES]]></cbc:Note>
+<cbc:DocumentCurrencyCode>PEN</cbc:DocumentCurrencyCode>
+<cbc:LineCountNumeric>1</cbc:LineCountNumeric>
+<cac:Signature>
+<cbc:ID>SFB002-00000001</cbc:ID>
+<cac:SignatoryParty>
+<cac:PartyIdentification>
+<cbc:ID>20611746751</cbc:ID>
+</cac:PartyIdentification>
+<cac:PartyName>
+<cbc:Name>INVERSIONES LYMARIN EIRL</cbc:Name>
+</cac:PartyName>
+</cac:SignatoryParty>
+<cac:DigitalSignatureAttachment>
+<cac:ExternalReference>
+<cbc:URI>#SFB002-00000001</cbc:URI>
+</cac:ExternalReference>
+</cac:DigitalSignatureAttachment>
+</cac:Signature>
+<cac:AccountingSupplierParty>
+<cbc:CustomerAssignedAccountID>20611746751</cbc:CustomerAssignedAccountID>
+<cbc:AdditionalAccountID>6</cbc:AdditionalAccountID>
+<cac:Party>
+<cac:PartyIdentification>
+<cbc:ID>20611746751</cbc:ID>
+</cac:PartyIdentification>
+<cac:PartyName>
+<cbc:Name>INVERSIONES LYMARIN EIRL</cbc:Name>
+</cac:PartyName>
+<cac:PartyLegalEntity>
+<cbc:RegistrationName>INVERSIONES LYMARIN EIRL</cbc:RegistrationName>
+<cac:RegistrationAddress>
+<cbc:ID>150101</cbc:ID>
+<cbc:CitySubdivisionName>NONE</cbc:CitySubdivisionName>
+<cbc:CityName>LIMA</cbc:CityName>
+<cbc:CountrySubentity>LIMA</cbc:CountrySubentity>
+<cbc:District>LIMA</cbc:District>
+<cac:Country><cbc:IdentificationCode>PE</cbc:IdentificationCode></cac:Country>
+</cac:RegistrationAddress>
+</cac:PartyLegalEntity>
+</cac:Party>
+</cac:AccountingSupplierParty>
+<cac:AccountingCustomerParty>
+<cbc:CustomerAssignedAccountID>75327744</cbc:CustomerAssignedAccountID>
+<cbc:AdditionalAccountID>1</cbc:AdditionalAccountID>
+<cac:Party>
+<cac:PartyLegalEntity>
+<cbc:RegistrationName>PRUEBA CLIENTE</cbc:RegistrationName>
+</cac:PartyLegalEntity>
+</cac:Party>
+</cac:AccountingCustomerParty>
+<cac:TaxTotal>
+<cbc:TaxAmount currencyID="PEN">15.25</cbc:TaxAmount>
+<cac:TaxSubtotal>
+<cbc:TaxableAmount currencyID="PEN">84.75</cbc:TaxableAmount>
+<cbc:TaxAmount currencyID="PEN">15.25</cbc:TaxAmount>
+<cac:TaxCategory>
+<cac:TaxScheme>
+<cbc:ID>1000</cbc:ID>
+<cbc:Name>IGV</cbc:Name>
+<cbc:TaxTypeCode>VAT</cbc:TaxTypeCode>
+</cac:TaxScheme>
+</cac:TaxCategory>
+</cac:TaxSubtotal>
+</cac:TaxTotal>
+<cac:LegalMonetaryTotal>
+<cbc:LineExtensionAmount currencyID="PEN">84.75</cbc:LineExtensionAmount>
+<cbc:TaxInclusiveAmount currencyID="PEN">20.00</cbc:TaxInclusiveAmount>
+<cbc:PayableAmount currencyID="PEN">20.00</cbc:PayableAmount>
+</cac:LegalMonetaryTotal>
+<cac:InvoiceLine>
+<cbc:ID>1</cbc:ID>
+<cbc:InvoicedQuantity unitCode="NIU">2.00</cbc:InvoicedQuantity>
+<cbc:LineExtensionAmount currencyID="PEN">84.75</cbc:LineExtensionAmount>
+<cac:PricingReference>
+<cac:AlternativeConditionPrice>
+<cbc:PriceAmount currencyID="PEN">50.00</cbc:PriceAmount>
+<cbc:PriceTypeCode>01</cbc:PriceTypeCode>
+</cac:AlternativeConditionPrice>
+</cac:PricingReference>
+<cac:TaxTotal>
+<cbc:TaxAmount currencyID="PEN">7.63</cbc:TaxAmount>
+<cac:TaxSubtotal>
+<cbc:TaxAmount currencyID="PEN">7.63</cbc:TaxAmount>
+<cac:TaxCategory>
+<cbc:TaxExemptionReasonCode>10</cbc:TaxExemptionReasonCode>
+<cac:TaxScheme>
+<cbc:ID>1000</cbc:ID>
+<cbc:Name>IGV</cbc:Name>
+<cbc:TaxTypeCode>VAT</cbc:TaxTypeCode>
+</cac:TaxScheme>
+</cac:TaxCategory>
+</cac:TaxSubtotal>
+</cac:TaxTotal>
+<cac:Item>
+<cbc:Description>Producto de prueba</cbc:Description>
+<cac:SellersItemIdentification>
+<cbc:ID>001003</cbc:ID>
+</cac:SellersItemIdentification>
+</cac:Item>
+<cac:Price>
+<cbc:PriceAmount currencyID="PEN">42.38</cbc:PriceAmount>
+</cac:Price>
+</cac:InvoiceLine>
+</Invoice>

@@ -1,0 +1,74 @@
+﻿@page "/ventas"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject VentaService ventaService
+@inject IJSRuntime JS
+
+<h3>Ventas Registradas</h3>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label>Desde:</label>
+        <input type="date" class="form-control" @bind-value="desde" @bind-value:event="oninput" />
+    </div>
+    <div class="col-md-4">
+        <label>Hasta:</label>
+        <input type="date" class="form-control" @bind-value="hasta" @bind-value:event="oninput" />
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="BuscarVentas">Buscar</button>
+    </div>
+</div>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Tipo Doc</th>
+            <th>Serie</th>
+            <th>Número</th>
+            <th>Cliente</th>
+            <th>Total</th>
+            <th>Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (ventas.Any())
+        {
+            @foreach (var v in ventas)
+            {
+                <tr>
+                    <td>@v.Fecha.ToString("dd/MM/yyyy")</td>
+                    <td>@v.TipoDocumento</td>
+                    <td>@v.Serie</td>
+                    <td>@v.Numero.ToString("D8")</td>
+                    <td>@v.NombreCliente</td>
+                    <td>@v.Total.ToString("C")</td>
+                    <td>@v.Estado</td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="7" class="text-center">No se encontraron ventas.</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<VentaConsultaDTO> ventas = new();
+    private DateTime desde = DateTime.Today;
+    private DateTime hasta = DateTime.Today;
+
+    private async Task BuscarVentas()
+    {
+        ventas = await ventaService.ObtenerVentasAsync(desde, hasta);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BuscarVentas(); // Cargar ventas del día por defecto
+    }
+}

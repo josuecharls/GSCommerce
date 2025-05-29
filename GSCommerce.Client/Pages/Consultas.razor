@@ -1,0 +1,38 @@
+﻿@page "/consultas"
+@inject NavigationManager Navigation
+
+<h3 class="mb-4 fw-bold text-uppercase">Consultas</h3>
+
+<div class="d-flex gap-4 flex-wrap">
+
+    <div class="card text-center shadow-lg p-3"
+         style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
+         @onclick="IrAKardexGeneral">
+        <div class="card-body d-flex flex-column align-items-center justify-content-center">
+            <i class="bi bi-journal-text" style="font-size: 3rem; color: #0d6efd;"></i>
+            <h5 class="fw-bold mt-2 text-uppercase text-primary" style="white-space: nowrap;">Kardex General</h5>
+        </div>
+    </div>
+
+    <div class="card text-center shadow-lg p-3"
+         style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
+         @onclick="IrAKardexDetallado">
+        <div class="card-body d-flex flex-column align-items-center justify-content-center">
+            <i class="bi bi-journal-richtext" style="font-size: 3rem; color: #198754;"></i>
+            <h5 class="fw-bold mt-2 text-uppercase text-success" style="white-space: nowrap;">Kardex Detallado</h5>
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private void IrAKardexGeneral()
+    {
+        Navigation.NavigateTo("/kardex");
+    }
+
+    private void IrAKardexDetallado()
+    {
+        Navigation.NavigateTo("/kardex-detallado");
+    }
+}

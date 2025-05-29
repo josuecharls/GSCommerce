@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using GSCommerce.Client.Models;
 using System.Text.Json.Serialization;
+using static System.Net.WebRequestMethods;
 
 namespace GSCommerce.Client.Services
 {
@@ -17,37 +18,55 @@ namespace GSCommerce.Client.Services
             _httpClient = httpClient;
         }
 
-       /* public async Task<List<ArticuloDTO>?> GetArticulosList()
+        // Obtener todos los articulos
+        public async Task<List<ArticuloDTO>> ObtenerTodos()
+        {
+            var response = await _httpClient.GetFromJsonAsync<List<ArticuloDTO>>("api/articulos/todos");
+            return response ?? new List<ArticuloDTO>();
+        }
+        public async Task<ArticuloDTO?> BuscarPorCodigoAsync(string codigo)
         {
             try
             {
-                var response = await _httpClient.GetAsync("api/articulos");
-                var jsonResponse = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"🔹 JSON recibido en GetArticulos(): {jsonResponse}");
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    Console.WriteLine($"❌ Error en la API: Código {response.StatusCode}");
-                    return new List<ArticuloDTO>();
-                }
-
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
-
-                // Deserializa como ArticuloResponse y devuelve solo la propiedad Data
-                var result = await JsonSerializer.DeserializeAsync<ArticuloResponse>(
-                    await response.Content.ReadAsStreamAsync(), options);
-
-                return result?.Data ?? new List<ArticuloDTO>();
+                var articulo = await _httpClient.GetFromJsonAsync<ArticuloDTO>($"api/articulos/{codigo}");
+                return articulo;
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"❌ Excepción en GetArticulos(): {ex.Message}");
-                return new List<ArticuloDTO>();
+                return null;
             }
-        }*/
+        }
+        /* public async Task<List<ArticuloDTO>?> GetArticulosList()
+         {
+             try
+             {
+                 var response = await _httpClient.GetAsync("api/articulos");
+                 var jsonResponse = await response.Content.ReadAsStringAsync();
+                 Console.WriteLine($"🔹 JSON recibido en GetArticulos(): {jsonResponse}");
+
+                 if (!response.IsSuccessStatusCode)
+                 {
+                     Console.WriteLine($"❌ Error en la API: Código {response.StatusCode}");
+                     return new List<ArticuloDTO>();
+                 }
+
+                 var options = new JsonSerializerOptions
+                 {
+                     PropertyNameCaseInsensitive = true
+                 };
+
+                 // Deserializa como ArticuloResponse y devuelve solo la propiedad Data
+                 var result = await JsonSerializer.DeserializeAsync<ArticuloResponse>(
+                     await response.Content.ReadAsStreamAsync(), options);
+
+                 return result?.Data ?? new List<ArticuloDTO>();
+             }
+             catch (Exception ex)
+             {
+                 Console.WriteLine($"❌ Excepción en GetArticulos(): {ex.Message}");
+                 return new List<ArticuloDTO>();
+             }
+         }*/
 
         // Obtener la lista de artículos con paginación y búsqueda
         public async Task<ArticuloResponse> GetArticulos(int page, int pageSize, string search = "")

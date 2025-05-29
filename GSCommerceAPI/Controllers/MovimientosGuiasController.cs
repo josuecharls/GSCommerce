@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using GSCommerce.Client.Models;
+using Microsoft.Data.SqlClient;
+using System.Data;
+using GSCommerceAPI.Helpers;
 
 namespace GSCommerceAPI.Controllers
 {
@@ -28,9 +31,17 @@ namespace GSCommerceAPI.Controllers
             if (string.IsNullOrWhiteSpace(tipo))
                 return BadRequest(new { message = "El campo 'tipo' es obligatorio." });
 
+            var tipoMap = tipo.ToUpper() switch
+            {
+                "INGRESO" => "I",
+                "EGRESO" => "E",
+                "TRANSFERENCIA" => "T",
+                _ => ""
+            };
+
             var query = _context.MovimientosCabeceras
                 .Include(m => m.IdAlmacenNavigation)
-                .Where(m => m.Tipo == tipo);
+                .Where(m => m.Tipo == tipoMap);
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -135,7 +146,7 @@ namespace GSCommerceAPI.Controllers
 
         // ✅ POST: api/movimientosguias
         [HttpPost]
-        public async Task<IActionResult> CrearMovimiento(MovimientoGuiaDTO dto)
+        public async Task<IActionResult> CrearMovimiento([FromBody] MovimientoGuiaDTO dto)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -258,6 +269,66 @@ namespace GSCommerceAPI.Controllers
                 await transaction.RollbackAsync();
                 Console.WriteLine($"❌ Error: {ex.Message}");
                 return StatusCode(500, "Error al actualizar movimiento");
+            }
+        }
+
+        [HttpPost("registrar-con-sp")]
+        public async Task<IActionResult> RegistrarConSP([FromBody] MovimientoGuiaDTO dto)
+        {
+            try
+            {
+                // Convertir dto a DataTable
+                var cabecera = new MovimientoCabeceraOnlyDTO
+                {
+                    IdMovimiento = dto.IdMovimiento,
+                    IdAlmacen = dto.IdAlmacen,
+                    Tipo = dto.Tipo,
+                    Motivo = dto.Motivo,
+                    Fecha = dto.Fecha,
+                    Descripcion = dto.Descripcion,
+                    IdProveedor = dto.IdProveedor,
+                    IdAlmacenDestinoOrigen = dto.IdAlmacenDestinoOrigen,
+                    IdOc = dto.IdOc,
+                    IdUsuario = dto.IdUsuario,
+                    FechaHoraRegistro = DateTime.Now,
+                    IdGuiaRemision = null, // o un valor real si aplica
+                    IdUsuarioConfirma = dto.IdUsuarioConfirma,
+                    FechaHoraConfirma = dto.FechaHoraConfirma,
+                    Estado = dto.Estado
+                };
+
+                var dtCabecera = DataTableHelper.ToDataTable(new List<MovimientoCabeceraOnlyDTO> { cabecera }, "Almacen.MovimientosCabeceraType");
+                var dtDetalle = DataTableHelper.ToDataTable(dto.Detalles, "Almacen.MovimientosDetalleType");
+
+                using var conn = new SqlConnection(_context.Database.GetConnectionString());
+                using var cmd = new SqlCommand("Almacen.usp_InsUpd_MovimientoAlmacen", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@tblCabecera", dtCabecera);
+                cmd.Parameters["@tblCabecera"].SqlDbType = SqlDbType.Structured;
+                cmd.Parameters["@tblCabecera"].TypeName = "Almacen.MovimientosCabeceraType";
+
+                cmd.Parameters.AddWithValue("@tblDetalle", dtDetalle);
+                cmd.Parameters["@tblDetalle"].SqlDbType = SqlDbType.Structured;
+                cmd.Parameters["@tblDetalle"].TypeName = "Almacen.MovimientosDetalleType";
+
+                await conn.OpenAsync();
+                foreach (DataColumn col in dtCabecera.Columns)
+                {
+                    Console.WriteLine($"{col.ColumnName}: {col.DataType}");
+                }
+                await cmd.ExecuteNonQueryAsync();
+
+                return Ok(new { mensaje = "Movimiento registrado con SP correctamente" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("❌ Error: " + ex.Message);
+                if (ex.InnerException != null)
+                    Console.WriteLine("❌ Inner: " + ex.InnerException.Message);
+                return StatusCode(500, $"❌ Error al ejecutar SP: {ex.Message}");
             }
         }
     }
