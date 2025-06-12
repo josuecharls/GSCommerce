@@ -5,6 +5,7 @@
 @inject ArticuloService articuloService
 @inject VentaService ventaService
 @inject SerieCorrelativoService SerieCorrelativoService
+@inject PersonalService PersonalService
 @inject TipoDocumentoVentaService TipoDocumentoVentaService
 @inject HttpClient Http
 @using Microsoft.AspNetCore.Components.Web
@@ -35,10 +36,26 @@
         }
     </select>
 </div>
+<div class="mb-3">
+    <label>Vendedor:</label>
+    <select class="form-select" @onchange="OnVendedorChanged">
+        <option value="">-- Seleccione --</option>
+        @foreach (var v in vendedores)
+        {
+            <option value="@v.IdPersonal">@($"{v.Nombres} {v.Apellidos}")</option>
+        }
+    </select>
+</div>
 
 <div class="mb-3">
-    <label>Serie:</label>
-    <input type="text" class="form-control" @bind="venta.Serie" />
+    <label>Series:</label>
+    @foreach (var s in seriesDisponibles)
+    {
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="serie_@s.IdSerieCorrelativo" checked="@(s.Serie == venta.Serie)" @onchange="() => SeleccionarSerie(s)" />
+            <label class="form-check-label" for="serie_@s.IdSerieCorrelativo">@($"{s.NombreTipoDocumento} {s.Serie}")</label>
+        </div>
+    }
 </div>
 <div class="mb-3">
     <label>Número:</label>
@@ -140,6 +157,10 @@ OnCancelado="CobroCancelado" />
     //private string? tipoDocumentoSeleccionado;
     private int? idAlmacenActual;
 
+    private List<SerieCorrelativoDTO> seriesDisponibles = new();
+    private List<PersonalDTO> vendedores = new();
+    private int? idVendedorSeleccionado;
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -149,6 +170,14 @@ OnCancelado="CobroCancelado" />
         if (idAlmacenActual != null)
         {
             // 🔹 Ya puedes usar idAlmacenActual para buscar la serie:
+            vendedores = await PersonalService.ObtenerVendedoresPorAlmacen(idAlmacenActual.Value);
+            if (vendedores.Any())
+            {
+                var v = vendedores.First();
+                idVendedorSeleccionado = v.IdPersonal;
+                venta.IdVendedor = v.IdPersonal;
+                venta.NombreVendedor = ($"{v.Nombres} {v.Apellidos}").Trim();
+            }
             await CargarSeriePorTipoYAlmacen();
         }
     }
@@ -159,24 +188,34 @@ OnCancelado="CobroCancelado" />
         {
             var tipos = await TipoDocumentoVentaService.GetTiposDocumento();
             var tipoSeleccionado = tipos?.FirstOrDefault(t =>
-            t.Abreviatura == venta.TipoDocumento &&
-            (EsCajaManual ? t.Manual : !t.Manual));
+                t.Abreviatura == venta.TipoDocumento &&
+                (EsCajaManual ? t.Manual : !t.Manual));
 
             if (tipoSeleccionado == null)
                 return;
 
             var series = await SerieCorrelativoService.ObtenerPorAlmacenAsync(idAlmacenActual.Value);
-            var serieActiva = series.FirstOrDefault(s =>
-                s.IdTipoDocumentoVenta == tipoSeleccionado.IdTipoDocumentoVenta && s.Estado);
+            // Mostrar todas las series registradas, independientemente de su estado
+            seriesDisponibles = series.Where(s => s.IdTipoDocumentoVenta == tipoSeleccionado.IdTipoDocumentoVenta)
+                                      .OrderByDescending(s => s.Estado)
+                                      .ToList();
 
+            var serieActiva = seriesDisponibles.FirstOrDefault(s => s.Estado);
             if (serieActiva != null)
             {
                 venta.Serie = serieActiva.Serie;
                 venta.Numero = serieActiva.Correlativo + 1; // ✅ Generar número siguiente
             }
+            else if (seriesDisponibles.Any())
+            {
+                // Tomar la primera serie aunque esté inactiva
+                var s = seriesDisponibles.First();
+                venta.Serie = s.Serie;
+                venta.Numero = s.Correlativo + 1;
+            }
             else
             {
-                venta.Serie = "";
+                venta.Serie = string.Empty;
                 venta.Numero = 0;
                 await JS.InvokeVoidAsync("alert", "⚠️ No se encontró una serie activa para este tipo de documento.");
             }
@@ -188,6 +227,28 @@ OnCancelado="CobroCancelado" />
         venta.TipoDocumento = e.Value?.ToString() ?? "";
         await CargarSeriePorTipoYAlmacen();
     }
+
+    private void OnVendedorChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            idVendedorSeleccionado = id;
+            var v = vendedores.FirstOrDefault(x => x.IdPersonal == id);
+            if (v != null)
+            {
+                venta.IdVendedor = v.IdPersonal;
+                venta.NombreVendedor = ($"{v.Nombres} {v.Apellidos}").Trim();
+            }
+        }
+    }
+
+    private void SeleccionarSerie(SerieCorrelativoDTO serie)
+    {
+        venta.Serie = serie.Serie;
+        venta.Numero = serie.Correlativo + 1;
+        StateHasChanged();
+    }
+
     private void AgregarProducto()
     {
         var nuevoItem = new VentaDetalleDTO
@@ -426,6 +487,8 @@ OnCancelado="CobroCancelado" />
         sb.AppendLine($"<p>Cliente: {venta.NombreCliente}<br/>" +
                       $"Doc: {venta.DocumentoCliente}</p>");
 
+        sb.AppendLine($"<p>Vendedor: {venta.NombreVendedor} (ID: {venta.IdVendedor})</p>");
+
         sb.AppendLine("<table style='width:100%; font-size:12px;'>");
         sb.AppendLine("<thead><tr><th>Item</th><th>Desc</th><th>Cant</th><th>PU</th><th>Tot</th></tr></thead>");
         sb.AppendLine("<tbody>");
@@ -557,9 +620,20 @@ OnCancelado="CobroCancelado" />
         pagosRealizados.Clear();
         ventaCobrada = false;
 
-        await Task.Delay(100); // Espera un poco para que el DOM se refresque
-        await inputCodigoRef.FocusAsync(); // Hace foco en el input
-        await CargarSeriePorTipoYAlmacen(); // Recarga la serie
+        if (idVendedorSeleccionado.HasValue)
+        {
+            var v = vendedores.FirstOrDefault(x => x.IdPersonal == idVendedorSeleccionado.Value);
+            if (v != null)
+            {
+                venta.IdVendedor = v.IdPersonal;
+                venta.NombreVendedor = ($"{v.Nombres} {v.Apellidos}").Trim();
+            }
+        }
+
+        await Task.Delay(100);
+        await inputCodigoRef.FocusAsync();
+        await CargarSeriePorTipoYAlmacen();
+
     }
 
     private bool RequiereCliente =>

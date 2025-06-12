@@ -13,7 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Configurar la conexión con SQL Server usando SyscharlesContext
 builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaService>();
-builder.Services.AddTransient<billServiceClient>();
+builder.Services.AddHostedService<TicketValidationBackgroundService>();
 
 builder.Services.AddDbContext<SyscharlesContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));

@@ -9,6 +9,7 @@ using System.ServiceModel;
 using GSCommerceAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using GSCommerceAPI.Data;
+using ServicioSunat;
 
 namespace GSCommerceAPI.Services.SUNAT
 {
@@ -16,6 +17,8 @@ namespace GSCommerceAPI.Services.SUNAT
     {
         private readonly IWebHostEnvironment _env;
         private readonly SyscharlesContext _context;
+        //_billServiceClient
+
 
         public FacturacionElectronicaService(IWebHostEnvironment env, SyscharlesContext context)
         {
@@ -33,8 +36,9 @@ namespace GSCommerceAPI.Services.SUNAT
                 var empresa = comprobantes.First();
 
                 // 1. Crear XML del resumen diario
-                string nombreArchivo = $"{empresa.RucEmisor}-RC-{DateTime.Now:yyyyMMdd}-001";
-                string rutaXml = Path.Combine(_env.ContentRootPath, "Facturacion", nombreArchivo + ".xml");
+                string nombreArchivoBase = $"{empresa.RucEmisor}-RC-{DateTime.Now:yyyyMMdd}-001";
+                string nombreArchivo = nombreArchivoBase + ".xml";
+                string rutaXml = Path.Combine(_env.ContentRootPath, "Facturacion", nombreArchivo);
 
                 var xmlDoc = new XmlDocument();
                 xmlDoc.PreserveWhitespace = true;
@@ -47,6 +51,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 string passwordCertificado = GetCertificadoPassword(empresa.RucEmisor);
 
                 FirmarXml(resumenXml, rutaCertificado, passwordCertificado, rutaXml);
+                string hash = FirmarXml(resumenXml, rutaCertificado, passwordCertificado, rutaXml);
 
                 // 3. Comprimir a ZIP
                 var rutaZip = Path.ChangeExtension(rutaXml, ".zip");
@@ -60,6 +65,9 @@ namespace GSCommerceAPI.Services.SUNAT
                 string claveSOL = "MODDATOS";
                 var resultado = await EnviarResumenDiarioAsync(rutaZip, usuarioSOL, claveSOL);
 
+                // 5. Guardar en base de datos
+                await GuardarResumenSunatAsync(comprobantes, nombreArchivo, hash, resultado.ticket, resultado.mensaje, resultado.exito, empresa.RazonSocialEmisor);
+
                 if (!resultado.exito)
                     return (false, resultado.mensaje);
 
@@ -70,6 +78,38 @@ namespace GSCommerceAPI.Services.SUNAT
                 return (false, $"Error en resumen diario: {ex.Message}");
             }
         }
+
+        private async Task GuardarResumenSunatAsync(List<ComprobanteCabeceraDTO> comprobantes, string nombreArchivo, string hash, string ticket, string respuestaSunat, bool exito, string tienda)
+        {
+            var docInicio = $"{comprobantes.First().Serie}-{comprobantes.First().Numero:D8}";
+            var docFin = $"{comprobantes.Last().Serie}-{comprobantes.Last().Numero:D8}";
+
+            int correlativo = await _context.Resumen
+                .OrderByDescending(r => r.Correlativo)
+                .Select(r => (int?)r.Correlativo)
+                .FirstOrDefaultAsync() ?? 0;
+
+            var resumen = new Resuman
+            {
+                Correlativo = correlativo + 1,
+                NombreArchivo = nombreArchivo,
+                Hash = hash,
+                DocInicio = docInicio,
+                DocFin = docFin,
+                CantidadDocumentos = comprobantes.Count,
+                FechaEnvio = DateTime.Now,
+                FechaReferencia = comprobantes.First().FechaEmision,
+                EnvioSunat = exito,
+                TicketSunat = ticket,
+                RespuestaSunat = respuestaSunat,
+                FechaRespuestaSunat = DateTime.Now,
+                Tienda = tienda
+            };
+
+            _context.Resumen.Add(resumen);
+            await _context.SaveChangesAsync();
+        }
+
 
         private async Task GuardarEstadoSunatAsync(int idComprobante, string hash, string xml, string ticket, string? respuestaSunat, bool exito)
         {
@@ -465,16 +505,84 @@ namespace GSCommerceAPI.Services.SUNAT
         public async Task<string> ValidarTicketSunatAsync(string ticket, string rutaArchivo, string usuarioSOL, string claveSOL)
         {
             // TODO: Implementar validación real usando servicio SOAP SUNAT
-            await Task.Delay(1000);
-            return $"Simulación de validación del ticket {ticket}";
+            try
+            {
+                var binding = new BasicHttpBinding(BasicHttpSecurityMode.TransportWithMessageCredential)
+                {
+                    MaxReceivedMessageSize = int.MaxValue
+                };
+                binding.Security.Transport.ClientCredentialType = HttpClientCredentialType.None;
+                binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
+
+                var direccion = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem-beta/billService");
+                var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
+
+                ws.ClientCredentials.UserName.UserName = usuarioSOL;
+                ws.ClientCredentials.UserName.Password = claveSOL;
+
+                var elementos = ws.Endpoint.Binding.CreateBindingElements();
+                elementos.Find<SecurityBindingElement>().EnableUnsecuredResponse = true;
+                ws.Endpoint.Binding = new CustomBinding(elementos);
+
+                var respuesta = await ws.getStatusAsync(ticket);
+
+                if (respuesta?.status?.content != null && respuesta.status.content.Length > 0)
+                {
+                    await File.WriteAllBytesAsync(rutaArchivo, respuesta.status.content);
+                    var (exito, codigo, descripcion) = await LeerCdrAsync(rutaArchivo);
+                    return $"SUNAT respondió: [{codigo}] {descripcion}";
+                }
+
+                return $"SUNAT no devolvió CDR. Código de estado: {respuesta?.status?.statusCode}";
+            }
+            catch (FaultException ex)
+            {
+                return $"SUNAT rechazó la consulta: {ex.Message}";
+            }
+            catch (Exception ex)
+            {
+                return $"Error al consultar ticket: {ex.Message}";
+            }
         }
 
         public async Task<(bool exito, string ticket, string mensaje)> EnviarResumenDiarioAsync(string rutaXmlZip, string usuarioSOL, string claveSOL)
         {
-            // TODO: Implementar llamada SOAP real con sendSummary
-            await Task.Delay(1000);
-            return (true, "123456789", "Resumen enviado correctamente (simulado)");
+            try
+            {
+                byte[] archivoZip = await File.ReadAllBytesAsync(rutaXmlZip);
+                string nombreZip = Path.GetFileName(rutaXmlZip);
+
+                var binding = new BasicHttpBinding(BasicHttpSecurityMode.TransportWithMessageCredential)
+                {
+                    MaxReceivedMessageSize = int.MaxValue
+                };
+                binding.Security.Transport.ClientCredentialType = HttpClientCredentialType.None;
+                binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
+
+                var direccion = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem-beta/billService");
+                var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
+
+                ws.ClientCredentials.UserName.UserName = usuarioSOL;
+                ws.ClientCredentials.UserName.Password = claveSOL;
+
+                var elementos = ws.Endpoint.Binding.CreateBindingElements();
+                elementos.Find<SecurityBindingElement>().EnableUnsecuredResponse = true;
+                ws.Endpoint.Binding = new CustomBinding(elementos);
+
+                var response = await ws.sendSummaryAsync(nombreZip, archivoZip, "0");
+
+                return (true, response.ticket, "Ticket obtenido correctamente");
+            }
+            catch (FaultException ex)
+            {
+                return (false, string.Empty, $"SUNAT rechazó el envío: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return (false, string.Empty, $"Error general al enviar a SUNAT: {ex.Message}");
+            }
         }
+
 
 
 
@@ -605,6 +713,58 @@ namespace GSCommerceAPI.Services.SUNAT
             }
         }
 
+       /* public async Task<(bool exito, string mensaje)> ConsultarTicketResumenAsync(string ticket, string rucEmisor)
+        {
+            try
+            {
+                // 1. Enviar solicitud a SUNAT con el ticket
+                var respuesta = await _billServiceClient.getStatusAsync(ticket);
+
+                // 2. Leer y descomprimir el CDR desde los bytes que devuelve SUNAT
+                byte[] cdrZipBytes = respuesta.applicationResponse;
+                if (cdrZipBytes == null || cdrZipBytes.Length == 0)
+                    return (false, "SUNAT no devolvió contenido en el CDR");
+
+                // 3. Extraer el XML del ZIP
+                string rutaCarpeta = Path.Combine(_env.ContentRootPath, "Facturacion", "CDR");
+                Directory.CreateDirectory(rutaCarpeta);
+                string rutaZip = Path.Combine(rutaCarpeta, $"CDR-{ticket}.zip");
+                await File.WriteAllBytesAsync(rutaZip, cdrZipBytes);
+
+                // Descomprimir ZIP y obtener archivo XML
+                string rutaXml = "";
+                using (ZipArchive zip = ZipFile.OpenRead(rutaZip))
+                {
+                    foreach (var entry in zip.Entries)
+                    {
+                        if (entry.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+                        {
+                            rutaXml = Path.Combine(rutaCarpeta, entry.FullName);
+                            entry.ExtractToFile(rutaXml, overwrite: true);
+                            break;
+                        }
+                    }
+                }
+
+                if (string.IsNullOrEmpty(rutaXml))
+                    return (false, "No se encontró XML en el ZIP del CDR");
+
+                // 4. Leer respuesta SUNAT desde el XML
+                var (codigo, descripcion) = LeerRespuestaSunat(rutaXml);
+                bool exito = codigo == "0";
+
+                // 5. Actualizar el estado del resumen en BD (opcional si deseas registrar en tabla Resumen)
+                // Aquí podrías actualizar FE.Resumen si tienes el ticket asociado
+                // await ActualizarResumenDesdeTicket(ticket, codigo, descripcion, exito); <-- opcional
+
+                return (exito, $"SUNAT respondió: [{codigo}] {descripcion}");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Error al consultar ticket: {ex.Message}");
+            }
+        }*/
+
         public async Task<(bool exito, string codigoRespuesta, string mensaje)> LeerCdrAsync(string rutaZipRespuesta)
         {
             try
@@ -648,6 +808,27 @@ namespace GSCommerceAPI.Services.SUNAT
             {
                 return (false, "", $"Error al leer CDR: {ex.Message}");
             }
+        }
+
+        private billServiceClient CrearClienteSunat(string usuarioSOL, string claveSOL)
+        {
+            var binding = new BasicHttpBinding(BasicHttpSecurityMode.TransportWithMessageCredential)
+            {
+                MaxReceivedMessageSize = int.MaxValue
+            };
+            binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
+
+            var endpoint = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem-beta/billService");
+            var client = new billServiceClient(binding, endpoint);
+
+            client.ClientCredentials.UserName.UserName = usuarioSOL;
+            client.ClientCredentials.UserName.Password = claveSOL;
+
+            var elementos = client.Endpoint.Binding.CreateBindingElements();
+            elementos.Find<SecurityBindingElement>().EnableUnsecuredResponse = true;
+            client.Endpoint.Binding = new CustomBinding(elementos);
+
+            return client;
         }
 
         /*

@@ -10,7 +10,7 @@
 <div class="row mb-3">
     <div class="col-md-6">
         <label>Seleccionar Almacén:</label>
-        <select class="form-select" @bind="idAlmacenSeleccionado" @bind:event="onchange">
+        <select class="form-select" @onchange="OnAlmacenSeleccionadoChangedHandler">
             <option value="">-- Seleccione un almacén --</option>
             @foreach (var a in almacenes)
             {
@@ -59,6 +59,7 @@
                 <div class="mb-2">
                     <label>Tipo Documento:</label>
                     <select class="form-select" @bind="formulario.IdTipoDocumentoVenta" disabled="@(!esNuevo)">
+                        <option value="">-- Seleccione --</option>
                         @foreach (var tipo in tiposDocumento)
                         {
                             <option value="@tipo.IdTipoDocumentoVenta">@tipo.Descripcion</option>
@@ -67,7 +68,7 @@
                 </div>
                 <div class="mb-2">
                     <label>Serie:</label>
-                    <InputText class="form-control" @bind-Value="formulario.Serie" disabled="@(!esNuevo)" />
+                    <InputText class="form-control" @bind-Value="formulario.Serie" disabled="@(!esNuevo)" maxlength="3" />
                 </div>
                 <div class="mb-2">
                     <label>Correlativo:</label>
@@ -106,6 +107,16 @@
             await CargarSeries();
         }
     }
+
+    private async Task OnAlmacenSeleccionadoChangedHandler(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            idAlmacenSeleccionado = id;
+            await OnAlmacenSeleccionadoChanged();
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         almacenes = await AlmacenService.GetAlmacenes() ?? new();
