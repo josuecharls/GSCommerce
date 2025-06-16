@@ -142,6 +142,7 @@ namespace GSCommerceAPI.Services.SUNAT
         {
             try
             {
+                comprobante.Serie = AsegurarSerieConPrefijo(comprobante.Serie, comprobante.TipoDocumento);
                 var codigoTipoDoc = ObtenerCodigoTipoDocumentoSUNAT(comprobante.TipoDocumento);
                 var nombreXml = $"{comprobante.RucEmisor}-{codigoTipoDoc}-{comprobante.Serie}-{comprobante.Numero:D8}.xml";
                 var rutaXml = Path.Combine(_env.ContentRootPath, "Facturacion", nombreXml);
@@ -185,6 +186,7 @@ namespace GSCommerceAPI.Services.SUNAT
         {
             try
             {
+                comprobante.Serie = AsegurarSerieConPrefijo(comprobante.Serie, comprobante.TipoDocumento);
                 // 1. Generar el XML como string (etiquetas UBL completas)
                 var xml = GenerarXmlFactura(comprobante);
                 // TEMPORAL: Guardar XML generado antes de firmar para revisión
@@ -223,6 +225,24 @@ namespace GSCommerceAPI.Services.SUNAT
                 "08" or "NOTA DEBITO" => "08",
                 _ => throw new Exception($"Tipo de documento no válido: {tipo}")
             };
+        }
+
+        private string AsegurarSerieConPrefijo(string serie, string tipoDocumento)
+        {
+            if (string.IsNullOrWhiteSpace(serie))
+                return serie;
+
+            if (char.IsLetter(serie[0]))
+                return serie; // Ya tiene prefijo
+
+            var prefijo = tipoDocumento.ToUpper() switch
+            {
+                "01" or "FACTURA" or "FACTURA M" => "F",
+                "03" or "BOLETA" or "BOLETA M" => "B",
+                _ => string.Empty
+            };
+
+            return string.Concat(prefijo, serie);
         }
 
 
