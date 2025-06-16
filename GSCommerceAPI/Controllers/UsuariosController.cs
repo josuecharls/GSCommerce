@@ -21,6 +21,21 @@ namespace GSCommerceAPI.Controllers
             _context = context;
         }
 
+        // En UsuariosController.cs
+        [HttpGet("info/{idUsuario}")]
+        public async Task<IActionResult> ObtenerInfoPersonal(int idUsuario)
+        {
+            var usuario = await _context.Usuarios
+                .Include(u => u.IdPersonalNavigation)
+                .FirstOrDefaultAsync(u => u.IdUsuario == idUsuario);
+
+            if (usuario == null || usuario.IdPersonalNavigation == null)
+                return NotFound("Usuario o personal no encontrado.");
+
+            var nombreCompleto = $"{usuario.IdPersonalNavigation.Nombres} {usuario.IdPersonalNavigation.Apellidos}";
+            return Ok(nombreCompleto);
+        }
+
         // GET: api/usuarios (Obtener todos los usuarios)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Usuario>>> GetUsuarios()

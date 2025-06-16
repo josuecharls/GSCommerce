@@ -58,6 +58,19 @@ namespace GSCommerce.Client.Services
             _currentUser = null;
         }
 
+        public async Task<string?> GetNombrePersonal()
+        {
+            var userId = await _localStorage.GetItemAsync<string>("userId");
+            if (string.IsNullOrEmpty(userId))
+                return null;
+
+            var response = await _httpClient.GetAsync($"api/usuarios/info/{userId}");
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            return await response.Content.ReadAsStringAsync();
+        }
+
         public async Task<bool> IsAuthenticated()
         {
             var token = await _localStorage.GetItemAsync<string>("authToken");

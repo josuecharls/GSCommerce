@@ -12,6 +12,18 @@ namespace GSCommerce.Client.Services
             _httpClient = httpClient;
         }
 
+        public async Task<UsuarioDTO?> GetUsuarioById(int id)
+        {
+            try
+            {
+                return await _httpClient.GetFromJsonAsync<UsuarioDTO>($"api/usuarios/{id}");
+            }
+            catch (HttpRequestException)
+            {
+                return null;
+            }
+        }
+
         public async Task<List<UsuarioDTO>> ObtenerCajerosAsync(int idAlmacen)
         {
             try

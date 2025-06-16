@@ -3,7 +3,7 @@
 
 <h1>Bienvenido a GSCommerce</h1>
 
-<p>Hola, @userName 👋. Usa el menú para navegar por el sistema.</p>
+<p>Hola, @personalName 👋. Usa el menú para navegar por el sistema.</p>
 
 
 @code {
@@ -11,10 +11,10 @@
     [Inject] CustomAuthStateProvider AuthStateProvider { get; set; } = null!;
     [Inject] NavigationManager Navigation { get; set; } = null!;
 
-    private string? userName;
+    private string? personalName;
 
     protected override async Task OnInitializedAsync()
     {
-        userName = await AuthService.GetUserName();
+        personalName = await AuthService.GetNombrePersonal();
     }
 }

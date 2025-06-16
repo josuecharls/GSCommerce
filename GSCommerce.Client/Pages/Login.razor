@@ -119,8 +119,13 @@ else
         © 2025 GSCommerce - Creado por Cipiriano Corporation
     </div>
 }
+@if (mostrandoCarga)
+{
+    <PantallaCarga />
+}
 
 @code {
+    private bool mostrandoCarga = false;
     private LoginRequest loginRequest = new()
         {
             Usuario = string.Empty,
@@ -140,6 +145,7 @@ else
 
     private async Task HandleLogin()
     {
+        mostrandoCarga = false;
         var success = await AuthService.Login(loginRequest);
         if (success)
         {
@@ -156,6 +162,9 @@ else
             if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(cargo))
             {
                 await AuthStateProvider.MarkUserAsAuthenticated(token, cargo);
+                mostrandoCarga = true;
+                StateHasChanged();
+                await Task.Delay(1000);
                 Navigation.NavigateTo("/");
             }
             else

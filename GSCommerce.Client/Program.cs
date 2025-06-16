@@ -35,6 +35,7 @@ builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<AsignacionSerieCajeroService>();
 builder.Services.AddScoped<ReporteService>();
 builder.Services.AddScoped<ResumenSunatService>();
+builder.Services.AddScoped<ResumenService>();
 builder.Services.AddAuthorizationCore();
 
 // Configurar HttpClient para conectarse al backend

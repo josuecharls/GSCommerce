@@ -1,0 +1,56 @@
+﻿@page "/pantallacarga"
+<div class="pantalla-carga">
+    <div class="logo-contenedor">
+        <img src="/imagen/LogoGSC.png" alt="Cargando..." class="logo" />
+        <p class="texto-carga">Cargando GSCommerce...</p>
+    </div>
+</div>
+
+<style>
+    .pantalla-carga {
+        position: fixed;
+        inset: 0;
+        background-color: #1e1e1e;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+
+    .logo-contenedor {
+        text-align: center;
+        color: white;
+    }
+
+    .logo {
+        width: 80px;
+        animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    .texto-carga {
+        margin-top: 10px;
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: #ffffff;
+    }
+
+    @@keyframes pulse {
+        0%
+
+    {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+
+    }
+</style>

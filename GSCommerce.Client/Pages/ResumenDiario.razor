@@ -1,0 +1,75 @@
+﻿@page "/diario-resumido"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject ResumenService ResumenService
+@inject AuthService AuthService
+@inject AlmacenService AlmacenService
+@inject UsuarioService UsuarioService
+
+<h3>Resumen Diario</h3>
+
+@if (!cajaAbierta)
+{
+    <div class="alert alert-warning">⚠️ Debes aperturar caja para ver el resumen.</div>
+}
+else
+{
+    <div class="row">
+        <div class="mb-4">
+            <p><strong>Almacén:</strong> @nombreAlmacen</p>
+            <p><strong>Cajero:</strong> @personalName</p>
+        </div>
+        <div class="col-md-6">
+            <h5>📊 Venta Diaria</h5>
+            <ul>
+                <li><strong>Efectivo:</strong> @resumen.Efectivo.ToString("N2")</li>
+                <li><strong>Tarjeta:</strong> @resumen.Tarjeta.ToString("N2")</li>
+                <li><strong>Nota de Crédito:</strong> @resumen.NotaCredito.ToString("N2")</li>
+                <li><strong>Total:</strong> <span class="text-danger">@resumen.Total.ToString("N2")</span></li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <h5>💰 Cierre Diario</h5>
+            <ul>
+                <li><strong>Saldo Inicial:</strong> @resumen.SaldoInicial.ToString("N2")</li>
+                <li><strong>Ingresos:</strong> @resumen.Ingresos.ToString("N2")</li>
+                <li><strong>Egresos:</strong> @resumen.Egresos.ToString("N2")</li>
+                <li><strong>Saldo Actual:</strong> <span class="text-danger">@resumen.SaldoActual.ToString("N2")</span></li>
+            </ul>
+        </div>
+    </div>
+}
+
+@code {
+    private bool cajaAbierta = false;
+    private ResumenDiarioDTO resumen = new();
+    private string nombreAlmacen = string.Empty;
+    private string? personalName;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var idAlmacen = await AuthService.GetUserAlmacenId();
+        var idUsuario = await AuthService.GetUserId();
+        personalName = await AuthService.GetNombrePersonal();
+
+        // Obtener nombre del almacén
+        if (idAlmacen.HasValue)
+        {
+            var almacen = await AlmacenService.GetAlmacenById(idAlmacen.Value);
+            nombreAlmacen = almacen?.Nombre ?? "N/A";
+        }
+        else
+        {
+            nombreAlmacen = "N/A";
+        }
+
+        var apertura = await ResumenService.VerificarAperturaAsync(idAlmacen.Value, idUsuario.Value);
+        cajaAbierta = apertura;
+
+        if (cajaAbierta)
+        {
+            resumen = await ResumenService.ObtenerResumenAsync(idAlmacen.Value, idUsuario.Value);
+        }
+    }
+}

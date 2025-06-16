@@ -52,6 +52,44 @@ namespace GSCommerceAPI.Controllers
             return Ok(ventas);
         }
 
+        [HttpGet("resumen")]
+        public async Task<IActionResult> ObtenerResumen([FromQuery] int idAlmacen, [FromQuery] int idUsuario)
+        {
+            var fechaHoy = DateOnly.FromDateTime(DateTime.Today);
+
+            var resumen = new ResumenDiarioDTO();
+
+            var ventas = await _context.VRecaudacion3s
+                .Where(v => v.Fecha == fechaHoy && v.IdAlmacen == idAlmacen && v.IdCajero == idUsuario)
+                .ToListAsync();
+
+            foreach (var v in ventas)
+            {
+                switch (v.Descripcion)
+                {
+                    case "Efectivo": resumen.Efectivo = v.Monto ?? 0; break;
+                    case "Tarjeta": resumen.Tarjeta = v.Monto ?? 0; break;
+                    case "N.C.": resumen.NotaCredito = v.Monto ?? 0; break;
+                }
+            }
+
+            var cierres = await _context.VCierreEnLinea1s
+                .Where(c => c.Fecha == fechaHoy && c.IdAlmacen == idAlmacen && c.IdUsuario == idUsuario)
+                .ToListAsync();
+
+            foreach (var c in cierres)
+            {
+                switch (c.Categoria)
+                {
+                    case "Saldo Inicial": resumen.SaldoInicial = c.Monto ?? 0; break;
+                    case "I": resumen.Ingresos = c.Monto ?? 0; break;
+                    case "E": resumen.Egresos = c.Monto ?? 0; break;
+                }
+            }
+
+            return Ok(resumen);
+        }
+
         [HttpPost]
         public async Task<IActionResult> RegistrarVenta([FromBody] VentaRegistroDTO ventaRegistro)
         {
