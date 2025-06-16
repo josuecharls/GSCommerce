@@ -1,0 +1,128 @@
+﻿@page "/admin/tipocambio"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject TipoCambioService tipoCambioService
+@inject IJSRuntime JS
+
+<h3>📅 Mantenimiento de Tipo de Cambio</h3>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label>Seleccionar fecha:</label>
+        <InputDate @bind-Value="fechaSeleccionada" class="form-control" @onchange="CargarTipoCambio" />
+    </div>
+    <div class="col-md-4">
+        <label>Compra:</label>
+        <InputNumber @bind-Value="tipoCambio.Compra" class="form-control" step="0.01" />
+    </div>
+    <div class="col-md-4">
+        <label>Venta:</label>
+        <InputNumber @bind-Value="tipoCambio.Venta" class="form-control" step="0.01" />
+    </div>
+</div>
+
+<div class="mb-3">
+    <button class="btn btn-success me-2" @onclick="Guardar">💾 Guardar</button>
+    <button class="btn btn-danger" @onclick="Eliminar">🗑️ Eliminar</button>
+</div>
+
+<hr />
+<h5>📋 Tipos de Cambio del Mes</h5>
+
+<table class="table table-sm table-striped">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Compra</th>
+            <th>Venta</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var tc in listaMensual)
+        {
+            <tr>
+                <td>@tc.Fecha.ToShortDateString()</td>
+                <td>@tc.Compra.ToString("N3")</td>
+                <td>@tc.Venta.ToString("N3")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private DateTime fechaSeleccionada = DateTime.Today;
+    private TipoCambioDTO tipoCambio = new();
+    private List<TipoCambioDTO> listaMensual = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarTipoCambio();
+    }
+
+    private async Task CargarTipoCambio()
+    {
+        var mes = fechaSeleccionada.Month;
+        var anio = fechaSeleccionada.Year;
+        listaMensual = await tipoCambioService.ObtenerPorMes(mes, anio);
+
+        var fechaSeleccionadaOnly = DateOnly.FromDateTime(fechaSeleccionada);
+
+        var encontrado = listaMensual.FirstOrDefault(tc => tc.Fecha == fechaSeleccionadaOnly);
+        if (encontrado != null)
+        {
+            tipoCambio = new TipoCambioDTO
+                {
+                    Fecha = encontrado.Fecha,
+                    Compra = encontrado.Compra,
+                    Venta = encontrado.Venta
+                };
+        }
+        else
+        {
+            tipoCambio = new TipoCambioDTO { Fecha = fechaSeleccionadaOnly };
+        }
+    }
+
+    private async Task Guardar()
+    {
+        bool exito;
+        var fechaSeleccionadaOnly = DateOnly.FromDateTime(fechaSeleccionada);
+        var existe = listaMensual.Any(tc => tc.Fecha == fechaSeleccionadaOnly);
+
+        tipoCambio.Fecha = fechaSeleccionadaOnly;
+
+        if (existe)
+            exito = await tipoCambioService.Modificar(tipoCambio);
+        else
+            exito = await tipoCambioService.Insertar(tipoCambio);
+
+        if (exito)
+        {
+            await JS.InvokeVoidAsync("alert", "✅ Tipo de cambio guardado correctamente.");
+            await CargarTipoCambio();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "❌ Error al guardar el tipo de cambio.");
+        }
+    }
+
+    private async Task Eliminar()
+    {
+        var confirmado = await JS.InvokeAsync<bool>("confirm", "¿Seguro que deseas eliminar el tipo de cambio?");
+        if (!confirmado)
+            return;
+
+        var fechaSeleccionadaOnly = DateOnly.FromDateTime(fechaSeleccionada);
+        var exito = await tipoCambioService.Eliminar(fechaSeleccionadaOnly.ToDateTime(TimeOnly.MinValue));
+        if (exito)
+        {
+            await JS.InvokeVoidAsync("alert", "✅ Tipo de cambio eliminado.");
+            await CargarTipoCambio();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "❌ Error al eliminar.");
+        }
+    }
+}

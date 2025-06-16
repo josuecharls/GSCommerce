@@ -4,6 +4,7 @@
 @inject ReniecService ReniecService
 @inject ArticuloService articuloService
 @inject VentaService ventaService
+@inject CajaService CajaService
 @inject SerieCorrelativoService SerieCorrelativoService
 @inject AsignacionSerieCajeroService AsignacionSerieCajeroService
 @inject PersonalService PersonalService
@@ -16,6 +17,7 @@
 
 <h3>Registrar Venta</h3>
 <button class="btn btn-outline-primary" @onclick="AbrirNuevaVenta">+ Nueva Venta</button>
+<fieldset disabled="@ventaCobrada">
 <div class="mb-3">
     <label>Escanear o Digitar Código:</label>
     <input @bind="codigoBusqueda" @onkeypress="BuscarAlPresionarEnter" class="form-control" @ref="inputCodigoRef" />
@@ -115,6 +117,7 @@
     <h5>IGV: @venta.Igv.ToString("N2")</h5>
     <h5><strong>Total: @venta.Total.ToString("N2")</strong></h5>
 </div>
+</fieldset>
 
 @if (!ventaCobrada)
 {
@@ -163,25 +166,49 @@ OnCancelado="CobroCancelado" />
 
     protected override async Task OnInitializedAsync()
     {
-        idAlmacenActual = await AuthService.GetUserAlmacenId();
-        idUsuarioActual = await AuthService.GetUserId();
-        venta.TipoDocumento = EsCajaManual ? "BOLETA M" : "BOLETA";
-
-        if (idAlmacenActual != null)
-        {
-            // 🔹 Ya puedes usar idAlmacenActual para buscar la serie:
-            venta.IdAlmacen = idAlmacenActual.Value;
-            venta.IdCajero = await AuthService.GetUserId();
-            vendedores = await PersonalService.ObtenerVendedoresPorAlmacen(idAlmacenActual.Value);
-            if (vendedores.Any())
+            try
             {
-                var v = vendedores.First();
-                idVendedorSeleccionado = v.IdPersonal;
-                venta.IdVendedor = v.IdPersonal;
-                venta.NombreVendedor = ($"{v.Nombres} {v.Apellidos}").Trim();
+                // 🔹 Ya puedes usar idAlmacenActual para buscar la serie:
+                    idAlmacenActual = await AuthService.GetUserAlmacenId();
+                idUsuarioActual = await AuthService.GetUserId();
+                venta.TipoDocumento = EsCajaManual ? "BOLETA M" : "BOLETA";
+
+                if (idAlmacenActual != null && idUsuarioActual != null)
+                {
+                    var apertura = await CajaService.VerificarAperturaAsync(idUsuarioActual.Value, idAlmacenActual.Value);
+                    if (apertura == null || !apertura.Any(a => a.Estado == "A"))
+                    {
+                        await JS.InvokeVoidAsync("alert", "⚠️ Caja no aperturada.");
+                    }
+
+                    var datos = await AuthService.ObtenerDatosEmisorAsync();
+                    if (datos != null)
+                    {
+                        venta.RucEmisor = datos.Ruc;
+                        venta.DireccionEmisor = datos.Direccion;
+                    }
+
+                    venta.NombreCajero = await AuthService.GetNombrePersonal();
+
+                    venta.IdAlmacen = idAlmacenActual.Value;
+                    venta.IdCajero = idUsuarioActual;
+
+                    vendedores = await PersonalService.ObtenerVendedoresPorAlmacen(idAlmacenActual.Value);
+                    if (vendedores.Any())
+                    {
+                        var v = vendedores.First();
+                        idVendedorSeleccionado = v.IdPersonal;
+                        venta.IdVendedor = v.IdPersonal;
+                        venta.NombreVendedor = ($"{v.Nombres} {v.Apellidos}").Trim();
+                    }
+                    await CargarSeriePorTipoYAlmacen();
+                }
             }
-            await CargarSeriePorTipoYAlmacen();
-        }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error en OnInitializedAsync: {ex.Message}");
+                await JS.InvokeVoidAsync("alert", "Error al cargar el formulario de venta.");
+            }
     }
 
     private async Task CargarSeriePorTipoYAlmacen()
@@ -503,6 +530,10 @@ OnCancelado="CobroCancelado" />
         sb.AppendLine("<h4 style='text-align:center;'>GSHOP</h4>");
         sb.AppendLine("<p style='text-align:center;'>RUC: " + venta.RucEmisor + "<br/>" +
                       venta.DireccionEmisor + "</p>");
+        if (!string.IsNullOrWhiteSpace(venta.NombreCajero))
+        {
+            sb.AppendLine($"<p>Cajero: {venta.NombreCajero}</p>");
+        }
         sb.AppendLine("<hr/>");
 
         sb.AppendLine($"<p><strong>{venta.TipoDocumento} Electrónica</strong><br/>" +
