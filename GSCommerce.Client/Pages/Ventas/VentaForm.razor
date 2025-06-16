@@ -51,11 +51,7 @@
 <div class="mb-3">
     <label>Serie:</label>
     <input class="form-control" disabled
-           value="@(
-               seriesDisponibles.Any()
-               ? seriesDisponibles.FirstOrDefault()?.Serie
-               : "Serie no asignada a este documento"
-           )" />
+           value="@ObtenerSerieConPrefijo()" />
 </div>
 <div class="mb-3">
     <label>Número:</label>
@@ -667,6 +663,24 @@ OnCancelado="CobroCancelado" />
 
     private bool EsFactura =>
         venta.TipoDocumento == "FACTURA" || venta.TipoDocumento == "FACTURA M";
+
+    private string ObtenerSerieConPrefijo()
+    {
+        if (!seriesDisponibles.Any())
+        {
+            return "Serie no asignada a este documento";
+        }
+
+        var serie = seriesDisponibles.First().Serie;
+        var prefijo = venta.TipoDocumento switch
+        {
+            "BOLETA" or "BOLETA M" or "TICKET" => "B",
+            "FACTURA" or "FACTURA M" => "F",
+            _ => string.Empty
+        };
+
+        return $"{prefijo}{serie}";
+    }
 
     private string? ValidarDocumentoCliente()
     {
