@@ -92,7 +92,13 @@ namespace GSCommerceAPI.Controllers
             if (id != dto.IdSerieCorrelativo)
                 return BadRequest("ID no coincide");
 
-            var serie = await _context.SerieCorrelativos.FindAsync(id);
+            // Debido a que SerieCorrelativo posee clave compuesta se deben
+            // proporcionar todos los valores al buscar la entidad
+            var serie = await _context.SerieCorrelativos.FindAsync(
+                id,
+                dto.IdAlmacen,
+                dto.IdTipoDocumentoVenta,
+                dto.Serie);
             if (serie == null)
                 return NotFound("No se encontró la serie");
 
@@ -114,7 +120,10 @@ namespace GSCommerceAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> EliminarSerieCorrelativo(int id)
         {
-            var serie = await _context.SerieCorrelativos.FindAsync(id);
+            // Buscar la serie por ID. Aunque la clave es compuesta,
+            // normalmente IdSerieCorrelativo es único.
+            var serie = await _context.SerieCorrelativos
+                .FirstOrDefaultAsync(s => s.IdSerieCorrelativo == id);
             if (serie == null)
                 return NotFound("No se encontró la serie");
 
