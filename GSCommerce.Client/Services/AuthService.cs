@@ -102,7 +102,25 @@ namespace GSCommerce.Client.Services
 
         public async Task<DatosEmisor?> ObtenerDatosEmisorAsync()
         {
-            return await _httpClient.GetFromJsonAsync<DatosEmisor>("api/ventas/emisor");
+            var token = await _localStorage.GetItemAsync<string>("authToken");
+            if (string.IsNullOrWhiteSpace(token))
+                return null;
+
+            var request = new HttpRequestMessage(HttpMethod.Get, "api/ventas/emisor");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<DatosEmisor>();
+            }
+            else
+            {
+                // Opcional: log, lanzar error o retornar null
+                Console.WriteLine($"Error {response.StatusCode} al obtener emisor.");
+                return null;
+            }
         }
     }
 

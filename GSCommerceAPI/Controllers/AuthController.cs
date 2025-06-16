@@ -111,7 +111,7 @@ namespace GSCommerceAPI.Controllers
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Nombre),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim("UserId", user.IdUsuario.ToString()),
+                new Claim("userId", user.IdUsuario.ToString()),
                 new Claim("Cargo", cargo) // Agregamos el cargo al token
             };
 

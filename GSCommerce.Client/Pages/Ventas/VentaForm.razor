@@ -169,7 +169,7 @@ OnCancelado="CobroCancelado" />
             try
             {
                 // 🔹 Ya puedes usar idAlmacenActual para buscar la serie:
-                    idAlmacenActual = await AuthService.GetUserAlmacenId();
+                idAlmacenActual = await AuthService.GetUserAlmacenId();
                 idUsuarioActual = await AuthService.GetUserId();
                 venta.TipoDocumento = EsCajaManual ? "BOLETA M" : "BOLETA";
 

@@ -8,6 +8,8 @@ using GSCommerceAPI.Services.SUNAT;
 using GSCommerce.Client.Models.DTOs.Reportes;
 using GSCommerceAPI.Models.SUNAT.DTOs;
 using GSCommerce.Client.Pages;
+using System.Security.Claims;
+
 
 namespace GSCommerceAPI.Controllers
 {
@@ -416,7 +418,13 @@ namespace GSCommerceAPI.Controllers
         public async Task<IActionResult> ObtenerDatosEmisor()
         {
             // Obtener el ID de usuario desde el token (si estás usando Claims), o ajusta como necesites
-            var userId = int.Parse(User.Claims.First(c => c.Type == "userId").Value);
+            var userIdClaim = User.FindFirst("userId")?.Value;
+
+            if (string.IsNullOrEmpty(userIdClaim))
+                return Unauthorized("El token no contiene el ID de usuario.");
+
+            if (!int.TryParse(userIdClaim, out var userId))
+                return BadRequest("ID de usuario inválido.");
 
             var usuario = await _context.Usuarios
                 .Include(u => u.IdPersonalNavigation)
