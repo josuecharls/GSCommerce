@@ -97,7 +97,7 @@
 
     private async Task CargarCajerosYSeries()
     {
-        cajeros = await UsuarioService.ObtenerCajerosAsync(idAlmacenSeleccionado);
+        cajeros = await UsuarioService.ObjetenerCajerosConUserAsync(idAlmacenSeleccionado);
         seriesDisponibles = await SerieCorrelativoService.ObtenerSeriesDisponibles(idAlmacenSeleccionado);
         if (cajeros.Any())
         {

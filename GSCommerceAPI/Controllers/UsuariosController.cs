@@ -133,6 +133,32 @@ namespace GSCommerceAPI.Controllers
             return Ok(new { usuario.IdUsuario, usuario.Nombre });
         }
 
+        [HttpGet("cajeros2/{idAlmacen}")]
+        public async Task<IActionResult> GetCajerosPorAlmacen(int idAlmacen)
+        {
+            var cajeros = await _context.Personals
+                .Where(p => p.Cargo == "CAJERO" && p.IdAlmacen == idAlmacen && p.Estado == true)
+                .Select(p => new
+                {
+                    p.IdPersonal,
+                    Nombre = p.Nombres + " " + p.Apellidos,
+                    Usuario = _context.Usuarios.FirstOrDefault(u => u.IdPersonal == p.IdPersonal)
+                })
+                .ToListAsync();
+
+            var resultado = cajeros.Select(c => new
+            {
+                IdUsuario = c.Usuario != null ? c.Usuario.IdUsuario : 0,
+                c.Nombre,
+                c.IdPersonal,
+                Estado = c.Usuario?.Estado ?? false,
+                Clave = (string?)null // No se devuelve clave
+            });
+
+            return Ok(resultado);
+        }
+
+
         // DELETE: api/usuarios/5 (Eliminar un usuario)
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUsuario(int id)

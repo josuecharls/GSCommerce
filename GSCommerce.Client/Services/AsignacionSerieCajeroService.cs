@@ -22,7 +22,7 @@ namespace GSCommerce.Client.Services
         public async Task<List<VSeriesXcajero1>> ObtenerSeriesAsignadas(int idUsuario, int idAlmacen)
         {
             return await _http.GetFromJsonAsync<List<VSeriesXcajero1>>(
-                $"api/asignacionseriecajero/asignadas?usuario={idUsuario}&almacen={idAlmacen}") ?? new();
+                $"api/asignacionseriecajero/asignadas?idUsuario={idUsuario}&idAlmacen={idAlmacen}") ?? new();
         }
 
         public async Task<bool> GuardarAsignacion(AsignacionSerieCajeroDTO dto)
@@ -36,7 +36,7 @@ namespace GSCommerce.Client.Services
             {
                 IdUsuario = idUsuario,
                 IdAlmacen = idAlmacen,
-                Series = series.Select(s => s.IdSerieCorrelativo).ToList()
+                IdSeries = series.Select(s => s.IdSerieCorrelativo).ToList()
             });
 
             return response.IsSuccessStatusCode;

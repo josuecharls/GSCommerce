@@ -26,6 +26,20 @@ namespace GSCommerce.Client.Services
             }
         }
 
+        public async Task<List<UsuarioDTO>> ObjetenerCajerosConUserAsync(int idAlmacen)
+        {
+            try
+            {
+                var response = await _httpClient.GetFromJsonAsync<List<UsuarioDTO>>($"api/usuarios/cajeros2/{idAlmacen}");
+                return response ?? new();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error al obtener cajeros con usuario: {ex.Message}");
+                return new();
+            }
+        }
+
         public async Task<bool> GenerarCredencialesAsync(GenerarCredencialesRequest request)
         {
             try
