@@ -1,0 +1,102 @@
+﻿<h3>Cajeros</h3>
+@page "/cajeros"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject UsuarioService UsuarioService
+@inject AuthService AuthService
+@inject IJSRuntime JS
+
+<h3>Lista de Cajeros</h3>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (cajeros.Any())
+        {
+            @foreach (var c in cajeros)
+            {
+                <tr>
+                    <td>@c.Nombre</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" @onclick="() => AbrirModal(c)">Generar Credenciales</button>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="2" class="text-center">Cargando...</td></tr>
+        }
+    </tbody>
+</table>
+
+@if (mostrarModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Generar Credenciales</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label>Usuario</label>
+                        <input class="form-control" @bind="credenciales.NombreUsuario" />
+                    </div>
+                    <div class="mb-2">
+                        <label>Contraseña</label>
+                        <input type="password" class="form-control" @bind="credenciales.Password" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" @onclick="GuardarCredenciales">Guardar</button>
+                    <button class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<UsuarioDTO> cajeros = new();
+    private bool mostrarModal;
+    private GenerarCredencialesRequest credenciales = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        int idAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
+        cajeros = await UsuarioService.ObtenerCajerosAsync(idAlmacen);
+    }
+
+    private void AbrirModal(UsuarioDTO cajero)
+    {
+        credenciales = new GenerarCredencialesRequest
+            {
+                IdPersonal = cajero.IdPersonal,
+                NombreUsuario = cajero.Nombre
+            };
+        mostrarModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        credenciales = new GenerarCredencialesRequest();
+    }
+
+    private async Task GuardarCredenciales()
+    {
+        bool ok = await UsuarioService.GenerarCredencialesAsync(credenciales);
+        if (ok)
+            await JS.InvokeVoidAsync("alert", "✅ Credenciales generadas.");
+        else
+            await JS.InvokeVoidAsync("alert", "❌ Error al generar credenciales.");
+        CerrarModal();
+    }
+}

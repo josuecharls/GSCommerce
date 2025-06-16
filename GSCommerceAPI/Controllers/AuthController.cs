@@ -51,11 +51,7 @@ namespace GSCommerceAPI.Controllers
 
             string cargo = user.IdPersonalNavigation?.Cargo ?? "USUARIO"; // Si no tiene cargo, se le asigna "USUARIO"
             var token = GenerateJwtToken(user, cargo);
-            int? almacenId = await _context.AperturaCierreCajas
-            .Where(a => a.IdUsuario == user.IdUsuario)
-            .OrderByDescending(a => a.Fecha)
-            .Select(a => (int?)a.IdAlmacen)
-            .FirstOrDefaultAsync();
+            int almacenId = user.IdPersonalNavigation?.IdAlmacen ?? 0;
 
             return Ok(new
             {

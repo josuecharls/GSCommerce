@@ -57,6 +57,14 @@ namespace GSCommerceAPI.Controllers
             if (ventaRegistro?.Cabecera == null || ventaRegistro.TipoDocumento == null || ventaRegistro.TipoDocumento.IdTipoDocumentoVenta == 0)
                 return BadRequest("Falta seleccionar un tipo de documento válido.");
 
+            // Verificar que exista una apertura de caja para el día actual
+            var fechaActual = DateOnly.FromDateTime(DateTime.Today);
+            var cajaAbierta = await _context.AperturaCierreCajas
+                .AnyAsync(a => a.IdAlmacen == 1 && a.Fecha == fechaActual && a.Estado == "A");
+
+            if (!cajaAbierta)
+                return BadRequest("No se puede registrar la venta porque la caja no está aperturada.");
+
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             var nuevoNumero = await ObtenerNuevoNumeroSerieAsync(ventaRegistro.Cabecera.Serie);

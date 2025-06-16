@@ -3,8 +3,10 @@ using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Data;
 
 namespace GSCommerceAPI.Controllers
 {
@@ -79,18 +81,56 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("cajeros/{idAlmacen}")]
-        public async Task<ActionResult<IEnumerable<Usuario>>> ObtenerCajerosPorAlmacen(int idAlmacen)
+        public async Task<ActionResult<IEnumerable<UsuarioDTO>>> ObtenerCajerosPorAlmacen(int idAlmacen)
         {
-            var cajeros = await _context.Usuarios
-                .Where(u => u.IdPersonalNavigation.Cargo == "CAJERO" && u.IdPersonalNavigation.IdAlmacen == idAlmacen && u.Estado == true)
-                .Select(u => new UsuarioDTO
+            var cajeros = await _context.Personals
+                .Where(p => p.Cargo == "CAJERO" && p.IdAlmacen == idAlmacen && p.Estado == true)
+                .Select(p => new UsuarioDTO
                 {
-                    IdUsuario = u.IdUsuario,
-                    Nombre = u.Nombre
+                    IdPersonal = p.IdPersonal,
+                    Nombre = $"{p.Nombres} {p.Apellidos}"   
                 })
                 .ToListAsync();
 
             return Ok(cajeros);
+        }
+
+        [HttpPost("generar-credenciales")]
+        public async Task<IActionResult> GenerarCredenciales([FromBody] GenerarCredencialesRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.NombreUsuario) || string.IsNullOrWhiteSpace(request.Password))
+                return BadRequest("Usuario y contraseña requeridos.");
+
+            var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.IdPersonal == request.IdPersonal);
+            if (usuario == null)
+            {
+                usuario = new Usuario
+                {
+                    Nombre = request.NombreUsuario,
+                    IdPersonal = request.IdPersonal,
+                    Estado = true
+                };
+                _context.Usuarios.Add(usuario);
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                usuario.Nombre = request.NombreUsuario;
+                _context.Entry(usuario).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+            }
+
+            using (var connection = new SqlConnection(_context.Database.GetConnectionString()))
+            {
+                await connection.OpenAsync();
+                using var command = new SqlCommand("dbo.usp_set_password", connection);
+                command.CommandType = System.Data.CommandType.StoredProcedure;
+                command.Parameters.Add("@IdUsuario", SqlDbType.Int).Value = usuario.IdUsuario;
+                command.Parameters.Add("@password", SqlDbType.VarChar, 50).Value = request.Password;
+                await command.ExecuteNonQueryAsync();
+            }
+
+            return Ok(new { usuario.IdUsuario, usuario.Nombre });
         }
 
         // DELETE: api/usuarios/5 (Eliminar un usuario)

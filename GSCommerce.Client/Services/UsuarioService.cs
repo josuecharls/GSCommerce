@@ -25,5 +25,19 @@ namespace GSCommerce.Client.Services
                 return new();
             }
         }
+
+        public async Task<bool> GenerarCredencialesAsync(GenerarCredencialesRequest request)
+        {
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync("api/usuarios/generar-credenciales", request);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error generando credenciales: {ex.Message}");
+                return false;
+            }
+        }
     }
 }
