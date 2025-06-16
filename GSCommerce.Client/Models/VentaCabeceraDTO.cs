@@ -12,6 +12,8 @@
         public string DireccionCliente { get; set; } = "-";
         public int IdVendedor { get; set; }
         public string NombreVendedor { get; set; } = string.Empty;
+        public int IdAlmacen { get; set; }
+        public int? IdCajero { get; set; }
         public decimal SubTotal { get; set; }
         public decimal Igv { get; set; }
         public decimal Total { get; set; }

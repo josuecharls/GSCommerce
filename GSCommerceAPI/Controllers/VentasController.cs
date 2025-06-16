@@ -7,6 +7,7 @@ using GSCommerce.Client.Models.SUNAT;
 using GSCommerceAPI.Services.SUNAT;
 using GSCommerce.Client.Models.DTOs.Reportes;
 using GSCommerceAPI.Models.SUNAT.DTOs;
+using GSCommerce.Client.Pages;
 
 namespace GSCommerceAPI.Controllers
 {
@@ -57,10 +58,13 @@ namespace GSCommerceAPI.Controllers
             if (ventaRegistro?.Cabecera == null || ventaRegistro.TipoDocumento == null || ventaRegistro.TipoDocumento.IdTipoDocumentoVenta == 0)
                 return BadRequest("Falta seleccionar un tipo de documento válido.");
 
-            // Verificar que exista una apertura de caja para el día actual
+            // Verificar que exista una apertura de caja para el día actual en el almacén indicado
             var fechaActual = DateOnly.FromDateTime(DateTime.Today);
+            var idAlmacen = ventaRegistro.Cabecera.IdAlmacen;
+            var idCajero = ventaRegistro.Cabecera.IdCajero;
+            Console.WriteLine($"Verificando apertura: almacen={idAlmacen}, cajero={idCajero}, fecha={fechaActual}");
             var cajaAbierta = await _context.AperturaCierreCajas
-                .AnyAsync(a => a.IdAlmacen == 1 && a.Fecha == fechaActual && a.Estado == "A");
+                .AnyAsync(a => a.IdAlmacen == idAlmacen && a.IdUsuario == idCajero && a.Fecha == fechaActual && a.Estado == "A");
 
             if (!cajaAbierta)
                 return BadRequest("No se puede registrar la venta porque la caja no está aperturada.");
@@ -89,7 +93,7 @@ namespace GSCommerceAPI.Controllers
                     Apagar = ventaRegistro.Cabecera.APagar,
                     IdVendedor = 1, // De momento fijo
                     IdCajero = 1, // De momento fijo
-                    IdAlmacen = 1, // De momento fijo
+                    IdAlmacen = idAlmacen,
                     Estado = "E",
                     FechaHoraRegistro = DateTime.Now,
                 };

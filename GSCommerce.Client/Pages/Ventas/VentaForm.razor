@@ -170,6 +170,8 @@ OnCancelado="CobroCancelado" />
         if (idAlmacenActual != null)
         {
             // 🔹 Ya puedes usar idAlmacenActual para buscar la serie:
+            venta.IdAlmacen = idAlmacenActual.Value;
+            venta.IdCajero = await AuthService.GetUserId();
             vendedores = await PersonalService.ObtenerVendedoresPorAlmacen(idAlmacenActual.Value);
             if (vendedores.Any())
             {
@@ -447,6 +449,7 @@ OnCancelado="CobroCancelado" />
         if (!ventaRegistrada)
         {
             await JS.InvokeVoidAsync("alert", "❌ Error al registrar la venta.");
+            Console.WriteLine($"Almacen: {venta.IdAlmacen}, Cajero: {venta.IdCajero}");
             return;
         }
 
