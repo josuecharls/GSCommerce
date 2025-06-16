@@ -5,6 +5,7 @@
 @inject ArticuloService articuloService
 @inject VentaService ventaService
 @inject SerieCorrelativoService SerieCorrelativoService
+@inject AsignacionSerieCajeroService AsignacionSerieCajeroService
 @inject PersonalService PersonalService
 @inject TipoDocumentoVentaService TipoDocumentoVentaService
 @inject HttpClient Http
@@ -49,7 +50,12 @@
 
 <div class="mb-3">
     <label>Serie:</label>
-    <input class="form-control" value="@venta.Serie" disabled />
+    <input class="form-control" disabled
+           value="@(
+               seriesDisponibles.Any()
+               ? seriesDisponibles.FirstOrDefault()?.Serie
+               : "Serie no asignada a este documento"
+           )" />
 </div>
 <div class="mb-3">
     <label>Número:</label>
@@ -150,15 +156,19 @@ OnCancelado="CobroCancelado" />
     private bool ventaCobrada = false;
     //private string? tipoDocumentoSeleccionado;
     private int? idAlmacenActual;
+    private int? idUsuarioActual;
 
     private List<SerieCorrelativoDTO> seriesDisponibles = new();
     private List<PersonalDTO> vendedores = new();
     private int? idVendedorSeleccionado;
+    private int? idSerieSeleccionada;
+
 
 
     protected override async Task OnInitializedAsync()
     {
         idAlmacenActual = await AuthService.GetUserAlmacenId();
+        idUsuarioActual = await AuthService.GetUserId();
         venta.TipoDocumento = EsCajaManual ? "BOLETA M" : "BOLETA";
 
         if (idAlmacenActual != null)
@@ -182,7 +192,7 @@ OnCancelado="CobroCancelado" />
         {
             var tipos = await TipoDocumentoVentaService.GetTiposDocumento();
             var tipoSeleccionado = tipos?.FirstOrDefault(t =>
-                t.Abreviatura == venta.TipoDocumento &&
+                t.Descripcion.Equals(venta.TipoDocumento, StringComparison.OrdinalIgnoreCase) &&
                 (EsCajaManual ? t.Manual : !t.Manual));
 
             if (tipoSeleccionado == null)
@@ -190,25 +200,33 @@ OnCancelado="CobroCancelado" />
 
             var series = await SerieCorrelativoService.ObtenerPorAlmacenAsync(idAlmacenActual.Value);
             // Mostrar todas las series registradas, independientemente de su estado
+
+            if (idUsuarioActual != null)
+            {
+                var asignadas = await AsignacionSerieCajeroService.ObtenerSeriesAsignadas(idUsuarioActual.Value, idAlmacenActual.Value);
+                var idsAsignadas = asignadas.Select(a => a.IdSerieCorrelativo).ToHashSet();
+                series = series.Where(s => idsAsignadas.Contains(s.IdSerieCorrelativo)).ToList();
+            }
+
             seriesDisponibles = series.Where(s => s.IdTipoDocumentoVenta == tipoSeleccionado.IdTipoDocumentoVenta)
                                       .OrderByDescending(s => s.Estado)
                                       .ToList();
 
-            var serieActiva = seriesDisponibles.FirstOrDefault(s => s.Estado);
-            if (serieActiva != null)
-            {
-                venta.Serie = serieActiva.Serie;
-                venta.Numero = serieActiva.Correlativo + 1; // ✅ Generar número siguiente
-            }
-            else if (seriesDisponibles.Any())
+            SerieCorrelativoDTO? serieActiva = seriesDisponibles.FirstOrDefault(s => s.Estado);
+            SerieCorrelativoDTO? primera = serieActiva ?? seriesDisponibles.FirstOrDefault();
+
+            if (primera != null)
             {
                 // Tomar la primera serie aunque esté inactiva
                 var s = seriesDisponibles.First();
                 venta.Serie = s.Serie;
                 venta.Numero = s.Correlativo + 1;
+                idSerieSeleccionada = primera.IdSerieCorrelativo;
+                SeleccionarSerie(primera);
             }
             else
             {
+                idSerieSeleccionada = null;
                 venta.Serie = string.Empty;
                 venta.Numero = 0;
                 await JS.InvokeVoidAsync("alert", "⚠️ No se encontró una serie activa para este tipo de documento.");
@@ -219,6 +237,7 @@ OnCancelado="CobroCancelado" />
     private async Task OnTipoDocumentoChanged(ChangeEventArgs e)
     {
         venta.TipoDocumento = e.Value?.ToString() ?? "";
+        idSerieSeleccionada = null;
         await CargarSeriePorTipoYAlmacen();
     }
 
@@ -232,6 +251,19 @@ OnCancelado="CobroCancelado" />
             {
                 venta.IdVendedor = v.IdPersonal;
                 venta.NombreVendedor = ($"{v.Nombres} {v.Apellidos}").Trim();
+            }
+        }
+    }
+
+    private void OnSerieChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            idSerieSeleccionada = id;
+            var serie = seriesDisponibles.FirstOrDefault(s => s.IdSerieCorrelativo == id);
+            if (serie != null)
+            {
+                SeleccionarSerie(serie);
             }
         }
     }
