@@ -401,6 +401,81 @@ namespace GSCommerceAPI.Controllers
             return Ok(pendientes);
         }
 
+        [HttpPost("generar-resumen")]
+        public async Task<IActionResult> GenerarResumenDiario([FromQuery] DateTime fecha, [FromQuery] int idAlmacen)
+        {
+            var datosAlmacen = await _context.Almacens
+                .Where(a => a.IdAlmacen == idAlmacen)
+                .Select(a => new { a.Nombre, a.Ruc, a.RazonSocial, a.Direccion, a.Ubigeo })
+                .FirstOrDefaultAsync();
+
+            if (datosAlmacen == null)
+                return BadRequest("Almacén no encontrado");
+
+            var pendientes = await _context.VComprobantes
+                .Where(c => c.Tienda == datosAlmacen.Nombre &&
+                            c.Fecha == fecha.ToString("dd/MM/yyyy") &&
+                            (c.EnviadoSunat == false || c.EnviadoSunat == null))
+                .ToListAsync();
+
+            if (!pendientes.Any())
+                return BadRequest("No hay comprobantes pendientes");
+
+            var lista = new List<GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteCabeceraDTO>();
+
+            foreach (var p in pendientes)
+            {
+                var cab = await _context.ComprobanteDeVentaCabeceras
+                    .Include(c => c.ComprobanteDeVentaDetalles)
+                    .Include(c => c.IdTipoDocumentoNavigation)
+                    .FirstOrDefaultAsync(c => c.IdComprobante == p.IdComprobante);
+
+                if (cab == null) continue;
+
+                var dto = new GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteCabeceraDTO
+                {
+                    IdComprobante = cab.IdComprobante,
+                    TipoDocumento = cab.IdTipoDocumentoNavigation.Abreviatura,
+                    Serie = cab.Serie,
+                    Numero = cab.Numero,
+                    FechaEmision = cab.Fecha,
+                    HoraEmision = cab.Fecha.TimeOfDay,
+                    RucEmisor = datosAlmacen.Ruc ?? string.Empty,
+                    RazonSocialEmisor = datosAlmacen.RazonSocial ?? string.Empty,
+                    DireccionEmisor = datosAlmacen.Direccion ?? string.Empty,
+                    UbigeoEmisor = datosAlmacen.Ubigeo ?? string.Empty,
+                    DocumentoCliente = cab.Dniruc ?? string.Empty,
+                    TipoDocumentoCliente = (cab.Dniruc != null && cab.Dniruc.Length == 11) ? "6" : "1",
+                    NombreCliente = cab.Nombre,
+                    DireccionCliente = cab.Direccion ?? string.Empty,
+                    SubTotal = cab.SubTotal,
+                    Igv = cab.Igv,
+                    Total = cab.Total,
+                    Detalles = cab.ComprobanteDeVentaDetalles.Select(d => new GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteDetalleDTO
+                    {
+                        Item = d.Item,
+                        CodigoItem = d.IdArticulo,
+                        DescripcionItem = d.Descripcion,
+                        UnidadMedida = d.UnidadMedida,
+                        Cantidad = d.Cantidad,
+                        PrecioUnitarioConIGV = d.Precio,
+                        PrecioUnitarioSinIGV = Math.Round(d.Precio / 1.18m, 2),
+                        IGV = Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
+                    }).ToList()
+                };
+
+                lista.Add(dto);
+            }
+
+            var resultado = await _facturacionService.EnviarResumenDiario(lista);
+
+            if (resultado.exito)
+                return Ok(resultado.mensaje);
+
+            return BadRequest(resultado.mensaje);
+        }
+
+
         [HttpGet("dias-pendientes-envio")]
         public async Task<IActionResult> ObtenerDiasPendientesEnvio([FromQuery] int anio, [FromQuery] int idAlmacen, [FromQuery] int tipoDoc)
         {

@@ -1,0 +1,77 @@
+﻿@page "/resumen-sunat"
+@using GSCommerce.Client.Models.SUNAT
+@using GSCommerce.Client.Services
+@inject ResumenSunatService ResumenService
+@inject IJSRuntime JS
+
+<h3>📑 Resumen Diario SUNAT</h3>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label>Fecha:</label>
+        <InputDate @bind-Value="fecha" class="form-control" />
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button class="btn btn-primary" @onclick="BuscarPendientes">Buscar</button>
+    </div>
+</div>
+
+@if (cargando)
+{
+    <p>⏳ Cargando...</p>
+}
+else if (pendientes.Any())
+{
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Tipo</th>
+                <th>Número</th>
+                <th>Monto</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in pendientes)
+            {
+                <tr>
+                    <td>@p.TipoDoc</td>
+                    <td>@p.Numero</td>
+                    <td>@p.Apagar?.ToString("C")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <button class="btn btn-success" @onclick="GenerarResumen">Generar Resumen Diario</button>
+}
+else if (busco)
+{
+    <p>No hay comprobantes pendientes para la fecha seleccionada.</p>
+}
+
+@if (!string.IsNullOrEmpty(mensaje))
+{
+    <div class="alert alert-info mt-3">@mensaje</div>
+}
+
+@code {
+    private DateTime fecha = DateTime.Today;
+    private List<PendienteSunatDTO> pendientes = new();
+    private bool cargando = false;
+    private bool busco = false;
+    private string mensaje = string.Empty;
+
+    private async Task BuscarPendientes()
+    {
+        mensaje = string.Empty;
+        cargando = true;
+        pendientes = await ResumenService.ObtenerPendientesAsync(fecha);
+        cargando = false;
+        busco = true;
+    }
+
+    private async Task GenerarResumen()
+    {
+        mensaje = await ResumenService.GenerarResumenAsync(fecha);
+        await BuscarPendientes();
+    }
+}
