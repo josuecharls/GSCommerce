@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using GSCommerce.Client.Models;
+using System.Linq;
 
 namespace GSCommerce.Client.Services
 {
@@ -38,6 +39,11 @@ namespace GSCommerce.Client.Services
                 Console.WriteLine($"❌ Error al obtener stock: {ex.Message}");
                 return new List<StockDTO>();
             }
+        }
+        public async Task<int> GetStockDisponible(string codigoArticulo, int idAlmacen)
+        {
+            var lista = await GetStock(idAlmacen, false, codigoArticulo, 1);
+            return lista.FirstOrDefault()?.Stock ?? 0;
         }
     }
 }

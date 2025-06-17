@@ -42,4 +42,15 @@ builder.Services.AddAuthorizationCore();
 // Configurar HttpClient para conectarse al backend
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7246") });
 
-await builder.Build().RunAsync();
+var host = builder.Build();
+
+var localStorage = host.Services.GetRequiredService<ILocalStorageService>();
+var token = await localStorage.GetItemAsync<string>("authToken");
+
+if (!string.IsNullOrWhiteSpace(token))
+{
+    var httpClient = host.Services.GetRequiredService<HttpClient>();
+    httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+}
+
+await host.RunAsync();

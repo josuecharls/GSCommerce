@@ -109,6 +109,18 @@ namespace GSCommerceAPI.Controllers
             if (!cajaAbierta)
                 return BadRequest("No se puede registrar la venta porque la caja no está aperturada.");
 
+            // Verificar stock disponible por artículo
+            foreach (var d in ventaRegistro.Detalles)
+            {
+                var stock = await _context.StockAlmacens
+                    .FirstOrDefaultAsync(s => s.IdAlmacen == idAlmacen && s.IdArticulo == d.CodigoItem);
+
+                if (stock == null || stock.Stock < d.Cantidad)
+                {
+                    return BadRequest($"Stock insuficiente para el artículo {d.DescripcionItem}");
+                }
+            }
+
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             var nuevoNumero = await ObtenerNuevoNumeroSerieAsync(ventaRegistro.Cabecera.Serie);
@@ -141,7 +153,7 @@ namespace GSCommerceAPI.Controllers
                 _context.ComprobanteDeVentaCabeceras.Add(cabecera);
                 await _context.SaveChangesAsync();  // Para generar el ID de la cabecera
 
-                // Insertar detalles
+                // Insertar detalles y actualizar stock
                 foreach (var detalle in ventaRegistro.Detalles)
                 {
                     var nuevoDetalle = new ComprobanteDeVentaDetalle
@@ -159,6 +171,13 @@ namespace GSCommerceAPI.Controllers
                     };
 
                     _context.ComprobanteDeVentaDetalles.Add(nuevoDetalle);
+
+                    var stock = await _context.StockAlmacens
+                        .FirstOrDefaultAsync(s => s.IdAlmacen == idAlmacen && s.IdArticulo == detalle.CodigoItem);
+                    if (stock != null)
+                    {
+                        stock.Stock -= (int)detalle.Cantidad;
+                    }
                 }
 
                 // Insertar pagos

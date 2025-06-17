@@ -8,6 +8,7 @@
 @inject SerieCorrelativoService SerieCorrelativoService
 @inject AsignacionSerieCajeroService AsignacionSerieCajeroService
 @inject PersonalService PersonalService
+@inject StockService StockService
 @inject TipoDocumentoVentaService TipoDocumentoVentaService
 @inject HttpClient Http
 @using Microsoft.AspNetCore.Components.Web
@@ -181,7 +182,7 @@ OnCancelado="CobroCancelado" />
                         await JS.InvokeVoidAsync("alert", "⚠️ Caja no aperturada.");
                     }
 
-                    var datos = await AuthService.ObtenerDatosEmisorAsync();
+                var datos = await AuthService.ObtenerDatosEmisorAsync();
                     if (datos != null)
                     {
                         venta.RucEmisor = datos.Ruc;
@@ -346,6 +347,17 @@ OnCancelado="CobroCancelado" />
             var codigo = codigoBusqueda.Trim().PadLeft(6, '0');
             codigoBusqueda = string.Empty;
 
+            int stockDisponible = 0;
+            if (idAlmacenActual != null)
+            {
+                stockDisponible = await StockService.GetStockDisponible(codigo, idAlmacenActual.Value);
+                if (stockDisponible <= 0)
+                {
+                    await JS.InvokeVoidAsync("alert", "❌ No hay stock disponible para este artículo.");
+                    return;
+                }
+            }
+
             var articulo = await articuloService.BuscarPorCodigoAsync(codigo);
 
             if (articulo != null)
@@ -354,6 +366,11 @@ OnCancelado="CobroCancelado" />
 
                 if (existente != null)
                 {
+                    if (existente.Cantidad + 1 > stockDisponible)
+                    {
+                        await JS.InvokeVoidAsync("alert", "❌ Stock insuficiente para este artículo.");
+                        return;
+                    }
                     existente.Cantidad += 1;
                 }
                 else
@@ -465,7 +482,7 @@ OnCancelado="CobroCancelado" />
             };
         }
 
-        var ventaRegistrada = await ventaService.RegistrarVentaAsync(new VentaRegistroDTO
+        var resultadoRegistro = await ventaService.RegistrarVentaAsync(new VentaRegistroDTO
             {
                 Cabecera = venta,
                 Detalles = venta.Detalles,
@@ -473,9 +490,9 @@ OnCancelado="CobroCancelado" />
                 TipoDocumento = tipoDoc!
             });
 
-        if (!ventaRegistrada)
+        if (!resultadoRegistro.Success)
         {
-            await JS.InvokeVoidAsync("alert", "❌ Error al registrar la venta.");
+            await JS.InvokeVoidAsync("alert", $"❌ Error al registrar la venta: {resultadoRegistro.ErrorMessage}");
             Console.WriteLine($"Almacen: {venta.IdAlmacen}, Cajero: {venta.IdCajero}");
             return;
         }

@@ -57,7 +57,10 @@ namespace GSCommerceAPI.Controllers
         PrecioVenta = s.PrecioVenta,
         ValorVenta = s.ValorVenta,
         StockMinimo = s.StockMinimo,
-        EstaBajoMinimo = s.StockMinimo.HasValue && s.Stock < s.StockMinimo.Value
+        // Si no se especifica un stock mínimo, usar 5 como límite
+        EstaBajoMinimo = s.StockMinimo.HasValue
+            ? s.Stock < s.StockMinimo.Value
+            : s.Stock < 5
     })
     .ToListAsync();
             return Ok(resultado);

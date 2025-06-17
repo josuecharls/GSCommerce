@@ -62,14 +62,14 @@ else
             <button class="btn btn-outline-success mt-2" @onclick="ExportarAExcel">📥 Exportar a Excel</button>
         </div>
     </div>
-    @if (soloStockBajo && listaStockFiltrada.Any(s => s.EstaBajoMinimo == true))
+    @if (listaStock.Any(s => s.EstaBajoMinimo))
     {
         <div class="alert alert-warning d-flex align-items-center" role="alert">
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            Se encontraron <strong>@listaStockFiltrada.Count(s => s.EstaBajoMinimo == true)</strong> artículos con stock por debajo del mínimo. ⚠️
+            Hay <strong>@listaStock.Count(s => s.EstaBajoMinimo)</strong> artículos con stock por debajo del mínimo en este almacén.
         </div>
     }
-    else if (soloStockBajo)
+    else if (soloStockBajo && !listaStockFiltrada.Any(s => s.EstaBajoMinimo))
     {
         <div class="alert alert-success d-flex align-items-center" role="alert">
             <i class="bi bi-check-circle-fill me-2"></i>

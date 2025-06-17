@@ -29,20 +29,23 @@ namespace GSCommerce.Client.Services
 
             return resultado?.Numero;
         }
-        public async Task<bool> RegistrarVentaAsync(VentaRegistroDTO venta)
+        public async Task<(bool Success, string? ErrorMessage)> RegistrarVentaAsync(VentaRegistroDTO venta)
         {
             var response = await _httpClient.PostAsJsonAsync("api/ventas", venta);
             if (!response.IsSuccessStatusCode)
-                return false;
+            {
+                var msg = await response.Content.ReadAsStringAsync();
+                return (false, msg);
+            }
 
             var resultado = await response.Content.ReadFromJsonAsync<VentaResponseDTO>();
             if (resultado == null)
-                return false;
+                return (false, "Respuesta inválida");
 
             venta.Cabecera.IdComprobante = resultado.IdComprobante;
             venta.Cabecera.Numero = resultado.Numero;
 
-            return true;
+            return (true, null);
         }
 
         public async Task<List<ReporteVentasVendedorDTO>> ObtenerReportePorVendedor(DateTime desde, DateTime hasta)
