@@ -1,5 +1,6 @@
 ﻿using GSCommerce.Client.Models;
 using System.Net.Http.Json;
+using System.Collections.Generic;
 
 namespace GSCommerce.Client.Services
 {
@@ -14,8 +15,8 @@ namespace GSCommerce.Client.Services
 
         public async Task<bool> VerificarAperturaAsync(int idAlmacen, int idUsuario)
         {
-            var response = await _http.GetAsync($"api/caja/verificar/{idUsuario}/{idAlmacen}");
-            return response.IsSuccessStatusCode;
+            var lista = await _http.GetFromJsonAsync<List<AperturaCierreCajaDTO>>($"api/caja/verificar/{idUsuario}/{idAlmacen}");
+            return lista != null && lista.Any(a => a.Estado == "A");
         }
 
         public async Task<ResumenDiarioDTO> ObtenerResumenAsync(int idAlmacen, int idUsuario)

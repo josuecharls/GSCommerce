@@ -143,8 +143,8 @@ namespace GSCommerceAPI.Controllers
                     Total = ventaRegistro.Cabecera.Total,
                     Redondeo = 0,
                     Apagar = ventaRegistro.Cabecera.APagar,
-                    IdVendedor = 1, // De momento fijo
-                    IdCajero = 1, // De momento fijo
+                    IdVendedor = ventaRegistro.Cabecera.IdVendedor,
+                    IdCajero = ventaRegistro.Cabecera.IdCajero ?? 0,
                     IdAlmacen = idAlmacen,
                     Estado = "E",
                     FechaHoraRegistro = DateTime.Now,
