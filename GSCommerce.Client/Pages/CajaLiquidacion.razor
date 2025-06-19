@@ -25,7 +25,7 @@ else
         <p><strong>Cajero:</strong> @cajero</p>
         <p><strong>Estado:</strong> @estadoCaja</p>
     </div>
-
+    <p><strong>Ventas cargadas:</strong> @ventas?.Count()</p>
     @if (ventas?.Any() == true)
     {
         <table class="table table-striped">
@@ -39,6 +39,7 @@ else
                     <th>Total</th>
                     <th>Soles</th>
                     <th>Dólares</th>
+                    <th>Redondeo</th>
                     <th>Vuelto</th>
                     <th>Estado</th>
                 </tr>
@@ -55,7 +56,8 @@ else
                         <td>@v.Total.ToString("N2")</td>
                         <td>@v.Soles.ToString("N2")</td>
                         <td>@v.Dolares.ToString("N2")</td>
-                        <td>@(v.Vuelto ?? 0).ToString("N2")</td>
+                        <td>@((v.Redondeo ?? 0).ToString("N2"))</td>
+                        <td>@((v.Vuelto ?? 0).ToString("N2"))</td>
                         <td>@v.Estado</td>
                     </tr>
                 }

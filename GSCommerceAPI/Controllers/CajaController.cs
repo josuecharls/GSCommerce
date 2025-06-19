@@ -208,10 +208,16 @@ public class CajaController : ControllerBase
     }
 
     [HttpGet("ventas/{idAlmacen}/{fecha}")]
-    public async Task<ActionResult<IEnumerable<VCierreVentaDiaria1>>> GetVentasDiarias(int idAlmacen, DateOnly fecha)
+    public async Task<ActionResult<IEnumerable<VCierreVentaDiaria1>>> GetVentasDiarias(int idAlmacen, string fecha)
     {
+        if (!DateOnly.TryParse(fecha, out var fechaParsed))
+            return BadRequest("Fecha inválida");
+
+        var fechaInicio = fechaParsed.ToDateTime(new TimeOnly(0, 0, 0));
+        var fechaFin = fechaParsed.ToDateTime(new TimeOnly(23, 59, 59));
+
         var lista = await _context.VCierreVentaDiaria1s
-            .Where(v => v.IdAlmacen == idAlmacen && v.Fecha == fecha.ToDateTime(new TimeOnly()))
+            .Where(v => v.IdAlmacen == idAlmacen && v.Fecha >= fechaInicio && v.Fecha <= fechaFin)
             .ToListAsync();
 
         return Ok(lista);
