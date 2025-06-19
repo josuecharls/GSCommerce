@@ -41,6 +41,8 @@ public class CajaController : ControllerBase
                 .Where(c => c.IdUsuario == idUsuario &&
                            c.IdAlmacen == idAlmacen &&
                            c.Fecha == fechaDate)
+                .Include(a => a.IdUsuarioNavigation)
+                .ThenInclude(u => u.IdPersonalNavigation)
                 .Select(a => new AperturaCierreCajaDTO
                 {
                     IdAperturaCierre = a.IdAperturaCierre,
@@ -55,7 +57,10 @@ public class CajaController : ControllerBase
                     SaldoFinal = a.SaldoFinal,
                     Estado = a.Estado,
                     ObservacionApertura = a.ObservacionApertura,
-                    ObservacionCierre = a.ObservacionCierre
+                    ObservacionCierre = a.ObservacionCierre,
+                    NombreUsuario = a.IdUsuarioNavigation.Nombre,
+                    NombreCajero = a.IdUsuarioNavigation.IdPersonalNavigation.Nombres + " " +
+                                   a.IdUsuarioNavigation.IdPersonalNavigation.Apellidos
                 })
                 .FirstOrDefaultAsync();
 
@@ -73,10 +78,13 @@ public class CajaController : ControllerBase
 
     // 3. Obtener última apertura anterior
     [HttpGet("anterior/{idUsuario}/{idAlmacen}/{fecha}")]
-    public async Task<IActionResult> ObtenerAnterior(int idUsuario, int idAlmacen, DateOnly fecha)
+    public async Task<IActionResult> ObtenerAnterior(int idUsuario, int idAlmacen, string fecha)
     {
+        if (!DateOnly.TryParse(fecha, out var fechaDate))
+            return BadRequest("Formato de fecha inválido. Use YYYY-MM-DD");
+
         var anterior = await _context.AperturaCierreCajas
-            .Where(c => c.IdUsuario == idUsuario && c.IdAlmacen == idAlmacen && c.Fecha < fecha)
+            .Where(c => c.IdUsuario == idUsuario && c.IdAlmacen == idAlmacen && c.Fecha < fechaDate)
             .OrderByDescending(c => c.Fecha)
             .FirstOrDefaultAsync();
 
@@ -109,13 +117,36 @@ public class CajaController : ControllerBase
         if (aperturaDto.FondoFijo <= 0)
             return BadRequest("El fondo fijo debe ser mayor que cero.");
 
+        // Verificar si existe una apertura pendiente en otra fecha
+        var pendiente = await _context.AperturaCierreCajas
+            .FirstOrDefaultAsync(c => c.IdUsuario == aperturaDto.IdUsuario &&
+                                     c.IdAlmacen == aperturaDto.IdAlmacen &&
+                                     c.Estado != "C");
+
+        if (pendiente != null)
+        {
+            if (pendiente.Fecha == aperturaDto.Fecha)
+                return BadRequest("La caja ya está aperturada para la fecha seleccionada.");
+
+            return BadRequest($"Existe una apertura pendiente del {pendiente.Fecha:yyyy-MM-dd}.");
+        }
+
+        // Obtener saldo final de la última apertura cerrada
+        var ultimaCerrada = await _context.AperturaCierreCajas
+            .Where(c => c.IdUsuario == aperturaDto.IdUsuario &&
+                        c.IdAlmacen == aperturaDto.IdAlmacen &&
+                        c.Estado == "C" &&
+                        c.Fecha < aperturaDto.Fecha)
+            .OrderByDescending(c => c.Fecha)
+            .FirstOrDefaultAsync();
+
         var nuevaApertura = new AperturaCierreCaja
         {
             IdUsuario = aperturaDto.IdUsuario,
             IdAlmacen = aperturaDto.IdAlmacen,
             Fecha = aperturaDto.Fecha,
             FondoFijo = aperturaDto.FondoFijo,
-            SaldoInicial = aperturaDto.SaldoInicial,
+            SaldoInicial = ultimaCerrada?.SaldoFinal ?? 0,
             Estado = aperturaDto.Estado ?? "A",
             ObservacionApertura = aperturaDto.ObservacionApertura,
             ObservacionCierre = null,

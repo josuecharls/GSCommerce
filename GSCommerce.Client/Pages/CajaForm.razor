@@ -3,6 +3,7 @@
 @using GSCommerce.Client.Services
 @inject CajaService CajaService
 @inject AuthService AuthService
+@using System.Linq
 @inject IJSRuntime JS
 
 <h3>Gestión de Caja</h3>
@@ -16,17 +17,26 @@ else
     <div class="mb-3">
         <label>Fecha:</label>
         <input type="date" class="form-control"
-               @bind="fechaSeleccionada"
-               @bind:event="oninput"
-               @onchange="OnFechaChanged" />
+        @bind="fechaSeleccionada"
+        @bind:event="oninput"
+        @onchange="OnFechaChanged" />
     </div>
 
     <div class="alert alert-info">
         <strong>Estado:</strong> @estadoCaja
     </div>
 
+    @if (!string.IsNullOrEmpty(mensajeError))
+    {
+        <div class="alert alert-danger">@mensajeError</div>
+    }
+
     @if (estadoCaja == "NO APERTURADA")
     {
+        <div class="mb-3">
+            <label>Saldo Inicial (último cierre):</label>
+            <input class="form-control" value="@saldoAnterior.ToString("N2")" disabled />
+        </div>
         <div class="mb-3">
             <label>Fondo Fijo:</label>
             <input type="number" class="form-control" @bind="fondoFijo" min="0" step="0.01" />
@@ -79,6 +89,8 @@ else
     private int idApertura = 0;
     private int idUsuario;
     private int idAlmacen;
+    private decimal saldoAnterior = 0;
+    private string mensajeError = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -104,6 +116,7 @@ else
 
     private async Task VerificarEstadoCaja()
     {
+        mensajeError = string.Empty;    
         var apertura = await CajaService.ObtenerAperturaAsync(idUsuario, idAlmacen, fechaSeleccionada);
         if (apertura == null)
         {
@@ -124,17 +137,31 @@ else
         {
             estadoCaja = "APERTURADA";
         }
+
+        var anterior = await CajaService.ObtenerAperturaAnteriorAsync(idUsuario, idAlmacen, fechaSeleccionada);
+        if (anterior != null && anterior.Estado == "C")
+            saldoAnterior = anterior.SaldoFinal;
+        else
+            saldoAnterior = 0;
     }
 
     private async Task AperturarCaja()
     {
+        var pendientes = await CajaService.VerificarAperturaAsync(idUsuario, idAlmacen);
+        var pendienteOtroDia = pendientes?.FirstOrDefault(p => p.Fecha != fechaSeleccionada && p.Estado != "C");
+        if (pendienteOtroDia != null)
+        {
+            mensajeError = $"Debe cerrar la apertura del {pendienteOtroDia.Fecha.ToString("yyyy-MM-dd")}";
+            return;
+        }
+
         var apertura = new AperturaCierreCajaDTO
             {
                 IdUsuario = idUsuario,
                 IdAlmacen = idAlmacen,
                 Fecha = fechaSeleccionada,
                 FondoFijo = fondoFijo,
-                SaldoInicial = 0,
+                SaldoInicial = saldoAnterior,
                 Estado = "A",
                 ObservacionApertura = observacion
             };

@@ -54,7 +54,7 @@ namespace GSCommerce.Client.Services
         // Última apertura anterior
         public async Task<AperturaCierreCajaDTO?> ObtenerAperturaAnteriorAsync(int idUsuario, int idAlmacen, DateOnly fecha)
         {
-            return await _http.GetFromJsonAsync<AperturaCierreCajaDTO?>($"api/caja/anterior/{idUsuario}/{idAlmacen}/{fecha}");
+            return await _http.GetFromJsonAsync<AperturaCierreCajaDTO>($"api/caja/anterior/{idUsuario}/{idAlmacen}/{fecha:yyyy-MM-dd}");
         }
 
         // Siguiente apertura
