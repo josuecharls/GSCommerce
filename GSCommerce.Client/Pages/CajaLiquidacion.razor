@@ -14,7 +14,10 @@ else
 {
     <div class="mb-3">
         <label>Fecha:</label>
-        <input type="date" class="form-control" @bind="fechaSeleccionada"/>
+        <input type="date" class="form-control"
+               @bind="fechaSeleccionada"
+               @bind:event="oninput"
+               @onchange="OnFechaChanged" />
     </div>
 
     <div class="alert alert-secondary">
