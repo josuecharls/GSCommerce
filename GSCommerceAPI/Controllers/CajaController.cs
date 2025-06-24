@@ -1,6 +1,7 @@
 ﻿using GSCommerce.Client.Models;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
+using System.Globalization;
 using GSCommerceAPI.Models.SUNAT.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -210,7 +211,7 @@ public class CajaController : ControllerBase
     [HttpGet("ventas/{idAlmacen}/{fecha}")]
     public async Task<ActionResult<IEnumerable<VCierreVentaDiaria1>>> GetVentasDiarias(int idAlmacen, string fecha)
     {
-        if (!DateOnly.TryParse(fecha, out var fechaParsed))
+        if (!DateOnly.TryParseExact(fecha, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaParsed))
             return BadRequest("Fecha inválida");
 
         var fechaInicio = fechaParsed.ToDateTime(new TimeOnly(0, 0, 0));

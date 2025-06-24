@@ -131,18 +131,31 @@
     {
         if (montoPago > 0)
         {
-            pagos.Add(new DetallePagoDTO
-                {
-                    FormaPago = pagoSeleccionado,
-                    Monto = montoPago,
-                    CodigoVerificacion = codigoVerificacion
-                });
+            var nuevoPago = new DetallePagoDTO
+            {
+                FormaPago = pagoSeleccionado,
+                Monto = montoPago,
+                CodigoVerificacion = codigoVerificacion,
+                Datos = codigoVerificacion
+            };
+
+            if (pagoSeleccionado == "DOLARES")
+            {
+                nuevoPago.Dolares = montoPago;
+            }
+            else
+            {
+                nuevoPago.Soles = montoPago;
+            }
+
+            pagos.Add(nuevoPago);
 
             montoPago = 0;
             codigoVerificacion = null;
             pagoSeleccionado = "EFECTIVO";
         }
     }
+
 
     private void EliminarPago(DetallePagoDTO pago)
     {
