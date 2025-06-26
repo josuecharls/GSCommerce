@@ -457,6 +457,9 @@ OnCancelado="CobroCancelado" />
     private async Task CobroConfirmado(List<DetallePagoDTO> pagos)
     {
         pagosRealizados = pagos;
+        // Calcular y registrar el vuelto entregado
+        var pagoEfectivo = pagosRealizados.FirstOrDefault(p => p.FormaPago == "EFECTIVO");
+        venta.Vuelto = pagoEfectivo?.Vuelto ?? 0;
         ventaCobrada = true;
         Console.WriteLine("Venta cobrada con éxito");
 

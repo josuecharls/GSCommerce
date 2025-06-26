@@ -164,6 +164,16 @@
 
     private async Task ConfirmarPago()
     {
+        // Calculamos el vuelto total antes de enviar los pagos
+        var vuelto = VueltoCalculado;
+
+        // Si existe un pago en efectivo, asignamos el vuelto a ese registro
+        var pagoEfectivo = pagos.FirstOrDefault(p => p.FormaPago == "EFECTIVO");
+        if (pagoEfectivo != null)
+        {
+            pagoEfectivo.Vuelto = vuelto;
+        }
+
         Mostrar = false;
         await OnConfirmado.InvokeAsync(pagos);
     }
