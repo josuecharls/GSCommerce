@@ -37,7 +37,7 @@
         {
             @foreach (var v in ventas)
             {
-                <tr>
+                <tr @oncontextmenu="@((e) => MostrarMenuContextual(v, e))">
                     <td>@v.Fecha.ToString("dd/MM/yyyy")</td>
                     <td>@v.TipoDocumento</td>
                     <td>@v.Serie</td>
@@ -54,6 +54,14 @@
                 <td colspan="7" class="text-center">No se encontraron ventas.</td>
             </tr>
         }
+        @if (mostrarMenuContextual && ventaSeleccionada != null)
+        {
+            <div class="context-menu bg-light border shadow-sm position-absolute p-2" style="@estiloMenu" @onclick:stopPropagation>
+                <button class="dropdown-item" @onclick="@(() => EmitirNotaCredito("ELECTRONICA"))">Emitir N.C. Electrónica</button>
+                <button class="dropdown-item" @onclick="@(() => EmitirNotaCredito("MANUAL"))">Emitir N.C. Manual</button>
+                <button class="dropdown-item" @onclick="@(() => EmitirNotaCredito("INTERNA"))">Emitir N.C. Interna</button>
+            </div>
+        }
     </tbody>
 </table>
 
@@ -61,6 +69,9 @@
     private List<VentaConsultaDTO> ventas = new();
     private DateTime desde = DateTime.Today;
     private DateTime hasta = DateTime.Today;
+    private VentaConsultaDTO? ventaSeleccionada;
+    private bool mostrarMenuContextual = false;
+    private string estiloMenu = "";
 
     private async Task BuscarVentas()
     {
@@ -70,5 +81,45 @@
     protected override async Task OnInitializedAsync()
     {
         await BuscarVentas(); // Cargar ventas del día por defecto
+    }
+
+    private void MostrarMenuContextual(VentaConsultaDTO venta, MouseEventArgs e)
+    {
+        ventaSeleccionada = venta;
+        mostrarMenuContextual = true;
+        estiloMenu = $"position: absolute; top: {e.ClientY}px; left: {e.ClientX}px;";
+    }
+
+    private async Task EmitirNotaCredito(string tipo)
+    {
+        mostrarMenuContextual = false;
+
+        if (ventaSeleccionada == null)
+            return;
+
+        if (ventaSeleccionada.Estado != "E" && ventaSeleccionada.Estado != "D")
+        {
+            await JS.InvokeVoidAsync("alert", "⚠️ Solo se puede emitir NC para ventas EMITIDAS o DECLARADAS.");
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(ventaSeleccionada.NumeroNotaCredito))
+        {
+            await JS.InvokeVoidAsync("alert", $"❌ Ya se generó una N.C.: {ventaSeleccionada.NumeroNotaCredito}");
+            return;
+        }
+
+        var url = tipo switch
+        {
+            "ELECTRONICA" => $"/nota-credito/electronica/{ventaSeleccionada.IdComprobante}",
+            "MANUAL" => $"/nota-credito/manual/{ventaSeleccionada.IdComprobante}",
+            "INTERNA" => $"/nota-credito/interna/{ventaSeleccionada.IdComprobante}",
+            _ => null
+        };
+
+        if (!string.IsNullOrEmpty(url))
+        {
+            await JS.InvokeVoidAsync("open", url, "_blank");
+        }
     }
 }

@@ -1,0 +1,214 @@
+﻿@page "/nota-credito/{tipo}/{idComprobante:int}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject NotaCreditoService ncService
+@inject VentaService ventaService
+@inject IJSRuntime JS
+@inject NavigationManager nav
+
+<h3>Nota de Crédito - @titulo</h3>
+
+@if (loading)
+{
+    <p>Cargando datos...</p>
+}
+else if (cabecera != null)
+{
+    <div class="mb-3">
+        <label>Referencia:</label>
+        <input class="form-control" @bind="cabecera.Referencia" readonly />
+    </div>
+
+    <div class="mb-3">
+        <label>Motivo:</label>
+        <select class="form-select" @bind="cabecera.IdMotivo">
+            <option value="">-- Seleccione --</option>
+            <option value="01">DEVOLUCIÓN TOTAL</option>
+            <option value="07">DEVOLUCIÓN POR ITEM</option>
+        </select>
+    </div>
+
+    <table class="table table-sm table-bordered">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Descripción</th>
+                <th>Precio</th>
+                <th>Cantidad</th>
+                <th>Descuento %</th>
+                <th>Total</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var d in detalles)
+            {
+                <tr>
+                    <td>@d.Item</td>
+                    <td>@d.Descripcion</td>
+                    <td>@d.Precio.ToString("N2")</td>
+                    <td>
+                        @if (editable)
+                        {
+                            <input type="number" min="1" class="form-control" @bind="d.Cantidad" @onchange="RecalcularTotales" />
+                        }
+                        else
+                        {
+                            @d.Cantidad
+                        }
+                    </td>
+                    <td>@(d.PorcentajeDescuento * 100).ToString("N2")</td>
+                    <td>@d.Total.ToString("N2")</td>
+                    <td>
+                        @if (editable)
+                        {
+                            <button class="btn btn-sm btn-danger" @onclick="() => QuitarItem(d)">X</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="text-end">
+        <p>Subtotal: @cabecera.SubTotal.ToString("N2")</p>
+        <p>IGV: @cabecera.Igv.ToString("N2")</p>
+        <p>Total: <strong>@cabecera.Total.ToString("N2")</strong></p>
+        <p>Redondeo: @cabecera.Redondeo.ToString("N2")</p>
+        <p>Importe a Favor: <strong>@cabecera.AFavor.ToString("N2")</strong></p>
+    </div>
+
+    <button class="btn btn-primary" @onclick="EmitirNotaCredito">Emitir Nota de Crédito</button>
+    <button class="btn btn-secondary" @onclick="() => nav.NavigateTo("/ventas")">Cancelar</button>
+}
+else
+{
+    <p>No se encontró información del comprobante.</p>
+}
+
+@code {
+    [Parameter] public string tipo { get; set; } = "";
+    [Parameter] public int idComprobante { get; set; }
+
+    private NotaCreditoCabeceraDTO? cabecera;
+    private List<NotaCreditoDetalleDTO> detalles = new();
+    private bool loading = true;
+    private bool editable = false;
+    private string titulo = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        loading = true;
+
+        var venta = await ventaService.ObtenerVentaPorId(idComprobante);
+        if (venta == null)
+        {
+            loading = false;
+            return;
+        }
+
+        cabecera = new NotaCreditoCabeceraDTO
+        {
+            IdTipoDocumento = tipo.ToUpper() switch
+            {
+                "ELECTRONICA" => 5, // Actualiza según tu código
+                "MANUAL" => 6,
+                "INTERNA" => 7,
+                _ => 0
+            },
+            Serie = tipo.ToUpper() switch
+            {
+                "ELECTRONICA" => "E001",
+                "MANUAL" => "M001",
+                "INTERNA" => "T001",
+                _ => ""
+            },
+            Fecha = DateTime.Today,
+            Referencia = $"{venta.Serie}-{venta.Numero.ToString("D8")}",
+            IdCliente = venta.IdCliente,
+            Nombre = venta.NombreCliente,
+            Dniruc = venta.Dniruc,
+            Direccion = venta.Direccion ?? "-",
+            IdAlmacen = venta.IdAlmacen,
+            IdUsuario = venta.IdCajero,
+            IdMotivo = "", // Aún no seleccionado
+            SubTotal = venta.SubTotal,
+            Igv = venta.Igv,
+            Redondeo = venta.Redondeo,
+            Total = venta.Total,
+            AFavor = venta.AFavor
+        };
+
+        detalles = venta.Detalles.Select(d => new NotaCreditoDetalleDTO
+        {
+            IdArticulo = d.CodigoItem,
+            Descripcion = d.DescripcionItem,
+            UnidadMedida = d.UnidadMedida ?? "UND",
+            Cantidad = d.Cantidad,
+            Precio = d.PrecioUnitario,
+            PorcentajeDescuento = d.PorcentajeDescuento,
+            Total = d.Total
+        }).ToList();
+
+        titulo = tipo.ToUpper() switch
+        {
+            "ELECTRONICA" => "Electrónica",
+            "MANUAL" => "Manual",
+            "INTERNA" => "Interna",
+            _ => "Desconocida"
+        };
+
+        loading = false;
+    }
+
+    private void QuitarItem(NotaCreditoDetalleDTO item)
+    {
+        detalles.Remove(item);
+        RecalcularTotales();
+    }
+
+    private void RecalcularTotales()
+    {
+        decimal total = 0;
+        int item = 1;
+
+        foreach (var d in detalles)
+        {
+            d.Item = item++;
+            d.Total = d.Cantidad * d.Precio * (1 - d.PorcentajeDescuento);
+            total += d.Total;
+        }
+
+        cabecera!.Total = total;
+        cabecera.Redondeo = 0;
+        cabecera.SubTotal = total / 1.18m;
+        cabecera.Igv = cabecera.Total - cabecera.SubTotal;
+        cabecera.AFavor = cabecera.Total;
+    }
+
+    private async Task EmitirNotaCredito()
+    {
+        if (cabecera == null || string.IsNullOrWhiteSpace(cabecera.IdMotivo))
+        {
+            await JS.InvokeVoidAsync("alert", "Debe seleccionar un motivo.");
+            return;
+        }
+
+        var result = await ncService.EmitirNotaCreditoAsync(tipo, new NotaCreditoRegistroDTO
+        {
+            Cabecera = cabecera,
+            Detalles = detalles,
+            IdComprobanteOriginal = idComprobante
+        });
+
+        if (result != null)
+        {
+            await JS.InvokeVoidAsync("alert", $"✅ Nota de Crédito generada: {result.Serie}-{result.Numero:D8}");
+            nav.NavigateTo("/ventas");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "❌ Error al emitir la nota de crédito.");
+        }
+    }
+}
