@@ -29,11 +29,25 @@ namespace GSCommerceAPI.Controllers
             {
                 // Asignar número de serie y correlativo si corresponde
                 var correlativo = await _context.SerieCorrelativos
-                    .Where(s => s.Serie == dto.Cabecera.Serie && s.IdAlmacen == dto.Cabecera.IdAlmacen && s.IdTipoDocumentoVenta == dto.Cabecera.IdTipoDocumento)
+                    .Where(s => s.Serie == dto.Cabecera.Serie &&
+                                s.IdAlmacen == dto.Cabecera.IdAlmacen &&
+                                s.IdTipoDocumentoVenta == dto.Cabecera.IdTipoDocumento)
                     .FirstOrDefaultAsync();
 
                 if (correlativo == null)
-                    return BadRequest("No se encontró correlativo para la serie especificada.");
+                {
+                    correlativo = new SerieCorrelativo
+                    {
+                        IdAlmacen = dto.Cabecera.IdAlmacen,
+                        IdTipoDocumentoVenta = dto.Cabecera.IdTipoDocumento,
+                        Serie = dto.Cabecera.Serie,
+                        Correlativo = 0,
+                        Estado = true
+                    };
+
+                    _context.SerieCorrelativos.Add(correlativo);
+                    await _context.SaveChangesAsync();
+                }
 
                 correlativo.Correlativo += 1;
                 dto.Cabecera.Numero = correlativo.Correlativo;
