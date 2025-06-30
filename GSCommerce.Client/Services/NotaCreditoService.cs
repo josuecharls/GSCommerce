@@ -12,10 +12,15 @@ namespace GSCommerce.Client.Services
             _http = http;
         }
 
-        public async Task<bool> EmitirNotaCreditoAsync(string tipo, NotaCreditoRegistroDTO dto)
+        public async Task<NotaCreditoResponseDTO?> EmitirNotaCreditoAsync(string tipo, NotaCreditoRegistroDTO dto)
         {
             var response = await _http.PostAsJsonAsync($"/api/notascredito/emitir/{tipo.ToLower()}", dto);
-            return response.IsSuccessStatusCode;
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<NotaCreditoResponseDTO>();
+            }
+
+            return null;
         }
     }
 }

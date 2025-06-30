@@ -67,12 +67,13 @@ namespace GSCommerceAPI.Controllers
                 await _context.SaveChangesAsync(); // Para generar el IdNC
 
                 // Agregar detalles
+                int item = 1;
                 foreach (var d in dto.Detalles)
                 {
                     var detalle = new NotaDeCreditoDetalle
                     {
                         IdNc = cabecera.IdNc,
-                        Item = d.IdArticulo, // o generar numeración
+                        Item = item++,
                         IdArticulo = d.IdArticulo.ToString(),
                         Descripcion = d.Descripcion,
                         UnidadMedida = d.UnidadMedida,

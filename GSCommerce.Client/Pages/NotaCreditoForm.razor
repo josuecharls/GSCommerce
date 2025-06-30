@@ -50,7 +50,7 @@ else if (cabecera != null)
                     <td>
                         @if (editable)
                         {
-                            <input type="number" min="1" class="form-control" @bind="d.Cantidad" @onchange="RecalcularTotales" />
+                            <input type="number" min="1" class="form-control" @bind="d.Cantidad" />
                         }
                         else
                         {
@@ -79,7 +79,7 @@ else if (cabecera != null)
     </div>
 
     <button class="btn btn-primary" @onclick="EmitirNotaCredito">Emitir Nota de Crédito</button>
-    <button class="btn btn-secondary" @onclick="() => nav.NavigateTo("/ventas")">Cancelar</button>
+    <button class="btn btn-secondary" @onclick='() => nav.NavigateTo("/ventas")'>Cancelar</button>
 }
 else
 {
@@ -125,16 +125,16 @@ else
             },
             Fecha = DateTime.Today,
             Referencia = $"{venta.Serie}-{venta.Numero.ToString("D8")}",
-            IdCliente = venta.IdCliente,
-            Nombre = venta.NombreCliente,
-            Dniruc = venta.Dniruc,
+            IdCliente = venta.IdCliente ?? 0,
+            Nombre = venta.Nombre,
+            Dniruc = venta.Dniruc ?? string.Empty,
             Direccion = venta.Direccion ?? "-",
             IdAlmacen = venta.IdAlmacen,
             IdUsuario = venta.IdCajero,
             IdMotivo = "", // Aún no seleccionado
             SubTotal = venta.SubTotal,
             Igv = venta.Igv,
-            Redondeo = venta.Redondeo,
+            Redondeo = venta.Redondeo ?? 0,
             Total = venta.Total,
             AFavor = venta.AFavor
         };
@@ -144,11 +144,12 @@ else
             IdArticulo = d.CodigoItem,
             Descripcion = d.DescripcionItem,
             UnidadMedida = d.UnidadMedida ?? "UND",
-            Cantidad = d.Cantidad,
+            Cantidad = (int)d.Cantidad,
             Precio = d.PrecioUnitario,
             PorcentajeDescuento = d.PorcentajeDescuento,
             Total = d.Total
         }).ToList();
+        RecalcularTotales();
 
         titulo = tipo.ToUpper() switch
         {

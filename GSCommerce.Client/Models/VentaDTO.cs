@@ -17,6 +17,7 @@
         public decimal Total { get; set; }
         public decimal? Redondeo { get; set; }
         public decimal? Apagar { get; set; }
+        public decimal AFavor { get; set; }
         public int IdVendedor { get; set; }
         public int IdCajero { get; set; }
         public int IdAlmacen { get; set; }

@@ -26,6 +26,52 @@ namespace GSCommerceAPI.Controllers
             _facturacionService = facturacionService;
         }
 
+        [HttpGet("{id}")]
+        public async Task<IActionResult> ObtenerVentaPorId(int id)
+        {
+            var cabecera = await _context.ComprobanteDeVentaCabeceras
+                .Include(c => c.ComprobanteDeVentaDetalles)
+                .FirstOrDefaultAsync(c => c.IdComprobante == id);
+
+            if (cabecera == null)
+                return NotFound();
+
+            var venta = new VentaDTO
+            {
+                IdTipoDocumento = cabecera.IdTipoDocumento,
+                Serie = cabecera.Serie,
+                Numero = cabecera.Numero,
+                Fecha = cabecera.Fecha,
+                IdCliente = cabecera.IdCliente,
+                Dniruc = cabecera.Dniruc,
+                Nombre = cabecera.Nombre,
+                Direccion = cabecera.Direccion,
+                TipoCambio = cabecera.TipoCambio,
+                SubTotal = cabecera.SubTotal,
+                Igv = cabecera.Igv,
+                Total = cabecera.Total,
+                Redondeo = cabecera.Redondeo,
+                Apagar = cabecera.Apagar,
+                AFavor = cabecera.Total,
+                IdVendedor = cabecera.IdVendedor,
+                IdCajero = cabecera.IdCajero,
+                IdAlmacen = cabecera.IdAlmacen,
+                Detalles = cabecera.ComprobanteDeVentaDetalles.Select(d => new VentaDetalleDTO
+                {
+                    Item = d.Item,
+                    CodigoItem = d.IdArticulo,
+                    DescripcionItem = d.Descripcion,
+                    UnidadMedida = d.UnidadMedida,
+                    Cantidad = d.Cantidad,
+                    PrecioUnitario = d.Precio,
+                    PorcentajeDescuento = d.PorcentajeDescuento,
+                    Total = d.Total
+                }).ToList()
+            };
+
+            return Ok(venta);
+        }
+
         [HttpGet("list")]
         public async Task<IActionResult> ListarVentas([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
         {

@@ -148,6 +148,18 @@ namespace GSCommerce.Client.Services
             return response.IsSuccessStatusCode;
         }
 
+        public async Task<VentaDTO?> ObtenerVentaPorId(int id)
+        {
+            try
+            {
+                return await _httpClient.GetFromJsonAsync<VentaDTO>($"api/ventas/{id}");
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public static string ConvertirMontoALetras(decimal monto)
         {
             var enteros = (long)Math.Floor(monto);
