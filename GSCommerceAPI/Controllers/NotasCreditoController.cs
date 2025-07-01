@@ -3,6 +3,7 @@ using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using GSCommerceAPI.Services.SUNAT;
 
 namespace GSCommerceAPI.Controllers
 {
@@ -11,10 +12,12 @@ namespace GSCommerceAPI.Controllers
     public class NotasCreditoController : ControllerBase
     {
         private readonly SyscharlesContext _context;
+        private readonly IFacturacionElectronicaService _facturacion;
 
-        public NotasCreditoController(SyscharlesContext context)
+        public NotasCreditoController(SyscharlesContext context, IFacturacionElectronicaService facturacion)
         {
             _context = context;
+            _facturacion = facturacion;
         }
 
         [HttpPost("emitir/{tipo}")]
@@ -112,6 +115,52 @@ namespace GSCommerceAPI.Controllers
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                // Enviar a SUNAT si corresponde
+                var almacen = await _context.Almacens.FirstOrDefaultAsync(a => a.IdAlmacen == cabecera.IdAlmacen);
+                if (almacen != null)
+                {
+                    var comprobanteSunat = new GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteCabeceraDTO
+                    {
+                        IdComprobante = cabecera.IdNc,
+                        TipoDocumento = "07",
+                        TipoNotaCredito = cabecera.IdMotivo ?? "01", // SUNAT motivo
+                        Serie = cabecera.Serie,
+                        Numero = cabecera.Numero,
+                        FechaEmision = cabecera.Fecha,
+                        HoraEmision = cabecera.Fecha.TimeOfDay,
+                        Moneda = "PEN",
+                        RucEmisor = almacen.Ruc ?? string.Empty,
+                        RazonSocialEmisor = almacen.RazonSocial ?? string.Empty,
+                        DireccionEmisor = almacen.Direccion ?? string.Empty,
+                        UbigeoEmisor = almacen.Ubigeo ?? string.Empty,
+                        DocumentoCliente = cabecera.Dniruc ?? string.Empty,
+                        TipoDocumentoCliente = (cabecera.Dniruc != null && cabecera.Dniruc.Length == 11) ? "6" : "1",
+                        NombreCliente = cabecera.Nombre,
+                        DireccionCliente = cabecera.Direccion ?? string.Empty,
+                        SubTotal = cabecera.SubTotal,
+                        Igv = cabecera.Igv,
+                        Total = cabecera.Total,
+                        MontoLetras = ConvertirMontoALetras(cabecera.Total),
+                        Detalles = dto.Detalles.Select(d => new GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteDetalleDTO
+                        {
+                            Item = d.Item,
+                            CodigoItem = d.IdArticulo,
+                            DescripcionItem = d.Descripcion,
+                            UnidadMedida = d.UnidadMedida,
+                            Cantidad = d.Cantidad,
+                            PrecioUnitarioConIGV = d.Precio,
+                            PrecioUnitarioSinIGV = Math.Round(d.Precio / 1.18m, 2),
+                            IGV = Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
+                        }).ToList()
+                    };
+
+                    var (exito, mensajeSunat) = await _facturacion.EnviarComprobante(comprobanteSunat);
+                    if (!exito)
+                    {
+                        return StatusCode(500, $"❌ SUNAT rechazó la nota de crédito: {mensajeSunat}");
+                    }
+                }
+
                 return Ok(new
                 {
                     Numero = cabecera.Numero,
@@ -124,6 +173,71 @@ namespace GSCommerceAPI.Controllers
                 await transaction.RollbackAsync();
                 return StatusCode(500, $"💥 Error al emitir nota de crédito: {ex.Message}");
             }
+        }
+
+
+        private static string ConvertirMontoALetras(decimal monto)
+        {
+            var enteros = (long)Math.Floor(monto);
+            var decimales = (int)Math.Round((monto - enteros) * 100);
+
+            string letras = NumeroALetras(enteros).ToUpper();
+
+            return $"{letras} Y {decimales:D2}/100 SOLES";
+        }
+
+        private static string NumeroALetras(long numero)
+        {
+            if (numero == 0) return "cero";
+            if (numero < 0) return "menos " + NumeroALetras(Math.Abs(numero));
+
+            string[] unidades = { "", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve" };
+            string[] decenas = { "", "diez", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa" };
+            string[] centenas = { "", "ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos" };
+
+            if (numero == 100) return "cien";
+
+            string letras = "";
+
+            if ((numero / 1000000) > 0)
+            {
+                letras += NumeroALetras(numero / 1000000) + ((numero / 1000000) == 1 ? " millón " : " millones ");
+                numero %= 1000000;
+            }
+
+            if ((numero / 1000) > 0)
+            {
+                if ((numero / 1000) == 1)
+                    letras += "mil ";
+                else
+                    letras += NumeroALetras(numero / 1000) + " mil ";
+                numero %= 1000;
+            }
+
+            if ((numero / 100) > 0)
+            {
+                letras += centenas[numero / 100] + " ";
+                numero %= 100;
+            }
+
+            if (numero > 0)
+            {
+                if (numero < 10)
+                    letras += unidades[numero];
+                else if (numero < 20)
+                {
+                    string[] especiales = { "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve" };
+                    letras += especiales[numero - 10];
+                }
+                else
+                {
+                    letras += decenas[numero / 10];
+                    if ((numero % 10) > 0)
+                        letras += " y " + unidades[numero % 10];
+                }
+            }
+
+            return letras.Trim();
         }
     }
 }

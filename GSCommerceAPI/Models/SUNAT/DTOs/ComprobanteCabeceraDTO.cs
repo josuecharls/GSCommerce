@@ -26,5 +26,6 @@
         public string DireccionCliente { get; set; } = string.Empty;
 
         public List<ComprobanteDetalleDTO> Detalles { get; set; } = new();
+        public string TipoNotaCredito { get; set; } = string.Empty;
     }
 }

@@ -111,7 +111,7 @@ namespace GSCommerceAPI.Services.SUNAT
         }
 
 
-        private async Task GuardarEstadoSunatAsync(int idComprobante, string hash, string xml, string ticket, string? respuestaSunat, bool exito)
+        private async Task GuardarEstadoSunatAsync(int idComprobante, string hash, string xml, string ticket, string? respuestaSunat, bool exito, bool esNota)
         {
             var comprobante = await _context.Comprobantes
                 .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
@@ -134,6 +134,7 @@ namespace GSCommerceAPI.Services.SUNAT
             comprobante.FechaRespuestaSunat = DateTime.Now;
             comprobante.Estado = exito;
             comprobante.EsNota = false;
+            comprobante.EsNota = esNota;
 
             await _context.SaveChangesAsync();
         }
@@ -171,7 +172,8 @@ namespace GSCommerceAPI.Services.SUNAT
                     xmlFirmado,
                     "",
                     $"SUNAT respondió: [{codigoRespuesta}] {descripcionRespuesta}",
-                    exito
+                    exito,
+                    comprobante.TipoDocumento == "07" || comprobante.TipoDocumento == "08"
                 );
 
                 return (resultado.exito, resultado.mensaje);
