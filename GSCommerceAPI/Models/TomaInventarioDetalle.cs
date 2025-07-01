@@ -19,7 +19,7 @@ public partial class TomaInventarioDetalle
 
     public int? Faltante { get; set; }
 
-    public virtual Articulo IdArticuloNavigation { get; set; } = null!;
+    public virtual Articulo? IdArticuloNavigation { get; set; } = null!;
 
-    public virtual TomaInventario IdTomaInventarioNavigation { get; set; } = null!;
+    public virtual TomaInventario? IdTomaInventarioNavigation { get; set; } = null!;
 }
