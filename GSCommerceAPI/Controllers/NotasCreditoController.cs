@@ -239,6 +239,46 @@ namespace GSCommerceAPI.Controllers
             return await ObtenerPdf(nc.IdNc);
         }
 
+
+        [HttpGet("list")]
+        public async Task<IActionResult> ListarNotasCredito(
+            [FromQuery] DateTime? desde,
+            [FromQuery] DateTime? hasta,
+            [FromQuery] string? dniruc,
+            [FromQuery] int? idAlmacen)
+        {
+            var inicio = desde ?? DateTime.Today;
+            var fin = hasta ?? DateTime.Today;
+
+            var query = _context.VListadoNotaCredito1s
+                .Where(n => n.Fecha >= DateOnly.FromDateTime(inicio) && n.Fecha <= DateOnly.FromDateTime(fin));
+
+            if (!string.IsNullOrWhiteSpace(dniruc))
+                query = query.Where(n => n.Dniruc.Contains(dniruc));
+
+            if (idAlmacen.HasValue && idAlmacen.Value != 0)
+                query = query.Where(n => n.IdAlmacen == idAlmacen.Value);
+
+            var lista = await query
+                .OrderByDescending(n => n.IdNc)
+                .Select(n => new GSCommerce.Client.Models.NotaCreditoConsultaDTO
+                {
+                    IdNc = n.IdNc,
+                    Serie = n.Serie,
+                    Numero = n.Numero,
+                    Fecha = n.Fecha.HasValue ? n.Fecha.Value.ToDateTime(TimeOnly.MinValue) : DateTime.MinValue,
+                    Nombre = n.Nombre,
+                    Dniruc = n.Dniruc,
+                    Total = n.Total,
+                    Estado = n.Estado,
+                    Comprobante = n.Comprobante
+                })
+                .ToListAsync();
+
+            return Ok(lista);
+        }
+
+
         private static string ConvertirMontoALetras(decimal monto)
         {
             var enteros = (long)Math.Floor(monto);

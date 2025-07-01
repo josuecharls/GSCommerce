@@ -1,0 +1,95 @@
+﻿@page "/notass-credito"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject NotaCreditoService ncService
+@inject IJSRuntime JS
+
+<h3>📄 Notas de Crédito</h3>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label>Desde:</label>
+        <input type="date" class="form-control" @bind-value="desde" @bind-value:event="oninput" />
+    </div>
+    <div class="col-md-4">
+        <label>Hasta:</label>
+        <input type="date" class="form-control" @bind-value="hasta" @bind-value:event="oninput" />
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
+    </div>
+</div>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Serie</th>
+            <th>Número</th>
+            <th>Cliente</th>
+            <th>Total</th>
+            <th>Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (notas.Any())
+        {
+            @foreach (var n in notas)
+            {
+                <tr @oncontextmenu="@((e) => MostrarMenu(n, e))">
+                    <td>@n.Fecha.ToString("dd/MM/yyyy")</td>
+                    <td>@n.Serie</td>
+                    <td>@n.Numero.ToString("D8")</td>
+                    <td>@n.Nombre</td>
+                    <td>@n.Total.ToString("C")</td>
+                    <td>@n.Estado</td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="6" class="text-center">No se encontraron notas de crédito.</td></tr>
+        }
+        @if (mostrarMenu && notaSeleccionada != null)
+        {
+            <div class="context-menu bg-light border shadow-sm position-absolute p-2" style="@estiloMenu" @onclick:stopPropagation>
+                <button class="dropdown-item" @onclick="VerPdf">Ver PDF</button>
+            </div>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<NotaCreditoConsultaDTO> notas = new();
+    private DateTime desde = DateTime.Today;
+    private DateTime hasta = DateTime.Today;
+    private NotaCreditoConsultaDTO? notaSeleccionada;
+    private bool mostrarMenu = false;
+    private string estiloMenu = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        notas = await ncService.ObtenerNotasAsync(desde, hasta);
+    }
+
+    private void MostrarMenu(NotaCreditoConsultaDTO nota, MouseEventArgs e)
+    {
+        notaSeleccionada = nota;
+        mostrarMenu = true;
+        estiloMenu = $"position: absolute; top: {e.ClientY}px; left: {e.ClientX}px;";
+    }
+
+    private async Task VerPdf()
+    {
+        mostrarMenu = false;
+        if (notaSeleccionada == null)
+            return;
+        var url = $"/api/notascredito/pdf/{notaSeleccionada.IdNc}";
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+}
