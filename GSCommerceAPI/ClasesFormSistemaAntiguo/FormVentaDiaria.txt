@@ -1,0 +1,984 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using BusinessLayer;
+using DataAccess;
+using DocumentFormat.OpenXml.Bibliography;
+
+namespace WinFrontEnd
+{
+    public partial class FormVentaDiaria : Form
+    {
+
+        ComprobanteDeVentaClass VentaDiaria = new ComprobanteDeVentaClass();
+        List<v_DetallePagoVenta_2> DetallePago = new List<v_DetallePagoVenta_2>();
+        List<v_ListadoVentaDiaria_1> VenDiar = new List<v_ListadoVentaDiaria_1>();
+        AlmacenClass Alm = new AlmacenClass();
+        TipoDocumentoVentaClass tdv = new TipoDocumentoVentaClass();
+        AperturaCierreCajaClass AperturaCierre = new AperturaCierreCajaClass();
+        List<AperturaCierreCaja> DatosAperturaCierre = new List<AperturaCierreCaja>();
+        List<v_Recaudacion_3> ListaVentaDiaria = new List<v_Recaudacion_3>();
+        PersonalClass Per = new PersonalClass();
+
+        ClassValidaFormulario cvf = new ClassValidaFormulario();
+
+        Boolean Carga;
+        DateTime Fecha;
+
+        decimal Total;
+        decimal Efectivo;
+        decimal Tarjeta;
+        decimal Vuelto;
+        decimal NotaCredito;
+        decimal Descuento;
+
+        int IdTipoDocumento;
+        int IdAlmacen;
+        int IdCajero;
+        int IdUsuario;
+        string Estado;
+        
+        int LineaSeleccionada;
+
+        string Hash;
+
+        public FormVentaDiaria()
+        {
+            InitializeComponent();
+
+            this.KeyPreview = true;
+            this.KeyPress += new KeyPressEventHandler(FormVentaDiaria_KeyPress);
+        }
+
+        private void FormVentaDiaria_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (this.ActiveControl.Tag != null)
+                cvf.ValidaTeclas(this.ActiveControl.Tag.ToString(), e);
+        }
+
+        private void FormVentaDiaria_Load(object sender, EventArgs e)
+        {
+
+            Carga = false;
+
+            Fecha = VariablesPublicas._FechaHoy;
+
+            FechaMonthCalendar.SetDate(Fecha);
+
+            LlenaCombos();
+
+            Inicializa();
+
+            LlenaGrilla();
+
+            FormatoGrilla();
+
+        }
+
+        private void LlenaCombos()
+        {
+            AlmacenComboBox.DisplayMember = "Nombre";
+            AlmacenComboBox.ValueMember = "IdAlmacen";
+            AlmacenComboBox.DataSource = Alm.ObtenerLista();
+
+            if (VariablesPublicas._Cargo == "CAJERO")
+            {
+                AlmacenCheckBox.CheckState = CheckState.Checked;
+                AlmacenComboBox.SelectedValue = VariablesPublicas._IdAlmacen;
+                IdAlmacen = VariablesPublicas._IdAlmacen;
+                AlmacenCheckBox.Enabled = false;
+                AlmacenComboBox.Enabled = false;
+
+
+                //CajeroComboBox.DisplayMember = "Personal";
+                //CajeroComboBox.ValueMember = "IdPersonal";
+                //CajeroComboBox.DataSource = Per.ObtenerPersonalxAlmacenxCargo(VariablesPublicas._NombreAlmacen, "CAJERO");
+
+                CajeroCheckBox.CheckState = CheckState.Checked;
+                CajeroComboBox.SelectedValue = VariablesPublicas._IdUsuario;
+                IdAlmacen = VariablesPublicas._IdUsuario;
+                CajeroCheckBox.Enabled = false;
+                CajeroComboBox.Enabled = false;
+            }
+
+            TipoDocumentoVentaComboBox.DisplayMember = "Descripcion";
+            TipoDocumentoVentaComboBox.ValueMember = "IdTipoDocumentoVenta";
+            TipoDocumentoVentaComboBox.DataSource = tdv.ObtenerLista();
+        }
+
+        public void Inicializa()
+        {
+            if (VariablesPublicas._Cargo == "ADMINISTRADOR" || VariablesPublicas._Cargo == "APOYO ADMIN" || VariablesPublicas._Cargo == "EMISOR NC")
+            {
+                IdAlmacen = 0;
+                IdUsuario = 0;
+            }
+            else
+            {
+                IdAlmacen = VariablesPublicas._IdAlmacen;
+                IdUsuario = VariablesPublicas._IdUsuario;
+                IdCajero = IdUsuario;
+            }
+
+            EstadoComboBox.SelectedIndex = 0;
+
+            IdTipoDocumento = 0;
+
+            Estado = "T";
+
+            TipoDocumentoVentaComboBox.Enabled = false;
+            AlmacenComboBox.Enabled = false;
+            CajeroComboBox.Enabled = false;
+            EstadoComboBox.Enabled = false;
+            SerieTextBox.Enabled = false;
+            NumeroTextBox.Enabled = false;
+
+            Carga = true;
+
+        }
+
+        public void LlenaGrilla()
+        {
+
+            VenDiar.Clear();
+
+            if (ComprobanteCheckBox.Checked == true)
+            {
+                if (SerieTextBox.Text.Trim() != "" & NumeroTextBox.Text.Trim() != "")
+                { 
+                    if (VariablesPublicas._Cargo == "ADMINISTRADOR" || VariablesPublicas._Cargo == "APOYO ADMIN" || VariablesPublicas._Cargo == "EMISOR NC")
+                    {
+                        //VenDiar = VentaDiaria.ObtenerComprobanteXSerieNumero(SerieTextBox.Text.Trim(), int.Parse(NumeroTextBox.Text.Trim()), 0); //POR SERIE Y NUMERO COMPROBANTE
+                        VenDiar = VentaDiaria.ObtenerComprobanteXSerieNumero(SerieTextBox.Text.Trim(), int.Parse(NumeroTextBox.Text.Trim()), 0, 0); //POR SERIE Y NUMERO COMPROBANTE Y CAJERO
+                    
+                        if (VenDiar.Count > 0)
+                        { 
+                            //DetallePago = VentaDiaria.ObtenerPagosComprobanteXSerieNumero(SerieTextBox.Text.Trim(), int.Parse(NumeroTextBox.Text.Trim()), 0); //POR SERIE Y NUMERO COMPROBANTE
+                            DetallePago = VentaDiaria.ObtenerPagosComprobanteXSerieNumero(SerieTextBox.Text.Trim(), int.Parse(NumeroTextBox.Text.Trim()), 0, 0); //POR SERIE Y NUMERO COMPROBANTE Y CAJERO
+                        }
+                    }
+                    else
+                    {
+                        //VenDiar = VentaDiaria.ObtenerComprobanteXSerieNumero(SerieTextBox.Text.Trim(), int.Parse(NumeroTextBox.Text.Trim()), IdAlmacen); //POR SERIE Y NUMERO COMPROBANTE
+                        VenDiar = VentaDiaria.ObtenerComprobanteXSerieNumero(SerieTextBox.Text.Trim(), int.Parse(NumeroTextBox.Text.Trim()), IdAlmacen, IdCajero); //POR SERIE Y NUMERO COMPROBANTE Y CAJERO
+
+                        if (VenDiar.Count > 0)
+                        {
+                            //DetallePago = VentaDiaria.ObtenerPagosComprobanteXSerieNumero(SerieTextBox.Text.Trim(), int.Parse(NumeroTextBox.Text.Trim()), IdAlmacen); //POR SERIE Y NUMERO COMPROBANTE
+                            DetallePago = VentaDiaria.ObtenerPagosComprobanteXSerieNumero(SerieTextBox.Text.Trim(), int.Parse(NumeroTextBox.Text.Trim()), IdAlmacen, IdCajero); //POR SERIE Y NUMERO COMPROBANTE Y CAJERO
+                        }
+                    }
+
+                    if (VenDiar.Count == 0)
+                    {
+                        if (VariablesPublicas._Cargo == "ADMINISTRADOR" || VariablesPublicas._Cargo == "APOYO ADMIN" || VariablesPublicas._Cargo == "EMISOR NC")
+                            MessageBox.Show("Comprobante no existe", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        else
+                            MessageBox.Show("Comprobante no existe o no corresponde a esta caja" , "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Ingrese datos del comprobante", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                }
+            }
+            else
+            {
+                if (VariablesPublicas._Cargo == "EMISOR NC")
+                    IdCajero = 5000000;
+
+                VenDiar = VentaDiaria.ObtenerListaxFiltrados(Fecha, IdTipoDocumento, Estado, IdAlmacen, IdCajero);
+                DetallePago = VentaDiaria.ObtenerListaPagosPagosxFiltrados(Fecha, IdTipoDocumento, Estado, IdAlmacen, IdCajero);
+            }
+
+            VentaDiariaBindingSource.DataSource = VenDiar;
+
+            VentaDiariaBindingSource.ResetBindings(false);
+
+            TotalRegistrosLabel.Text = "Se han encontrado " + VenDiar.Count.ToString() + " comprobantes...";
+
+            CalculaTotales();
+
+        }
+
+        public void FormatoGrilla()
+        {
+
+            GrillaDataGridView.Columns[2].Width = int.Parse(Math.Ceiling(double.Parse(GrillaDataGridView.Width.ToString()) * 0.094).ToString());
+            GrillaDataGridView.Columns[3].Width = int.Parse(Math.Ceiling(double.Parse(GrillaDataGridView.Width.ToString()) * 0.134).ToString());
+            GrillaDataGridView.Columns[4].Width = int.Parse(Math.Ceiling(double.Parse(GrillaDataGridView.Width.ToString()) * 0.107).ToString());
+            GrillaDataGridView.Columns[5].Width = int.Parse(Math.Ceiling(double.Parse(GrillaDataGridView.Width.ToString()) * 0.053).ToString());
+            GrillaDataGridView.Columns[6].Width = int.Parse(Math.Ceiling(double.Parse(GrillaDataGridView.Width.ToString()) * 0.080).ToString());
+            GrillaDataGridView.Columns[8].Width = int.Parse(Math.Ceiling(double.Parse(GrillaDataGridView.Width.ToString()) * 0.134).ToString());
+            GrillaDataGridView.Columns[9].Width = int.Parse(Math.Ceiling(double.Parse(GrillaDataGridView.Width.ToString()) * 0.201).ToString());
+            GrillaDataGridView.Columns[10].Width = int.Parse(Math.Ceiling(double.Parse(GrillaDataGridView.Width.ToString()) * 0.107).ToString());
+            GrillaDataGridView.Columns[14].Width = int.Parse(Math.Ceiling(double.Parse(GrillaDataGridView.Width.ToString()) * 0.053).ToString());
+
+        }
+               
+        private void CalculaTotales()
+        {
+            Efectivo = 0;
+            Tarjeta = 0;
+            NotaCredito = 0;
+            Vuelto = 0;
+            Total = 0;
+
+            EfectivoLabel.Text = "0.00";
+            TarjetaLabel.Text = "0.00";
+            NotaCreditoLabel.Text = "0.00";
+            TotalLabel.Text = "0.00";
+
+            if (DetallePago.Count > 0)
+            {
+
+                foreach (v_DetallePagoVenta_2 Linea in DetallePago)
+                {
+
+                    switch (Linea.Descripcion.Substring(0, Linea.Descripcion.IndexOf(" ")))
+                    {
+
+                        case "Efectivo":
+
+                            Efectivo = Efectivo + Linea.Soles;
+                            Vuelto = Vuelto + decimal.Parse(Linea.Vuelto.ToString());
+
+                            break;
+                        case "Tarjeta":
+                        case "Online":
+
+                            Tarjeta = Tarjeta + Linea.Soles;
+
+                            break;
+                        case "N.C.":
+
+                            NotaCredito = NotaCredito + Linea.Soles;
+
+                            break;
+
+                    }
+
+                }
+
+                Total = Efectivo + Tarjeta + NotaCredito - Vuelto;
+            }
+
+            //ListaVentaDiaria = VentaDiaria.RecaudacionDiaria(Fecha.Date, IdAlmacen, IdUsuario);
+
+            //if (ListaVentaDiaria.Count > 0)
+            //{
+            //    foreach (v_Recaudacion_3 Linea in ListaVentaDiaria)
+            //    {
+            //        switch (Linea.Descripcion)
+            //        {
+
+            //            case "Efectivo":
+
+            //                Efectivo = decimal.Parse(Linea.Monto.ToString());
+
+            //                break;
+            //            case "Tarjeta":
+
+            //                Tarjeta = decimal.Parse(Linea.Monto.ToString());
+
+            //                break;
+            //            case "N.C.":
+
+            //                NotaCredito = decimal.Parse(Linea.Monto.ToString());
+
+            //                break;
+
+            //        }
+
+            //        Total = Total + decimal.Parse(Linea.Monto.ToString());
+            //    }
+            //}
+
+            EfectivoLabel.Text = (Efectivo - Vuelto).ToString("N2");
+            TarjetaLabel.Text = Tarjeta.ToString("N2");
+            NotaCreditoLabel.Text = NotaCredito.ToString("N2");
+            TotalLabel.Text = Total.ToString("N2");
+
+        }
+
+        private void FechaMonthCalendar_DateChanged(object sender, DateRangeEventArgs e)
+        {
+            Fecha = FechaMonthCalendar.SelectionStart;
+
+            //VenDiar = VentaDiaria.ObtenerListaxDia(Fecha, VariablesPublicas._IdPersonal, VariablesPublicas._IdAlmacen);
+        }
+
+        private void SalirButton_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void TipoDocumentoVentaComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            IdTipoDocumento = int.Parse(TipoDocumentoVentaComboBox.SelectedValue.ToString());
+        }
+
+        private void AlmacenComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            CajeroCheckBox.Checked = false;
+
+            CajeroComboBox.DataSource = null;
+
+            IdAlmacen = int.Parse(AlmacenComboBox.SelectedValue.ToString());
+
+            List<v_Personal_2> Lista = Per.ObtenerPersonalxAlmacenxCargo2(AlmacenComboBox.Text, "CAJERO");
+
+            if (Lista.Count > 0)
+            {
+                CajeroComboBox.DisplayMember = "Personal";
+                CajeroComboBox.ValueMember = "IdUsuario";
+                CajeroComboBox.DataSource = Lista;
+                CajeroCheckBox.Enabled = true;
+            }
+            else
+            {
+                CajeroComboBox.DataSource = null;
+                CajeroCheckBox.Checked = false;
+                CajeroCheckBox.Enabled = false;
+            }
+
+        }
+
+        private void CajeroComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (Carga)
+                if (CajeroCheckBox.CheckState == CheckState.Checked)
+                    IdCajero = int.Parse(CajeroComboBox.SelectedValue.ToString());
+        }
+
+        private void EstadoComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            Estado = EstadoComboBox.Text.Substring(0, 1);
+        }
+
+        private void GrillaDataGridView_CellMouseUp(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right & e.RowIndex != -1 & e.ColumnIndex != -1)
+            {
+                GrillaDataGridView.Rows[e.RowIndex].Selected = true;
+                GrillaDataGridView.CurrentCell = GrillaDataGridView[e.ColumnIndex, e.RowIndex];
+                LineaSeleccionada = e.RowIndex;
+                MenuContextMenuStrip.Show(GrillaDataGridView, e.Location);
+                MenuContextMenuStrip.Show(Cursor.Position);
+            }
+        }
+
+        private void verDetalleToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (LineaSeleccionada != -1)
+            {
+
+                FormDetalles fdet = new FormDetalles("DetalleVenta", VenDiar[LineaSeleccionada].IdComprobante, 0, 0, Fecha);
+
+                fdet.ShowDialog();
+
+            }
+        }
+
+        private void anularToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+            if (LineaSeleccionada != -1)
+            {
+                if (VerificaApertura())
+                {
+                    if (VariablesPublicas._Cargo == "ADMINISTRADOR")
+                    {
+                        if (VenDiar[LineaSeleccionada].GeneroNC is null)
+                        {
+                            if (VenDiar[LineaSeleccionada].Estado == "E" ) //E = EMITIDO
+                            {
+                                DialogResult result;
+
+                                result = MessageBox.Show("¿Desea anular el comprobante " + VenDiar[LineaSeleccionada].Serie + "-" + VenDiar[LineaSeleccionada].Numero.ToString() + " ?", "S.G.V.", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                                if (result == System.Windows.Forms.DialogResult.Yes)
+                                {
+                                    string men = VentaDiaria.AnulaComprobante(VenDiar[LineaSeleccionada].IdComprobante, VariablesPublicas._IdUsuario);
+                                    switch (men)
+                                    {
+                                        case "OK":
+                                            //VenDiar[LineaSeleccionada].Estado = "A";
+                                            LlenaGrilla();
+                                            VentaDiariaBindingSource.ResetBindings(false);
+                                            //CalculaTotales();
+                                            MessageBox.Show("¡Comprobante Anulado!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                            break;
+                                        case "Error":
+                                            MessageBox.Show("¡Ha ocurrido un error, contactar a Soporte Técnico!: Comprobante no existe en la BD", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                            break;
+                                        default:
+                                            MessageBox.Show("¡Ha ocurrido un error, contactar a Soporte Técnico!: " + men, "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                            break;
+                                    }
+
+                                }
+                            }
+                            else
+                            {
+                                MessageBox.Show("¡Comprobante Anulado, Verificar!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                            }
+                        }
+                        else
+                        {
+                            MessageBox.Show("¡Este comprobante ya generó una Nota de Crédito: " + VenDiar[LineaSeleccionada].GeneroNC + "!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("¡Usted no está autorizado para realizar esta acción, contactar con Central!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    }
+                }
+            }
+
+        }
+
+        private void eliminarToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (VariablesPublicas._Cargo == "ADMINISTRADOR")
+            {
+                if (LineaSeleccionada != -1)
+                {
+                    if (VerificaApertura())
+                    {
+                        if (VenDiar[LineaSeleccionada].Serie.Length == 3)
+                        {
+                            if (VenDiar[LineaSeleccionada].Estado == "E") //E = EMITIDO
+                            {
+                                DialogResult result;
+
+                                result = MessageBox.Show("¿Desea eliminar el comprobante " + VenDiar[LineaSeleccionada].Serie + "-" + VenDiar[LineaSeleccionada].Numero.ToString() + " ?", "S.G.V.", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                                if (result == System.Windows.Forms.DialogResult.Yes)
+                                {
+                                    string men = VentaDiaria.EliminarComprobante(VenDiar[LineaSeleccionada].IdComprobante);
+                                    switch (men)
+                                    {
+                                        case "OK":
+                                            //VenDiar.RemoveAt(LineaAnularEliminar);
+                                            LlenaGrilla();
+                                            VentaDiariaBindingSource.ResetBindings(false);
+                                            //CalculaTotales();
+                                            MessageBox.Show("¡Comprobante Eliminado!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                            break;
+                                        case "Error":
+                                            MessageBox.Show("¡Ha ocurrido un error, contactar a Soporte Técnico!: Comprobante no existe en la BD", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                            break;
+                                        default:
+                                            MessageBox.Show("¡Ha ocurrido un error, contactar a Soporte Técnico!: " + men, "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                            break;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                MessageBox.Show("¡No se puede eliminar este comprobante!.", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                            }
+                        }
+                        else
+                        {
+
+                            MessageBox.Show("¡No se puede eliminar un comprobante electrónico!.", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+                        }
+                    }
+                }
+            }
+            else
+            {
+                MessageBox.Show("¡Usted no está autorizado para realizar esta acción, contactar con Central!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+            }
+        }
+
+        private Boolean VerificaApertura()
+        {
+
+            DatosAperturaCierre = AperturaCierre.ObtenerDatosApertura(VenDiar[LineaSeleccionada].IdCajero, VenDiar[LineaSeleccionada].IdAlmacen, VenDiar[LineaSeleccionada].Fecha);
+
+            if (DatosAperturaCierre.Count == 1)
+            {
+                if (DatosAperturaCierre[0].Estado == "A")
+                    return true;
+                else
+                {
+                    MessageBox.Show("¡Caja liquidada o cerrada para la fecha: " + VenDiar[LineaSeleccionada].Fecha.Value.ToString("dd/MM/yyyy") + "!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return false;
+                }
+            }
+            else
+            {
+                MessageBox.Show("¡No hay apertura de caja para la fecha: " + VenDiar[LineaSeleccionada].Fecha.Value.ToString("dd/MM/yyyy") + "!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return false;
+            }
+
+        }
+
+        private void GrillaDataGridView_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            //NO ELIMNAR MANEJA ERROR
+        }
+
+        private void TipoDocumentoCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (TipoDocumentoCheckBox.Checked == true)
+            {
+                TipoDocumentoVentaComboBox.Enabled = true;
+                IdTipoDocumento = int.Parse(TipoDocumentoVentaComboBox.SelectedValue.ToString());
+            }
+            else
+            {
+                TipoDocumentoVentaComboBox.Enabled = false;
+                IdTipoDocumento = 0;
+            }
+        }
+
+        private void AlmacenCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (Carga)
+            { 
+                if (AlmacenCheckBox.Checked == true)
+                {
+                    AlmacenComboBox.Enabled = true;
+                    IdAlmacen = int.Parse(AlmacenComboBox.SelectedValue.ToString());
+
+                    List<v_Personal_1> Lista = Per.ObtenerPersonalxAlmacenxCargo(AlmacenComboBox.Text, "CAJERO");
+
+                    if (Lista.Count > 0)
+                    {
+                        CajeroComboBox.DisplayMember = "Personal";
+                        CajeroComboBox.ValueMember = "IdPersonal";
+                        CajeroComboBox.DataSource = Lista;
+                        CajeroCheckBox.Enabled = true;
+                    }
+                    else
+                    {
+                        CajeroCheckBox.Enabled = false;
+                    }
+                                        
+                }
+                else
+                {
+                    AlmacenComboBox.Enabled = false;
+                    IdAlmacen = 0;
+                    CajeroComboBox.Enabled = false;
+                    CajeroCheckBox.Checked = false;
+                    CajeroCheckBox.Enabled = false;
+                    IdCajero = 0;
+                    CajeroComboBox.DataSource = null;
+                }
+            }
+        }
+
+        private void CajeroCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (Carga)
+            {
+                if (CajeroCheckBox.Checked == true)
+                {
+                    CajeroComboBox.Enabled = true;
+                    IdCajero = int.Parse(CajeroComboBox.SelectedValue.ToString());
+                }
+                else
+                {
+                    CajeroComboBox.Enabled = false;
+                    IdCajero = 0;
+                }
+            }
+        }
+
+        private void EstadoCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (EstadoCheckBox.Checked == true)
+            {
+                EstadoComboBox.Enabled = true;
+                Estado = EstadoComboBox.Text.Substring(0, 1);
+            }
+            else
+            {
+                EstadoComboBox.Enabled = false;
+                Estado = "T";
+            }
+        }
+
+        private void ProcesarButton_Click(object sender, EventArgs e)
+        {
+            LlenaGrilla();
+        }
+
+        private void FormVentaDiaria_Enter(object sender, EventArgs e)
+        {
+            //if (Carga)
+            //    LlenaGrilla();
+        }
+
+        private void FormVentaDiaria_Activated(object sender, EventArgs e)
+        {
+            //if (Carga)
+            //    LlenaGrilla();
+        }
+
+        private void electrónicaToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            GeneraNC(false);
+        }
+
+        private void manualToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            GeneraNC(true);
+        }
+
+        private void GeneraNC(Boolean _tipo, bool _interna = false)
+        {
+            
+            if (VariablesPublicas._Cargo == "ADMINISTRADOR" || VariablesPublicas._IdAlmacen == 61 || VariablesPublicas._Cargo == "EMISOR NC")
+            {
+                if (LineaSeleccionada != -1)
+                {
+                    if (VenDiar[LineaSeleccionada].Estado == "E" || VenDiar[LineaSeleccionada].Estado == "D") //E = EMITIDO, D = DECLARADO
+                    {
+                        DialogResult result;
+
+                        string _texto;
+
+                        if (_tipo)
+                            _texto = _interna ? "Interna" : "Manual";
+                        else
+                            _texto = "Electrónica";
+
+                        result = MessageBox.Show("¿Desea generar Nota de Crédito " + _texto + "?", "S.G.V.", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                        if (result == System.Windows.Forms.DialogResult.Yes)
+                        {
+                            if (VenDiar[LineaSeleccionada].GeneroNC is null)
+                            {
+                                var fnc = new FormNotaDeCredito(VenDiar[LineaSeleccionada].Serie, VenDiar[LineaSeleccionada].Numero, VenDiar[LineaSeleccionada].IdAlmacen, VenDiar[LineaSeleccionada].IdComprobante, _tipo, _interna);
+                                fnc.ShowDialog();
+                                LlenaGrilla();
+                                VentaDiariaBindingSource.ResetBindings(false);
+                            }
+                            else
+                            {
+                                MessageBox.Show("¡Este comprobante ya generó una Nota de Crédito: " + VenDiar[LineaSeleccionada].GeneroNC + "!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("¡Comprobante Anulado, Verificar!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    }
+
+                }
+            }
+            else
+            {
+                MessageBox.Show("¡Usted no está autorizado para realizar esta acción, contactar con Central!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+            }
+
+        }
+
+        private void ComprobanteCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (ComprobanteCheckBox.Checked == true)
+            {
+                SerieTextBox.Enabled = true;
+                NumeroTextBox.Enabled = true;
+            }
+            else
+            {
+                SerieTextBox.Enabled = false;
+                NumeroTextBox.Enabled = false;
+                SerieTextBox.Text = "";
+                NumeroTextBox.Text = "";
+            }
+        }
+
+        private void reimprimirComprobanteToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (VariablesPublicas._Cargo == "CAJERO")
+            {
+                if (14 == 14)
+                {
+                    try
+                    {
+                        var etapa = 0;
+
+                        ComprobanteDeVentaClass v = new ComprobanteDeVentaClass();
+                        ComprobanteDeVentaCabecera cb = v.ObtenerComprobanteXID(VenDiar[LineaSeleccionada].IdComprobante);
+                        List<ComprobanteDeVentaDetalle> de = v.ObteneDetalleComprobanteXID(VenDiar[LineaSeleccionada].IdComprobante);
+                        List<v_DetallePagoVenta_1> dep = v.DetallerPagoXComprobante(VenDiar[LineaSeleccionada].IdComprobante);
+                        UsuarioClass usr = new UsuarioClass();
+                        PersonalClass per = new PersonalClass();
+                        List<Personal> perso = per.ObtenerPersonalxId(cb.IdVendedor);
+
+                        SGVDataSet.ComprobanteVentaDataTable dt = new SGVDataSet.ComprobanteVentaDataTable();
+                        SGVDataSet.ComprobanteVentaRow dr = dt.NewComprobanteVentaRow();
+
+                        dr.Fecha = cb.Fecha;
+                        dr.Hora = cb.Fecha; //DateTime.Parse(cb.Fecha.ToShortTimeString());
+                        dr.Numero = cb.Serie + "-" + cb.Numero.ToString().PadLeft(8, '0');
+                        dr.Cajero = usr.NombreUsuarioXID(cb.IdCajero);
+                        dr.Vendedor = perso[0].Nombres + " " + perso[0].Apellidos;
+                        dr.Total = cb.Total;
+
+                        try
+                        {
+                            Comprobantes fecom = v.DatosFE(VenDiar[LineaSeleccionada].IdComprobante);
+
+                            dr.QR = fecom.QR;
+                            Hash = fecom.Hash;
+                        }
+                        catch
+                        {
+                            dr.QR = null;
+                            Hash = "";
+                        }
+
+                        etapa = 1;
+
+                        dr.Cliente = cb.Nombre;
+                        dr.DocCliente = cb.DNIRUC;
+                        dr.DireccionCliente = cb.Direccion;
+
+                        decimal Efectivo = 0;
+                        decimal Tarjeta = 0;
+                        decimal NotaCredito = 0;
+                        decimal Vuelto = 0;
+
+                        foreach (v_DetallePagoVenta_1 DPV in dep)
+                        {
+                            switch (DPV.Descripcion.Substring(0, DPV.Descripcion.IndexOf(" ")))
+                            {
+                                case "Efectivo":
+
+                                    Efectivo = Efectivo + DPV.Soles;
+
+                                    break;
+                                case "Tarjeta":
+                                case "Online":
+
+                                    Tarjeta = Tarjeta + DPV.Soles;
+
+                                    break;
+                                case "N.C.":
+
+                                    NotaCredito = NotaCredito + DPV.Soles;
+
+                                    break;
+                            }
+
+                            Vuelto = Vuelto + decimal.Parse(DPV.Vuelto.ToString());
+                        }
+
+                        etapa = 2;
+
+                        dr.Efectivo = Efectivo;
+                        dr.Tarjeta = Tarjeta;
+                        dr.NotaCredito = NotaCredito;
+                        dr.Vuelto = Vuelto;
+                        dr.Redondeo = cb.Redondeo.Value;
+                        dr.APagar = cb.APagar.Value;
+
+                        dt.Rows.Add(dr);
+
+                        SGVDataSet.DetalleComprobanteDataTable ddt = new SGVDataSet.DetalleComprobanteDataTable();
+
+                        Descuento = 0;
+
+                        foreach (ComprobanteDeVentaDetalle linea in de)
+                        {
+                            if (cb.IdTipoDocumento == 2)
+                            {
+                                if (linea.Total >= 0)
+                                {
+                                    SGVDataSet.DetalleComprobanteRow ddr = ddt.NewDetalleComprobanteRow();
+                                    ddr.Numero = cb.Serie + "-" + cb.Numero.ToString().PadLeft(8, '0');
+                                    ddr.Codigo = linea.IdArticulo;
+                                    ddr.Articulo = linea.Descripcion;
+                                    ddr.Precio = Double.Parse((linea.Precio * (1 - linea.PorcentajeDescuento)).ToString());
+                                    ddr.Cantidad = double.Parse(linea.Cantidad.ToString());
+                                    ddr.Monto = double.Parse(linea.Total.ToString());
+
+                                    ddt.Rows.Add(ddr);
+                                }
+                                else
+                                {
+                                    Descuento += linea.Total;
+                                }
+                            }
+                            else
+                            {
+                                SGVDataSet.DetalleComprobanteRow ddr = ddt.NewDetalleComprobanteRow();
+                                ddr.Numero = cb.Serie + "-" + cb.Numero.ToString().PadLeft(8, '0');
+                                ddr.Codigo = linea.IdArticulo;
+                                ddr.Articulo = linea.Descripcion;
+                                ddr.Precio = Double.Parse((linea.Precio * (1 - linea.PorcentajeDescuento)).ToString());
+                                ddr.Cantidad = double.Parse(linea.Cantidad.ToString());
+                                ddr.Monto = double.Parse(linea.Total.ToString());
+
+                                ddt.Rows.Add(ddr);
+                            }
+                        }
+
+                        etapa = 3;
+
+                        DataSet ds = new DataSet();
+
+                        ds.Tables.Add(dt);
+                        ds.Tables.Add(ddt);
+
+                        Reportes.ComprobanteVentaCrystalReport rpt = new Reportes.ComprobanteVentaCrystalReport();
+                        rpt.SetDataSource(ds);
+
+                        rpt.SetParameterValue("TipoDoc", cb.TipoDocumentoVenta.Descripcion);
+                        rpt.SetParameterValue("RazonSocial", VariablesPublicas._RazonSocial);
+                        rpt.SetParameterValue("Direccion", VariablesPublicas._Direccion);
+                        rpt.SetParameterValue("RUC", VariablesPublicas._RUC);
+                        rpt.SetParameterValue("Hash", Hash);
+                        rpt.SetParameterValue("IGV", cb.IGV);
+                        rpt.SetParameterValue("Gravada", cb.SubTotal);
+                        rpt.SetParameterValue("Descuento", Convert.ToDouble(Descuento));
+
+                        etapa = 4;
+
+                        //FormReportes Contenedor = new FormReportes(rpt);
+                        //Contenedor.Show();
+
+                        this.Cursor = Cursors.WaitCursor;
+                        ImprimirPOS(dt, ddt);
+                        this.Cursor = Cursors.Default;
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("¡no se puede reimprimir el comprobante, consulte con Soporte Técnico!" + ex.Message, "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    }
+                }
+                else
+                {
+
+                    MessageBox.Show("¡Sólo se puede reeimprimir un Comprobante Electrónico!.", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+                }
+            }
+            else
+            {
+                MessageBox.Show("¡Sólo un cajero puede reimprimir comprobantes!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+            }
+        }
+
+        private void ImprimirPOS(SGVDataSet.ComprobanteVentaDataTable _cab, SGVDataSet.DetalleComprobanteDataTable _det)
+        {
+            ClassImprimirComprobante i = new ClassImprimirComprobante("Generic / Text Only");
+            //i.AbrirCaja();
+            i.SeparacionDoble();
+            foreach (SGVDataSet.ComprobanteVentaRow _dr in _cab.Rows)
+            {
+                if(_dr.Numero.Substring(0, 1) == "B")
+                    i.Centrar("BOLETA DE VENTA ELECTRONICA");
+                else
+                {
+                    if (_dr.Numero.Substring(0, 1) == "F")
+                        i.Centrar("FACTURA DE VENTA ELECTRONICA");
+                    else
+                        i.Centrar("VENTA");
+                }
+
+                i.SeparacionDoble();
+                i.Centrar(VariablesPublicas._RazonSocial);
+                i.Centrar(VariablesPublicas._RUC);
+                i.Centrar(VariablesPublicas._Direccion);
+                i.SeparacionDoble();
+                if (_dr.DocCliente != "99999999")
+                {
+                    i.AlaIzquierda("DOCUMENTO: " + _dr.DocCliente);
+                    i.AlaIzquierda("CLIENTE: " + _dr.Cliente);
+                    i.AlaIzquierda("DIRECCIÓN: " + _dr.DireccionCliente);
+                    i.Separacion();
+                }
+                i.AlaIzquierda("FECHA EMISION: " + _dr.Fecha.ToShortDateString() + "    HORA: " + _dr.Hora.ToShortTimeString());
+                i.AlaIzquierda("CAJERO(A): " + _dr.Cajero);
+                i.AlaIzquierda("VENDEDOR(A): " + _dr.Vendedor);
+                i.AlaIzquierda("DOCUMENTO: " + _dr.Numero + "   MONEDA: SOLES");
+                i.AlaIzquierda("FORMA DE PAGO: CONTADO"); i.AlaIzquierda("FORMA DE PAGO: CONTADO"); i.AlaIzquierda("FORMA DE PAGO: CONTADO"); i.AlaIzquierda("FORMA DE PAGO: CONTADO");
+            }
+            i.SeparacionDoble();
+
+            i.AlaIzquierda(" Cant. Producto                      PU  Total  ");
+            i.Separacion();
+
+            foreach (SGVDataSet.DetalleComprobanteRow _dr in _det.Rows)
+            {
+                i.AgregarArticulov2(_dr.Cantidad.ToString("N0"), _dr.Codigo + "-" + _dr.Articulo.ToLower(),
+                    _dr.Precio.ToString("N2"),
+                    (_dr.Cantidad * _dr.Precio).ToString("N2"));
+            }
+
+            i.Separacion();
+
+            i.AgregarTotales("DESCUENTO", "S/", Descuento.ToString("N2"), 1);
+
+            foreach (SGVDataSet.ComprobanteVentaRow _dr in _cab.Rows)
+            {
+                i.AgregarTotales("TOTAL", "S/", _dr.Total.ToString("N2"), 1);
+                i.AgregarTotales("REDONDEO", "S/", _dr.Redondeo.ToString("N2"), 1);
+                i.SeparacionAsteriscos();
+                i.AgregarTotales("IMPORTE TOTAL", "S/", _dr.APagar.ToString("N2"), 1);
+                i.SeparacionAsteriscos();
+                if (VariablesPublicas._AFECTOIGV)
+                {
+                    i.AgregarTotales("OP GRAVADA", "S/", (Convert.ToDouble(_dr.Total) / (1 + VariablesPublicas._Igv)).ToString("N2"), 0);
+                    i.AgregarTotales("IGV", "S/", (Convert.ToDouble(_dr.Total) * VariablesPublicas._Igv / (1 + VariablesPublicas._Igv)).ToString("N2"), 0);
+                }
+                else
+                {
+                    i.AgregarTotales("OP INAFECTA", "S/", (Convert.ToDouble(_dr.Total)).ToString("N2"), 0);
+                    i.AgregarTotales("IGV", "S/", "0.00", 0);
+                }
+                i.Separacion();
+                i.AgregarTotales("EFECTIVO", "S/", _dr.Efectivo.ToString("N2"), 0);
+                i.AgregarTotales("TARJETA/ONLINE", "S/", _dr.Tarjeta.ToString("N2"), 0);
+                i.AgregarTotales("NOTA DE CREDITO", "S/", _dr.NotaCredito.ToString("N2"), 0);
+                i.AgregarTotales("VUELTO", "S/", _dr.Vuelto.ToString("N2"), 0);
+            }
+            i.SeparacionDoble();
+
+            i.Centrar("NO HAY DEVOLUCION DE DINERO TODO CAMBIO DE MERCADERIA SE HARA DENTRO DE LAS 48 HORAS, PREVIA PRESENTACION DEL COMPROBANTE Y VERIFICACION DE LA MERCADERIA.");
+            i.SeparacionDoble();
+            //i.QR(ValorQR);
+            i.Centrar("Hash: " + Hash);
+            i.Separacion();
+            i.Centrar("Representación Impresa del Documento de Venta Electrónica");
+            i.Centrar("Consulta tus documentos en www.franor.com.pe/MisComprobantes");
+            i.Centrar("Gracias por su compra!");
+            i.AlaIzquierda("");
+            i.AlaIzquierda("");
+            i.AlaIzquierda("");
+            i.AlaIzquierda("");
+            i.AlaIzquierda("");
+            i.AlaIzquierda("");
+            i.AlaIzquierda("");
+            i.Cortar();
+            i.Imprimir();
+        }
+
+        private void toolStripSeparator2_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void internaToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            GeneraNC(true, true);
+        }
+    }
+}

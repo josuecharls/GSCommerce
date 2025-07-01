@@ -1,0 +1,259 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using BusinessLayer;
+using DataAccess;
+
+namespace WinFrontEnd
+{
+    public partial class FormListadoNotasCredito : Form
+    {
+        NotaDeCreditoClass NCMetodos = new NotaDeCreditoClass();
+        List<v_ListadoNotaCredito_1> ListadoNC = new List<v_ListadoNotaCredito_1>();
+        AlmacenClass Alm = new AlmacenClass();
+        
+        ClassValidaFormulario cvf = new ClassValidaFormulario();
+
+        Boolean Carga;
+        DateTime Fecha;
+
+        string DNIRUCCliente;
+        int IdAlmacen;
+        int IdUsuario;
+
+        int LineaSeleccionada;
+
+        public FormListadoNotasCredito()
+        {
+            InitializeComponent();
+
+            this.KeyPreview = true;
+            this.KeyPress += new KeyPressEventHandler(FormListadoNotasCredito_KeyPress);
+        }
+
+        private void FormListadoNotasCredito_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (this.ActiveControl.Tag != null)
+                cvf.ValidaTeclas(this.ActiveControl.Tag.ToString(), e);
+        }
+
+        private void FormListadoNotasCredito_Load(object sender, EventArgs e)
+        {
+            Carga = false;
+
+            Fecha = VariablesPublicas._FechaHoy;
+
+            FechaMonthCalendar.SetDate(Fecha);
+
+            LlenaCombos();
+
+            Inicializa();
+
+            LlenaGrilla();
+        }
+
+        private void LlenaCombos()
+        {
+            AlmacenComboBox.DisplayMember = "Nombre";
+            AlmacenComboBox.ValueMember = "IdAlmacen";
+            AlmacenComboBox.DataSource = Alm.ObtenerLista();
+
+            if (VariablesPublicas._Cargo == "CAJERO")
+            {
+                AlmacenCheckBox.CheckState = CheckState.Checked;
+                AlmacenComboBox.SelectedValue = VariablesPublicas._IdAlmacen;
+                IdAlmacen = VariablesPublicas._IdAlmacen;
+                AlmacenCheckBox.Enabled = false;
+                AlmacenComboBox.Enabled = false;
+            }
+        }
+
+        public void Inicializa()
+        {
+            if (VariablesPublicas._Cargo == "ADMINISTRADOR")
+            {
+                IdAlmacen = 0;
+                IdUsuario = 0;
+            }
+            else
+            {
+                IdAlmacen = VariablesPublicas._IdAlmacen;
+                IdUsuario = VariablesPublicas._IdUsuario;
+            }
+
+            DNIRUCCliente = "";
+
+            if (VariablesPublicas._Cargo == "CAJERO")
+                IdAlmacen = VariablesPublicas._IdAlmacen;
+            else
+                IdAlmacen = 0;
+
+            IdUsuario = 0;
+
+            DNIRUCTextBox.Enabled = false;
+            AlmacenComboBox.Enabled = false;
+
+            Carga = true;
+        }
+
+        public void LlenaGrilla()
+        {
+
+            ListadoNC.Clear();
+
+            ListadoNC = NCMetodos.ObtenerListaxFiltrados(FechaMonthCalendar.SelectionStart.Date, FechaMonthCalendar.SelectionEnd.Date, DNIRUCCliente, IdAlmacen);
+
+            NotasCreditoBindingSource.DataSource = ListadoNC;
+
+            NotasCreditoBindingSource.ResetBindings(false);
+
+        }
+
+        private void SalirButton_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void DNIRUCTextBox_TextChanged(object sender, EventArgs e)
+        {
+            DNIRUCCliente = DNIRUCTextBox.Text.Trim();
+        }
+
+        private void AlmacenComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            IdAlmacen = int.Parse(AlmacenComboBox.SelectedValue.ToString());
+        }
+
+        private void GrillaDataGridView_CellMouseUp(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right & e.RowIndex != -1 & e.ColumnIndex != -1)
+            {
+                GrillaDataGridView.Rows[e.RowIndex].Selected = true;
+                GrillaDataGridView.CurrentCell = GrillaDataGridView[e.ColumnIndex, e.RowIndex];
+                LineaSeleccionada = e.RowIndex;
+                MenuContextMenuStrip.Show(GrillaDataGridView, e.Location);
+                MenuContextMenuStrip.Show(Cursor.Position);
+            }
+        }
+
+        private void GrillaDataGridView_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            //NO ELIMNAR MANEJA ERROR
+        }
+
+        private void DNIRUCCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (DNIRUCCheckBox.Checked == true)
+            {
+                DNIRUCTextBox.Enabled = true;
+            }
+            else
+            {
+                DNIRUCTextBox.Enabled = false;
+                DNIRUCTextBox.Text = "";
+                DNIRUCCliente = "";
+            }
+        }
+
+        private void AlmacenCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (AlmacenCheckBox.Checked == true)
+            {
+                AlmacenComboBox.Enabled = true;
+                IdAlmacen = int.Parse(AlmacenComboBox.SelectedValue.ToString());
+            }
+            else
+            {
+                AlmacenComboBox.Enabled = false;
+                IdAlmacen = 0;
+            }
+        }
+
+        private void ProcesarButton_Click(object sender, EventArgs e)
+        {
+            LlenaGrilla();
+        }
+
+        private void FormVentaDiaria_Enter(object sender, EventArgs e)
+        {
+            LlenaGrilla();
+        }
+
+        private void FormVentaDiaria_Activated(object sender, EventArgs e)
+        {
+            LlenaGrilla();
+        }
+
+        private void verDetalleToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (LineaSeleccionada != -1)
+            {
+
+                FormDetalles fdet = new FormDetalles("DetalleNC", ListadoNC[LineaSeleccionada].IdNC, 0, 0, Fecha);
+
+                fdet.ShowDialog();
+
+            }
+        }
+
+        private void anularToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (LineaSeleccionada != -1)
+            {
+                if (VariablesPublicas._Cargo == "ADMINISTRADOR")
+                {
+                    if (ListadoNC[LineaSeleccionada].Empleada == false)
+                    {
+                        if (ListadoNC[LineaSeleccionada].Estado == "E") //E = EMITIDO
+                        {
+                            DialogResult result;
+
+                            result = MessageBox.Show("¿Desea anular la nota de crédito " + ListadoNC[LineaSeleccionada].Serie + "-" + ListadoNC[LineaSeleccionada].Numero.ToString() + " ?", "S.G.V.", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                            if (result == System.Windows.Forms.DialogResult.Yes)
+                            {
+                                string men = NCMetodos.AnulaNC(ListadoNC[LineaSeleccionada].IdNC, VariablesPublicas._IdUsuario);
+                                switch (men)
+                                {
+                                    case "OK":
+                                        //ListadoNC[LineaAnularEliminar].Estado = "A";
+                                        LlenaGrilla();
+                                        //NotasCreditoBindingSource.ResetBindings(false);
+                                        MessageBox.Show("¡Nota de Crédito Anulada!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                        break;
+                                    case "Error":
+                                        MessageBox.Show("¡Ha ocurrido un error, contactar a Soporte Técnico!: Nota de Crédito no existe en la BD", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                        break;
+                                    default:
+                                        MessageBox.Show("¡Ha ocurrido un error, contactar a Soporte Técnico!: " + men, "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                        break;
+                                }
+
+                            }
+                        }
+                        else
+                        {
+                            MessageBox.Show("¡Nota de Crédito ya anulada!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("¡Nota de Crédito canjeada no se puede anular!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("¡Usted no está autorizado para realizar esta acción, contactar con Central!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                }
+            }
+        }
+    }
+
+
+}

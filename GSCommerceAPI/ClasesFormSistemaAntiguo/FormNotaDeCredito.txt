@@ -1,0 +1,850 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using BusinessLayer;
+using DataAccess;
+
+namespace WinFrontEnd
+{
+    public partial class FormNotaDeCredito : Form
+    {
+        TipoDocumentoVentaClass TipoDocVenta = new TipoDocumentoVentaClass();
+        SerieCorrelativoClass SerieCorr = new SerieCorrelativoClass();
+        List<v_SerieCorrelativo_1> Series = new List<v_SerieCorrelativo_1>();
+        ComprobanteDeVentaCabecera CabeceraComprobante = new ComprobanteDeVentaCabecera();
+        List<ComprobanteDeVentaDetalle> DetalleComprobante = new List<ComprobanteDeVentaDetalle>();
+        ComprobanteDeVentaClass Comprobante = new ComprobanteDeVentaClass();
+        AuxiliarVariosClass CombosAuxiliares = new AuxiliarVariosClass();
+        ClienteClass Clientes = new ClienteClass();
+        List<Cliente> Cliente = new List<Cliente>();
+        VariosClass Varios = new VariosClass();
+        AlmacenClass Alma = new AlmacenClass();
+        Almacen Alm = new Almacen();
+
+        NotaDeCreditoCabecera CabeceraNC = new NotaDeCreditoCabecera();
+        List<NotaDeCreditoCabecera> ListaCabeceraNC = new List<NotaDeCreditoCabecera>();
+        BindingList<NotaDeCreditoDetalle> DetalleNC = new BindingList<NotaDeCreditoDetalle>();
+        NotaDeCreditoClass NCClase = new NotaDeCreditoClass();
+
+        ClassValidaFormulario cvf = new ClassValidaFormulario();
+
+        SGVDataSet.NotaCreditoDataTable dt = new SGVDataSet.NotaCreditoDataTable();
+        SGVDataSet.DetalleNotaCreditoDataTable ddt = new SGVDataSet.DetalleNotaCreditoDataTable();
+
+        public string NumeroNC;
+
+        string Serie;
+        string Letra;
+        int Numero;
+        int IdAlmacen;
+        int IdComprobante;
+        Boolean Manual;
+        private bool Interna;
+
+        DateTime FechaDocumento;
+        DateTime FechaHoraServidor;
+
+        Boolean ImprimeNC;
+        Boolean Carga;
+        Boolean NoSeries;
+        Boolean Insertando;
+        Boolean EditaCelda;
+
+        int IdTipoDocumento;
+        int IdCliente;
+        int CantidadPrevia;
+
+        decimal Total = 0;
+        decimal TotalComprobante;
+        int TotalArticulos;
+        string Motivo;
+
+        string Foco;
+
+        public FormNotaDeCredito(string _serie, int _numero, int _idalmacen, int _idcomprobante, Boolean _manual, bool _interna = false)
+        //public FormNotaDeCredito(int _idcomprobante)
+        {
+            InitializeComponent();
+
+            Serie = _serie;
+            Numero = _numero;
+            IdAlmacen = _idalmacen;
+            IdComprobante = _idcomprobante;
+            Manual = _manual;
+            Interna = _interna;
+
+            if (IdAlmacen != 0)
+                ReferenciaTextBox.ReadOnly = true;
+
+            this.KeyPreview = true;
+            this.KeyPress += new KeyPressEventHandler(FormNotaDeCredito_KeyPress);
+        }
+
+        private void FormNotaDeCredito_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (this.ActiveControl.Tag != null)
+                cvf.ValidaTeclas(this.ActiveControl.Tag.ToString(), e);
+        }
+
+        private void FormNotaDeCredito_Load(object sender, EventArgs e)
+        {
+
+            Carga = false;
+
+            ReferenciaTextBox.Text = Serie + "-" + Numero.ToString().PadLeft(8, '0');
+
+            FechaDocumento = VariablesPublicas._FechaHoy;
+            FechaDateTimePicker.Value = VariablesPublicas._FechaHoy;
+
+            if (Manual)
+            {
+                if (Interna)
+                {
+                    FechaDateTimePicker.Enabled = true;
+                    ImprimeNC = true;
+                    ImprimeComprobanteCheckBox.Visible = false;
+                    this.Text = "Registro de Nota de Crédito Interna";
+                }
+                else
+                {
+                    FechaDateTimePicker.Enabled = true;
+                    ImprimeNC = false;
+                    ImprimeComprobanteCheckBox.Visible = false;
+                    this.Text = "Registro de Nota de Crédito Manual";
+                }
+            }
+            else
+            {
+                FechaDateTimePicker.Enabled = false;
+                ImprimeNC = true;
+                this.Text = "Registro de Nota de Crédito Electrónica";
+            }
+
+            //ImprimeNC = true;
+
+            NoSeries = true;
+
+            ObtieneDatosComprobante();
+            CargaCombos();
+            ObtieneCorrelativo();
+
+            if (!NoSeries)
+                GenerarButton.Enabled = false;
+
+            Carga = true;
+
+        }
+
+        private void ObtieneDatosComprobante()
+        {
+
+            //CabeceraComprobante = Comprobante.ObtenerComprobanteXSerieNumeroAlmacen(Serie, Numero, IdAlmacen);
+            CabeceraComprobante = Comprobante.ObtenerComprobanteXID(IdComprobante);
+
+            IdCliente = CabeceraComprobante.IdCliente.Value;
+            DNIRUCClienteLabel.Text = CabeceraComprobante.DNIRUC;
+            NombreClienteLabel.Text = CabeceraComprobante.Nombre;
+            DireccionLabel.Text = CabeceraComprobante.Direccion;
+
+            TotalLabel.Text = CabeceraComprobante.Total.ToString("N2");
+            RedondeoLabel.Text = CabeceraComprobante.Redondeo.Value.ToString("N2");
+            SubtotalLabel.Text = CabeceraComprobante.SubTotal.ToString("N2");
+            IGVLabel.Text = CabeceraComprobante.IGV.ToString("N2");
+            AFavorLabel.Text = CabeceraComprobante.APagar.Value.ToString("N2");
+
+            DetalleComprobante = Comprobante.ObteneDetalleComprobanteXID(IdComprobante);
+            DetalleBindingSource.DataSource = DetalleComprobante;
+            GrillaDataGridView.DataSource = DetalleBindingSource;
+
+            TotalComprobante = CabeceraComprobante.Total;
+
+            TotalArticulos = 0;
+
+            foreach (ComprobanteDeVentaDetalle LineaDetalle in DetalleComprobante)
+            {
+
+                TotalArticulos = TotalArticulos + int.Parse(LineaDetalle.Cantidad.ToString());
+
+            }
+
+            TotalArticulosLabel.Text = "Artículos en total: " + TotalArticulos.ToString();
+
+            //CalculaTotales();
+
+        }
+
+        private void CalculaTotales()
+        {
+
+            Total = 0;
+            TotalArticulos = 0;
+
+            foreach (ComprobanteDeVentaDetalle LineaDetalle in DetalleComprobante)
+            {
+
+                Total = Total + LineaDetalle.Total;
+                TotalArticulos = TotalArticulos + int.Parse(LineaDetalle.Cantidad.ToString());
+
+            }
+
+            TotalLabel.Text = Total.ToString("N2");
+            //RedondeoLabel.Text = (decimal.Parse(TotalLabel.Text.Substring(TotalLabel.Text.Length - 1, 1)) / 100).ToString("N2");
+            AFavorLabel.Text = Total.ToString("N2");
+
+            if (VariablesPublicas._AFECTOIGV)
+            {
+                SubtotalLabel.Text = (Total / (1 + Decimal.Parse(VariablesPublicas._Igv.ToString()))).ToString("N2");
+                IGVLabel.Text = (Total - Decimal.Parse(SubtotalLabel.Text)).ToString("N2");
+            }
+            else
+            {
+                SubtotalLabel.Text = (Total).ToString("N2");
+                IGVLabel.Text = (0).ToString("N2");                
+            }
+
+            TotalLabel.Text = Total.ToString("N2");
+            TotalArticulosLabel.Text = "Artículos en total: " + TotalArticulos.ToString();
+
+        }
+
+        private void CargaCombos()
+        {
+            MotivoComboBox.DisplayMember = "Descripcion";
+            MotivoComboBox.ValueMember = "Alias";
+            MotivoComboBox.DataSource = CombosAuxiliares.ObtenerLista("MOTIVO NC");
+
+            //if (Serie.Substring(0, 1) == "B" || Serie.Substring(0, 1) == "F")
+            //    IdTipoDocumento = TipoDocVenta.ObtenerCodigoNC(Serie.Substring(0, 1));
+            //else
+            //    IdTipoDocumento = TipoDocVenta.ObtenerCodigoNC("M");
+
+            if (Manual)
+                Letra = Interna ? "T" : "M";
+            else
+                Letra = CabeceraComprobante.TipoDocumentoVenta.Descripcion.Substring(0, 1);
+
+            IdTipoDocumento = TipoDocVenta.ObtenerCodigoNC(Letra);
+
+            Series = SerieCorr.ObtenerSerieManualesXAlmacenXTipoDocActivas(IdAlmacen, IdTipoDocumento);
+
+            if (Series.Count >= 1)
+            {
+                SerieComboBox.ValueMember = "IdSerieCorrelativo";
+                SerieComboBox.DisplayMember = "Serie";
+                SerieComboBox.DataSource = Series;
+            }
+            else
+            {
+                MessageBox.Show("¡Este almacen no cuenta con Correlativo de Notas de Crédito registrado!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                NoSeries = false;
+            }
+
+        }
+
+        private void ObtieneCorrelativo()
+        {
+            if (NoSeries)
+                CorrelativoLabel.Text = (SerieCorr.ObtenerCorrelativoXSerie(int.Parse(SerieComboBox.SelectedValue.ToString()))[0].Correlativo + 1).ToString();
+
+        }
+
+        private void SerieComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (NoSeries)
+                ObtieneCorrelativo();
+        }
+
+        private void QuitaButton_Click(object sender, EventArgs e)
+        {
+            if (GrillaDataGridView.Rows.Count >= 1)
+            {
+                DetalleComprobante.RemoveAt(GrillaDataGridView.CurrentRow.Index);
+
+                int i = 0;
+
+                foreach (ComprobanteDeVentaDetalle LineaDetalle in DetalleComprobante)
+                {
+                    i++;
+
+                    LineaDetalle.Item = i;
+
+                }
+                CalculaTotales();
+                DetalleBindingSource.ResetBindings(false);
+
+                if (GrillaDataGridView.Rows.Count == 0)
+                    GenerarButton.Enabled = false;
+            }
+            
+        }
+
+        private void SalirButton_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void GrillaDataGridView_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
+        {
+
+            DataGridViewTextBoxEditingControl dText = (DataGridViewTextBoxEditingControl)e.Control;
+
+            switch (GrillaDataGridView.CurrentCell.ColumnIndex)
+            {
+                case 5:
+
+                    dText.KeyPress -= new KeyPressEventHandler(SoloNumeros);
+                    dText.KeyPress += new KeyPressEventHandler(SoloNumeros);
+
+                    break;
+            }
+        }
+
+        private void SoloNumeros(object sender, KeyPressEventArgs e)
+        {
+
+            if (Char.IsDigit(e.KeyChar))
+            {
+                e.Handled = false;
+            }
+            else if (Char.IsControl(e.KeyChar))
+            {
+                e.Handled = false;
+            }
+            else if (Char.IsSeparator(e.KeyChar))
+            {
+                e.Handled = true;
+            }
+            else
+            {
+                e.Handled = true;
+            }
+
+        }
+
+        //private void AgregaClienteButton_Click(object sender, EventArgs e)
+        //{
+        //    string DNIRUC = "";
+
+        //    if (IdCliente == 1)
+        //        DNIRUC = "";
+        //    else
+        //        DNIRUC = DNIRUCClienteLabel.Text;
+
+        //    FormCliente fcli = new FormCliente(true, DNIRUC, false);
+
+        //    fcli.ShowDialog();
+
+        //    if (fcli.RUCDNI != "")
+        //    {
+        //        DNIRUCClienteLabel.Text = fcli.RUCDNI;
+
+        //        BuscaCliente();
+
+        //    }
+        //    else
+        //    {
+
+        //        DNIRUCClienteLabel.Focus();
+        //        Foco = "C";
+
+        //    }
+        //}
+
+        //private void BuscaClienteButton_Click(object sender, EventArgs e)
+        //{
+        //    FormBuscarCliente fbclie = new FormBuscarCliente();
+
+        //    fbclie.ShowDialog();
+
+        //    if (fbclie.Clie != null)
+        //    {
+        //        IdCliente = fbclie.Clie.IdCliente;
+        //        DNIRUCClienteTextBox.Text = fbclie.Clie.DNIRUC;
+        //        NombreClienteLabel.Text = fbclie.Clie.Nombre;
+        //        DireccionLabel.Text = fbclie.Clie.Direccion;
+
+        //        GrillaDataGridView.Focus();
+
+        //        GrillaDataGridView.CurrentCell = GrillaDataGridView[2, GrillaDataGridView.Rows.Count - 1];
+
+        //    }
+        //    else
+        //    {
+
+        //        DNIRUCClienteTextBox.Focus();
+        //        Foco = "C";
+
+        //    }
+
+        //}
+
+        private void ImprimeComprobanteCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (ImprimeComprobanteCheckBox.CheckState == CheckState.Checked)
+                ImprimeNC = true;
+            else
+                ImprimeNC = false;
+
+            GrillaDataGridView.Focus();
+        }
+
+        //private void DNIRUCClienteTextBox_Enter(object sender, EventArgs e)
+        //{
+
+        //    Foco = "C";
+
+        //}
+
+        //private void DNIRUCClienteTextBox_KeyPress(object sender, KeyPressEventArgs e)
+        //{
+        //    if (Foco == "C")
+        //    {
+        //        if (e.KeyChar == (char)(Keys.Enter))
+        //        {
+
+        //            e.Handled = true;
+
+        //            ValidaDNIRUC();
+
+        //        }
+        //    }
+        //}
+
+        private void DNIRUCClienteTextBox_Leave(object sender, EventArgs e)
+        {
+
+            //if (Foco == "C")
+            //{
+
+            //    ValidaDNIRUC();
+
+            //}
+
+        }
+
+        //private void ValidaDNIRUC()
+        //{
+
+        //    if (DNIRUCClienteTextBox.Text.Length > 0 & DNIRUCClienteTextBox.Text != "99999999")
+
+        //        if (DNIRUCClienteTextBox.TextLength == 8 || DNIRUCClienteTextBox.TextLength == 11)
+        //        {
+        //            BuscaCliente();
+        //        }
+        //        else
+        //        {
+
+        //            MessageBox.Show("¡Faltan dígitos al número RUC o DNI!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+        //            DNIRUCClienteTextBox.Focus();
+        //            DNIRUCClienteTextBox.SelectAll();
+        //        }
+
+        //    else
+        //    {
+
+        //        IdCliente = 1;
+        //        DNIRUCClienteTextBox.Text = "99999999";
+        //        NombreClienteLabel.Text = "CLIENTES VARIOS";
+        //        DireccionLabel.Text = "-";
+
+        //        GrillaDataGridView.Focus();
+
+        //    }
+
+        //}
+
+        //private void BuscaCliente()
+        //{
+
+        //    Cliente = Clientes.ObtenerClienteXDNIRUC(DNIRUCClienteTextBox.Text);
+
+        //    if (Cliente.Count == 1)
+        //    {
+        //        IdCliente = Cliente[0].IdCliente;
+        //        NombreClienteLabel.Text = Cliente[0].Nombre.ToString();
+        //        DireccionLabel.Text = Cliente[0].Direccion.ToString();
+
+        //        GrillaDataGridView.Focus();
+        //        Foco = "";
+
+        //    }
+        //    else
+        //    {
+
+        //        MessageBox.Show("¡Cliente no registrado!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+        //        IdCliente = 0;
+        //        NombreClienteLabel.Text = "";
+        //        DireccionLabel.Text = "";
+        //        DNIRUCClienteTextBox.Focus();
+        //        DNIRUCClienteTextBox.SelectAll();
+        //        Foco = "C";
+
+        //    }
+
+        //}
+
+        private void GrillaDataGridView_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
+        {
+            if ((e.RowIndex == DetalleComprobante.Count - 1 & e.ColumnIndex == 2 & string.IsNullOrEmpty(DetalleComprobante[e.RowIndex].Descripcion)) || e.ColumnIndex == 5)
+            {
+                Insertando = true;
+                EditaCelda = true;
+
+                CantidadPrevia = DetalleComprobante[e.RowIndex].Cantidad;
+
+            }
+            else
+            {
+                e.Cancel = true;
+            }
+
+        }
+
+        private void GrillaDataGridView_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+
+            int columna = e.ColumnIndex;
+            int fila = e.RowIndex;
+
+            if (GrillaDataGridView.CurrentCell == GrillaDataGridView[5, fila])
+            {
+                if (DetalleComprobante[e.RowIndex].Cantidad != 0)
+                {
+                    if (DetalleComprobante[e.RowIndex].Cantidad <= CantidadPrevia)
+                    {
+                        DetalleComprobante[e.RowIndex].Total = DetalleComprobante[e.RowIndex].Cantidad * (DetalleComprobante[e.RowIndex].Precio * (1 - DetalleComprobante[e.RowIndex].PorcentajeDescuento));
+                    }
+                    else
+                    {
+                        MessageBox.Show("¡La cantidad no puede ser mayor a: " + CantidadPrevia.ToString() + "!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        DetalleComprobante[e.RowIndex].Cantidad = CantidadPrevia;
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("¡La cantidad no puede ser cero!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    DetalleComprobante[e.RowIndex].Cantidad = CantidadPrevia;
+                }
+
+                CalculaTotales();
+
+                DetalleBindingSource.ResetBindings(false);
+
+            }
+
+            GrillaDataGridView.Focus();
+
+            EditaCelda = false;
+
+            Insertando = false;
+        }
+
+        private void MotivoComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            DetalleComprobante.Clear();
+            DetalleComprobante = Comprobante.ObteneDetalleComprobanteXID(CabeceraComprobante.IdComprobante);
+            
+            DetalleBindingSource.DataSource = DetalleComprobante;
+            GrillaDataGridView.DataSource = DetalleBindingSource;
+
+            switch (MotivoComboBox.SelectedValue)
+            { 
+                case "07":
+                    QuitaButton.Enabled = true;
+                    GrillaDataGridView.Columns[5].ReadOnly = false;
+                    RedondeoLabel.Text = "0.00";
+                    RedondeoLabel.Visible = false;
+                    label10.Visible = false;
+                    AFavorLabel.Text = "";
+                    IGVLabel.Text = "";
+                    SubtotalLabel.Text = "";
+                    TotalLabel.Text = "";
+                    break;
+                case "01":
+                case "02":
+                case "06":
+                    QuitaButton.Enabled = false;
+                    GrillaDataGridView.Columns[5].ReadOnly = true;
+                    TotalLabel.Text = CabeceraComprobante.Total.ToString("N2");
+                    RedondeoLabel.Visible = true;
+                    label10.Visible = true;
+                    RedondeoLabel.Text = CabeceraComprobante.Redondeo.Value.ToString("N2");
+                    SubtotalLabel.Text = CabeceraComprobante.SubTotal.ToString("N2");
+                    IGVLabel.Text = CabeceraComprobante.IGV.ToString("N2");
+                    AFavorLabel.Text = CabeceraComprobante.APagar.Value.ToString("N2");
+                    TotalArticulos = 0;
+
+                    foreach (ComprobanteDeVentaDetalle LineaDetalle in DetalleComprobante)
+                    {
+
+                        TotalArticulos = TotalArticulos + int.Parse(LineaDetalle.Cantidad.ToString());
+
+                    }
+
+                    TotalArticulosLabel.Text = "Artículos en total: " + TotalArticulos.ToString();
+                    break;
+            }
+        }
+
+        private void GenerarButton_Click(object sender, EventArgs e)
+        {
+            //if (DNIRUCClienteTextBox.Text == "" || NombreClienteLabel.Text == "")
+            //{
+
+            //    MessageBox.Show("¡Ingrese información del cliente!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+            //}
+            //else 
+            if (TotalArticulos == 0)
+            {
+
+                MessageBox.Show("¡No hay detalle de artículos!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+            }
+            else if (TotalComprobante == decimal.Parse(TotalLabel.Text) & MotivoComboBox.SelectedValue.ToString() == "07")
+            {
+
+                MessageBox.Show("¡Para este motivo de devolución, el Total no puede ser igual al total del comprobante, elija otro motivo!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+            }
+            else
+            {
+                FechaHoraServidor = Varios.FechaHoraServidor();
+
+                foreach (ComprobanteDeVentaDetalle linea in DetalleComprobante)
+                {
+                    NotaDeCreditoDetalle NCD = new NotaDeCreditoDetalle();
+
+                    NCD.IdNC = 0;
+                    NCD.Item = linea.Item;
+                    NCD.IdArticulo = linea.IdArticulo;
+                    NCD.Descripcion = linea.Descripcion;
+                    NCD.UnidadMedida = linea.UnidadMedida;
+                    NCD.Cantidad = linea.Cantidad;
+                    NCD.Precio = linea.Precio;
+                    NCD.PorcentajeDescuento = linea.PorcentajeDescuento;
+                    NCD.Total = linea.Total;
+
+                    DetalleNC.Add(NCD);
+                }
+
+                CabeceraNC.IdNC = 0;
+                CabeceraNC.IdTipoDocumento = IdTipoDocumento;
+
+                //CabeceraNC.Serie = Serie.Substring(0, 1) + SerieComboBox.Text;
+                //CabeceraNC.Fecha = FechaHoraServidor;
+
+                if (Manual)
+                {
+                    CabeceraNC.Serie = SerieComboBox.Text;
+                    CabeceraNC.Fecha = FechaDocumento;
+                }
+                else
+                {
+                    CabeceraNC.Serie = Letra + SerieComboBox.Text;
+                    CabeceraNC.Fecha = FechaHoraServidor;
+                }
+
+                CabeceraNC.Referencia = ReferenciaTextBox.Text.Trim();
+                CabeceraNC.IdMotivo = MotivoComboBox.SelectedValue.ToString();
+                CabeceraNC.IdCliente = IdCliente;
+                CabeceraNC.DNIRUC = DNIRUCClienteLabel.Text.Trim();
+                CabeceraNC.Nombre = NombreClienteLabel.Text.Trim();
+                CabeceraNC.Direccion = DireccionLabel.Text.Trim();
+                CabeceraNC.SubTotal = decimal.Parse(SubtotalLabel.Text);
+                CabeceraNC.IGV = decimal.Parse(IGVLabel.Text);
+                CabeceraNC.Total = decimal.Parse(TotalLabel.Text);
+                CabeceraNC.Redondeo = decimal.Parse(RedondeoLabel.Text);
+                CabeceraNC.AFavor = decimal.Parse(AFavorLabel.Text);
+                CabeceraNC.IdUsuario = VariablesPublicas._IdUsuario;
+                CabeceraNC.IdAlmacen = IdAlmacen;
+                CabeceraNC.Estado = "E";
+                CabeceraNC.FechaHoraRegistro = FechaHoraServidor;
+                CabeceraNC.Empleada = false;
+
+                SerieComboBox_SelectedIndexChanged(sender, e); //REVISA EN CASO SE HAYA MOVIDO EL CORRELATIVO
+
+                CabeceraNC.Numero = int.Parse(CorrelativoLabel.Text);
+
+                ListaCabeceraNC.Add(CabeceraNC);
+
+                if (NCClase.InsertaNotaCredito(ListaCabeceraNC, DetalleNC, IdComprobante, CabeceraNC.Serie + "-" + CabeceraNC.Numero.ToString().PadLeft(8, '0'))) //& Comprobante.RegistraNCenComprobante(CabeceraComprobante.IdComprobante, CabeceraNC.Serie + "-" + CabeceraNC.Numero.ToString().PadLeft(8, '0')) == "OK")
+                {
+
+                    MessageBox.Show("¡Datos registrados con éxito!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+                    NumeroNC = CabeceraNC.Serie + "-" + CabeceraNC.Numero;
+
+                    GenerarButton.Enabled = false;
+
+                    if (ImprimeNC)
+                        ImprimirNC();
+
+                    //Grabar Datos en el Servidor
+                    try
+                    {
+                        NotaDeCreditoClass nc = new NotaDeCreditoClass();
+                        int idComprobante = nc.ObtieneNCxSerieNumeroAlmacen(CabeceraNC.Serie, Convert.ToInt32(CabeceraNC.Numero), CabeceraNC.IdAlmacen, CabeceraNC.Serie.Length).FirstOrDefault().IdNC;
+                        FEEntities _feDatos = new FEEntities();
+                        _feDatos.Comprobantes.Add(new Comprobantes() { IdComprobante = idComprobante, QR = null, Hash = "", Xml = null, EsNota = true });
+                        _feDatos.SaveChanges();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Se perdió conexión! - Detalle: " + ex.Message);
+                    }
+
+                    this.Close();
+
+                }
+                else
+                {
+
+                    ListaCabeceraNC.Clear();
+                    DetalleNC.Clear();
+
+                }
+            }
+        }
+
+        private void ImprimirNC()
+        {
+            SGVDataSet.NotaCreditoRow dr = dt.NewNotaCreditoRow();
+
+            dr.Fecha = FechaHoraServidor.Date;
+            dr.Hora = FechaHoraServidor;
+            dr.Numero = Letra + SerieComboBox.Text + "-" + CorrelativoLabel.Text.PadLeft(8, '0');
+            dr.Cajero = VariablesPublicas._NombreUsuario.ToUpper();
+            dr.Total = CabeceraNC.Total;
+            dr.DNIRUC = CabeceraNC.DNIRUC;
+            dr.Nombre = CabeceraNC.Nombre;
+            dr.Direccion = CabeceraNC.Direccion;
+            dr.Referencia = CabeceraNC.Referencia;
+            dr.SubTotal = CabeceraNC.SubTotal;
+            dr.IGV = CabeceraNC.IGV;
+            dr.Redondeo = CabeceraNC.Redondeo;
+            dr.AFavor = CabeceraNC.AFavor;
+
+            dt.Rows.Add(dr);
+
+            foreach (NotaDeCreditoDetalle linea in DetalleNC)
+            {
+                SGVDataSet.DetalleNotaCreditoRow ddr = ddt.NewDetalleNotaCreditoRow();
+                ddr.Numero = ReferenciaTextBox.Text.Substring(0, 1) + SerieComboBox.Text + "-" + CorrelativoLabel.Text.PadLeft(8, '0');
+                ddr.Codigo = linea.IdArticulo;
+                ddr.Articulo = linea.Descripcion;
+                ddr.Precio = Double.Parse((linea.Precio * (1 - linea.PorcentajeDescuento)).ToString());
+                ddr.Cantidad = double.Parse(linea.Cantidad.ToString());
+                ddr.Monto = double.Parse(linea.Total.ToString());
+
+                ddt.Rows.Add(ddr);
+            }
+
+            DataSet ds = new DataSet();
+
+            ds.Tables.Add(dt);
+            ds.Tables.Add(ddt);
+
+            Reportes.NotaCreditoCrystalReport rpt = new Reportes.NotaCreditoCrystalReport();
+            rpt.SetDataSource(ds);
+
+            Alm = Alma.ObtenerAlmacenXID(IdAlmacen);
+
+            rpt.SetParameterValue("TipoDoc", "NOTA DE CREDITO");
+            rpt.SetParameterValue("RazonSocial", Alm.RazonSocial);
+            rpt.SetParameterValue("Direccion", Alm.Direccion);
+            rpt.SetParameterValue("RUC", Alm.RUC);
+
+            //this.Cursor = Cursors.WaitCursor;
+            //rpt.PrintToPrinter(1, true, 0, 0);
+            //this.Cursor = Cursors.Default;
+
+            //FormReportes Contenedor = new FormReportes(rpt);
+            //Contenedor.Show();
+
+            if (ImprimeNC)
+                ImprimirPOS(dt, ddt);
+
+        }
+
+        private void ImprimirPOS(SGVDataSet.NotaCreditoDataTable _cab, SGVDataSet.DetalleNotaCreditoDataTable _det)
+        {
+            ClassImprimirComprobante i = new ClassImprimirComprobante("Generic / Text Only");            
+            i.SeparacionDoble();
+            foreach (SGVDataSet.NotaCreditoRow _dr in _cab.Rows)
+            {
+                i.Centrar("NOTA DE CREDITO ELECTRONICA");
+                i.SeparacionDoble();
+                i.Centrar(VariablesPublicas._RazonSocial);
+                i.Centrar(VariablesPublicas._RUC);
+                i.Centrar(VariablesPublicas._Direccion);
+                i.SeparacionDoble();
+                if (_dr.DNIRUC.Trim() != "99999999")
+                {
+                    i.AlaIzquierda("DOCUMENTO: " + _dr.DNIRUC);
+                    i.AlaIzquierda("CLIENTE: " + _dr.Nombre);
+                    i.AlaIzquierda("DIRECCIÓN: " + _dr.Direccion);
+                    i.Separacion();
+                }
+                i.AlaIzquierda("FECHA EMISION: " + _dr.Fecha.ToShortDateString() + "    HORA: " + _dr.Hora.ToShortTimeString());
+                i.AlaIzquierda("CAJERO(A): " + _dr.Cajero);                
+                i.AlaIzquierda("DOCUMENTO: " + _dr.Numero + "   MONEDA: SOLES");
+            }
+            i.SeparacionDoble();
+
+            foreach (SGVDataSet.DetalleNotaCreditoRow _dr in _det.Rows)
+            {
+                i.AlaIzquierda(_dr.Articulo);
+                i.AgregarArticulo(_dr.Codigo, _dr.Cantidad.ToString("N2"), "UND", _dr.Precio.ToString("N2"), (_dr.Cantidad * _dr.Precio).ToString("N2"));
+            }
+            i.Separacion();
+
+            foreach (SGVDataSet.NotaCreditoRow _dr in _cab.Rows)
+            {
+                i.AgregarTotales("TOTAL", "S/", _dr.Total.ToString("N2"), 1);
+                i.AgregarTotales("REDONDEO", "S/", _dr.Redondeo.ToString("N2"), 1);
+                i.SeparacionAsteriscos();
+                i.AgregarTotales("IMPORTE TOTAL", "S/", _dr.AFavor.ToString("N2"), 1);
+                i.SeparacionAsteriscos();
+                i.AgregarTotales("OP GRAVADA", "S/", (Convert.ToDouble(_dr.Total) / (1 + VariablesPublicas._Igv)).ToString("N2"), 0);
+                i.AgregarTotales("IGV", "S/", (Convert.ToDouble(_dr.Total) * VariablesPublicas._Igv / (1 + VariablesPublicas._Igv)).ToString("N2"), 0);
+            }
+            i.SeparacionDoble();
+
+            i.Centrar("NO HAY DEVOLUCION DE DINERO TODO CAMBIO DE MERCADERIA SE HARA DENTRO DE LAS 48 HORAS, PREVIA PRESENTACION DEL COMPROBANTE Y VERIFICACION DE LA MERCADERIA.");
+            i.SeparacionDoble();
+            //i.QR(ValorQR);
+            //i.Centrar("Hash: " + Hash);
+            i.Separacion();
+            i.Centrar("Representación Impresa de la Nota de Crédito Electrónica");
+            i.Centrar("Consulta tus documentos en www.franor.com.pe/MisComprobantes");
+            i.Centrar("Gracias por su compra!");
+            i.AlaIzquierda("");
+            i.AlaIzquierda("");
+            i.AlaIzquierda("");
+            i.AlaIzquierda("");
+            i.AlaIzquierda("");
+            i.AlaIzquierda("");
+            i.AlaIzquierda("");
+            i.Cortar();
+            i.Imprimir();
+        }
+
+        private void FechaDateTimePicker_ValueChanged(object sender, EventArgs e)
+        {
+            if (Carga)
+            {
+
+                FechaDocumento = FechaDateTimePicker.Value.Date;
+
+            }
+        }
+    }
+}

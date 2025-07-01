@@ -148,6 +148,7 @@ else
             Descripcion = d.DescripcionItem,
             UnidadMedida = d.UnidadMedida ?? "UND",
             Cantidad = (int)d.Cantidad,
+            CantidadOriginal = (int)d.Cantidad,
             Precio = d.PrecioUnitario,
             PorcentajeDescuento = d.PorcentajeDescuento,
             Total = d.Total
@@ -264,6 +265,15 @@ else
             return;
         }
 
+        foreach (var d in detalles)
+        {
+            if (d.Cantidad > d.CantidadOriginal)
+            {
+                await JS.InvokeVoidAsync("alert", $"La cantidad devuelta de '{d.Descripcion}' supera a la vendida.");
+                return;
+            }
+        }
+
         var result = await ncService.EmitirNotaCreditoAsync(tipo, new NotaCreditoRegistroDTO
         {
             Cabecera = cabecera,
@@ -274,6 +284,8 @@ else
         if (result != null)
         {
             await JS.InvokeVoidAsync("alert", $"✅ Nota de Crédito generada: {result.Serie}-{result.Numero:D8}");
+            var pdfUrl = $"/api/notascredito/pdf/{result.IdNc}";
+            await JS.InvokeVoidAsync("open", pdfUrl, "_blank");
             nav.NavigateTo("/ventas");
         }
         else

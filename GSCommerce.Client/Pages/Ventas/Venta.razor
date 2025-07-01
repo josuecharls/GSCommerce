@@ -60,6 +60,10 @@
                 <button class="dropdown-item" @onclick="@(() => EmitirNotaCredito("ELECTRONICA"))">Emitir N.C. Electrónica</button>
                 <button class="dropdown-item" @onclick="@(() => EmitirNotaCredito("MANUAL"))">Emitir N.C. Manual</button>
                 <button class="dropdown-item" @onclick="@(() => EmitirNotaCredito("INTERNA"))">Emitir N.C. Interna</button>
+                @if (!string.IsNullOrWhiteSpace(ventaSeleccionada.NumeroNotaCredito))
+                {
+                    <button class="dropdown-item" @onclick="ReimprimirNC">Ver N.C. PDF</button>
+                }
             </div>
         }
     </tbody>
@@ -119,6 +123,25 @@
 
         if (!string.IsNullOrEmpty(url))
         {
+            await JS.InvokeVoidAsync("open", url, "_blank");
+        }
+    }
+
+
+    private async Task ReimprimirNC()
+    {
+        mostrarMenuContextual = false;
+        if (ventaSeleccionada == null || string.IsNullOrWhiteSpace(ventaSeleccionada.NumeroNotaCredito))
+            return;
+
+        var partes = ventaSeleccionada.NumeroNotaCredito.Split('-');
+        if (partes.Length != 2)
+            return;
+
+        if (int.TryParse(partes[1], out var numero))
+        {
+            var serie = partes[0];
+            var url = $"/api/notascredito/pdf-por-numero/{serie}/{numero}";
             await JS.InvokeVoidAsync("open", url, "_blank");
         }
     }

@@ -4,6 +4,7 @@ using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GSCommerceAPI.Services.SUNAT;
+using QuestPDF.Fluent;
 
 namespace GSCommerceAPI.Controllers
 {
@@ -30,6 +31,18 @@ namespace GSCommerceAPI.Controllers
 
             try
             {
+                var originales = await _context.ComprobanteDeVentaDetalles
+                    .Where(c => c.IdComprobante == dto.IdComprobanteOriginal)
+                    .ToDictionaryAsync(c => c.IdArticulo, c => c.Cantidad);
+
+                foreach (var det in dto.Detalles)
+                {
+                    if (!originales.TryGetValue(det.IdArticulo.ToString(), out var vendido))
+                        return BadRequest($"Artículo {det.Descripcion} no pertenece a la venta original.");
+
+                    if (det.Cantidad > vendido)
+                        return BadRequest($"Cantidad devuelta de {det.Descripcion} supera la vendida.");
+                }
                 // Asignar número de serie y correlativo si corresponde
                 var correlativo = await _context.SerieCorrelativos
                     .Where(s => s.Serie == dto.Cabecera.Serie &&
@@ -175,6 +188,56 @@ namespace GSCommerceAPI.Controllers
             }
         }
 
+
+        [HttpGet("pdf/{id}")]
+        public async Task<IActionResult> ObtenerPdf(int id)
+        {
+            var nc = await _context.NotaDeCreditoCabeceras
+                .Include(n => n.NotaDeCreditoDetalles)
+                .FirstOrDefaultAsync(n => n.IdNc == id);
+
+            if (nc == null)
+                return NotFound("No se encontró la nota de crédito.");
+
+            var dto = new Models.DTOs.NotaCreditoPDFDTO
+            {
+                Serie = nc.Serie,
+                Numero = nc.Numero,
+                Fecha = DateOnly.FromDateTime(nc.Fecha),
+                Referencia = nc.Referencia ?? string.Empty,
+                Cliente = nc.Nombre,
+                Dniruc = nc.Dniruc ?? string.Empty,
+                Direccion = nc.Direccion ?? string.Empty,
+                SubTotal = nc.SubTotal,
+                Igv = nc.Igv,
+                Total = nc.Total,
+                Detalles = nc.NotaDeCreditoDetalles.Select(d => new Models.DTOs.NotaCreditoPDFDetalleDTO
+                {
+                    Descripcion = d.Descripcion,
+                    Cantidad = d.Cantidad ?? 0,
+                    Precio = d.Precio ?? 0m,
+                    Total = d.Total
+                }).ToList()
+            };
+
+            var document = new Models.DTOs.NotaCreditoDocument(dto);
+            var pdf = document.GeneratePdf();
+
+            return File(pdf, "application/pdf", $"NC_{dto.Serie}-{dto.Numero:D8}.pdf");
+        }
+
+        [HttpGet("pdf-por-numero/{serie}/{numero}")]
+        public async Task<IActionResult> ObtenerPdfPorNumero(string serie, int numero)
+        {
+            var nc = await _context.NotaDeCreditoCabeceras
+                .Include(n => n.NotaDeCreditoDetalles)
+                .FirstOrDefaultAsync(n => n.Serie == serie && n.Numero == numero);
+
+            if (nc == null)
+                return NotFound("No se encontró la nota de crédito.");
+
+            return await ObtenerPdf(nc.IdNc);
+        }
 
         private static string ConvertirMontoALetras(decimal monto)
         {
