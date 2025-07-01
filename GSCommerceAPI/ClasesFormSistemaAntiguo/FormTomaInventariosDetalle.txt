@@ -1,0 +1,282 @@
+﻿using BusinessLayer;
+using DataAccess;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace WinFrontEnd
+{
+    public partial class FormTomaInventariosDetalle : Form
+    {
+        int _idTI;
+        int _idAlmacen;
+        AlmacenClass Alm = new AlmacenClass();
+        KardexClass Kdx = new KardexClass();
+        List<Articulo> Articulos = new List<Articulo>();
+        ArticuloClass Articulo = new ArticuloClass();
+        TomaInventarioDetalle detalle = new TomaInventarioDetalle();
+        List<TomaInventarioDetalle> detalles = new List<TomaInventarioDetalle>();
+
+        public FormTomaInventariosDetalle(int _idTI, int _idAlmacen)
+        {
+            InitializeComponent();
+            this._idTI = _idTI;
+            this._idAlmacen = _idAlmacen;
+        }
+
+        private void AgregaButton_Click(object sender, EventArgs e)
+        {
+            if (Alm.EstadoTI(_idTI) == "Iniciado")
+            {
+                FormOrdenDeCompraArticulos fodcart = new FormOrdenDeCompraArticulos(0, 0, false);
+
+                fodcart.ShowDialog();
+
+                if (fodcart.Detalle != null)
+                {
+                    detalles = new List<TomaInventarioDetalle>();
+                    detalle.idArticulo = fodcart.Detalle.IdArticulo;
+                    detalle.Cantidad = fodcart.Detalle.Cantidad;
+                    detalle.idTomaInventario = _idTI;
+
+                    detalles.Add(detalle);
+
+                    Alm.RegistrarDetallesTI(detalles);
+
+                    //GrillaDataGridView.DataSource = Alm.ListadoTomaInventariosDetalles(_idTI);
+
+                    var result = Alm.ListadoTomaInventariosDetalles(_idTI);
+                    var dt = new DataTable();
+
+                    dt.Columns.Add("idTomaInventarioDetalle", result[0].TomaInventarioDetalle.idTomaInventarioDetalle.GetType());
+                    dt.Columns.Add("idTomaInventario", result[0].TomaInventarioDetalle.idTomaInventario.GetType());
+                    dt.Columns.Add("idArticulo", result[0].TomaInventarioDetalle.idArticulo.GetType());
+                    dt.Columns.Add("Cantidad", result[0].TomaInventarioDetalle.Cantidad.GetType());
+                    dt.Columns.Add("Estado", result[0].TomaInventarioDetalle.Estado.GetType());
+                    dt.Columns.Add("Sobrante");
+                    dt.Columns.Add("Faltante");
+                    dt.Columns.Add("TomaInventario");
+                    dt.Columns.Add("Nombre");
+
+                    foreach (var model in result)
+                    {
+                        var dr = dt.NewRow();
+                        dr[0] = model.TomaInventarioDetalle.idTomaInventarioDetalle;
+                        dr[1] = model.TomaInventarioDetalle.idTomaInventario;
+                        dr[2] = model.TomaInventarioDetalle.idArticulo;
+                        dr[3] = model.TomaInventarioDetalle.Cantidad;
+                        dr[4] = model.TomaInventarioDetalle.Estado;
+                        dr[5] = model.TomaInventarioDetalle.Sobrante;
+                        dr[6] = model.TomaInventarioDetalle.Faltante;
+                        dr[7] = model.TomaInventarioDetalle.TomaInventario;
+                        dr[8] = model.Nombre;
+
+                        dt.Rows.Add(dr);
+                    }
+
+                    GrillaDataGridView.DataSource = dt;
+                    FormatoGrilla();
+                }
+            }
+            else
+            {
+                MessageBox.Show("El inventario no está en estado Iniciado, ya culminó o está anulado", "Toma de Inventarios", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void FormTomaInventariosDetalle_Load(object sender, EventArgs e)
+        {
+            var result = Alm.ListadoTomaInventariosDetalles(_idTI);
+            var dt = new DataTable();
+
+            dt.Columns.Add("idTomaInventarioDetalle", result[0].TomaInventarioDetalle.idTomaInventarioDetalle.GetType());
+            dt.Columns.Add("idTomaInventario", result[0].TomaInventarioDetalle.idTomaInventario.GetType());
+            dt.Columns.Add("idArticulo", result[0].TomaInventarioDetalle.idArticulo.GetType());
+            dt.Columns.Add("Cantidad", result[0].TomaInventarioDetalle.Cantidad.GetType());
+            dt.Columns.Add("Estado", result[0].TomaInventarioDetalle.Estado.GetType());
+            dt.Columns.Add("Sobrante");
+            dt.Columns.Add("Faltante");
+            dt.Columns.Add("TomaInventario");
+            dt.Columns.Add("Nombre");
+
+            foreach (var model in result)
+            {
+                var dr = dt.NewRow();
+                dr[0] = model.TomaInventarioDetalle.idTomaInventarioDetalle;
+                dr[1] = model.TomaInventarioDetalle.idTomaInventario;
+                dr[2] = model.TomaInventarioDetalle.idArticulo;
+                dr[3] = model.TomaInventarioDetalle.Cantidad;
+                dr[4] = model.TomaInventarioDetalle.Estado;
+                dr[5] = model.TomaInventarioDetalle.Sobrante;
+                dr[6] = model.TomaInventarioDetalle.Faltante;
+                dr[7] = model.TomaInventarioDetalle.TomaInventario;
+                dr[8] = model.Nombre;
+
+                dt.Rows.Add(dr);
+            }
+
+            GrillaDataGridView.DataSource = dt;
+            FormatoGrilla();
+        }
+
+        private void SalirButton_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void FormatoGrilla()
+        {
+            GrillaDataGridView.Columns[0].Visible = false;
+            GrillaDataGridView.Columns[1].Visible = false;
+            GrillaDataGridView.Columns[7].Visible = false;
+            GrillaDataGridView.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            GrillaDataGridView.Columns[3].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            GrillaDataGridView.Columns[5].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            GrillaDataGridView.Columns[6].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
+            GrillaDataGridView.AutoResizeColumns();
+        }
+
+        private void GrillaDataGridView_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            if(e.ColumnIndex == 3)
+            {
+                Alm.ModificarDetallesTI(Convert.ToInt32(GrillaDataGridView.Rows[e.RowIndex].Cells[0].Value), null, null, Convert.ToInt32(GrillaDataGridView.Rows[e.RowIndex].Cells[3].Value), true);
+            }
+        }
+
+        private void QuitaButton_Click(object sender, EventArgs e)
+        {
+            if (Alm.EstadoTI(_idTI) == "Iniciado")
+            {
+                Alm.ModificarDetallesTI(Convert.ToInt32(GrillaDataGridView.CurrentRow.Cells[0].Value), null, null, Convert.ToInt32(GrillaDataGridView.CurrentRow.Cells[3].Value), false);
+            }
+            else
+            {
+                MessageBox.Show("El inventario no está en estado Iniciado, ya culminó o está anulado", "Toma de Inventarios", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            if (Alm.EstadoTI(_idTI) == "Terminado")
+            {
+                if (MessageBox.Show("Segur@ de modificar el stock de estos productos?", "Toma de Inventarios", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                {
+                    foreach (DataGridViewRow item in GrillaDataGridView.Rows)
+                    {
+                        if (Convert.ToBoolean(item.Cells[4].Value))
+                        {
+                            try
+                            {
+                                int _stockActual = Alm.VerStockActual(_idAlmacen, item.Cells[2].Value.ToString());
+
+                                decimal _pc = Alm.VerPrecioCompraArticulo(item.Cells[2].Value.ToString());
+
+                                if (!string.IsNullOrEmpty(item.Cells[5].Value.ToString()))
+                                {
+                                    if (Convert.ToInt32(item.Cells[5].Value) > 0)
+                                    {
+                                        Kdx.InsertarKardex(_idAlmacen, item.Cells[2].Value.ToString(), "I",
+                                            DateTime.Now, _stockActual, Convert.ToInt32(item.Cells[5].Value),
+                                            Convert.ToInt32(item.Cells[3].Value),
+                                            Convert.ToInt32(item.Cells[5].Value) * _pc,
+                                            "Sobrante por Toma de Inventario Nro: " + _idTI.ToString() +
+                                            " Realizado por: " + VariablesPublicas._Usuario);
+                                    }
+                                }
+
+                                if (!string.IsNullOrEmpty(item.Cells[6].Value.ToString()))
+                                {
+                                    if (Convert.ToInt32(item.Cells[6].Value) > 0)
+                                    {
+                                        Kdx.InsertarKardex(_idAlmacen, item.Cells[2].Value.ToString(), "E",
+                                            DateTime.Now, _stockActual, Convert.ToInt32(item.Cells[6].Value),
+                                            Convert.ToInt32(item.Cells[3].Value),
+                                            Convert.ToInt32(item.Cells[6].Value) * _pc,
+                                            "Faltante por Toma de Inventario Nro: " + _idTI.ToString() +
+                                            " Realizado por: " + VariablesPublicas._Usuario);
+                                    }
+                                }
+
+                                Alm.ActualizarStock(_idAlmacen, item.Cells[2].Value.ToString(), Convert.ToInt32(item.Cells[3].Value));
+                            }
+                            catch(Exception ex)
+                            {
+                                MessageBox.Show("Error: " + ex.Message, "Toma de Inventarios", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }                            
+                        }
+                    }
+
+                    MessageBox.Show("Stocks y Kardex Actualizados", "Toma de Inventarios", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            else
+            {
+                MessageBox.Show("El inventario no está terminado aún", "Toma de Inventarios", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            var of = new OpenFileDialog
+            {
+                Filter = @"Excel Files(.xls)|*.xls| Excel Files(.xlsx)|*.xlsx| Excel Files(*.xlsm) |*.xlsm"
+            };
+
+            if (of.ShowDialog() != DialogResult.OK) return;
+
+            var dtExcel = ExcelAdapter.ReadExcel(of.FileName, "Plantilla");
+            
+            foreach (DataRow item in dtExcel.Rows)
+            {
+                detalles = new List<TomaInventarioDetalle>();
+                detalle.idArticulo = item[0].ToString();
+                detalle.Cantidad = Convert.ToInt32(item[1]);
+                detalle.idTomaInventario = _idTI;
+
+                detalles.Add(detalle);
+                Alm.RegistrarDetallesTI(detalles);
+            }
+
+            var result = Alm.ListadoTomaInventariosDetalles(_idTI);
+            var dt = new DataTable();
+
+            dt.Columns.Add("idTomaInventarioDetalle", result[0].TomaInventarioDetalle.idTomaInventarioDetalle.GetType());
+            dt.Columns.Add("idTomaInventario", result[0].TomaInventarioDetalle.idTomaInventario.GetType());
+            dt.Columns.Add("idArticulo", result[0].TomaInventarioDetalle.idArticulo.GetType());
+            dt.Columns.Add("Cantidad", result[0].TomaInventarioDetalle.Cantidad.GetType());
+            dt.Columns.Add("Estado", result[0].TomaInventarioDetalle.Estado.GetType());
+            dt.Columns.Add("Sobrante");
+            dt.Columns.Add("Faltante");
+            dt.Columns.Add("TomaInventario");
+            dt.Columns.Add("Nombre");
+
+            foreach (var model in result)
+            {
+                var dr = dt.NewRow();
+                dr[0] = model.TomaInventarioDetalle.idTomaInventarioDetalle;
+                dr[1] = model.TomaInventarioDetalle.idTomaInventario;
+                dr[2] = model.TomaInventarioDetalle.idArticulo;
+                dr[3] = model.TomaInventarioDetalle.Cantidad;
+                dr[4] = model.TomaInventarioDetalle.Estado;
+                dr[5] = model.TomaInventarioDetalle.Sobrante;
+                dr[6] = model.TomaInventarioDetalle.Faltante;
+                dr[7] = model.TomaInventarioDetalle.TomaInventario;
+                dr[8] = model.Nombre;
+
+                dt.Rows.Add(dr);
+            }
+
+            GrillaDataGridView.DataSource = dt;
+
+            FormatoGrilla();
+        }
+    }
+}
