@@ -99,6 +99,7 @@ namespace GSCommerceAPI.Controllers
                 return NotFound();
 
             detalle.IdTomaInventario = id;
+            detalle.Estado = true;
             _context.TomaInventarioDetalles.Add(detalle);
             await _context.SaveChangesAsync();
             return Ok(detalle);

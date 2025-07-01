@@ -41,8 +41,8 @@
                     <td>@d.IdArticulo</td>
                     <td>@d.Nombre</td>
                     <td class="text-end">@d.Cantidad</td>
-                    <td class="text-end">@d.Sobrante</td>
-                    <td class="text-end">@d.Faltante</td>
+                    <td class="text-end">@(d.Sobrante ?? 0)</td>
+                    <td class="text-end">@(d.Faltante ?? 0)</td>
                 </tr>
             }
         </tbody>
