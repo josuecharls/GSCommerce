@@ -7,6 +7,7 @@
         public string Descripcion { get; set; } = string.Empty;
         public string UnidadMedida { get; set; } = "UND";
         public int Cantidad { get; set; }
+        public int CantidadOriginal { get; set; }
         public decimal Precio { get; set; }
         public decimal PorcentajeDescuento { get; set; }
         public decimal Total { get; set; }

@@ -3,6 +3,10 @@
 @using GSCommerce.Client.Services
 @inject NotaCreditoService ncService
 @inject VentaService ventaService
+@inject SerieCorrelativoService SerieCorrelativoService
+@inject AsignacionSerieCajeroService AsignacionSerieCajeroService
+@inject TipoDocumentoVentaService TipoDocumentoVentaService
+@inject AuthService AuthService
 @inject IJSRuntime JS
 @inject NavigationManager nav
 
@@ -95,10 +99,16 @@ else
     private bool loading = true;
     private bool editable = false;
     private string titulo = "";
+    private List<SerieCorrelativoDTO> seriesDisponibles = new();
+    private int? idAlmacenActual;
+    private int? idUsuarioActual;
 
     protected override async Task OnInitializedAsync()
     {
         loading = true;
+
+        idAlmacenActual = await AuthService.GetUserAlmacenId();
+        idUsuarioActual = await AuthService.GetUserId();
 
         var venta = await ventaService.ObtenerVentaPorId(idComprobante);
         if (venta == null)
@@ -109,28 +119,14 @@ else
 
         cabecera = new NotaCreditoCabeceraDTO
         {
-            IdTipoDocumento = tipo.ToUpper() switch
-            {
-                "ELECTRONICA" => 5, // Actualiza según tu código
-                "MANUAL" => 6,
-                "INTERNA" => 7,
-                _ => 0
-            },
-            Serie = tipo.ToUpper() switch
-            {
-                "ELECTRONICA" => "E001",
-                "MANUAL" => "M001",
-                "INTERNA" => "T001",
-                _ => ""
-            },
             Fecha = DateTime.Today,
             Referencia = $"{venta.Serie}-{venta.Numero.ToString("D8")}",
             IdCliente = venta.IdCliente ?? 0,
             Nombre = venta.Nombre,
             Dniruc = venta.Dniruc ?? string.Empty,
             Direccion = venta.Direccion ?? "-",
-            IdAlmacen = venta.IdAlmacen,
-            IdUsuario = venta.IdCajero,
+            IdAlmacen = idAlmacenActual ?? venta.IdAlmacen,
+            IdUsuario = idUsuarioActual ?? venta.IdCajero,
             IdMotivo = "", // Aún no seleccionado
             SubTotal = venta.SubTotal,
             Igv = venta.Igv,
@@ -138,6 +134,8 @@ else
             Total = venta.Total,
             AFavor = venta.AFavor
         };
+
+        await CargarSeriePorTipoYAlmacen();
 
         detalles = venta.Detalles.Select(d => new NotaCreditoDetalleDTO
         {
@@ -186,6 +184,67 @@ else
         cabecera.Igv = cabecera.Total - cabecera.SubTotal;
         cabecera.AFavor = cabecera.Total;
     }
+
+    private async Task CargarSeriePorTipoYAlmacen()
+    {
+        if (cabecera == null || idAlmacenActual == null)
+            return;
+
+        var tipos = await TipoDocumentoVentaService.GetTiposDocumento();
+        if (tipos == null)
+            return;
+
+        TipoDocumentoVentaDTO? tipoSeleccionado = null;
+        foreach (var t in tipos)
+        {
+            var desc = t.Descripcion.ToUpper();
+            if (!desc.Contains("NOTA") || !desc.Contains("CREDITO"))
+                continue;
+
+            if (tipo.Equals("electronica", StringComparison.OrdinalIgnoreCase) && !t.Manual && !desc.Contains("INTERNA"))
+            {
+                tipoSeleccionado = t;
+                break;
+            }
+            if (tipo.Equals("manual", StringComparison.OrdinalIgnoreCase) && t.Manual)
+            {
+                tipoSeleccionado = t;
+                break;
+            }
+            if (tipo.Equals("interna", StringComparison.OrdinalIgnoreCase) && desc.Contains("INTERNA"))
+            {
+                tipoSeleccionado = t;
+                break;
+            }
+        }
+
+        if (tipoSeleccionado == null)
+            return;
+
+        cabecera.IdTipoDocumento = tipoSeleccionado.IdTipoDocumentoVenta;
+
+        var series = await SerieCorrelativoService.ObtenerPorAlmacenAsync(idAlmacenActual.Value);
+
+        if (idUsuarioActual != null)
+        {
+            var asignadas = await AsignacionSerieCajeroService.ObtenerSeriesAsignadas(idUsuarioActual.Value, idAlmacenActual.Value);
+            var idsAsignadas = asignadas.Select(a => a.IdSerieCorrelativo).ToHashSet();
+            series = series.Where(s => idsAsignadas.Contains(s.IdSerieCorrelativo)).ToList();
+        }
+
+        seriesDisponibles = series.Where(s => s.IdTipoDocumentoVenta == tipoSeleccionado.IdTipoDocumentoVenta)
+                                  .OrderByDescending(s => s.Estado)
+                                  .ToList();
+        await JS.InvokeVoidAsync("alert", $"Series encontradas para tipo {tipoSeleccionado.IdTipoDocumentoVenta}: {seriesDisponibles.Count}");
+
+        var primera = seriesDisponibles.FirstOrDefault(s => s.Estado) ?? seriesDisponibles.FirstOrDefault();
+        if (primera != null)
+        {
+            cabecera.Serie = primera.Serie;
+            cabecera.Numero = primera.Correlativo + 1;
+        }
+    }
+
 
     private async Task EmitirNotaCredito()
     {

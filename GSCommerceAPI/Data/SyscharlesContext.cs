@@ -1278,7 +1278,9 @@ public partial class SyscharlesContext : DbContext
 
             entity.ToTable("NotaDeCreditoCabecera", "Movimientos");
 
-            entity.Property(e => e.IdNc).HasColumnName("IdNC");
+            entity.Property(e => e.IdNc)
+                .HasColumnName("IdNC")
+                .ValueGeneratedOnAdd();
             entity.Property(e => e.Afavor)
                 .HasColumnType("decimal(18, 2)")
                 .HasColumnName("AFavor");
