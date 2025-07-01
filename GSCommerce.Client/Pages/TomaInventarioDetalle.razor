@@ -1,0 +1,94 @@
+﻿@page "/toma-inventarios/detalle/{id:int}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject TomaInventariosService TIService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<h3 class="mb-3">📄 Detalles Toma Inventario</h3>
+
+<div class="mb-3 row">
+    <div class="col-md-4">
+        <input class="form-control" placeholder="Código Artículo" @bind="nuevo.IdArticulo" />
+    </div>
+    <div class="col-md-2">
+        <InputNumber class="form-control" placeholder="Cantidad" @bind-Value="nuevo.Cantidad" />
+    </div>
+    <div class="col-md-2">
+        <button class="btn btn-primary" @onclick="AgregarDetalle">Agregar</button>
+    </div>
+    <div class="col-md-4 text-end">
+        <button class="btn btn-secondary" @onclick="Volver">Volver</button>
+    </div>
+</div>
+
+@if (detalles.Any())
+{
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th class="text-end">Cantidad</th>
+                <th class="text-end">Sobrante</th>
+                <th class="text-end">Faltante</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var d in detalles)
+            {
+                <tr>
+                    <td>@d.IdArticulo</td>
+                    <td>@d.Nombre</td>
+                    <td class="text-end">@d.Cantidad</td>
+                    <td class="text-end">@d.Sobrante</td>
+                    <td class="text-end">@d.Faltante</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Sin detalles registrados.</p>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private List<TomaInventarioDetalleDTO> detalles = new();
+    private TomaInventarioDetalleDTO nuevo = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        detalles = await TIService.GetDetallesAsync(id);
+    }
+
+    private async Task AgregarDetalle()
+    {
+        if (!string.IsNullOrWhiteSpace(nuevo.IdArticulo) && nuevo.Cantidad > 0)
+        {
+            var ok = await TIService.AgregarDetalleAsync(id, nuevo);
+            if (ok)
+            {
+                nuevo = new();
+                await Cargar();
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "No se pudo agregar");
+            }
+        }
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/toma-inventarios");
+    }
+}

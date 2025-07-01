@@ -1,0 +1,137 @@
+﻿@page "/toma-inventarios"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject TomaInventariosService TIService
+@inject AlmacenService AlmacenService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<h3 class="mb-3">📋 Toma de Inventarios</h3>
+
+<div class="row mb-3">
+    <div class="col-md-2">
+        <label>Año</label>
+        <InputNumber class="form-control" @bind-Value="anio" />
+    </div>
+    <div class="col-md-4">
+        <label>Almacén</label>
+        <select class="form-select" @bind="idAlmacen">
+            <option value="">-- Todos --</option>
+            @foreach (var a in almacenes)
+            {
+                <option value="@a.IdAlmacen">@a.Nombre</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary" @onclick="CargarTomas">🔍 Buscar</button>
+    </div>
+    <div class="col-md-3 d-flex align-items-end justify-content-end">
+        <button class="btn btn-success" @onclick="IniciarNueva">+ Nueva Toma</button>
+    </div>
+</div>
+
+@if (tomas.Any())
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Almacén</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th>Intervienen</th>
+                <th class="text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var t in tomas)
+            {
+                <tr>
+                    <td>@t.Nombre</td>
+                    <td>@t.Fecha.ToShortDateString()</td>
+                    <td>@t.EstadoToma</td>
+                    <td>@t.Intervienen</td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-primary me-1" @onclick="() => VerDetalles(t.IdTomaInventario)">📄 Detalles</button>
+                        @if (t.EstadoToma == "Iniciado")
+                        {
+                            <button class="btn btn-sm btn-success me-1" @onclick="() => Terminar(t.IdTomaInventario)">✅ Terminar</button>
+                            <button class="btn btn-sm btn-danger" @onclick="() => Anular(t.IdTomaInventario)">❌ Anular</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Sin registros</p>
+}
+
+@code {
+    private List<TomaInventarioDTO> tomas = new();
+    private List<AlmacenDTO> almacenes = new();
+    private int? anio = DateTime.Now.Year;
+    private int? idAlmacen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        await CargarTomas();
+    }
+
+    private async Task CargarTomas()
+    {
+        tomas = await TIService.GetTomasAsync(anio, idAlmacen);
+    }
+
+    private async Task IniciarNueva()
+    {
+        var intervienen = await JS.InvokeAsync<string>("prompt", "¿Quiénes intervienen?", "");
+        if (idAlmacen.HasValue)
+        {
+            var dto = new TomaInventarioDTO
+            {
+                IdAlmacen = idAlmacen.Value,
+                Intervienen = intervienen
+            };
+            var nueva = await TIService.CrearAsync(dto);
+            if (nueva != null)
+            {
+                await CargarTomas();
+            }
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "Seleccione un almacén para iniciar la toma");
+        }
+    }
+
+    private void VerDetalles(int idToma)
+    {
+        Navigation.NavigateTo($"/toma-inventarios/detalle/{idToma}");
+    }
+
+    private async Task Terminar(int idToma)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Terminar esta toma de inventario?"))
+        {
+            if (await TIService.TerminarAsync(idToma))
+            {
+                await CargarTomas();
+            }
+        }
+    }
+
+    private async Task Anular(int idToma)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Anular esta toma de inventario?"))
+        {
+            if (await TIService.AnularAsync(idToma))
+            {
+                await CargarTomas();
+            }
+        }
+    }
+}
