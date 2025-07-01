@@ -181,6 +181,44 @@ namespace GSCommerceAPI.Controllers
                 stock.Stock = d.Cantidad;
             }
 
+            // Artículos que no se contaron en la toma
+            var articulosContados = toma.TomaInventarioDetalles
+                .Where(d => d.Estado)
+                .Select(d => d.IdArticulo)
+                .ToHashSet();
+
+            var stockNoContados = await _context.StockAlmacens
+                .Where(s => s.IdAlmacen == toma.IdAlmacen && !articulosContados.Contains(s.IdArticulo))
+                .ToListAsync();
+
+            foreach (var stock in stockNoContados)
+            {
+                if (stock.Stock == 0) continue;
+
+                var precio = await _context.Articulos
+                    .Where(a => a.IdArticulo == stock.IdArticulo)
+                    .Select(a => a.PrecioCompra)
+                    .FirstOrDefaultAsync();
+
+                var kardex = new Kardex
+                {
+                    IdAlmacen = toma.IdAlmacen,
+                    IdArticulo = stock.IdArticulo,
+                    TipoMovimiento = "E",
+                    Fecha = DateTime.Now,
+                    SaldoInicial = stock.Stock,
+                    Cantidad = stock.Stock,
+                    SaldoFinal = 0,
+                    Valor = precio,
+                    Origen = $"Faltante por Toma de Inventario Nro: {id}"
+                };
+
+                _context.Kardices.Add(kardex);
+
+                stock.Stock = 0;
+            }
+
+
             await _context.SaveChangesAsync();
             return NoContent();
         }
