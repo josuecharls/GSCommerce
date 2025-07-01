@@ -102,6 +102,9 @@ else
     private List<SerieCorrelativoDTO> seriesDisponibles = new();
     private int? idAlmacenActual;
     private int? idUsuarioActual;
+    private string serieOriginal = string.Empty;
+    private int idTipoDocumentoOriginal;
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -116,12 +119,14 @@ else
             loading = false;
             return;
         }
+        serieOriginal = venta.Serie;
+        idTipoDocumentoOriginal = venta.IdTipoDocumento;
 
         cabecera = new NotaCreditoCabeceraDTO
         {
             Fecha = DateTime.Today,
             Referencia = $"{venta.Serie}-{venta.Numero.ToString("D8")}",
-            IdCliente = venta.IdCliente ?? 0,
+            IdCliente = venta.IdCliente ?? 2,
             Nombre = venta.Nombre,
             Dniruc = venta.Dniruc ?? string.Empty,
             Direccion = venta.Direccion ?? "-",
@@ -198,7 +203,7 @@ else
         foreach (var t in tipos)
         {
             var desc = t.Descripcion.ToUpper();
-            if (!desc.Contains("NOTA") || !desc.Contains("CREDITO"))
+            if (!(desc.Contains("NOTA") && desc.Contains("CREDITO")))
                 continue;
 
             if (tipo.Equals("electronica", StringComparison.OrdinalIgnoreCase) && !t.Manual && !desc.Contains("INTERNA"))
@@ -237,7 +242,12 @@ else
                                   .ToList();
         await JS.InvokeVoidAsync("alert", $"Series encontradas para tipo {tipoSeleccionado.IdTipoDocumentoVenta}: {seriesDisponibles.Count}");
 
-        var primera = seriesDisponibles.FirstOrDefault(s => s.Estado) ?? seriesDisponibles.FirstOrDefault();
+        SerieCorrelativoDTO? preferida = null;
+        if (!string.IsNullOrWhiteSpace(serieOriginal))
+            preferida = seriesDisponibles.FirstOrDefault(s => s.Serie == serieOriginal);
+
+        var primera = preferida ?? seriesDisponibles.FirstOrDefault(s => s.Estado) ?? seriesDisponibles.FirstOrDefault();
+
         if (primera != null)
         {
             cabecera.Serie = primera.Serie;
