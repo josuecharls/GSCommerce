@@ -58,6 +58,10 @@
                             <button class="btn btn-sm btn-success me-1" @onclick="() => Terminar(t.IdTomaInventario)">✅ Terminar</button>
                             <button class="btn btn-sm btn-danger" @onclick="() => Anular(t.IdTomaInventario)">❌ Anular</button>
                         }
+                        else if (t.EstadoToma == "Terminado")
+                        {
+                            <button class="btn btn-sm btn-warning me-1" @onclick="() => AplicarDiferencias(t.IdTomaInventario)">📦 Aplicar</button>
+                        }
                     </td>
                 </tr>
             }
@@ -129,6 +133,18 @@ else
         if (await JS.InvokeAsync<bool>("confirm", "¿Anular esta toma de inventario?"))
         {
             if (await TIService.AnularAsync(idToma))
+            {
+                await CargarTomas();
+            }
+        }
+    }
+
+
+    private async Task AplicarDiferencias(int idToma)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Aplicar diferencias a esta toma de inventario?"))
+        {
+            if (await TIService.AplicarDiferenciasAsync(idToma))
             {
                 await CargarTomas();
             }

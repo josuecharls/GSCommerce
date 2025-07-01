@@ -17,7 +17,7 @@ public partial class TomaInventario
 
     public string? Intervienen { get; set; }
 
-    public virtual Almacen IdAlmacenNavigation { get; set; } = null!;
+    public virtual Almacen? IdAlmacenNavigation { get; set; } = null!;
 
     public virtual ICollection<TomaInventarioDetalle> TomaInventarioDetalles { get; set; } = new List<TomaInventarioDetalle>();
 }

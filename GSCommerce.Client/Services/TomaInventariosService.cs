@@ -49,6 +49,13 @@ namespace GSCommerce.Client.Services
             return response.IsSuccessStatusCode;
         }
 
+        public async Task<bool> AplicarDiferenciasAsync(int idToma)
+        {
+            var response = await _httpClient.PutAsync($"api/toma-inventarios/{idToma}/aplicar-diferencias", null);
+            return response.IsSuccessStatusCode;
+        }
+
+
         public async Task<bool> AnularAsync(int idToma)
         {
             var response = await _httpClient.PutAsync($"api/toma-inventarios/{idToma}/anular", null);
