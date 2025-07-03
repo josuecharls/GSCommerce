@@ -6,6 +6,7 @@
 @inject VentaService ventaService
 @inject CajaService CajaService
 @inject SerieCorrelativoService SerieCorrelativoService
+@inject ArticuloVarianteService ArticuloVarianteService
 @inject AsignacionSerieCajeroService AsignacionSerieCajeroService
 @inject PersonalService PersonalService
 @inject StockService StockService
@@ -362,7 +363,23 @@ OnCancelado="CobroCancelado" />
 
             if (articulo != null)
             {
-                var existente = venta.Detalles.FirstOrDefault(d => d.CodigoItem == codigo);
+                string descripcion = articulo.Descripcion;
+
+                var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
+                if (variantes.Any())
+                {
+                    var opciones = string.Join("\n", variantes.Select((v, i) => $"{i + 1}) {v.Color} {v.Talla}"));
+                    var resp = await JS.InvokeAsync<string>("prompt", $"Seleccione variante:\n{opciones}", "1");
+                    int idx = 0;
+                    if (!string.IsNullOrWhiteSpace(resp) && int.TryParse(resp, out var sel) && sel > 0 && sel <= variantes.Count)
+                        idx = sel - 1;
+
+                    var vsel = variantes[idx];
+                    descripcion = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {vsel.Color} {vsel.Talla}";
+                }
+
+                var existente = venta.Detalles.FirstOrDefault(d => d.CodigoItem == codigo && d.DescripcionItem == descripcion);
+
 
                 if (existente != null)
                 {
@@ -379,7 +396,7 @@ OnCancelado="CobroCancelado" />
                         {
                             Item = venta.Detalles.Count + 1,
                             CodigoItem = articulo.IdArticulo,
-                            DescripcionItem = articulo.Descripcion,
+                            DescripcionItem = descripcion,
                             Cantidad = 1,
                             PrecioUnitario = articulo.PrecioVenta
                         });
