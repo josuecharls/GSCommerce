@@ -32,6 +32,16 @@
             <input type="text" class="form-control" @bind="textoBusqueda" @onkeypress="OnKeyEnter" placeholder="Ej. 1002 o camisa" />
         </div>
     </div>
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label>Familia</label>
+            <input type="text" class="form-control" @bind="familia" />
+        </div>
+        <div class="col-md-3">
+            <label>Línea</label>
+            <input type="text" class="form-control" @bind="linea" />
+        </div>
+    </div>
 
     <div class="text-end mb-2">
         <button class="btn btn-primary" @onclick="BuscarKardex">🔍 Consultar</button>
@@ -49,6 +59,8 @@
                 <thead class="table-light">
                     <tr>
                         <th>Fecha</th>
+                        <th>Familia</th>
+                        <th>Línea</th>
                         <th>Código</th>
                         <th>Artículo</th>
                         <th>Operación</th>
@@ -64,6 +76,8 @@
                     {
                         <tr>
                             <td>@item.Fecha?.ToString("dd/MM/yyyy")</td>
+                            <td>@item.Familia</td>
+                            <td>@item.Linea</td>
                             <td>@item.Codigo</td>
                             <td>@item.Articulo</td>
                             <td>@item.Operacion</td>
@@ -94,6 +108,8 @@
     private DateTime fechaDesde = DateTime.Today.AddDays(-30);
     private DateTime fechaHasta = DateTime.Today;
     private string textoBusqueda = "";
+    private string familia = "";
+    private string linea = "";
     private bool isLoading = false;
 
     protected override async Task OnInitializedAsync()
@@ -108,20 +124,24 @@
             textoBusqueda,
             idAlmacen == 0 ? null : idAlmacen,
             fechaDesde,
-            fechaHasta
+            fechaHasta,
+            familia,
+            linea
         );
         isLoading = false;
     }
 
     private async Task ExportarAExcel()
     {
-        var headers = new[] { "Fecha", "Código", "Artículo", "Operación", "Entrada", "Salida", "Saldo",
-        "Precio Compra", "Precio Venta" 
+        var headers = new[] { "Fecha", "Familia", "Línea", "Código", "Artículo", "Operación", "Entrada", "Salida", "Saldo",
+        "Precio Compra", "Precio Venta"
         };
 
         var data = kardexData.Select(item => new object[]
         {
             item.Fecha,
+            item.Familia,
+            item.Linea,
             item.Codigo,
             item.Articulo,
             item.Operacion,

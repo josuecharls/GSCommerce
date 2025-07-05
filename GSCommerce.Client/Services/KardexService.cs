@@ -16,7 +16,9 @@ namespace GSCommerce.Client.Services
             string? articulo = null,
             int? idAlmacen = null,
             DateTime? desde = null,
-            DateTime? hasta = null)
+            DateTime? hasta = null,
+            string? familia = null,
+            string? linea = null)
         {
             var query = new List<string>();
 
@@ -31,6 +33,12 @@ namespace GSCommerce.Client.Services
 
             if (hasta.HasValue)
                 query.Add($"hasta={hasta.Value:yyyy-MM-dd}");
+
+            if (!string.IsNullOrWhiteSpace(familia))
+                query.Add($"familia={Uri.EscapeDataString(familia)}");
+
+            if (!string.IsNullOrWhiteSpace(linea))
+                query.Add($"linea={Uri.EscapeDataString(linea)}");
 
             var queryString = query.Count > 0 ? "?" + string.Join("&", query) : "";
 

@@ -19,7 +19,9 @@ namespace GSCommerce.Client.Services
             string textoBusqueda,
             int? idAlmacen,
             DateTime fechaDesde,
-            DateTime fechaHasta)
+            DateTime fechaHasta,
+            string? familia = null,
+            string? linea = null)
         {
             try
             {
@@ -27,6 +29,12 @@ namespace GSCommerce.Client.Services
 
                 if (idAlmacen.HasValue)
                     url += $"&idAlmacen={idAlmacen.Value}";
+
+                if (!string.IsNullOrWhiteSpace(familia))
+                    url += $"&familia={Uri.EscapeDataString(familia)}";
+
+                if (!string.IsNullOrWhiteSpace(linea))
+                    url += $"&linea={Uri.EscapeDataString(linea)}";
 
                 var result = await _httpClient.GetFromJsonAsync<List<KardexDetalladoDTO>>(url);
                 return result ?? new List<KardexDetalladoDTO>();

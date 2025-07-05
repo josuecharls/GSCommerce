@@ -22,7 +22,9 @@ namespace GSCommerceAPI.Controllers
             [FromQuery] string? articulo = null,
             [FromQuery] int? idAlmacen = null,
             [FromQuery] DateTime? desde = null,
-            [FromQuery] DateTime? hasta = null)
+            [FromQuery] DateTime? hasta = null,
+            [FromQuery] string? familia = null,
+            [FromQuery] string? linea = null)
         {
             var query = _context.VKardex3s.AsQueryable();
 
@@ -45,6 +47,16 @@ namespace GSCommerceAPI.Controllers
             if (hasta.HasValue)
             {
                 query = query.Where(k => k.Fecha <= DateOnly.FromDateTime(hasta.Value));
+            }
+
+            if (!string.IsNullOrWhiteSpace(familia))
+            {
+                query = query.Where(k => k.Familia.Contains(familia));
+            }
+
+            if (!string.IsNullOrWhiteSpace(linea))
+            {
+                query = query.Where(k => k.Linea.Contains(linea));
             }
 
             return await query.OrderByDescending(k => k.Fecha).ThenBy(k => k.Codigo).ToListAsync();
