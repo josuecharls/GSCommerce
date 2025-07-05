@@ -1,0 +1,1323 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using BusinessLayer;
+using DataAccess;
+
+namespace WinFrontEnd
+{
+    public partial class FormAlmacenIngresoEgresoRegistro : Form
+    {
+        MovimientosCabecera Cabecera = new MovimientosCabecera();
+        List<MovimientosCabecera> Cabe = new List<MovimientosCabecera>();
+        BindingList<MovimientosDetalle> Detalle = new BindingList<MovimientosDetalle>();
+        StockClass StockXArticuloXAlmacen = new StockClass();
+        List<Articulo> Articulos = new List<Articulo>();
+        ArticuloClass Articulo = new ArticuloClass();
+        Articulo Arti = new Articulo();
+        AuxiliarVariosClass CombosAuxiliares = new AuxiliarVariosClass();
+        List<AuxiliarVarios> ListaVarios = new List<AuxiliarVarios>();
+        MovimientoAlmacenClass Movi = new MovimientoAlmacenClass();
+        MovimientoAlmacenClass Movi2 = new MovimientoAlmacenClass();
+        VariosClass Varios = new VariosClass();
+        AlmacenClass Alm = new AlmacenClass();
+        ProveedorClass Proveedor = new ProveedorClass();
+        List<Proveedor> Provee = new List<Proveedor>();
+        List<v_DetalleOCParaIngreso_1> DetalleOCIngreso = new List<v_DetalleOCParaIngreso_1>();
+        //List<v_DetalleOCParaIngreso_1> DetalleOCIngresoMaximos = new List<v_DetalleOCParaIngreso_1>();
+        OrdenDeCompraClass OrdenCompra = new OrdenDeCompraClass();
+        OrdenDeCompraCabecera OC = new OrdenDeCompraCabecera();
+
+        string TipoMovimiento;
+        int IdOC;
+        string Foco;
+
+        Boolean Carga;
+        Boolean EditaCelda;
+        Boolean Insertando;
+        Boolean IngresoXOC;
+
+        Boolean Nuevo;
+        int IdMov;
+
+        int LineaNueva;
+        int TotalArticulos = 0;
+        int IdAlmacenOrigen;
+        int IdAlmacenDestino;
+        int IdAlmacen;
+        int IdProveedor;
+
+        int CantidadPrevia;
+
+        DateTime Fecha;
+
+        ClassValidaFormulario cvf = new ClassValidaFormulario();
+
+        //public FormAlmacenIngresoEgresoRegistro(string _movimiento, int _IdOC, Boolean _nuevo, int _idMov)
+        public FormAlmacenIngresoEgresoRegistro(string _movimiento, int _IdOC)
+        {
+            InitializeComponent();
+
+            TipoMovimiento = _movimiento;
+            IdOC = _IdOC;
+            //Nuevo = _nuevo;
+            //IdMov = _idMov;
+
+            if (IdOC == 0)
+            { 
+                IngresoXOC = false;
+                TipoMovimiento = _movimiento;
+            }
+            else
+            { 
+                IngresoXOC = true;
+                TipoMovimiento = _movimiento + "XOC";
+            }
+
+            this.KeyPreview = true;
+            this.KeyPress += new KeyPressEventHandler(FormAlmacenIngresoEgreso_KeyPress);
+
+            this.Text = "Almacén - Registro de " + TipoMovimiento;
+
+            if (IngresoXOC)
+            {
+                CabeceraSplitContainer.Visible = true;
+
+                CabeceraSplitContainer.Panel2Collapsed = true;
+                RUCProveedorTextBox.Enabled = false;
+                BuscarProveedorButton.Enabled = false;
+            }
+            else
+            {
+                if (TipoMovimiento == "Transferencia")
+                {
+
+                    CabeceraSplitContainer.Visible = true;
+
+                    CabeceraSplitContainer.Panel1Collapsed = true;
+                    RUCProveedorTextBox.Enabled = false;
+                    BuscarProveedorButton.Enabled = false;
+
+                }
+                else
+                {
+
+                    CabeceraSplitContainer.Visible = false;
+
+                    //DescripcionLabel.Location = new Point(8, 80);
+                    //DescripcionTextBox.Location = new Point(103, 75);
+                    //DescripcionTextBox.Height = 78;
+
+                }
+            }
+
+        }
+
+        private void FormAlmacenIngresoEgreso_KeyPress(object sender, KeyPressEventArgs e)
+        {
+
+            if (this.ActiveControl.Tag != null)
+                cvf.ValidaTeclas(this.ActiveControl.Tag.ToString(), e);
+
+        }
+
+        private void FormAlmacenIngresEgreso_Load(object sender, EventArgs e)
+        {
+            Carga = false;
+
+            if (IngresoXOC)
+            {
+                CargaCombos();
+                PreparaIngresoXOC();
+
+            }
+            else
+            {
+                IdAlmacen = VariablesPublicas._IdAlmacen;
+                //IdAlmacenOrigen = VariablesPublicas._IdAlmacen;
+                //IdAlmacenDestino = 0;
+                IdProveedor = 0;
+
+                CargaCombos();
+                Inicializa();
+            }
+
+            Carga = true;
+        }
+
+        private void PreparaIngresoXOC()
+        {
+
+            MotivoComboBox.Enabled = false;
+            AgregaButton.Enabled = false;
+            //QuitaButton.Enabled = false;
+
+            OC = OrdenCompra.OrdenDeCompraXId(IdOC);
+
+            IdProveedor = OC.IdProveedor;
+            RUCProveedorTextBox.Text = OC.RUCProveedor;
+            NombreProveedorLabel.Text = OC.NombreProveedor;
+
+            DescripcionTextBox.Text = OC.Glosa + " - Compra al proveedor " + OC.NombreProveedor + " - OC " + OC.NumeroOC;
+            DescripcionTextBox.ReadOnly = true;
+
+            Fecha = VariablesPublicas._FechaHoy;
+            FechaDateTimePicker.Value = VariablesPublicas._FechaHoy;
+
+            DetalleOCIngreso = Movi.DetalleOCParaIngreso(IdOC);
+            
+            //DetalleOCIngresoMaximos = Movi2.DetalleOCParaIngreso(IdOC);
+
+            DetalleBindingSource.DataSource = DetalleOCIngreso;
+
+            GrillaDataGridView.Columns[2].ReadOnly = true;
+            GrillaDataGridView.Columns[4].ReadOnly = true;
+
+            GrillaDataGridView.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+
+            CalculaTotales();
+
+        }
+
+        private void CargaCombos()
+        {
+
+            switch (TipoMovimiento)
+            {
+                case "Ingreso":
+                    ListaVarios = CombosAuxiliares.ObtenerLista("ALMACEN INGRESO");
+                    ListaVarios.Remove(new AuxiliarVarios() { Descripcion = "COMPRA A PROVEEDOR"});
+
+                    MotivoComboBox.DisplayMember = "Descripcion";
+                    MotivoComboBox.ValueMember = "Descripcion";
+                    MotivoComboBox.DataSource = ListaVarios;
+                    break;
+                case "Egreso":
+                    MotivoComboBox.DisplayMember = "Descripcion";
+                    MotivoComboBox.ValueMember = "Descripcion";
+                    MotivoComboBox.DataSource = CombosAuxiliares.ObtenerLista("ALMACEN EGRESO");
+                    break;
+                case "Transferencia":
+                    MotivoComboBox.DisplayMember = "Descripcion";
+                    MotivoComboBox.ValueMember = "Descripcion";
+                    MotivoComboBox.DataSource = CombosAuxiliares.ObtenerLista("ALMACEN TRANSFERENCIA");
+
+                    AlmacenOrigenComboBox.DisplayMember = "Nombre";
+                    AlmacenOrigenComboBox.ValueMember = "IdAlmacen";
+                    AlmacenOrigenComboBox.DataSource = Alm.ObtenerListaActivos();
+                    IdAlmacenOrigen = int.Parse(AlmacenOrigenComboBox.SelectedValue.ToString());
+
+                    AlmacenDestinoComboBox.DisplayMember = "Nombre";
+                    AlmacenDestinoComboBox.ValueMember = "IdAlmacen";
+                    AlmacenDestinoComboBox.DataSource = Alm.ObtenerListaActivos();
+                    IdAlmacenDestino = int.Parse(AlmacenDestinoComboBox.SelectedValue.ToString());
+                    break;
+                case "IngresoXOC":
+                    MotivoComboBox.Items.Add("COMPRA A PROVEEDOR");
+                    MotivoComboBox.SelectedIndex = 0;
+                                       
+                    AlmacenDestinoComboBox.DisplayMember = "Nombre";
+                    AlmacenDestinoComboBox.ValueMember = "IdAlmacen";
+                    AlmacenDestinoComboBox.DataSource = Alm.ObtenerListaActivos();
+                    //IdAlmacenDestino = int.Parse(AlmacenDestinoComboBox.SelectedValue.ToString());
+                    IdAlmacenDestino = VariablesPublicas._IdAlmacen;
+                    break;
+            }
+
+            if (VariablesPublicas._Cargo == "ADMINISTRADOR" & TipoMovimiento != "Transferencia")
+            {
+                AlmacenComboBox.Visible = true;
+                AlmacenLabel.Visible = true;
+
+                AlmacenComboBox.DisplayMember = "Nombre";
+                AlmacenComboBox.ValueMember = "IdAlmacen";
+                AlmacenComboBox.DataSource = Alm.ObtenerListaActivos();
+                IdAlmacen = int.Parse(AlmacenComboBox.SelectedValue.ToString());
+            }
+
+        }
+
+        private void Inicializa()
+        {
+
+            Fecha = VariablesPublicas._FechaHoy;
+            FechaDateTimePicker.Value = VariablesPublicas._FechaHoy;
+            
+            DetalleBindingSource.DataSource = Detalle;
+
+            MovimientosDetalle NuevoDetalle = new MovimientosDetalle();
+            LineaNueva = 1;
+            NuevoDetalle.Item = LineaNueva;
+            Detalle.Add(NuevoDetalle);
+
+            MotivoComboBox.SelectedIndex = 0;
+
+            if (TipoMovimiento == "Transferencia")
+            { 
+                MotivoComboBox.Enabled = false;
+
+                if (VariablesPublicas._Cargo == "ALMACENERO" || VariablesPublicas._Cargo == "CAJERO")
+                {
+                    AlmacenOrigenComboBox.SelectedValue = VariablesPublicas._IdAlmacen;
+                    IdAlmacenOrigen = VariablesPublicas._IdAlmacen;
+
+                    if (VariablesPublicas._Cargo == "CAJERO")
+                        AlmacenOrigenComboBox.Enabled = false;
+                }
+            }
+            else
+            {
+
+                if (VariablesPublicas._Cargo == "ADMINISTRADOR")
+                {
+                    AlmacenComboBox.SelectedValue = VariablesPublicas._IdAlmacen;
+                    IdAlmacen = VariablesPublicas._IdAlmacen;
+                }
+
+            }
+
+            GrillaDataGridView.CurrentCell = GrillaDataGridView[2, LineaNueva - 1];
+
+            GrillaDataGridView.Focus();
+
+            FormatoGrilla();
+
+        }
+
+        private void FormatoGrilla()
+        {
+
+            ////GrillaDataGridView.AutoResizeColumns();
+            ////GrillaDataGridView.Columns[0].Visible = false;
+            ////GrillaDataGridView.Columns[1].HeaderText = "Item";
+            //GrillaDataGridView.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            ////GrillaDataGridView.Columns[2].HeaderText = "Código";
+            //GrillaDataGridView.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            ////GrillaDataGridView.Columns[3].HeaderText = "Descripción";
+            //GrillaDataGridView.Columns[3].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            ////GrillaDataGridView.Columns[4].HeaderText = "UM";
+            ////GrillaDataGridView.Columns[4].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            ////GrillaDataGridView.Columns[5].HeaderText = "Cantidad";
+            //GrillaDataGridView.Columns[5].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            //GrillaDataGridView.Columns[5].DefaultCellStyle.Format = "N2";
+            ////GrillaDataGridView.Columns[6].HeaderText = "Precio";
+            //GrillaDataGridView.Columns[6].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            //GrillaDataGridView.Columns[6].DefaultCellStyle.Format = "N2";
+            ////GrillaDataGridView.Columns[7].HeaderText = "% Desc.";
+            //GrillaDataGridView.Columns[7].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            //GrillaDataGridView.Columns[7].DefaultCellStyle.Format = "N2";
+            ////GrillaDataGridView.Columns[8].HeaderText = "Total";
+            //GrillaDataGridView.Columns[8].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            //GrillaDataGridView.Columns[8].DefaultCellStyle.Format = "N2";
+            ////GrillaDataGridView.Columns[9].Visible = false;
+
+        }
+
+        private void SalirButton_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void QuitaButton_Click(object sender, EventArgs e)
+        {
+            if (IngresoXOC)
+            {
+                if (GrillaDataGridView.Rows.Count >= 1)
+                {
+
+                    DetalleOCIngreso.RemoveAt(GrillaDataGridView.CurrentRow.Index);
+                    //DetalleOCIngresoMaximos.RemoveAt(GrillaDataGridView.CurrentRow.Index);
+
+                }
+            }
+            else
+            {
+                if (GrillaDataGridView.Rows.Count > 1)
+                {
+                    Detalle.RemoveAt(GrillaDataGridView.CurrentRow.Index);
+
+                    int i = 0;
+
+                    foreach (MovimientosDetalle LineaDetalle in Detalle)
+                    {
+                        i++;
+
+                        LineaDetalle.Item = i;
+                    }
+                }
+                else if (GrillaDataGridView.Rows.Count == 1)
+                {
+                    Detalle.RemoveAt(GrillaDataGridView.CurrentRow.Index);
+
+                    MovimientosDetalle NuevoDetalle = new MovimientosDetalle();
+                    LineaNueva = GrillaDataGridView.Rows.Count + 1;
+                    NuevoDetalle.Item = LineaNueva;
+                    Detalle.Add(NuevoDetalle);
+
+                    GrillaDataGridView.CurrentCell = GrillaDataGridView[2, LineaNueva - 1];
+
+                    GrillaDataGridView.Focus();
+                }
+            }
+
+            DetalleBindingSource.ResetBindings(false);
+
+            CalculaTotales();
+        }
+
+        private void CalculaTotales()
+        {
+
+            TotalArticulos = 0;
+
+            if (IngresoXOC)
+            {
+
+                foreach (v_DetalleOCParaIngreso_1 LineaDetalle in DetalleOCIngreso)
+                {
+
+                    TotalArticulos = TotalArticulos + LineaDetalle.Cantidad;
+
+                }
+
+            }
+            else
+            {
+                foreach (MovimientosDetalle LineaDetalle in Detalle)
+                {
+
+                    TotalArticulos = TotalArticulos + LineaDetalle.Cantidad;
+
+                }
+            }
+
+            TotalArticulosLabel.Text = "Artículos en total: " + TotalArticulos.ToString();
+
+        }
+
+        private void FormAlmacenIngresoEgreso_KeyDown(object sender, KeyEventArgs e)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Insert:
+                    if (!IngresoXOC)
+                    {
+                        if (Detalle[Detalle.Count - 1].DescripcionArticulo != null & Detalle[Detalle.Count - 1].DescripcionArticulo != "")
+                        {
+                            MovimientosDetalle NuevoDetalle = new MovimientosDetalle();
+                            LineaNueva = GrillaDataGridView.Rows.Count + 1;
+                            NuevoDetalle.Item = LineaNueva;
+                            NuevoDetalle.Cantidad = 0;
+                            Detalle.Add(NuevoDetalle);
+                        }
+
+                        GrillaDataGridView.CurrentCell = GrillaDataGridView[2, LineaNueva - 1];
+
+                        GrillaDataGridView.Focus();
+                    }
+                    e.Handled = true;
+                    break;
+
+                case Keys.Delete:
+
+                    if (this.ActiveControl == this.GrillaDataGridView & EditaCelda == false)
+                    {
+                        QuitaButton_Click(sender, e);
+                        e.Handled = true;
+                    }
+                    break;
+
+                case Keys.Home:
+                case Keys.PageDown:
+                case Keys.PageUp:
+
+                    if (this.ActiveControl == this.GrillaDataGridView & EditaCelda == false)
+                    {
+                        e.Handled = true;
+                    }
+
+                    break;
+
+                case Keys.End:
+                    GrabarModificarButton_Click(sender, e);
+                    e.Handled = true;
+                    break;
+
+            }
+        }
+
+        private void FormAlmacenIngresoEgreso_KeyUp(object sender, KeyEventArgs e)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Insert:
+                    if (!IngresoXOC)
+                        GrillaDataGridView.CurrentCell = GrillaDataGridView[2, LineaNueva - 1];
+
+                    e.Handled = true;
+                    break;
+            }
+        }
+
+        private void GrillaDataGridView_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
+        {
+            if (IngresoXOC)
+            {
+                Insertando = true;
+                EditaCelda = true;
+
+                //CantidadPrevia = int.Parse(DetalleOCIngresoMaximos[e.RowIndex].Cantidad.ToString());
+
+            }
+            else
+            {
+                if ((e.RowIndex == Detalle.Count - 1 & e.ColumnIndex == 2 & string.IsNullOrEmpty(Detalle[e.RowIndex].DescripcionArticulo)) || e.ColumnIndex == 4)
+                {
+                    Insertando = true;
+                    EditaCelda = true;
+
+                    CantidadPrevia = Detalle[e.RowIndex].Cantidad;
+
+                }
+                else
+                {
+                    e.Cancel = true;
+                }
+            }
+
+        }
+
+        private void GrillaDataGridView_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            int columna = e.ColumnIndex;
+            int fila = e.RowIndex;
+
+            if (IngresoXOC)
+            {
+                if (GrillaDataGridView.CurrentCell == GrillaDataGridView[4, e.RowIndex])
+                {
+                    if (DetalleOCIngreso[e.RowIndex].Cantidad > CantidadPrevia)
+                    {
+
+                        MessageBox.Show("¡La cantidad no puede ser mayor al saldo por ingresar del articulo para esta OC (Máximo:" + CantidadPrevia.ToString() + ")!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        DetalleOCIngreso[e.RowIndex].Cantidad = CantidadPrevia;
+
+                        CalculaTotales();
+
+                        DetalleBindingSource.ResetBindings(false);
+
+                    }
+                }
+            }
+            else
+            {
+                if (!String.IsNullOrEmpty(Detalle[fila].IdArticulo) & !String.IsNullOrEmpty(Detalle[fila].Cantidad.ToString()))
+                {
+
+                    if (TipoMovimiento == "Ingreso")
+                    {
+
+                        if (GrillaDataGridView.CurrentCell == GrillaDataGridView[2, fila])
+                        {
+                            GrillaDataGridView.CurrentCell.Value = int.Parse(GrillaDataGridView.CurrentCell.Value.ToString()).ToString("D6");
+
+                            Articulos = Articulo.ObtenerArticuloXId(GrillaDataGridView.CurrentCell.Value.ToString());
+
+                            if (Articulos.Count == 1)
+                            {
+                                Boolean Escape = false;
+
+                                foreach (MovimientosDetalle LineaDetalle in Detalle)
+                                {
+
+                                    if (!Escape)
+                                    {
+                                        fila = LineaDetalle.Item - 1;
+
+                                        if (LineaDetalle.IdArticulo == Articulos[0].IdArticulo)
+                                        {
+                                            LineaDetalle.DescripcionArticulo = Articulos[0].Descripcion;
+                                            LineaDetalle.Cantidad = LineaDetalle.Cantidad + 1;
+                                            LineaDetalle.Valor = Articulos[0].PrecioCompra;
+
+                                            Escape = true;
+                                        }
+                                    }
+
+                                }
+
+                                if (Escape)
+                                {
+
+                                    if (fila < Detalle.Count - 1)
+                                    {
+                                        Detalle[Detalle.Count - 1].IdArticulo = "";
+                                        fila = Detalle.Count - 1;
+                                    }
+                                    else
+                                    {
+
+                                        columna = 4;
+
+                                    }
+
+                                }
+                                else
+                                {
+
+                                    fila = Detalle.Count - 1;
+                                    columna = 4;
+
+                                }
+
+                            }
+                            else
+                            {
+
+                                MessageBox.Show("¡Artículo no existe!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                Detalle[e.RowIndex].IdArticulo = "";
+
+                            }
+
+                        }
+                        else if (GrillaDataGridView.CurrentCell == GrillaDataGridView[4, fila])
+                        {
+
+                            if (string.IsNullOrEmpty(GrillaDataGridView.CurrentCell.Value.ToString()))
+                                Detalle[e.RowIndex].Cantidad = CantidadPrevia;
+
+                        }
+                        else
+                        {
+
+                            Detalle[e.RowIndex].IdArticulo = "";
+                            Detalle[e.RowIndex].DescripcionArticulo = "";
+                            Detalle[e.RowIndex].Cantidad = 0;
+                            Detalle[e.RowIndex].Valor = Convert.ToDecimal(0.00);
+
+                        }
+                    }
+                    else
+                    {
+                        if (GrillaDataGridView.CurrentCell == GrillaDataGridView[2, fila])
+                        {
+
+                            GrillaDataGridView.CurrentCell.Value = int.Parse(GrillaDataGridView.CurrentCell.Value.ToString()).ToString("D6");
+
+                            List<StockAlmacen> ArticuloStock;
+
+                            if (TipoMovimiento == "Transferencia")
+
+                            {
+                                ArticuloStock = StockXArticuloXAlmacen.StockIndividualArticuloXAlmacen(IdAlmacenOrigen, GrillaDataGridView.CurrentCell.Value.ToString());
+                            }
+                            else
+                            { 
+                                ArticuloStock = StockXArticuloXAlmacen.StockIndividualArticuloXAlmacen(IdAlmacen, GrillaDataGridView.CurrentCell.Value.ToString());
+                            }
+
+                            if (ArticuloStock.Count == 1)
+                            {
+                                Articulos = Articulo.ObtenerArticuloXId(GrillaDataGridView.CurrentCell.Value.ToString());
+
+                                Boolean Escape = false;
+
+                                foreach (MovimientosDetalle LineaDetalle in Detalle)
+                                {
+
+                                    if (!Escape)
+                                    {
+                                        fila = LineaDetalle.Item - 1;
+
+                                        if (LineaDetalle.IdArticulo == Articulos[0].IdArticulo)
+                                        {
+                                            if (LineaDetalle.Cantidad + 1 <= ArticuloStock[0].Stock)
+                                            {
+                                                LineaDetalle.DescripcionArticulo = Articulos[0].Descripcion;
+                                                LineaDetalle.Cantidad = LineaDetalle.Cantidad + 1;
+                                                LineaDetalle.Valor = Articulos[0].PrecioCompra;
+                                                //if (TipoMovimiento == "Transferencia")
+                                                //    LineaDetalle.Valor = Articulos[0].PrecioCompra;
+                                                //else
+                                                //    LineaDetalle.Valor = Articulos[0].PrecioCompra;
+                                            }
+                                            else
+                                            {
+                                                MessageBox.Show("¡No hay suficiente stock de este Artículo!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                                Detalle[e.RowIndex].IdArticulo = "";
+                                            }
+
+                                            Escape = true;
+                                        }
+                                    }
+
+                                }
+
+                                if (Escape)
+                                {
+
+                                    if (fila < Detalle.Count - 1)
+                                    {
+                                        Detalle[Detalle.Count - 1].IdArticulo = "";
+                                        fila = Detalle.Count - 1;
+                                    }
+                                    else
+                                    {
+
+                                        columna = 4;
+
+                                    }
+
+                                }
+                                else
+                                {
+
+                                    fila = Detalle.Count - 1;
+                                    columna = 4;
+
+                                }
+
+                            }
+                            else
+                            {
+
+                                MessageBox.Show("¡Artículo sin stock o no registrado en el Almacén!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+                                Detalle[e.RowIndex].IdArticulo = "";
+
+                            }
+
+                        }
+                        else if (GrillaDataGridView.CurrentCell == GrillaDataGridView[4, fila])
+                        {
+
+                            List<StockAlmacen> ArticuloStock;
+
+                            if (TipoMovimiento == "Transferencia")
+                            {
+                                ArticuloStock = StockXArticuloXAlmacen.StockIndividualArticuloXAlmacen(IdAlmacenOrigen, GrillaDataGridView[2, e.RowIndex].Value.ToString());
+                            }
+                            else
+                            {
+                                if (VariablesPublicas._Cargo == "ADMINISTRADOR")
+                                    ArticuloStock = StockXArticuloXAlmacen.StockIndividualArticuloXAlmacen(IdAlmacen, GrillaDataGridView[2, e.RowIndex].Value.ToString());
+                                else
+                                    ArticuloStock = StockXArticuloXAlmacen.StockIndividualArticuloXAlmacen(VariablesPublicas._IdAlmacen, GrillaDataGridView[2, e.RowIndex].Value.ToString());
+                            }
+
+                            if (Detalle[e.RowIndex].Cantidad > ArticuloStock[0].Stock)
+                            {
+                                MessageBox.Show("¡No hay stock suficiente de este Artículo!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                Detalle[e.RowIndex].Cantidad = CantidadPrevia;
+                            }
+
+                        }
+                        else
+                        {
+
+                            if (GrillaDataGridView.CurrentCell == GrillaDataGridView[4, e.RowIndex])
+                            {
+                                Detalle[e.RowIndex].Cantidad = CantidadPrevia;
+                            }
+                            else
+                            {
+                                Detalle[e.RowIndex].IdArticulo = "";
+                                Detalle[e.RowIndex].DescripcionArticulo = "";
+                                Detalle[e.RowIndex].Cantidad = 0;
+                                Detalle[e.RowIndex].Valor = Convert.ToDecimal(0.00);
+                            }
+
+                            columna = 2;
+                        }
+                    }
+
+                    CalculaTotales();
+
+                    DetalleBindingSource.ResetBindings(false);
+
+                }
+                else
+                {
+
+                    Detalle[e.RowIndex].IdArticulo = "";
+                    Detalle[e.RowIndex].DescripcionArticulo = "";
+                    Detalle[e.RowIndex].Cantidad = 0;
+                    Detalle[e.RowIndex].Valor = Convert.ToDecimal(0.00);
+
+                    columna = 2;
+
+                }
+            }
+
+            GrillaDataGridView.CurrentCell = GrillaDataGridView[columna, fila];
+
+            GrillaDataGridView.Focus();
+
+            EditaCelda = false;
+
+            Insertando = false;
+        }
+    
+        private void AgregaButton_Click(object sender, EventArgs e)
+        {
+            Insertando = true;
+
+            string Busca = "";
+
+            FormBuscaArticulo fbart;
+
+            switch (TipoMovimiento)
+            {
+                case "Ingreso":
+                    Busca = "TotalConPrecio";
+                    break;
+                case "Egreso":
+                    Busca = "PorAlmacenConStock";
+                    break;
+                case "Transferencia":
+                    Busca = "PorAlmacenConStock";
+                    IdAlmacen = IdAlmacenOrigen;
+                    break;
+            }
+
+            fbart = new FormBuscaArticulo(Busca, IdAlmacen);
+            fbart.ShowDialog(this);
+
+            if (fbart.CodigoArticulo != null)
+            {
+                if (TipoMovimiento == "Ingreso")
+                {
+                    int fila = Detalle.Count - 1;
+                    int columna = 4;
+
+                    Articulos = Articulo.ObtenerArticuloXId(fbart.CodigoArticulo);
+
+                    Boolean Escape = false;
+
+                    foreach (MovimientosDetalle LineaDetalle in Detalle)
+                    {
+
+                        if (!Escape)
+                        {
+                            fila = LineaDetalle.Item - 1;
+
+                            if (LineaDetalle.IdArticulo == Articulos[0].IdArticulo)
+                            {
+                                LineaDetalle.Cantidad = LineaDetalle.Cantidad + 1;
+                                Escape = true;
+                            }
+                        }
+
+                    }
+
+                    if (!Escape)
+                    {
+                        if (!string.IsNullOrEmpty(Detalle[fila].IdArticulo))
+                        {
+                            MovimientosDetalle NuevoDetalle = new MovimientosDetalle();
+                            LineaNueva = Detalle.Count + 1;
+                            NuevoDetalle.Item = LineaNueva;
+                            Detalle.Add(NuevoDetalle);
+                            fila = Detalle.Count - 1;
+                        }
+
+                        Detalle[fila].IdArticulo = Articulos[0].IdArticulo;
+                        Detalle[fila].DescripcionArticulo = Articulos[0].Descripcion;
+                        Detalle[fila].Cantidad = 1;
+                        Detalle[fila].Valor = Articulos[0].PrecioCompra;
+                    }
+
+                    DetalleBindingSource.ResetBindings(false);
+
+                    CalculaTotales();
+
+                    GrillaDataGridView.Focus();
+
+                    GrillaDataGridView.CurrentCell = GrillaDataGridView[columna, fila];
+                }
+                else
+                {
+                    List<StockAlmacen> ArticuloStock;
+
+                    if (TipoMovimiento == "Transferencia")
+                    {
+                        ArticuloStock = StockXArticuloXAlmacen.StockIndividualArticuloXAlmacen(IdAlmacenOrigen, fbart.CodigoArticulo);
+                    }
+                    else
+                    {
+                        ArticuloStock = StockXArticuloXAlmacen.StockIndividualArticuloXAlmacen(IdAlmacen, fbart.CodigoArticulo);
+                    }
+
+                    if (ArticuloStock.Count == 1)
+                    {
+                        int fila = Detalle.Count - 1;
+                        int columna = 4;
+
+                        Articulos = Articulo.ObtenerArticuloXId(fbart.CodigoArticulo);
+
+                        Boolean Escape = false;
+
+                        foreach (MovimientosDetalle LineaDetalle in Detalle)
+                        {
+
+                            if (!Escape)
+                            {
+                                fila = LineaDetalle.Item - 1;
+
+                                if (LineaDetalle.IdArticulo == Articulos[0].IdArticulo)
+                                {
+                                    if (LineaDetalle.Cantidad + 1 <= ArticuloStock[0].Stock)
+                                    {
+                                        LineaDetalle.Cantidad = LineaDetalle.Cantidad + 1;
+                                    }
+                                    else
+                                    {
+                                        MessageBox.Show("¡No hay suficiente stock de este Artículo!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                    }
+
+                                    Escape = true;
+                                }
+                            }
+
+                        }
+
+                        if (!Escape)
+                        {
+                            if (!string.IsNullOrEmpty(Detalle[fila].IdArticulo))
+                            {
+                                MovimientosDetalle NuevoDetalle = new MovimientosDetalle();
+                                LineaNueva = Detalle.Count + 1;
+                                NuevoDetalle.Item = LineaNueva;
+                                Detalle.Add(NuevoDetalle);
+                                fila = Detalle.Count - 1;
+                            }
+
+                            Detalle[fila].IdArticulo = Articulos[0].IdArticulo;
+                            Detalle[fila].DescripcionArticulo = Articulos[0].Descripcion;
+                            Detalle[fila].Cantidad = 1;
+                            Detalle[fila].Valor = Articulos[0].PrecioCompra;
+                            //if (TipoMovimiento == "Transferencia")
+                            //    Detalle[fila].Valor = Articulos[0].PrecioCompra;
+                            //else
+                            //    Detalle[fila].Valor = Articulos[0].PrecioCompra;
+                        }
+
+                        DetalleBindingSource.ResetBindings(false);
+
+                        CalculaTotales();
+
+                        GrillaDataGridView.Focus();
+
+                        GrillaDataGridView.CurrentCell = GrillaDataGridView[columna, fila];
+
+                    }
+                    else
+                    {
+
+                        MessageBox.Show("¡Artículo sin stock o no registrado en el Almacén!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+                    }
+                }
+
+            }
+
+            Insertando = false;
+        }
+
+        private void GrillaDataGridView_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            //NO BORRAR ESTE METODO. MANEJA ERROR DE NULO EN GRILLA.
+        }
+
+        private void FechaDateTimePicker_ValueChanged(object sender, EventArgs e)
+        {
+
+            if (Carga)
+            {
+                Fecha = FechaDateTimePicker.Value.Date;
+            }
+
+        }
+
+        private void GrabarModificarButton_Click(object sender, EventArgs e)
+        {
+            if (DescripcionTextBox.Text.Trim(' ') == "")
+            {
+                MessageBox.Show("¡Ingrese descripción del movimiento!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                DescripcionTextBox.Focus();
+            }
+            else if (TotalArticulos == 0)
+            {
+                MessageBox.Show("¡Ingrese artículos!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+            }
+            else if (AlmacenOrigenComboBox.Text == AlmacenDestinoComboBox.Text & TipoMovimiento == "Transferencia")
+            {
+                MessageBox.Show("¡Almacén de Origen y Destino no pueden ser iguales!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                AlmacenDestinoComboBox.Focus();
+            }
+            else
+            {
+
+                int i = 0;
+
+                if (IngresoXOC)
+                {
+                    for (i = DetalleOCIngreso.Count - 1; i >= 0; i--)
+                    {
+
+                        if (DetalleOCIngreso[i].Cantidad == 0)
+                        { 
+                            DetalleOCIngreso.Remove(DetalleOCIngreso[i]);
+                            //DetalleOCIngresoMaximos.Remove(DetalleOCIngreso[i]);
+                        }
+
+                    }
+                }
+                else
+                {
+                    for (i = Detalle.Count - 1; i >= 0; i--)
+                    {
+
+                        if (Detalle[i].IdArticulo == "" || Detalle[i].IdArticulo == null || Detalle[i].Cantidad == 0)
+                            Detalle.Remove(Detalle[i]);
+
+                    }
+                }
+
+                i = 0;
+
+                if (IngresoXOC)
+                {
+
+                    foreach (v_DetalleOCParaIngreso_1 LineaDetalle in DetalleOCIngreso)
+                    {
+                        i++;
+
+                        LineaDetalle.Item = i;
+                        LineaDetalle.IdMovimiento = 0;
+                        //DetalleOCIngresoMaximos[i - 1].Item = i;
+                        //DetalleOCIngresoMaximos[i - 1].IdMovimiento = 0;
+
+                    }
+
+                }
+                else
+                {
+
+                    foreach (MovimientosDetalle LineaDetalle in Detalle)
+                    {
+                        i++;
+
+                        LineaDetalle.Item = i;
+
+                    }
+
+                }
+
+                DialogResult result;
+
+                result = MessageBox.Show("¿Desea registrar el movimiento?", "S.G.V.", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                if (result == DialogResult.Yes)
+                {
+                    Cabecera.IdMovimiento = 0;
+
+                    if (IngresoXOC)
+                        if (VariablesPublicas._Cargo == "ADMINISTRADOR")
+                            Cabecera.IdAlmacen = int.Parse(AlmacenComboBox.SelectedValue.ToString());
+                        else
+                            Cabecera.IdAlmacen = IdAlmacenDestino;
+                    else
+                        Cabecera.IdAlmacen = IdAlmacen;
+
+                    Cabecera.Tipo = TipoMovimiento.Substring(0, 1);
+                    Cabecera.Motivo = MotivoComboBox.Text.Trim();
+                    Cabecera.Fecha = Fecha;
+                    Cabecera.Descripcion = DescripcionTextBox.Text.Trim();
+
+                    if (MotivoComboBox.Text == "DEVOLUCION A PROVEEDOR" || IngresoXOC)
+                        Cabecera.IdProveedor = IdProveedor;
+
+                    if (TipoMovimiento == "Transferencia")
+                    {
+                        Cabecera.IdAlmacen = IdAlmacenOrigen;
+                        Cabecera.IdAlmacenDestinoOrigen = IdAlmacenDestino;
+                    }
+
+                    if (IngresoXOC)
+                        Cabecera.IdOc = IdOC;
+
+                    Cabecera.IdUsuario = VariablesPublicas._IdUsuario;
+                    Cabecera.FechaHoraRegistro = Varios.FechaHoraServidor();
+                    Cabecera.Estado = "E";
+
+                    Cabe.Add(Cabecera);
+
+                    if (IngresoXOC)
+                    {
+
+                        if (Movi.InsertaMovimientoAlmacen(Cabe, DetalleOCIngreso))
+                        {
+                            MessageBox.Show("¡Datos registrados con éxito!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                            this.Close();
+                        }
+                        else
+                        {
+
+                            Cabe.Clear();
+
+                        }
+
+                    }
+                    else
+                    {
+                        if (Movi.InsertaMovimientoAlmacen(Cabe, Detalle))
+                        {
+                            MessageBox.Show("¡Datos registrados con éxito!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                            this.Close();
+                        }
+                        else
+                        {
+
+                            Cabe.Clear();
+
+                        }
+                    }
+                }
+            }
+        }
+
+        private void GrillaDataGridView_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
+        {
+
+            DataGridViewTextBoxEditingControl dText = (DataGridViewTextBoxEditingControl)e.Control;
+
+            switch (GrillaDataGridView.CurrentCell.ColumnIndex)
+            {
+                case 2:
+                case 5:
+
+                    dText.KeyPress -= new KeyPressEventHandler(SoloNumeros);
+                    dText.KeyPress += new KeyPressEventHandler(SoloNumeros);
+
+                    break;
+            }
+        }
+
+        private void SoloNumeros(object sender, KeyPressEventArgs e)
+        {
+
+            if (Char.IsDigit(e.KeyChar))
+            {
+                e.Handled = false;
+            }
+            else if (Char.IsControl(e.KeyChar))
+            {
+                e.Handled = false;
+            }
+            else if (Char.IsSeparator(e.KeyChar))
+            {
+                e.Handled = true;
+            }
+            else
+            {
+                e.Handled = true;
+            }
+
+        }
+
+        private void MotivoComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            GrabarModificarButton.Enabled = true;
+
+            switch (MotivoComboBox.Text)
+            {
+                case "DEVOLUCION A PROVEEDOR":
+
+                    DescripcionLabel.Location = new Point(8,108);
+                    DescripcionTextBox.Location = new Point(103, 105);
+                    DescripcionTextBox.Height = 49;
+                    CabeceraSplitContainer.Visible = true;
+                    CabeceraSplitContainer.Panel2Collapsed = true;
+                    BuscarProveedorButton.Enabled = true;
+                    AlmacenDestinoComboBox.Enabled = true;
+
+                    break;
+                case "TRANSFERENCIA EGRESO":
+
+                    CabeceraSplitContainer.Visible = true;
+
+                    CabeceraSplitContainer.Panel1Collapsed = true;
+                    RUCProveedorTextBox.Enabled = false;
+                    BuscarProveedorButton.Enabled = false;
+
+                    break;
+                case "COMPRA A PROVEEDOR":
+
+                    if (!IngresoXOC)
+                    { 
+                        MessageBox.Show("¡Este Motivo no esta permitido en este momento!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        GrabarModificarButton.Enabled = false;
+                    }
+
+                    break;
+                default:
+
+                    CabeceraSplitContainer.Visible = false;
+
+                    DescripcionLabel.Location = new Point(8, 80);
+                    DescripcionTextBox.Location = new Point(103, 75);
+                    DescripcionTextBox.Height = 78;
+
+
+                    break;
+
+            }
+        }
+
+        private void AlmacenDestinoComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            IdAlmacenDestino = int.Parse(AlmacenDestinoComboBox.SelectedValue.ToString());
+        }
+
+        private void RUCProveedorTextBox_Enter(object sender, EventArgs e)
+        {
+            Foco = "P";
+        }
+
+        private void RUCProveedorTextBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (Foco == "P")
+            {
+                if (e.KeyChar == (char)(Keys.Enter))
+                {
+
+                    e.Handled = true;
+
+                    BuscaProveedor();
+
+                }
+            }
+        }
+
+        private void RUCProveedorTextBox_Leave(object sender, EventArgs e)
+        {
+
+            if (Foco == "P")
+            {
+
+                //BuscaProveedor();
+
+            }
+
+            Foco = "";
+
+        }
+
+        private void BuscaProveedor()
+        {
+
+            Provee = Proveedor.ObtenerProveedorXRUC(RUCProveedorTextBox.Text);
+
+            if (Provee.Count == 1)
+            {
+                IdProveedor = Provee[0].IdProveedor;
+                NombreProveedorLabel.Text = Provee[0].Nombre;
+                DescripcionTextBox.Focus();
+                Foco = "";
+
+            }
+            else
+            {
+
+                MessageBox.Show("¡Proveedor no registrado!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                NombreProveedorLabel.Text = "";
+                RUCProveedorTextBox.Focus();
+                RUCProveedorTextBox.SelectAll();
+
+            }
+
+        }
+
+        private void BuscaProveedorButton_Click(object sender, EventArgs e)
+        {
+
+            FormBuscarProveedor fbprov = new FormBuscarProveedor();
+
+            fbprov.ShowDialog();
+
+            if (fbprov.Prov != null)
+            {
+                IdProveedor = fbprov.Prov.IdProveedor;
+                RUCProveedorTextBox.Text = fbprov.Prov.RUC;
+                NombreProveedorLabel.Text = fbprov.Prov.Nombre;
+                DescripcionTextBox.Focus();
+            }
+
+        }
+
+        private void AlmacenOrigenComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (Carga)
+            { 
+                if (TipoMovimiento == "Transferencia")
+                {
+                    IdAlmacenOrigen = int.Parse(AlmacenOrigenComboBox.SelectedValue.ToString());
+
+                    if (GrillaDataGridView.Rows.Count > 0)
+                    {
+                        Detalle.Clear();
+
+                        MovimientosDetalle NuevoDetalle = new MovimientosDetalle();
+                        LineaNueva = 1;
+                        NuevoDetalle.Item = LineaNueva;
+                        Detalle.Add(NuevoDetalle);
+
+                        GrillaDataGridView.CurrentCell = GrillaDataGridView[2, 0];
+                        GrillaDataGridView.Focus();
+
+                        CalculaTotales();
+                    }
+                }
+            }
+        }
+
+        private void CabeceraSplitContainer_Panel2_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        private void AlmacenComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (Carga)
+            {
+                IdAlmacen = int.Parse(AlmacenComboBox.SelectedValue.ToString());
+
+                if (TipoMovimiento != "Ingreso")
+                { 
+                    Detalle.Clear();
+
+                    MovimientosDetalle NuevoDetalle = new MovimientosDetalle();
+                    LineaNueva = 1;
+                    NuevoDetalle.Item = LineaNueva;
+                    Detalle.Add(NuevoDetalle);
+
+                    GrillaDataGridView.CurrentCell = GrillaDataGridView[2, 0];
+                    GrillaDataGridView.Focus();
+
+                    CalculaTotales();
+                }
+            }
+        }
+    }
+}

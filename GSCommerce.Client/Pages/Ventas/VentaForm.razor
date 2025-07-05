@@ -543,9 +543,9 @@ OnCancelado="CobroCancelado" />
             );
         }
 
-        // ✅ Imprimir ticket
-        var htmlTicket = GenerarHtmlDelTicket();
-        await JS.InvokeVoidAsync("imprimirTicket", htmlTicket);
+        // ✅ Imprimir ticket en formato texto
+        var textoTicket = GenerarTextoDelTicket();
+        await JS.InvokeVoidAsync("imprimirTicketTexto", textoTicket);
         if (EsFactura)
         {
             // SUNAT solo acepta RUC (6) en facturas
@@ -646,7 +646,55 @@ OnCancelado="CobroCancelado" />
         return sb.ToString();
     }
 
+    private string GenerarTextoDelTicket()
+    {
+        const int width = 40;
+        string Center(string text)
+        {
+            text = text.Trim();
+            if (text.Length >= width) return text;
+            int pad = (width - text.Length) / 2;
+            return new string(' ', pad) + text;
+        }
 
+        var sb = new StringBuilder();
+
+        sb.AppendLine(Center($"{venta.TipoDocumento} DE VENTA ELECTRONICA"));
+        sb.AppendLine();
+        sb.AppendLine(Center(venta.RucEmisor));
+        sb.AppendLine(Center(venta.DireccionEmisor));
+        sb.AppendLine();
+
+        if (!string.IsNullOrWhiteSpace(venta.DocumentoCliente))
+        {
+            sb.AppendLine($"DOCUMENTO: {venta.DocumentoCliente}");
+            sb.AppendLine($"CLIENTE: {venta.NombreCliente}");
+        }
+
+        sb.AppendLine($"FECHA EMISION: {venta.FechaEmision:dd/MM/yyyy} HORA: {venta.FechaEmision:HH:mm}");
+        if (!string.IsNullOrWhiteSpace(venta.NombreCajero))
+            sb.AppendLine($"CAJERO(A): {venta.NombreCajero}");
+        sb.AppendLine($"VENDEDOR(A): {venta.NombreVendedor}");
+        sb.AppendLine($"DOCUMENTO: {venta.Serie}-{venta.Numero:D4}   MONEDA: SOLES");
+        sb.AppendLine("FORMA DE PAGO: CONTADO");
+        sb.AppendLine();
+
+        sb.AppendLine("Cant Producto                       PU  Total");
+        sb.AppendLine(new string('-', width));
+        foreach (var d in venta.Detalles)
+        {
+            var linea = $"{d.Cantidad,3} {d.DescripcionItem,-25}{d.PrecioUnitario,6:N2}{d.Total,7:N2}";
+            sb.AppendLine(linea);
+        }
+        sb.AppendLine(new string('-', width));
+        sb.AppendLine($"TOTAL: S/ {venta.Total:N2}");
+        sb.AppendLine($"IMPORTE TOTAL: S/ {venta.APagar:N2}");
+        sb.AppendLine($"VUELTO: S/ {venta.Vuelto:N2}");
+        sb.AppendLine();
+        sb.AppendLine(Center("Gracias por su compra"));
+
+        return sb.ToString();
+    }
 
     private async Task AbrirTicketEnVentanaNueva()
     {
@@ -656,8 +704,8 @@ OnCancelado="CobroCancelado" />
 
     private async Task ImprimirTicket()
     {
-        var html = GenerarHtmlDelTicket();
-        await JS.InvokeVoidAsync("imprimirTicket", html);
+        var texto = GenerarTextoDelTicket();
+        await JS.InvokeVoidAsync("imprimirTicketTexto", texto);
     }
 
     /*
