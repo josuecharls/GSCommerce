@@ -7,6 +7,20 @@
 
 <h3>📦 Control de Stock de Artículos</h3>
 
+@if (mostrarAlertaStock)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content p-4 text-center">
+                <h4>🚨 Stock Crítico</h4>
+                <p>@mensajeAlertaStock</p>
+                <button class="btn btn-primary mt-2" @onclick="CerrarAlertaStock">Cerrar</button>
+            </div>
+        </div>
+    </div>
+}
+
 @if (isLoading)
 {
     <p>Cargando...</p>
@@ -131,6 +145,9 @@ else
     private List<StockDTO> listaStockFiltrada = new();
     private List<AlmacenDTO> almacenes = new();
 
+    private bool mostrarAlertaStock = false;
+    private string mensajeAlertaStock = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         almacenes = await AlmacenService.GetAlmacenes() ?? new();
@@ -148,6 +165,7 @@ else
         );
 
         AplicarFiltro();
+        await VerificarStockCritico();
     }
 
     private void AplicarFiltro()
@@ -160,6 +178,23 @@ else
                 && (!soloStockBajo || s.EstaBajoMinimo == true)
             )
             .ToList();
+    }
+
+    private async Task VerificarStockCritico()
+    {
+        mostrarAlertaStock = false;
+        foreach (var item in listaStock)
+        {
+            if (item.Stock == 10)
+            {
+                var disponible = await StockService.GetStockDisponible(item.IdArticulo, 1);
+                mensajeAlertaStock = disponible > 0
+                    ? $"El artículo '{item.Descripcion}' tiene 10 unidades en tienda. Stock en almacén principal: {disponible}."
+                    : $"El artículo '{item.Descripcion}' tiene 10 unidades en tienda y no hay stock en el almacén principal.";
+                mostrarAlertaStock = true;
+                break;
+            }
+        }
     }
 
     private async Task ExportarAExcel()
@@ -181,5 +216,10 @@ else
     private async Task Actualizar()
     {
         await CargarStock();
+    }
+
+    private void CerrarAlertaStock()
+    {
+        mostrarAlertaStock = false;
     }
 }

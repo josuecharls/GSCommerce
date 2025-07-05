@@ -1,5 +1,8 @@
 ﻿@using GSCommerce.Client.Services
 @inject AuthService AuthService
+@inject CajaService CajaService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <div class="top-row navbar navbar-dark">
     <div class="d-flex align-items-center ms-4">
@@ -55,14 +58,14 @@
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/ventass/crear/b1">
+            <a class="nav-link" href="#" @onclick="IrAVentas">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Ventas
-            </NavLink>
+            </a>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/ventass/crear/b2">
+            <a class="nav-link" href="#" @onclick="IrACajaManual">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Caja Manual
-            </NavLink>
+            </a>
         </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="ventas">
@@ -127,5 +130,41 @@
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
+    }
+
+    private async Task IrAVentas()
+    {
+        var idUsuario = await AuthService.GetUserId();
+        var idAlmacen = await AuthService.GetUserAlmacenId();
+        if (idUsuario != null && idAlmacen != null)
+        {
+            var aperturas = await CajaService.VerificarAperturaAsync(idUsuario.Value, idAlmacen.Value);
+            if (aperturas != null && aperturas.Any(a => a.Estado == "A"))
+            {
+                Navigation.NavigateTo("/ventass/crear/b1");
+                return;
+            }
+        }
+
+        await JS.InvokeVoidAsync("alert", "⚠️ Caja no aperturada.");
+        Navigation.NavigateTo("/cajita");
+    }
+
+    private async Task IrACajaManual()
+    {
+        var idUsuario = await AuthService.GetUserId();
+        var idAlmacen = await AuthService.GetUserAlmacenId();
+        if (idUsuario != null && idAlmacen != null)
+        {
+            var aperturas = await CajaService.VerificarAperturaAsync(idUsuario.Value, idAlmacen.Value);
+            if (aperturas != null && aperturas.Any(a => a.Estado == "A"))
+            {
+                Navigation.NavigateTo("/ventass/crear/b2");
+                return;
+            }
+        }
+
+        await JS.InvokeVoidAsync("alert", "⚠️ Caja no aperturada.");
+        Navigation.NavigateTo("/cajita");
     }
 }

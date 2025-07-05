@@ -10,6 +10,7 @@
 @inject AsignacionSerieCajeroService AsignacionSerieCajeroService
 @inject PersonalService PersonalService
 @inject StockService StockService
+@inject NavigationManager Navigation
 @inject TipoDocumentoVentaService TipoDocumentoVentaService
 @inject HttpClient Http
 @using Microsoft.AspNetCore.Components.Web
@@ -181,6 +182,8 @@ OnCancelado="CobroCancelado" />
                     if (apertura == null || !apertura.Any(a => a.Estado == "A"))
                     {
                         await JS.InvokeVoidAsync("alert", "⚠️ Caja no aperturada.");
+                    Navigation.NavigateTo("/cajita");
+                    return;
                     }
 
                 var datos = await AuthService.ObtenerDatosEmisorAsync();
@@ -468,7 +471,20 @@ OnCancelado="CobroCancelado" />
 
     private async Task AbrirNuevaVenta()
     {
-        await JS.InvokeVoidAsync("open", "/ventass/crear/b1", "_blank");
+        var idUsuario = await AuthService.GetUserId();
+        var idAlmacen = await AuthService.GetUserAlmacenId();
+
+        if (idUsuario != null && idAlmacen != null)
+        {
+            var aperturas = await CajaService.VerificarAperturaAsync(idUsuario.Value, idAlmacen.Value);
+            if (aperturas != null && aperturas.Any(a => a.Estado == "A"))
+            {
+                await JS.InvokeVoidAsync("open", "/ventass/crear/b1", "_blank");
+                return;
+            }
+        }
+
+        await JS.InvokeVoidAsync("alert", "⚠️ Caja no aperturada.");
     }
 
     private async Task CobroConfirmado(List<DetallePagoDTO> pagos)
