@@ -2,6 +2,7 @@
 using GSCommerce.Client.Models;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Net;
 using System.Text.Json;
 
 namespace GSCommerce.Client.Services
@@ -29,13 +30,18 @@ namespace GSCommerce.Client.Services
                 string fechaStr = fecha.ToString("yyyy-MM-dd");
                 var response = await _http.GetAsync($"api/caja/apertura?idUsuario={idUsuario}&idAlmacen={idAlmacen}&fecha={fechaStr}");
 
+                if (response.StatusCode == HttpStatusCode.NoContent)
+                {
+                    // No existe apertura registrada para la fecha indicada
+                    return null;
+                }
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadFromJsonAsync<AperturaCierreCajaDTO>();
                 }
 
                 // Manejo específico de errores
-                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                if (response.StatusCode == HttpStatusCode.NotFound)
                 {
                     return null; // No se encontró apertura
                 }

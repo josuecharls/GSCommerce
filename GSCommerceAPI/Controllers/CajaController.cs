@@ -66,7 +66,8 @@ public class CajaController : ControllerBase
                 .FirstOrDefaultAsync();
 
             if (datos == null)
-                return NotFound("No se encontró apertura para la fecha especificada");
+                // 204 para indicar que no existe apertura sin generar error 404
+                return NoContent();
 
             return Ok(datos);
         }
