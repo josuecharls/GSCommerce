@@ -29,6 +29,7 @@ builder.Services.AddScoped<VentaService>();
 builder.Services.AddScoped<SerieCorrelativoService>();
 builder.Services.AddScoped<TipoDocumentoVentaService>();
 builder.Services.AddScoped<TomaInventariosService>();
+builder.Services.AddScoped<AlmacenCuentaService>();
 builder.Services.AddScoped<ReniecService>();
 builder.Services.AddScoped<CajaService>();
 builder.Services.AddScoped<AuxiliaresVariosService>();

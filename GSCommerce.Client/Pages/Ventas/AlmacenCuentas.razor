@@ -1,0 +1,93 @@
+﻿@page "/almacen-cuentas/{id:int}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject AlmacenCuentaService CuentaService
+@inject AlmacenService AlmacenService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<h3>🏦 Cuentas del Almacén @almacen?.Nombre</h3>
+
+@if (isLoading)
+{
+    <p>Cargando...</p>
+}
+else
+{
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Banco</th>
+                <th>N° Cuenta</th>
+                <th>CCI</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in cuentas)
+            {
+                <tr>
+                    <td><input class="form-control" @bind="c.Banco" /></td>
+                    <td><input class="form-control" @bind="c.Cuenta" /></td>
+                    <td><input class="form-control" @bind="c.Cci" /></td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" @onclick="() => QuitarCuenta(c)">❌</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <button class="btn btn-outline-primary mb-3" @onclick="AgregarCuenta">+ Agregar Cuenta</button>
+
+    <div class="text-center">
+        <button class="btn btn-success me-2" @onclick="Guardar">💾 Guardar</button>
+        <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+    </div>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+    private AlmacenDTO? almacen;
+    private List<AlmacenCuentaDTO> cuentas = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacen = await AlmacenService.GetAlmacenById(id);
+        cuentas = await CuentaService.GetCuentas(id) ?? new();
+        if (!cuentas.Any())
+        {
+            cuentas.Add(new AlmacenCuentaDTO { IdAlmacen = id });
+        }
+        isLoading = false;
+    }
+
+    private void AgregarCuenta()
+    {
+        cuentas.Add(new AlmacenCuentaDTO { IdAlmacen = id });
+    }
+
+    private void QuitarCuenta(AlmacenCuentaDTO cuenta)
+    {
+        cuentas.Remove(cuenta);
+    }
+
+    private async Task Guardar()
+    {
+        var ok = await CuentaService.SaveCuentas(id, cuentas);
+        if (ok)
+        {
+            await JS.InvokeVoidAsync("alert", "✅ Datos guardados correctamente.");
+            Navigation.NavigateTo("/almacen");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "❌ Error al guardar datos.");
+        }
+    }
+
+    private void Cancelar()
+    {
+        Navigation.NavigateTo("/almacen");
+    }
+}

@@ -37,8 +37,10 @@
                     <td>@a.RazonSocial</td>
                     <td class="text-center">
                         <button @onclick="() => EditAlmacen(a.IdAlmacen)" class="btn btn-warning btn-sm me-1">
- 
                             <i class="bi bi-pencil-square"></i> Editar
+                        </button>
+                        <button @onclick="() => AbrirCuentas(a.IdAlmacen)" class="btn btn-info btn-sm me-1">
+                            <i class="bi bi-bank"></i> Cuentas
                         </button>
                         <button @onclick="() => ConfirmDeleteAlmacen(a.IdAlmacen, a.Nombre)" class="btn btn-danger btn-sm">
                             <i class="bi bi-trash"></i> Eliminar
@@ -163,6 +165,11 @@
     private void EditAlmacen(int id)
     {
         Navigation.NavigateTo($"/almacen/edit/{id}");
+    }
+
+    private void AbrirCuentas(int id)
+    {
+        Navigation.NavigateTo($"/almacen-cuentas/{id}");
     }
 
     private void ConfirmDeleteAlmacen(int id, string name)
