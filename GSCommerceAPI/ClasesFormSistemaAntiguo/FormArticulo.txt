@@ -1,0 +1,1167 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using BusinessLayer;
+using DataAccess;
+using BarcodeLib;
+using CrystalDecisions.CrystalReports.Engine;
+using System.Drawing.Imaging;
+using System.Drawing.Drawing2D;
+
+namespace WinFrontEnd
+{
+    public partial class FormArticulo : Form
+    {
+        ArticuloClass Articulo = new ArticuloClass();
+        List<v_Proveedores_1> Provee = new List<v_Proveedores_1>();
+        ProveedorClass Proveedor = new ProveedorClass();
+        Articulo Arti = new Articulo();
+        List<v_Articulos_Busqueda_1> ListaArticulos = new List<v_Articulos_Busqueda_1>();
+
+        Boolean Carga;
+        Boolean Nuevo;
+        byte[] Foto;
+        DateTime FechaRegistro;
+        int IdProv = 0;
+        string Foco;
+        string BuscarPor;
+        string[] Complemento = new string[10];
+        Image CodigoBarraImagen;
+        Boolean ConFoto = false;
+
+        ClassValidaFormulario cvf = new ClassValidaFormulario();
+        ClassInsertaDatos cid = new ClassInsertaDatos();
+        ClassObtieneDatos cod = new ClassObtieneDatos();
+        ClassLlenaDatos clld = new ClassLlenaDatos();
+
+        public FormArticulo()
+        {
+            InitializeComponent();
+
+            this.KeyPreview = true;
+            this.KeyPress += new KeyPressEventHandler(FormArticulo_KeyPress);
+        }
+
+        private void SalirButton_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void FormArticulo_Load(object sender, EventArgs e)
+        {
+            Carga = false;
+
+            CargaCombos();
+            Inicializa();
+        }
+
+        private void Inicializa()
+        {
+
+            BuscarGroupBox.Enabled = true;
+            DatosGroupBox.Enabled = false;
+            NuevoButton.Enabled = true;
+            Nuevo = false;
+            CodigoLabel.Text = "";
+            DescripcionLabel.Text = "";
+            DescripcionCortaLabel.Text = "";
+            GrabarModificarButton.Text = "Grabar";
+            GrabarModificarButton.Image = WinFrontEnd.Properties.Resources.grabar;
+            GrabarModificarButton.Enabled = false;
+            CancelarButton.Enabled = false;
+            Barrasbutton.Enabled = true;
+            GrillaDataGridView.Enabled = true;
+            FechaRegistroLabel.Visible = false;
+            FotoPictureBox.Image = null;
+            clld.LimpiaDatos(DatosGroupBox);
+            NombreProveedorLabel.Text = "";
+            BuscarTextBox.Text = "";
+
+            ListaArticulos.Clear();
+            ListaArticulos = Articulo.ObtenerArticulos();
+            ArticuloBindingSource.DataSource = ListaArticulos;
+            ArticuloBindingSource.ResetBindings(false);
+            
+            BuscarTextBox.Focus();
+
+        }
+
+        private void CargaCombos()
+        {
+
+            FamiliaComboBox.DisplayMember = "Descripcion";
+            FamiliaComboBox.ValueMember = "Descripcion";
+            FamiliaComboBox.DataSource = Articulo.ObtenerListaComplemento("FAMILIA");
+            LineaComboBox.DisplayMember = "Descripcion";
+            LineaComboBox.ValueMember = "Descripcion";
+            LineaComboBox.DataSource = Articulo.ObtenerListaComplemento("LINEA");
+            MarcaComboBox.DisplayMember = "Descripcion";
+            MarcaComboBox.ValueMember = "Descripcion";
+            MarcaComboBox.DataSource = Articulo.ObtenerListaComplemento("MARCA");
+            MaterialComboBox.DisplayMember = "Descripcion";
+            MaterialComboBox.ValueMember = "Descripcion";
+            MaterialComboBox.DataSource = Articulo.ObtenerListaComplemento("MATERIAL");
+            ModeloComboBox.DisplayMember = "Descripcion";
+            ModeloComboBox.ValueMember = "Descripcion";
+            ModeloComboBox.DataSource = Articulo.ObtenerListaComplemento("MODELO");
+            ColorComboBox.DisplayMember = "Descripcion";
+            ColorComboBox.ValueMember = "Descripcion";
+            ColorComboBox.DataSource = Articulo.ObtenerListaComplemento("COLOR");
+            DetalleComboBox.DisplayMember = "Descripcion";
+            DetalleComboBox.ValueMember = "Descripcion";
+            DetalleComboBox.DataSource = Articulo.ObtenerListaComplemento("DETALLE");
+            TallaComboBox.DisplayMember = "Descripcion";
+            TallaComboBox.ValueMember = "Descripcion";
+            TallaComboBox.DataSource = Articulo.ObtenerListaComplemento("TALLA");
+            UnidadAlmacenComboBox.DisplayMember = "Descripcion";
+            UnidadAlmacenComboBox.ValueMember = "Descripcion";
+            UnidadAlmacenComboBox.DataSource = Articulo.ObtenerListaComplemento("UNIDAD DE ALMACEN");
+            MonedaComboBox.DisplayMember = "Descripcion";
+            MonedaComboBox.ValueMember = "Descripcion";
+            MonedaComboBox.DataSource = Articulo.ObtenerListaComplemento("MONEDA DE COSTEO");
+            
+        }
+
+        private void RUCProveedorTextBox_Enter(object sender, EventArgs e)
+        {
+            Foco = "P";
+        }
+
+        private void RUCProveedorTextBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (Foco == "P")
+            {
+                if (e.KeyChar == (char)(Keys.Enter))
+                {
+
+                    e.Handled = true;
+
+                    BuscaProveedor();
+
+                }
+            }
+        }
+
+        private void RUCProveedorTextBox_Leave(object sender, EventArgs e)
+        {
+
+            //if (Foco == "P" & RUCProveedorTextBox.Text.Length > 0)
+            //{
+
+            //    BuscaProveedor();
+
+            //}
+
+            Foco = "";
+
+        }
+
+        private void BuscaProveedor()
+        {
+
+            Provee = Proveedor.ObtenerProveedorActivoXRUC(RUCProveedorTextBox.Text);
+
+            if (Provee.Count == 1)
+            {
+                IdProv = int.Parse(Provee[0].IdProveedor.ToString());
+                NombreProveedorLabel.Text = Provee[0].Nombre.ToString();
+
+                PrecioCompraTextBox.Focus();
+                Foco = "";
+
+            }
+            else
+            {
+
+                MessageBox.Show("¡Proveedor no existe!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                RUCProveedorTextBox.Focus();
+                RUCProveedorTextBox.SelectAll();
+
+            }
+
+        }
+
+        private void BuscaProveedorButton_Click(object sender, EventArgs e)
+        {
+
+            FormBuscarProveedor fbprov = new FormBuscarProveedor();
+
+            fbprov.ShowDialog();
+
+            if (fbprov.Prov != null)
+            {
+                IdProv = fbprov.Prov.IdProveedor;
+                RUCProveedorTextBox.Text = fbprov.Prov.RUC;
+                NombreProveedorLabel.Text = fbprov.Prov.Nombre;
+
+                PrecioCompraTextBox.Focus();
+
+            }
+                        
+        }
+
+        private void NuevoButton_Click(object sender, EventArgs e)
+        {
+            //Random rand = new Random();
+
+            IdProv = 0;
+            DatosGroupBox.Enabled = true;
+            CodigoLabel.Text = Articulo.ObtenerIDNuevoArticulo();
+            DescripcionLabel.Text = "";
+            DescripcionCortaLabel.Text = "";
+            FamiliaComboBox.Text = "No Aplica";
+            LineaComboBox.Text = "No Aplica";
+            MarcaComboBox.Text = "No Aplica";
+            MaterialComboBox.Text = "No Aplica";
+            ModeloComboBox.Text = "No Aplica";
+            ColorComboBox.Text = "No Aplica";
+            DetalleComboBox.Text = "No Aplica";
+            TallaComboBox.Text = "No Aplica";
+            NombreProveedorLabel.Text = "";
+            UnidadAlmacenComboBox.Text = "No Aplica";
+            MonedaComboBox.Text = "No Aplica";
+            FotoPictureBox.Image = WinFrontEnd.Properties.Resources.ropa;
+            ConFoto = false;
+            CodigoBarraPictureBox.Image = null;
+            FechaRegistroLabel.Visible = true;
+            FechaRegistroLabel.Text = "Fecha de Registro: " + VariablesPublicas._FechaHoy.ToShortDateString();
+            FechaRegistro = VariablesPublicas._FechaHoy;
+            NuevoButton.Enabled = false;
+            GrabarModificarButton.Text = "Grabar";
+            GrabarModificarButton.Image = WinFrontEnd.Properties.Resources.grabar;
+            GrabarModificarButton.Enabled = true;
+            CancelarButton.Enabled = true;
+            Barrasbutton.Enabled = false;
+            GrillaDataGridView.Enabled = false;
+            BuscarGroupBox.Enabled = false;
+            clld.LimpiaDatos(DatosGroupBox);
+            PrecioCompraTextBox.Text = "0.00";
+            PrecioVentaTextBox.Text = "0.00";
+            EstadoComboBox.SelectedIndex = 0;
+            //LineaComboBox.SelectedIndex = rand.Next(LineaComboBox.Items.Count);
+            //FamiliaComboBox.SelectedIndex = rand.Next(FamiliaComboBox.Items.Count);
+            //MarcaComboBox.SelectedIndex = rand.Next(MarcaComboBox.Items.Count);
+            //ColorComboBox.SelectedIndex = rand.Next(ColorComboBox.Items.Count);
+            //ModeloComboBox.SelectedIndex = rand.Next(ModeloComboBox.Items.Count);
+            //SubmodeloComboBox.SelectedIndex = rand.Next(SubmodeloComboBox.Items.Count);
+            //MaterialComboBox.SelectedIndex = rand.Next(MaterialComboBox.Items.Count);
+            //SubmaterialComboBox.SelectedIndex = rand.Next(SubmaterialComboBox.Items.Count);
+            //TallaComboBox.SelectedIndex = rand.Next(TallaComboBox.Items.Count);
+            //UnidadAlmacenComboBox.SelectedIndex = rand.Next(UnidadAlmacenComboBox.Items.Count);
+            //MonedaComboBox.SelectedIndex = rand.Next(MonedaComboBox.Items.Count);
+            Nuevo = true;
+            CodigoBarraPictureBox.Image = GeneraCodigoBarra(Nuevo);
+
+            for (int i = 0; i < 9; i++)
+            {
+                Complemento[i] = "No Aplica";
+            }
+        }
+
+        private void GrabarModificarButton_Click(object sender, EventArgs e)
+        {
+
+            if (GrabarModificarButton.Text == "Modificar")
+            {
+                DatosGroupBox.Enabled = true;
+                GrabarModificarButton.Text = "Grabar";
+                GrabarModificarButton.Image = WinFrontEnd.Properties.Resources.grabar;
+                NuevoButton.Enabled = false;
+                CancelarButton.Enabled = true;
+                Barrasbutton.Enabled = false;
+                GrillaDataGridView.Enabled = false;
+                BuscarGroupBox.Enabled = false;
+                Nuevo = false;
+            }
+            else
+            {
+                if (DescripcionLabel.Text == "")
+                    MessageBox.Show("¡Generar descripción del Artículo!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                else if (IdProv == 0)
+                    MessageBox.Show("¡Debe seleccionar un Proveedor!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                else if (decimal.Parse(PrecioCompraTextBox.Text) == 0)
+                    MessageBox.Show("¡Debe registrar el Precio de Compra!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                else if (decimal.Parse(PrecioVentaTextBox.Text) == 0)
+                    MessageBox.Show("¡Debe registrar el Precio de Venta!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                else if (decimal.Parse(PrecioCompraTextBox.Text) >= decimal.Parse(PrecioVentaTextBox.Text))
+                    MessageBox.Show("¡Precio de Compra no puede ser igual o mayor que el Precio de Venta!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                else
+                {
+                    if (cvf.VerificaInformacionCompleta(DatosGroupBox, this))
+                    {
+
+                        DialogResult result;
+
+                        result = MessageBox.Show("¿Desea " + GrabarModificarButton.Text + " la información?", "S.G.V.", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                        if (result == System.Windows.Forms.DialogResult.Yes)
+                        {
+
+                            Boolean estado = true;
+
+                            if (EstadoComboBox.Text == "ACTIVO")
+                                estado = true;
+                            else
+                                estado = false;
+
+                            if (ConFoto)
+                                Foto = Articulo.ImageToByte(FotoPictureBox.Image);
+                            else
+                                Foto = null;
+
+                            try
+                            {
+
+                                if (Nuevo)
+                                {
+
+                                    CodigoLabel.Text = Articulo.ObtenerIDNuevoArticulo();
+
+                                    Articulo.Insertar(CodigoLabel.Text, DescripcionLabel.Text, DescripcionCortaLabel.Text, FamiliaComboBox.Text, LineaComboBox.Text, MarcaComboBox.Text, MaterialComboBox.Text,
+                                                      ModeloComboBox.Text, ColorComboBox.Text, DetalleComboBox.Text, TallaComboBox.Text, IdProv,
+                                                      UnidadAlmacenComboBox.Text, MonedaComboBox.Text, Decimal.Parse(PrecioCompraTextBox.Text), Decimal.Parse(PrecioVentaTextBox.Text),
+                                                      FechaRegistro, Foto, estado, EstacioncomboBox.Text);
+
+                                }
+                                else
+                                {
+
+                                    Articulo.Modificar(CodigoLabel.Text, DescripcionLabel.Text, DescripcionCortaLabel.Text, FamiliaComboBox.Text, LineaComboBox.Text, MarcaComboBox.Text, MaterialComboBox.Text,
+                                                      ModeloComboBox.Text, ColorComboBox.Text, DetalleComboBox.Text, TallaComboBox.Text, IdProv,
+                                                      UnidadAlmacenComboBox.Text, MonedaComboBox.Text, Decimal.Parse(PrecioCompraTextBox.Text), Decimal.Parse(PrecioVentaTextBox.Text),
+                                                      FechaRegistro, Foto, estado, EstacioncomboBox.Text);
+
+                                }
+
+                                MessageBox.Show("¡Datos registrados con éxito!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                                //Inicializa();
+
+                                DatosGroupBox.Enabled = false;
+                                NuevoButton.Enabled = true;
+                                GrabarModificarButton.Text = "Modificar";
+                                GrabarModificarButton.Image = WinFrontEnd.Properties.Resources.modificar;
+                                GrabarModificarButton.Enabled = true;
+                                BuscarGroupBox.Enabled = true;
+                                CancelarButton.Enabled = false;
+                                Barrasbutton.Enabled = true;
+                                GrillaDataGridView.Enabled = true;
+
+                                //CodigoBarraPictureBox.Image = GeneraCodigoBarra(Nuevo);
+                               
+                                if (!Nuevo)
+                                {
+                                    switch (BuscarPor)
+                                    {
+                                        case "C":
+                                            ListaArticulos = Articulo.ObtenerArticulosXCodigo(BuscarTextBox.Text.Trim());
+                                            break;
+                                        case "D":
+                                            ListaArticulos = Articulo.ObtenerArticulosXDescripcion(BuscarTextBox.Text.Trim());
+                                            break;
+                                        case "P":
+                                            ListaArticulos = Articulo.ObtenerArticulosXProveedor(BuscarTextBox.Text.Trim());
+                                            break;
+                                    }
+
+                                    ArticuloBindingSource.DataSource = ListaArticulos;
+                                    ArticuloBindingSource.ResetBindings(false);
+                                }
+
+                                Nuevo = false;
+
+                            }
+                            catch (Exception ex)
+                            {
+                                MessageBox.Show("Ha ocurrido un error: " + ex.Message, "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                            }
+
+                        }
+
+                    }
+                }
+
+            }
+
+        }
+
+        private void CancelarButton_Click(object sender, EventArgs e)
+        {
+
+            BuscarGroupBox.Enabled = true;
+            GrillaDataGridView.Enabled = true;
+            DatosGroupBox.Enabled = false;
+            MuestraSeleccion(GrillaDataGridView.CurrentRow.Index);
+            NuevoButton.Enabled = true;
+            Nuevo = false;
+            GrabarModificarButton.Text = "Modificar";
+            GrabarModificarButton.Image = WinFrontEnd.Properties.Resources.modificar;
+            GrabarModificarButton.Enabled = true;
+            CancelarButton.Enabled = false;
+            Barrasbutton.Enabled = true;
+            BuscarGroupBox.Focus();
+
+        }
+
+        private void GrillaDataGridView_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+
+            MuestraSeleccion(e.RowIndex);
+
+        }
+
+        private void MuestraSeleccion(int indice)
+        {
+            try
+            {
+                if (GrillaDataGridView.Rows.Count > 0 & indice >= 0)
+                {
+
+                    Arti = Articulo.ObtenerArticuloXId(GrillaDataGridView[0, indice].Value.ToString())[0];
+
+                    CodigoLabel.Text = Arti.IdArticulo;
+                    DescripcionLabel.Text = Arti.Descripcion;
+                    DescripcionCortaLabel.Text = Arti.DescripcionCorta;
+                    FamiliaComboBox.Text = Arti.Familia;
+                    Complemento[0] = Arti.Familia;
+                    LineaComboBox.Text = Arti.Linea;
+                    Complemento[1] = Arti.Linea;
+                    MarcaComboBox.Text = Arti.Marca;
+                    Complemento[2] = Arti.Marca;
+                    MaterialComboBox.Text = Arti.Material;
+                    Complemento[3] = Arti.Material;
+                    ModeloComboBox.Text = Arti.Modelo;
+                    Complemento[4] = Arti.Modelo;
+                    ColorComboBox.Text = Arti.Color;
+                    Complemento[5] = Arti.Color;
+                    DetalleComboBox.Text = Arti.Detalle;
+                    Complemento[6] = Arti.Detalle;
+                    TallaComboBox.Text = Arti.Talla;
+                    Complemento[7] = Arti.Talla;
+                    IdProv = Arti.IdProveedor;
+                    RUCProveedorTextBox.Text = Arti.Proveedor.RUC;
+                    NombreProveedorLabel.Text = Arti.Proveedor.Nombre;
+                    UnidadAlmacenComboBox.Text = Arti.UnidadAlmacen;
+                    Complemento[8] = Arti.UnidadAlmacen;
+                    MonedaComboBox.Text = Arti.MonedaCosteo;
+                    Complemento[9] = Arti.MonedaCosteo;
+                    PrecioCompraTextBox.Text = Arti.PrecioCompra.ToString("N2");
+                    PrecioVentaTextBox.Text = Arti.PrecioVenta.ToString("N2");
+                    FechaRegistro = Arti.FechaRegistro;
+                    FechaRegistroLabel.Visible = true;
+                    FechaRegistroLabel.Text = "Fecha de Registro: " + FechaRegistro.ToShortDateString();
+                    EstacioncomboBox.Text = Arti.Estacion;
+
+                    if (Arti.Estado)
+                        EstadoComboBox.Text = "ACTIVO";
+                    else
+                        EstadoComboBox.Text = "INACTIVO";
+
+                    if (Arti.Foto is null)
+                    {
+                        FotoPictureBox.Image = WinFrontEnd.Properties.Resources.ropa;
+                        ConFoto = false;
+                    }
+                    else
+                    {
+                        FotoPictureBox.Image = Articulo.ByteToImage(Arti.Foto);
+                        ConFoto = true;
+                    }
+                    CodigoBarraPictureBox.Image = GeneraCodigoBarra(Nuevo);
+
+                    GrabarModificarButton.Text = "Modificar";
+                    GrabarModificarButton.Image = WinFrontEnd.Properties.Resources.modificar;
+                    GrabarModificarButton.Enabled = true;
+
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error de Conexión al servidor: " + ex.ToString());
+            }
+
+        }
+
+        private Image GeneraCodigoBarra(Boolean _Nuevo)
+        {
+
+            Barcode Barra = new Barcode();
+
+            //if (!_Nuevo)
+            //    if (Arti.CodigoBarra == null)
+            //    {
+            //        Barra.IncludeLabel = false;
+            //        CodigoBarraImagen = Barra.Encode(TYPE.CODE39, CodigoLabel.Text, System.Drawing.Color.Black, System.Drawing.Color.White, 120, 75);
+            //        Articulo.GrabaCodigoBarra(CodigoLabel.Text, Articulo.ImageToByte(CodigoBarraImagen));
+            //    }
+
+            Barra.IncludeLabel = true;
+            CodigoBarraImagen = Barra.Encode(TYPE.CODE39, CodigoLabel.Text, System.Drawing.Color.Black, System.Drawing.Color.White, 120, 75);
+
+            return CodigoBarraImagen;
+        }
+
+        private void FormArticulo_KeyPress(object sender, KeyPressEventArgs e)
+        {
+
+            if (this.ActiveControl.Tag != null)
+                cvf.ValidaTeclas(this.ActiveControl.Tag.ToString(), e);
+
+        }
+
+        private void BuscaFotoButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                OpenFileDialog FotoOpenFileDialog = new OpenFileDialog();
+
+                FotoOpenFileDialog.Filter = "Image files (*.jpg, *.jpeg, *.jfif, *.png) | *.jpg; *.jpeg; *.jfif; *.png";
+                FotoOpenFileDialog.Title = "Seleccionar una imagen";
+
+                if (FotoOpenFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string DocImagen = FotoOpenFileDialog.FileName;
+                    //FileInfo File = new FileInfo(DocImagen);
+                    //FotoPictureBox.Image = Image.FromFile(imagen);
+                    Image ImagenSeleccionada = Image.FromFile(DocImagen);
+
+                    if (ImagenSeleccionada.Width > ImagenSeleccionada.Height)
+                        ImagenSeleccionada = ImageResize.ConstrainProportions(ImagenSeleccionada, 250, ImageResize.Dimensions.Width);
+                    else
+                        ImagenSeleccionada = ImageResize.ConstrainProportions(ImagenSeleccionada, 250, ImageResize.Dimensions.Height);
+
+                    FotoPictureBox.Image = ImagenSeleccionada;
+                    ConFoto = true;
+                    //ImagenSeleccionada.Save(DocImagen + "2");
+                    //ImagenSeleccionada.Dispose();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("El archivo seleccionado no es un tipo de imagen válido: " + ex.ToString());
+            }
+
+        }
+
+        //private Image VerificaImagen(Image imgPhoto, int Percent, long Tamano)
+        //{
+        //    if ((Tamano/1024f) > 500 )
+        //    {
+        //        float nPercent = ((float)Percent / 100);
+
+        //        int sourceWidth = imgPhoto.Width;
+        //        int sourceHeight = imgPhoto.Height;
+        //        int sourceX = 0;
+        //        int sourceY = 0;
+
+        //        int destX = 0;
+        //        int destY = 0;
+        //        int destWidth = (int)(sourceWidth * nPercent);
+        //        int destHeight = (int)(sourceHeight * nPercent);
+
+        //        Bitmap bmPhoto = new Bitmap(destWidth, destHeight,
+        //                                 PixelFormat.Format24bppRgb);
+        //        bmPhoto.SetResolution(imgPhoto.HorizontalResolution,
+        //                                imgPhoto.VerticalResolution);
+
+        //        Graphics grPhoto = Graphics.FromImage(bmPhoto);
+        //        grPhoto.InterpolationMode = InterpolationMode.HighQualityBicubic;
+
+        //        grPhoto.DrawImage(imgPhoto,
+        //            new Rectangle(destX, destY, destWidth, destHeight),
+        //            new Rectangle(sourceX, sourceY, sourceWidth, sourceHeight),
+        //            GraphicsUnit.Pixel);
+
+        //        grPhoto.Dispose();
+
+        //        return bmPhoto;
+        //    }
+        //    else
+        //    {
+        //        return imgPhoto;
+        //    }
+        //}
+
+        private void BuscarTextBox_TextChanged(object sender, EventArgs e)
+        {
+            //if (!string.IsNullOrEmpty(BuscarTextBox.Text.Trim()))
+            //{
+            //    ListaArticulos.Clear();
+
+            //    switch (BuscarPor)
+            //    {
+            //        case "C":
+            //            ListaArticulos = Articulo.ObtenerArticulosXCodigo(BuscarTextBox.Text.Trim());
+            //            break;
+            //        case "D":
+            //            ListaArticulos = Articulo.ObtenerArticulosXDescripcion(BuscarTextBox.Text.Trim());
+            //            break;
+            //        case "P":
+            //            ListaArticulos = Articulo.ObtenerArticulosXProveedor(BuscarTextBox.Text.Trim());
+            //            break;
+            //    }
+
+            //    ArticuloBindingSource.DataSource = ListaArticulos;
+            //    ArticuloBindingSource.ResetBindings(false);
+                
+            //    if (GrillaDataGridView.RowCount > 0)
+            //    {
+            //        GrillaDataGridView.CurrentCell = GrillaDataGridView[0, 0];
+            //        MuestraSeleccion(GrillaDataGridView.CurrentRow.Index);
+            //    }
+            //    else
+            //    {
+
+            //        CodigoLabel.Text = "";
+            //        DescripcionLabel.Text = "";
+            //        DescripcionCortaLabel.Text = "";
+            //        FamiliaComboBox.Text = "No Aplica";
+            //        LineaComboBox.Text = "No Aplica";
+            //        MarcaComboBox.Text = "No Aplica";
+            //        MaterialComboBox.Text = "No Aplica";
+            //        ModeloComboBox.Text = "No Aplica";
+            //        ColorComboBox.Text = "No Aplica";
+            //        TallaComboBox.Text = "No Aplica";
+            //        RUCProveedorTextBox.Text = "";
+            //        NombreProveedorLabel.Text = "";
+            //        UnidadAlmacenComboBox.Text = "No Aplica";
+            //        MonedaComboBox.Text = "No Aplica";
+            //        PrecioCompraTextBox.Text = "0.00";
+            //        PrecioVentaTextBox.Text = "0.00";
+            //        EstadoComboBox.SelectedIndex = 0;
+
+            //        for (int i = 0; i < 9; i++)
+            //        {
+            //            Complemento[i] = "No Aplica";
+            //        }
+
+            //    }
+
+            //}
+            //else
+            //{
+
+            //    Inicializa();
+
+            //}
+        }
+
+        private void BuscarTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (GrillaDataGridView.RowCount > 0)
+            {
+
+                e.Handled = true;
+                switch (e.KeyCode)
+                {
+                    case Keys.Down:
+                        if (GrillaDataGridView.CurrentRow.Index < GrillaDataGridView.RowCount - 1)
+                        {
+                            GrillaDataGridView.CurrentCell = GrillaDataGridView[0, GrillaDataGridView.CurrentRow.Index + 1];
+                            MuestraSeleccion(GrillaDataGridView.CurrentRow.Index);
+                        }
+                        break;
+                    case Keys.Up:
+                        if (GrillaDataGridView.CurrentRow.Index != 0)
+                        {
+                            GrillaDataGridView.CurrentCell = GrillaDataGridView.Rows[GrillaDataGridView.CurrentRow.Index - 1].Cells[0];
+                            MuestraSeleccion(GrillaDataGridView.CurrentRow.Index);
+                        }
+                        break;
+                }
+
+            }
+            else if (BuscarTextBox.Text.Length > 0)
+            {
+
+                e.Handled = true;
+
+            }
+        }
+
+        private void GrillaDataGridView_SelectionChanged(object sender, EventArgs e)
+        {
+            if (Foco == "G")
+                MuestraSeleccion(GrillaDataGridView.CurrentRow.Index);
+
+        }
+
+        private void GrillaDataGridView_Enter(object sender, EventArgs e)
+        {
+
+            Foco = "G";
+
+        }
+
+        private void BuscarTextBox_Enter(object sender, EventArgs e)
+        {
+
+            Foco = "B";
+            BuscarTextBox.SelectAll();
+
+        }
+
+        private void CodigoRadioButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (CodigoRadioButton.Checked)
+            { 
+                BuscarPor = "C";
+                BuscarTextBox.Tag = "SN-OP";
+                BuscarTextBox.Focus();
+            }
+        }
+
+        private void DescripcionRadioButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (DescripcionRadioButton.Checked)
+            {
+                BuscarPor = "D";
+                BuscarTextBox.Tag = "NV-OP";
+                BuscarTextBox.Focus();
+            }
+        }
+
+        private void ProveedorRadioButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (ProveedorRadioButton.Checked)
+            {
+                BuscarPor = "P";
+                BuscarTextBox.Tag = "NV-OP";
+                BuscarTextBox.Focus();
+            }
+        }
+
+        private void FamiliaComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //if (Nuevo)
+            //{ 
+                if (FamiliaComboBox.Text.ToUpper() != "NO APLICA")
+                {
+                    Complemento[0] = FamiliaComboBox.Text.Trim(' ') + " ";
+                }
+                else
+                {
+                    Complemento[0] = "";
+                }
+                
+                FormaDescripcion();
+            //}
+        }
+
+        private void LineaComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //if (Nuevo)
+            //{
+                if (LineaComboBox.Text.ToUpper() != "NO APLICA")
+                {
+                    Complemento[1] = LineaComboBox.Text.Trim(' ') + " ";
+                }
+                else
+                {
+                    Complemento[1] = "";
+                }
+
+                FormaDescripcion();
+            //}
+        }
+
+        private void PrecioCompraTextBox_Enter(object sender, EventArgs e)
+        {
+            PrecioCompraTextBox.SelectAll();
+        }
+
+        private void PrecioVentaTextBox_Enter(object sender, EventArgs e)
+        {
+            PrecioVentaTextBox.SelectAll();
+        }
+
+        private void MarcaComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //if (Nuevo)
+            //{
+                if (MarcaComboBox.Text.ToUpper() != "NO APLICA")
+                {
+                    Complemento[2] = MarcaComboBox.Text.Trim(' ') + " ";
+                }
+                else
+                {
+                    Complemento[2] = "";
+                }
+
+                FormaDescripcion();
+            //}
+        }
+
+        private void MaterialComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //if (Nuevo)
+            //{
+                if (MaterialComboBox.Text.ToUpper() != "NO APLICA")
+                {
+                    Complemento[3] = MaterialComboBox.Text.Trim(' ') + " ";
+                }
+                else
+                {
+                    Complemento[3] = "";
+                }
+
+                FormaDescripcion();
+            //}
+        }
+
+        private void ModeloComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //if (Nuevo)
+            //{
+                if (ModeloComboBox.Text.ToUpper() != "NO APLICA")
+                {
+                    Complemento[4] = ModeloComboBox.Text.Trim(' ') + " ";
+                }
+                else
+                {
+                    Complemento[4] = "";
+                }
+
+                FormaDescripcion();
+            //}
+        }
+
+        private void ColorComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //if (Nuevo)
+            //{
+                if (ColorComboBox.Text.ToUpper() != "NO APLICA")
+                {
+                    Complemento[5] = ColorComboBox.Text.Trim(' ') + " ";
+                }
+                else
+                {
+                    Complemento[5] = "";
+                }
+
+                FormaDescripcion();
+            //}
+        }
+
+        private void DetalleComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //if (Nuevo)
+            //{
+                if (DetalleComboBox.Text.ToUpper() != "NO APLICA")
+                {
+                    Complemento[6] = DetalleComboBox.Text.Trim(' ') + " ";
+                }
+                else
+                {
+                    Complemento[6] = "";
+                }
+
+                FormaDescripcion();
+            //}
+        }
+
+        private void TallaComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //if (Nuevo)
+            //{
+                if (TallaComboBox.Text.ToUpper() != "NO APLICA")
+                {
+                    Complemento[7] = TallaComboBox.Text.Trim(' ') + " ";
+                }
+                else
+                {
+                    Complemento[7] = "";
+                }
+
+                FormaDescripcion();
+            //}
+        }
+
+        private void UnidadAlmacenComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //if (Nuevo)
+            //{
+                Complemento[8] = UnidadAlmacenComboBox.Text.Trim(' ');
+            //}
+        }
+
+        private void MonedaComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //if (Nuevo)
+            //{
+                Complemento[9] = MonedaComboBox.Text.Trim(' ');
+            //}
+        }
+
+        private void FormaDescripcion()
+        {
+
+            DescripcionLabel.Text = "";
+
+            DescripcionCortaLabel.Text = "";
+
+            for (int i = 0; i < 7; i++)
+            {
+                if (Complemento[i] != null)
+                    if (Complemento[i].ToUpper() != "NO APLICA")
+                    {
+                        DescripcionLabel.Text = DescripcionLabel.Text + Complemento[i].Trim(' ') + " ";
+
+                        if (Complemento[i].Trim(' ').Length <= 4)
+
+                            DescripcionCortaLabel.Text = DescripcionCortaLabel.Text + Complemento[i].Trim(' ') + " ";
+
+                        else
+
+                            DescripcionCortaLabel.Text = DescripcionCortaLabel.Text + Complemento[i].Trim(' ').Substring(0, 4) + " ";
+                    }
+            }
+
+            if (Complemento[7] != null)
+                if (Complemento[7].ToUpper() != "NO APLICA")
+                {
+                    DescripcionLabel.Text = DescripcionLabel.Text + Complemento[7];
+                    DescripcionCortaLabel.Text = DescripcionCortaLabel.Text + Complemento[7];
+                }
+
+            //DescripcionCortaLabel.Text = Familia.Substring(0,4) + Linea.Substring(0,4) + Marca.Substring(0,4) + Material.Substring(0, 4) + Modelo.Substring(0, 4) + Color.Substring(0, 4) + Talla;
+
+        }
+
+        private void Barrasbutton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                
+                SGVDataSet.CodigoBarrasDataTable _dt = new SGVDataSet.CodigoBarrasDataTable();
+                SGVDataSet.CodigoBarrasRow _dr = _dt.NewCodigoBarrasRow();
+
+                Barcode Barra = new Barcode();
+
+                //var newCode = string.Concat("1", FechaRegistro.ToString("yy"), FechaRegistro.ToString("MM"), Arti.IdArticulo);
+                var newCode = Arti.IdArticulo;
+
+                _dr.Codigo = CodigoLabel.Text;
+                _dr.Descripcion = DescripcionLabel.Text;
+                _dr.Imagen = Articulo.ImageToByte(Barra.Encode(TYPE.CODE128, newCode, System.Drawing.Color.Black, System.Drawing.Color.White, 120, 75));
+                _dr.Barra = newCode;
+                _dr.Color = Arti.Color;
+                _dr.Detalle = Arti.Detalle;
+                _dr.Familia = Arti.Familia;
+                _dr.Linea = Arti.Linea;
+                _dr.Marca = Arti.Marca;
+                _dr.Modelo = Arti.Modelo;
+                _dr.PrecioVenta = Arti.PrecioVenta.ToString("C");
+                _dr.Talla = Arti.Talla;
+
+                _dt.Rows.Add(_dr);
+
+                FormImprimirCodigoBarras imprimirCodigoBarras = new FormImprimirCodigoBarras(_dt);
+                imprimirCodigoBarras.ShowDialog();
+            }
+            catch
+            {
+
+            }
+
+        }
+
+        private void RUCProveedorTextBox_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void FormArticulo_Activated(object sender, EventArgs e)
+        {
+            //if (Carga)
+            //{
+            //    Nuevo = false;
+            //    CargaCombos();
+            //    Nuevo = true;
+
+            //    if (Nuevo)
+            //    { 
+            //        FamiliaComboBox.Text = Complemento[0].Trim(' ');
+            //        LineaComboBox.Text = Complemento[1].Trim(' ');
+            //        MarcaComboBox.Text = Complemento[2].Trim(' ');
+            //        MaterialComboBox.Text = Complemento[3].Trim(' ');
+            //        ModeloComboBox.Text = Complemento[4].Trim(' ');
+            //        ColorComboBox.Text = Complemento[5].Trim(' ');
+            //        DetalleComboBox.Text = Complemento[6].Trim(' ');
+            //        TallaComboBox.Text = Complemento[7].Trim(' ');
+            //        UnidadAlmacenComboBox.Text = Complemento[8].Trim(' ');
+            //        MonedaComboBox.Text = Complemento[9].Trim(' ');
+            //    }
+            //    else
+            //    {
+            //        FamiliaComboBox.Text = Arti.Familia;
+            //        LineaComboBox.Text = Arti.Linea;
+            //        MarcaComboBox.Text = Arti.Marca;
+            //        MaterialComboBox.Text = Arti.Material;
+            //        ModeloComboBox.Text = Arti.Modelo;
+            //        ColorComboBox.Text = Arti.Color;
+            //        DetalleComboBox.Text = Arti.Detalle;
+            //        TallaComboBox.Text = Arti.Talla;
+            //        UnidadAlmacenComboBox.Text = Arti.UnidadAlmacen;
+            //        MonedaComboBox.Text = Arti.MonedaCosteo;
+            //    }
+
+            //}
+        }
+
+        private void FormArticulo_Shown(object sender, EventArgs e)
+        {
+            Carga = true;
+
+            if (GrillaDataGridView.RowCount > 0)
+            {
+                GrillaDataGridView.CurrentCell = GrillaDataGridView[0, 0];
+                MuestraSeleccion(GrillaDataGridView.CurrentRow.Index);
+            }
+            else
+            {
+
+                CodigoLabel.Text = "";
+                DescripcionLabel.Text = "";
+                DescripcionCortaLabel.Text = "";
+                FamiliaComboBox.Text = "No Aplica";
+                LineaComboBox.Text = "No Aplica";
+                MarcaComboBox.Text = "No Aplica";
+                MaterialComboBox.Text = "No Aplica";
+                ModeloComboBox.Text = "No Aplica";
+                ColorComboBox.Text = "No Aplica";
+                TallaComboBox.Text = "No Aplica";
+                RUCProveedorTextBox.Text = "";
+                NombreProveedorLabel.Text = "";
+                UnidadAlmacenComboBox.Text = "No Aplica";
+                MonedaComboBox.Text = "No Aplica";
+                PrecioCompraTextBox.Text = "0.00";
+                PrecioVentaTextBox.Text = "0.00";
+                EstadoComboBox.SelectedIndex = 0;
+
+                for (int i = 0; i < 9; i++)
+                {
+                    Complemento[i] = "No Aplica";
+                }
+
+            }
+        }
+
+        private void BuscaArticuloButton_Click(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(BuscarTextBox.Text.Trim()))
+            {
+                ListaArticulos.Clear();
+
+                switch (BuscarPor)
+                {
+                    case "C":
+                        ListaArticulos = Articulo.ObtenerArticulosXCodigo(BuscarTextBox.Text.Trim());
+                        break;
+                    case "D":
+                        ListaArticulos = Articulo.ObtenerArticulosXDescripcion(BuscarTextBox.Text.Trim());
+                        break;
+                    case "P":
+                        ListaArticulos = Articulo.ObtenerArticulosXProveedor(BuscarTextBox.Text.Trim());
+                        break;
+                }
+
+                ArticuloBindingSource.DataSource = ListaArticulos;
+                ArticuloBindingSource.ResetBindings(false);
+
+                if (GrillaDataGridView.RowCount > 0)
+                {
+                    GrillaDataGridView.CurrentCell = GrillaDataGridView[0, 0];
+                    MuestraSeleccion(GrillaDataGridView.CurrentRow.Index);
+                }
+                else
+                {
+
+                    CodigoLabel.Text = "";
+                    DescripcionLabel.Text = "";
+                    DescripcionCortaLabel.Text = "";
+                    FamiliaComboBox.Text = "No Aplica";
+                    LineaComboBox.Text = "No Aplica";
+                    MarcaComboBox.Text = "No Aplica";
+                    MaterialComboBox.Text = "No Aplica";
+                    ModeloComboBox.Text = "No Aplica";
+                    ColorComboBox.Text = "No Aplica";
+                    TallaComboBox.Text = "No Aplica";
+                    RUCProveedorTextBox.Text = "";
+                    NombreProveedorLabel.Text = "";
+                    UnidadAlmacenComboBox.Text = "No Aplica";
+                    MonedaComboBox.Text = "No Aplica";
+                    PrecioCompraTextBox.Text = "0.00";
+                    PrecioVentaTextBox.Text = "0.00";
+                    EstadoComboBox.SelectedIndex = 0;
+
+                    for (int i = 0; i < 9; i++)
+                    {
+                        Complemento[i] = "No Aplica";
+                    }
+
+                }
+
+            }
+            else
+            {
+
+                Inicializa();
+
+            }
+        }
+
+        private void BuscarTextBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == (char)13)
+            {
+                BuscaArticuloButton.Focus();
+            }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+
+            SGVEntities Datos = new SGVEntities();
+            var list = (from t in Datos.Articulo
+                        where t.Foto != null
+                        select new { t.IdArticulo, t.Foto });
+                        //select new { t.IdArticulo });
+
+            foreach (var artic in list)
+            {
+                Articulo.ByteToImage(artic.Foto).Save("D:\\fotos\\" + artic.IdArticulo + ".jpg");
+
+                ////Image ImagenSeleccionada = Articulo.ByteToImage(artic.Foto);
+
+                //Image ImagenSeleccionada = Image.FromFile("D:\\fotos\\" + artic.IdArticulo + ".jpg");
+
+                //if (ImagenSeleccionada.Width > ImagenSeleccionada.Height)
+                //    ImagenSeleccionada = ImageResize.ConstrainProportions(ImagenSeleccionada, 250, ImageResize.Dimensions.Width);
+                //else
+                //    ImagenSeleccionada = ImageResize.ConstrainProportions(ImagenSeleccionada, 250, ImageResize.Dimensions.Height);
+
+                //SGVEntities Datos2 = new SGVEntities();
+
+                //DataAccess.Articulo artikulo = Datos2.Articulo.Where(a => a.IdArticulo == artic.IdArticulo).FirstOrDefault();
+
+                //artikulo.Foto = Articulo.ImageToByte(ImagenSeleccionada);
+
+                //Datos2.SaveChanges();
+
+                //Datos2.Dispose();
+
+            }
+                       
+        }
+    }
+}
+
+

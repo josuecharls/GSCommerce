@@ -1,0 +1,74 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace WinFrontEnd
+{
+    public partial class FormImprimirCodigoBarras : Form
+    {
+
+        SGVDataSet.CodigoBarrasDataTable dt = new SGVDataSet.CodigoBarrasDataTable();
+        SGVDataSet.CodigoBarrasRow _dr;
+
+        public FormImprimirCodigoBarras(SGVDataSet.CodigoBarrasDataTable _dt)
+        {
+            dt = _dt;
+            InitializeComponent();
+        }
+
+        private void Cancelarbutton_Click(object sender, EventArgs e)
+        {
+            Close();
+        }
+
+        private void VistaPreliminarbutton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                for (var i = 2; i <= CantidadnumericUpDown.Value; i++)
+                {
+                    var dr = dt.NewCodigoBarrasRow();
+                    dr.Codigo = _dr.Codigo;
+                    dr.Descripcion = _dr.Descripcion;
+                    dr.Imagen = _dr.Imagen;
+                    dr.Detalle = _dr.Detalle;
+                    dr.Barra = _dr.Barra;
+                    dr.Color = _dr.Color;
+                    dr.Familia = _dr.Familia;
+                    dr.Linea = _dr.Linea;
+                    dr.Marca = _dr.Marca;
+                    dr.Modelo = _dr.Modelo;
+                    dr.PrecioVenta = _dr.PrecioVenta;
+                    dr.Talla = _dr.Talla;
+
+                    dt.Rows.Add(dr);
+                }
+
+                var rpt = new Reportes.CodigoBarrasCrystalReport();
+                rpt.SetDataSource(dt.CopyToDataTable());
+
+                var contenedor = new FormReportes(rpt);
+                contenedor.Show();
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show("Error al Imprimir los códigos de barras. Detalle: " + ex.Message, "Catálogo de Artículos", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void FormImprimirCodigoBarras_Load(object sender, EventArgs e)
+        {
+            _dr = (SGVDataSet.CodigoBarrasRow)dt.Rows[0];
+            DescripciontextBox.Text = _dr.Descripcion;
+            CodigotextBox.Text = _dr.Codigo;
+
+            CantidadnumericUpDown.Focus();
+        }
+    }
+}

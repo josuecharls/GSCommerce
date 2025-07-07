@@ -1,0 +1,170 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using BusinessLayer;
+using DataAccess;
+
+namespace WinFrontEnd
+{
+    public partial class FormBuscarCliente : Form
+    {
+        ClienteClass Cliente = new ClienteClass();
+        List<Cliente> Clien = new List<Cliente>();
+
+        ClassValidaFormulario cvf = new ClassValidaFormulario();
+
+        Boolean ListaLlena = false;
+
+        public Cliente Clie = new Cliente();
+
+        public FormBuscarCliente()
+        {
+            InitializeComponent();
+
+            this.KeyPreview = true;
+            this.KeyPress += new KeyPressEventHandler(FormBuscarCliente_KeyPress);
+        }
+
+        private void FormBuscarCliente_KeyPress(object sender, KeyPressEventArgs e)
+        {
+
+            if (this.ActiveControl.Tag != null)
+                cvf.ValidaTeclas(this.ActiveControl.Tag.ToString(), e);
+
+        }
+
+        private void SalirButton_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void FormBuscarCliente_Load(object sender, EventArgs e)
+        {
+            Inicializa();
+
+        }
+
+        private void Inicializa()
+        {
+
+            ClientesBindingSource.DataSource = Cliente.ObtenerListaActivos();
+            //GrillaDataGridView.AutoResizeColumns();
+
+
+            if (GrillaDataGridView.RowCount > 0)
+                ListaLlena = true;
+            else
+                ListaLlena = false;
+
+        }
+
+        private void ClienteTextBox_TextChanged(object sender, EventArgs e)
+        {
+
+            if (!string.IsNullOrEmpty(ClienteTextBox.Text.Trim()))
+            {
+
+                ClientesBindingSource.DataSource = Cliente.ObtenerListaFiltradaXActivos(ClienteTextBox.Text.Trim());
+
+                if (GrillaDataGridView.RowCount > 0)
+                    ListaLlena = true;
+                else
+                    ListaLlena = false;
+
+            }
+            else
+            {
+
+                Inicializa();
+
+            }
+
+        }
+
+        private void ClienteTextBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+
+            if (e.KeyChar == (char)(Keys.Enter))
+            {
+
+                e.Handled = true;
+
+                SeleccionarButton_Click(sender, e);
+
+            }
+
+        }
+
+        private void ClienteTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            e.Handled = true;
+
+            if (GrillaDataGridView.RowCount > 0)
+            {
+
+                switch (e.KeyCode)
+                {
+                    case Keys.Down:
+                        if (GrillaDataGridView.CurrentRow.Index < GrillaDataGridView.RowCount - 1)
+                            GrillaDataGridView.CurrentCell = GrillaDataGridView.Rows[GrillaDataGridView.CurrentRow.Index + 1].Cells[GrillaDataGridView.CurrentCell.ColumnIndex];
+                        break;
+                    case Keys.Up:
+                        if (GrillaDataGridView.CurrentRow.Index != 0)
+                            GrillaDataGridView.CurrentCell = GrillaDataGridView.Rows[GrillaDataGridView.CurrentRow.Index - 1].Cells[GrillaDataGridView.CurrentCell.ColumnIndex];
+                        break;
+                }
+
+            }
+        }
+
+        private void SeleccionarButton_Click(object sender, EventArgs e)
+        {
+            if (ListaLlena)
+            {
+                LlenaInformacion();
+
+                this.DialogResult = DialogResult.OK;
+
+                this.Close();
+            }
+            else
+            {
+
+                MessageBox.Show("No hay información de Cliente.", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+            }
+
+        }
+
+        private void LlenaInformacion()
+        {
+
+            Clien = Cliente.ObtenerClienteXId(int.Parse(GrillaDataGridView.CurrentRow.Cells[0].Value.ToString()));
+
+            Clie.IdCliente = int.Parse(GrillaDataGridView.CurrentRow.Cells[0].Value.ToString());
+            Clie.DNIRUC = Clien[0].DNIRUC;
+            Clie.Nombre = Clien[0].Nombre;
+            Clie.Direccion = Clien[0].Direccion;
+
+        }
+
+        private void FormBuscarCliente_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            if (this.DialogResult == DialogResult.Cancel)
+                Clie = null;
+        }
+
+        private void GrillaDataGridView_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+
+            SeleccionarButton_Click(sender, e);
+
+        }
+    }
+}
