@@ -4,9 +4,11 @@
 @using GSCommerce.Client.Services
 @inject ArticuloService ArticuloService
 @inject ProveedorService ProveedorService
+@using GSCommerce.Client.Pages
 @inject NavigationManager Navigation
 @inject ArticuloVarianteService ArticuloVarianteService
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
 
 <h3>📌 Nuevo Artículo</h3>
 
@@ -69,13 +71,11 @@
             <div class="col-md-6">
                 <div class="mb-3">
                     <label class="form-label">Proveedor</label>
-                    <select class="form-control" @bind="articulo.IdProveedor">
-                        <option>Seleccionar</option>
-                        @foreach (var proveedor in proveedores)
-                        {
-                            <option value="@proveedor.IdProveedor">@proveedor.Nombre</option>
-                        }
-                    </select>
+                    <div class="input-group">
+                        <input type="text" class="form-control" @bind="rucProveedor" @onblur="BuscarProveedorPorRuc" />
+                        <button class="btn btn-secondary" @onclick="() => mostrarProveedorModal = true">Buscar</button>
+                    </div>
+                    <div class="mt-1"><strong>@nombreProveedor</strong></div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Unidad de Almacén</label>
@@ -242,6 +242,8 @@ else
     </table>
 }
 
+<ProveedorBuscarModal @bind-Mostrar="mostrarProveedorModal" OnSeleccionado="ProveedorSeleccionado" />
+
 @code {
 
     [Parameter]
@@ -251,6 +253,9 @@ else
     private bool isLoading = true;
     private bool yaInicializado = false;
     private bool mostrarModal = false;
+    private bool mostrarProveedorModal = false;
+    private string rucProveedor = string.Empty;
+    private string nombreProveedor = string.Empty;
     private ArticuloVarianteDTO nuevaVariante = new();
     private List<ArticuloVarianteDTO> variantes = new();
 
@@ -372,5 +377,30 @@ else
             var base64 = Convert.ToBase64String(imageBytes);
             articulo.Foto = $"data:{file.ContentType};base64,{base64}";
         }
+    }
+    
+    private async Task BuscarProveedorPorRuc(FocusEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(rucProveedor))
+            return;
+
+        var resp = await ProveedorService.GetProveedorList(1, 1, rucProveedor);
+        var prov = resp.Data.FirstOrDefault();
+        if (prov != null)
+        {
+            articulo.IdProveedor = prov.IdProveedor;
+            nombreProveedor = prov.Nombre;
+        }
+        else
+        {
+            nombreProveedor = "Proveedor no encontrado";
+        }
+    }
+
+    private void ProveedorSeleccionado(ProveedorDTO prov)
+    {
+        articulo.IdProveedor = prov.IdProveedor;
+        rucProveedor = prov.Ruc ?? string.Empty;
+        nombreProveedor = prov.Nombre;
     }
 }
