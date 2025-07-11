@@ -1,0 +1,70 @@
+﻿@page "/precios-almacen"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject AlmacenService AlmacenService
+@inject PrecioAlmacenService PrecioService
+
+<h3>💲 Precios por Almacén</h3>
+
+<select class="form-select mb-3" @onchange="OnAlmacenChanged">
+    <option value="0">-- Seleccione Almacén --</option>
+    @foreach (var a in almacenes)
+    {
+        <option value="@a.IdAlmacen">@a.Nombre</option>
+    }
+</select>
+
+@if (lista.Any())
+{
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Precio</th>
+                <th>Descuento %</th>
+                <th>Precio Final</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in lista)
+            {
+                <tr>
+                    <td>@p.IdArticulo</td>
+                    <td>@p.DescripcionCorta</td>
+                    <td>@p.PrecioVenta</td>
+                    <td><input type="number" style="width:80px" step="0.01" @bind="p.Descuento" /></td>
+                    <td>@p.PrecioFinal</td>
+                    <td><button class="btn btn-primary btn-sm" @onclick="() => Guardar(p)">Guardar</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<AlmacenDTO> almacenes = new();
+    private List<PrecioAlmacenDTO> lista = new();
+    private int idAlmacenSeleccionado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+    }
+
+    private async Task OnAlmacenChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            idAlmacenSeleccionado = id;
+            lista = await PrecioService.ObtenerLista(id);
+        }
+    }
+
+    private async Task Guardar(PrecioAlmacenDTO dto)
+    {
+        await PrecioService.GuardarDescuento(dto);
+        lista = await PrecioService.ObtenerLista(idAlmacenSeleccionado);
+    }
+}

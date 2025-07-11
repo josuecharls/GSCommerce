@@ -16,6 +16,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @inject AuthService AuthService
 @inject IJSRuntime JS
+@inject PrecioAlmacenService PrecioAlmacenService
 @using System.Text;
 
 <h3>Registrar Venta</h3>
@@ -395,6 +396,17 @@ OnCancelado="CobroCancelado" />
                 }
                 else
                 {
+                    var info = idAlmacenActual.HasValue
+                        ? await PrecioAlmacenService.ObtenerPrecio(idAlmacenActual.Value, articulo.IdArticulo)
+                        : null;
+                    decimal precioUnit = articulo.PrecioVenta;
+                    decimal descuentoPorc = 0;
+                    if (info != null)
+                    {
+                        precioUnit = (decimal)(info.PrecioFinal ?? (double)articulo.PrecioVenta);
+                        descuentoPorc = (decimal)info.DescuentoPorc;
+                    }
+
                     venta.Detalles.Add(new VentaDetalleDTO
                         {
                             Item = venta.Detalles.Count + 1,
