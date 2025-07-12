@@ -6,7 +6,8 @@
 
 <h3>💲 Precios por Almacén</h3>
 
-<select class="form-select mb-3" @onchange="OnAlmacenChanged">
+<select class="form-select mb-3"
+        @onchange="OnAlmacenChanged">
     <option value="0">-- Seleccione Almacén --</option>
     @foreach (var a in almacenes)
     {
@@ -51,6 +52,11 @@
     protected override async Task OnInitializedAsync()
     {
         almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        if (almacenes.Any())
+        {
+            idAlmacenSeleccionado = almacenes.First().IdAlmacen;
+            await CargarLista();
+        }
     }
 
     private async Task OnAlmacenChanged(ChangeEventArgs e)
@@ -58,8 +64,13 @@
         if (int.TryParse(e.Value?.ToString(), out var id))
         {
             idAlmacenSeleccionado = id;
-            lista = await PrecioService.ObtenerLista(id);
+            await CargarLista();
         }
+    }
+
+    private async Task CargarLista()
+    {
+        lista = await PrecioService.ObtenerLista(idAlmacenSeleccionado);
     }
 
     private async Task Guardar(PrecioAlmacenDTO dto)
