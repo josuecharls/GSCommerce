@@ -39,6 +39,7 @@ builder.Services.AddScoped<ReporteService>();
 builder.Services.AddScoped<ResumenSunatService>();
 builder.Services.AddScoped<ResumenService>();
 builder.Services.AddScoped<TipoCambioService>();
+builder.Services.AddScoped<DescuentoService>();
 builder.Services.AddScoped<NotaCreditoService>();
 builder.Services.AddAuthorizationCore();
 

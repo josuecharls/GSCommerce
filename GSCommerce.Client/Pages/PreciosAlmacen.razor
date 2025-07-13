@@ -1,0 +1,113 @@
+﻿@page "/precios-almacen"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject AlmacenService AlmacenService
+@inject DescuentoService DescuentoService
+@inject ArticuloService ArticuloService
+
+<h3>Ajuste de Precios por Tienda</h3>
+
+<select class="form-select mb-2" @bind="idAlmacenSeleccionado">
+    <option value="0">-- Seleccione Tienda --</option>
+    @foreach (var a in almacenes)
+    {
+        <option value="@a.IdAlmacen">@a.Nombre</option>
+    }
+</select>
+
+<div class="mb-3">
+    <input class="form-control" placeholder="Código Artículo" @bind="codigoNuevo" />
+    <input type="number" class="form-control mt-1" placeholder="Descuento %" @bind="nuevoDscto" />
+    <button class="btn btn-success mt-1" @onclick="Agregar">Agregar</button>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Código</th>
+            <th>Descripción</th>
+            <th>Precio Venta</th>
+            <th>Descuento %</th>
+            <th>Precio Final</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var d in descuentos)
+        {
+            <tr>
+                <td>@d.IdArticulo</td>
+                <td>@d.DescripcionCorta</td>
+                <td>@d.PrecioVenta</td>
+                <td style="width:120px;">
+                    <input type="number" class="form-control" value="@d.DescuentoPorc" @onchange="e => OnDescuentoChanged(e, d)" />
+                </td>
+                <td>@d.PrecioFinal</td>
+                <td><button class="btn btn-danger btn-sm" @onclick="() => Eliminar(d)">Eliminar</button></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<AlmacenDTO> almacenes = new();
+    private List<DescuentoDTO> descuentos = new();
+    private int idAlmacenSeleccionado;
+    private string codigoNuevo = string.Empty;
+    private double nuevoDscto;
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+    }
+
+    private async Task AlmacenChanged(ChangeEventArgs e)
+    {
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        if (idAlmacenSeleccionado > 0)
+            descuentos = await DescuentoService.ObtenerPorAlmacen(idAlmacenSeleccionado);
+    }
+
+    private async Task Agregar()
+    {
+        if (idAlmacenSeleccionado == 0)
+            return;
+        if (!int.TryParse(codigoNuevo, out var idArt))
+            return;
+        var dto = new DescuentoDTO
+        {
+            IdAlmacen = idAlmacenSeleccionado,
+            IdArticulo = idArt,
+            DescuentoPorc = nuevoDscto,
+            Descuento = nuevoDscto
+        };
+        await DescuentoService.CrearAsync(dto);
+        codigoNuevo = string.Empty;
+        nuevoDscto = 0;
+        await Cargar();
+    }
+
+    private async Task Guardar(DescuentoDTO d)
+    {
+        await DescuentoService.ActualizarAsync(d.IdDescuento, d);
+        await Cargar();
+    }
+
+    private async Task Eliminar(DescuentoDTO d)
+    {
+        await DescuentoService.EliminarAsync(d.IdDescuento);
+        await Cargar();
+    }
+    private async Task OnDescuentoChanged(ChangeEventArgs e, DescuentoDTO d)
+    {
+        if (double.TryParse(e.Value?.ToString(), out var valor))
+        {
+            d.DescuentoPorc = valor;
+            await Guardar(d);
+        }
+    }
+}
