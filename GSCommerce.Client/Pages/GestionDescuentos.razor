@@ -1,0 +1,101 @@
+﻿@page "/descuentos"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject DescuentoService DescuentoService
+@inject AlmacenService AlmacenService
+@inject NavigationManager Navigation
+
+<h3>📉 Gestión de Descuentos</h3>
+
+<div class="mb-3">
+    <select class="form-select" @onchange="CargarDescuentos">
+        <option value="0">-- Seleccione Tienda --</option>
+        @foreach (var t in tiendas)
+        {
+            <option value="@t.IdAlmacen">@t.Nombre</option>
+        }
+    </select>
+</div>
+
+<button class="btn btn-success mb-2" @onclick="Agregar">+ Agregar</button>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Código</th>
+            <th>Artículo</th>
+            <th>PV</th>
+            <th>% Dscto</th>
+            <th>Final</th>
+            <th>Utilidad</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var d in descuentos)
+        {
+            <tr>
+                <td>@d.IdArticulo</td>
+                <td>@d.DescripcionCorta</td>
+                <td>@d.PrecioVenta</td>
+                <td>@d.DescuentoPorc</td>
+                <td>@d.PrecioFinal</td>
+                <td>@d.Utilidad</td>
+                <td>
+                    <button class="btn btn-warning btn-sm me-1" @onclick="() => Editar(d)">✏️</button>
+                    <button class="btn btn-danger btn-sm" @onclick="() => Eliminar(d)">🗑️</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<AlmacenDTO> tiendas = new();
+    private List<DescuentoDTO> descuentos = new();
+    private int idAlmacen;
+    private int Almacen
+    {
+        get => idAlmacen;
+        set
+        {
+            if (idAlmacen != value)
+            {
+                idAlmacen = value;
+                _ = CargarDescuentos();
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        tiendas = await AlmacenService.GetAlmacenes() ?? new List<AlmacenDTO>();
+    }
+
+    private async Task CargarDescuentos(ChangeEventArgs? e = null)
+    {
+        if (idAlmacen > 0)
+        {
+            descuentos = await DescuentoService.ObtenerDescuentos(idAlmacen);
+        }
+    }
+
+    private void Agregar()
+    {
+        Console.WriteLine($"Navegando a /descuento-form/{idAlmacen}");
+        Navigation.NavigateTo($"/descuento-form/{idAlmacen}");
+    }
+
+    private void Editar(DescuentoDTO d)
+    {
+        Navigation.NavigateTo($"/descuento-form/{idAlmacen}/{d.IdArticulo}");
+    }
+
+    private async Task Eliminar(DescuentoDTO d)
+    {
+        if (await DescuentoService.EliminarDescuento(idAlmacen, d.IdArticulo))
+        {
+            await CargarDescuentos();
+        }
+    }
+}

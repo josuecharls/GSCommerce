@@ -1,0 +1,126 @@
+﻿@page "/descuento-form/{idAlmacen:int}/{idArticulo?}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject ArticuloService ArticuloService
+@inject DescuentoService DescuentoService
+@inject NavigationManager Navigation
+
+<h3>📝 Ajuste de Precio</h3>
+
+@if (articulo != null)
+{
+    <div class="card p-4">
+        <div class="mb-3">
+            <label class="form-label">Código Artículo</label>
+            <input class="form-control" @bind="iscodigo" />
+            <button class="btn btn-outline-primary" @onclick="BuscarArticulo">Buscar</button>
+            @if (!string.IsNullOrEmpty(codigo) && articulo == null)
+            {
+                <div class="alert alert-danger mt-2">
+                    ❌ Artículo no encontrado.
+                </div>
+            }
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Descripción</label>
+            <input class="form-control" @bind="articulo.Descripcion" readonly />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Precio Venta</label>
+            <input class="form-control" @bind="precioVenta" readonly />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Precio Final</label>
+            <input class="form-control" type="number" @bind="precioFinal" @oninput="Calcular" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">% Descuento</label>
+            <input class="form-control" @bind="porcentaje" readonly />
+        </div>
+        <button class="btn btn-primary" @onclick="Guardar">Guardar</button>
+        <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+    </div>
+}
+else
+{
+    <p>Cargando...</p>
+}
+
+@code {
+    [Parameter] public int idAlmacen { get; set; }
+    [Parameter] public string? idArticulo { get; set; }
+
+    private ArticuloDTO? articulo;
+    private string codigo = string.Empty;
+    private string iscodigo
+    {
+        get => codigo;
+        set
+        {
+            if(value != codigo)
+            {
+                codigo = value;
+                _ = BuscarArticulo();
+            }
+        }
+    }
+
+    private double precioVenta;
+    private double precioFinal;
+    private double porcentaje;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(idArticulo))
+        {
+            codigo = idArticulo;
+            await BuscarArticulo();
+        }
+        else
+        {
+            articulo = new ArticuloDTO();
+        }
+    }
+
+    private async Task BuscarArticulo()
+    {
+        if (!string.IsNullOrEmpty(codigo))
+        {
+            var a = await ArticuloService.BuscarPorCodigoAsync(codigo);
+            if (a != null)
+            {
+                articulo = a;
+                precioVenta = (double)a.PrecioVenta;
+                precioFinal = precioVenta;
+                porcentaje = 0;
+            }
+        }
+    }
+
+    private void Calcular(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), out var val))
+        {
+            precioFinal = val;
+            porcentaje = precioVenta == 0 ? 0 : (precioVenta - precioFinal) * 100 / precioVenta;
+        }
+    }
+
+    private async Task Guardar()
+    {
+        if (articulo == null || string.IsNullOrEmpty(codigo)) return;
+
+        if (string.IsNullOrEmpty(idArticulo))
+        {
+            await DescuentoService.AgregarDescuento(idAlmacen, codigo, porcentaje);
+        }
+        else
+        {
+            await DescuentoService.ModificarDescuento(idAlmacen, codigo, porcentaje);
+        }
+
+        Navigation.NavigateTo("/descuentos");
+    }
+
+    private void Cancelar() => Navigation.NavigateTo("/descuentos");
+}

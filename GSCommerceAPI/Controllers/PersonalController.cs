@@ -35,6 +35,7 @@ namespace GSCommerceAPI.Controllers
 
             var totalItems = await query.CountAsync();
             var personalList = await query
+                .OrderBy(p => p.IdPersonal) // 🟢 ordenamiento obligatorio antes de paginar
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();

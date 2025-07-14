@@ -10,7 +10,6 @@
 @inject AsignacionSerieCajeroService AsignacionSerieCajeroService
 @inject PersonalService PersonalService
 @inject StockService StockService
-@inject DescuentoService DescuentoService
 @inject NavigationManager Navigation
 @inject TipoDocumentoVentaService TipoDocumentoVentaService
 @inject HttpClient Http
@@ -365,10 +364,6 @@ OnCancelado="CobroCancelado" />
 
             var articulo = await articuloService.BuscarPorCodigoAsync(codigo);
             double descPorc = 0;
-            if (idAlmacenActual != null)
-            {
-                descPorc = await DescuentoService.ObtenerPorArticulo(idAlmacenActual.Value, codigo);
-            }
 
             if (articulo != null)
             {

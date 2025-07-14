@@ -34,6 +34,7 @@ builder.Services.AddScoped<ReniecService>();
 builder.Services.AddScoped<CajaService>();
 builder.Services.AddScoped<AuxiliaresVariosService>();
 builder.Services.AddScoped<UsuarioService>();
+builder.Services.AddScoped<DescuentoService>();
 builder.Services.AddScoped<AsignacionSerieCajeroService>();
 builder.Services.AddScoped<ReporteService>();
 builder.Services.AddScoped<ResumenSunatService>();
