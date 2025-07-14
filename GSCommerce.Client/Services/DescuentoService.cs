@@ -30,9 +30,12 @@ namespace GSCommerce.Client.Services
             }
         }
 
-        public async Task CrearAsync(DescuentoDTO dto)
+        public async Task<DescuentoDTO?> CrearAsync(DescuentoDTO dto)
         {
-            await _httpClient.PostAsJsonAsync("api/descuentos", dto);
+            var response = await _httpClient.PostAsJsonAsync("api/descuentos", dto);
+            if (response.IsSuccessStatusCode)
+                return await response.Content.ReadFromJsonAsync<DescuentoDTO>();
+            return null;
         }
 
         public async Task ActualizarAsync(int id, DescuentoDTO dto)

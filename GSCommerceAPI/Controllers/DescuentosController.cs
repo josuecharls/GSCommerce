@@ -1,4 +1,5 @@
-﻿using GSCommerceAPI.Data;
+﻿using GSCommerce.Client.Models;
+using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -40,19 +41,37 @@ namespace GSCommerceAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> CrearDescuento([FromBody] Descuento dto)
         {
-            _context.Descuentos.Add(dto);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(ObtenerDescuentos), new { idAlmacen = dto.IdAlmacen }, dto);
+            try
+            {
+                _context.Descuentos.Add(dto);
+                await _context.SaveChangesAsync();
+
+                Console.WriteLine($"🔧 Nuevo descuento ID generado: {dto.IdDescuento}");
+                // Devuelve el DTO completo con ID generado
+                return Ok(new DescuentoDTO
+                {
+                    IdDescuento = dto.IdDescuento,
+                    IdAlmacen = dto.IdAlmacen,
+                    IdArticulo = dto.IdArticulo,
+                    Descuento = dto.Descuento1,
+                    DescuentoPorc = dto.Descuento1
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error al crear el descuento {ex.Message} ");
+                return StatusCode(500, "Error al crear el descuento");
+            }
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> ModificarDescuento(int id, [FromBody] Descuento dto)
+        public async Task<IActionResult> ModificarDescuento(int id, [FromBody] DescuentoDTO dto)
         {
             var existente = await _context.Descuentos.FindAsync(id);
             if (existente == null)
                 return NotFound();
 
-            existente.Descuento1 = dto.Descuento1;
+            existente.Descuento1 = dto.DescuentoPorc; // Aquí está la clave
             await _context.SaveChangesAsync();
             return NoContent();
         }

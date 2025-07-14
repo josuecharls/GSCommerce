@@ -1,4 +1,6 @@
-﻿namespace GSCommerce.Client.Models
+﻿using System.Text.Json.Serialization;
+
+namespace GSCommerce.Client.Models
 {
     public class DescuentoDTO
     {
@@ -9,7 +11,10 @@
         public decimal PrecioVenta { get; set; }
         public decimal PrecioCompra { get; set; }
         public double? PrecioFinal { get; set; }
+
+        [JsonPropertyName("descuento1")]
         public double Descuento { get; set; }
+
         public double DescuentoPorc { get; set; }
         public double? Utilidad { get; set; }
     }

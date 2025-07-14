@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace GSCommerceAPI.Models;
 
 public partial class Descuento
 {
+    [Key]
     public int IdDescuento { get; set; }
 
     public int IdAlmacen { get; set; }

@@ -43,7 +43,9 @@
                     <input type="number" class="form-control" value="@d.DescuentoPorc" @onchange="e => OnDescuentoChanged(e, d)" />
                 </td>
                 <td>@d.PrecioFinal</td>
-                <td><button class="btn btn-danger btn-sm" @onclick="() => Eliminar(d)">Eliminar</button></td>
+                <td>
+                    <button class="btn btn-danger btn-sm" @onclick="() => Eliminar(d)">Eliminar</button>
+                </td>
             </tr>
         }
     </tbody>
@@ -53,17 +55,25 @@
     private List<AlmacenDTO> almacenes = new();
     private List<DescuentoDTO> descuentos = new();
     private int idAlmacenSeleccionado;
+
+    private int AlmacenSeleccionado
+    {
+        get => idAlmacenSeleccionado;
+        set
+        {
+            if (idAlmacenSeleccionado != value)
+            {
+                idAlmacenSeleccionado = value;
+                _ = Cargar(); // no await porque es en setter
+            }
+        }
+    }
     private string codigoNuevo = string.Empty;
     private double nuevoDscto;
 
     protected override async Task OnInitializedAsync()
     {
         almacenes = await AlmacenService.GetAlmacenes() ?? new();
-    }
-
-    private async Task AlmacenChanged(ChangeEventArgs e)
-    {
-        await Cargar();
     }
 
     private async Task Cargar()
@@ -78,6 +88,11 @@
             return;
         if (!int.TryParse(codigoNuevo, out var idArt))
             return;
+
+        // Evita duplicados
+        if (descuentos.Any(x => x.IdArticulo == idArt))
+            return;
+
         var dto = new DescuentoDTO
         {
             IdAlmacen = idAlmacenSeleccionado,
@@ -85,28 +100,35 @@
             DescuentoPorc = nuevoDscto,
             Descuento = nuevoDscto
         };
-        await DescuentoService.CrearAsync(dto);
-        codigoNuevo = string.Empty;
-        nuevoDscto = 0;
-        await Cargar();
+
+        var creado = await DescuentoService.CrearAsync(dto);
+        if (creado != null)
+        {
+            descuentos.Add(creado); // 👈 mantiene el IdDescuento válido
+            codigoNuevo = string.Empty;
+            nuevoDscto = 0;
+        }
     }
 
     private async Task Guardar(DescuentoDTO d)
     {
+        Console.WriteLine($"🟡 Guardando IdDescuento = {d.IdDescuento}");
         await DescuentoService.ActualizarAsync(d.IdDescuento, d);
-        await Cargar();
     }
 
     private async Task Eliminar(DescuentoDTO d)
     {
+        Console.WriteLine($"🟥 Eliminando IdDescuento = {d.IdDescuento}");
         await DescuentoService.EliminarAsync(d.IdDescuento);
-        await Cargar();
+        descuentos.Remove(d);
     }
+
     private async Task OnDescuentoChanged(ChangeEventArgs e, DescuentoDTO d)
     {
         if (double.TryParse(e.Value?.ToString(), out var valor))
         {
             d.DescuentoPorc = valor;
+            d.Descuento = valor;
             await Guardar(d);
         }
     }
