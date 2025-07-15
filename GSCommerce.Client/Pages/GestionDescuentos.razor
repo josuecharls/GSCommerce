@@ -49,6 +49,14 @@
         }
     </tbody>
 </table>
+@if (descuentos?.Count > 0)
+{
+    <p class="text-success">🟢 Datos cargados correctamente.</p>
+}
+else
+{
+    <p class="text-danger">🔴 No se encontraron descuentos visibles para este almacén.</p>
+}
 
 @code {
     private List<AlmacenDTO> tiendas = new();
@@ -72,11 +80,13 @@
         tiendas = await AlmacenService.GetAlmacenes() ?? new List<AlmacenDTO>();
     }
 
-    private async Task CargarDescuentos(ChangeEventArgs? e = null)
+    private async Task CargarDescuentos()
     {
+        Console.WriteLine($"🔍 Cargando descuentos para Almacen: {idAlmacen}");
         if (idAlmacen > 0)
         {
             descuentos = await DescuentoService.ObtenerDescuentos(idAlmacen);
+            Console.WriteLine($"✅ Descuentos cargados: {descuentos.Count}");
         }
     }
 
