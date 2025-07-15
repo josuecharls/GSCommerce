@@ -20,6 +20,18 @@ public class DescuentoService
         return response ?? new List<DescuentoDTO>();
     }
 
+    public async Task<DescuentoDTO?> ObtenerDescuento(int idAlmacen, string idArticulo)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<DescuentoDTO>($"api/descuentos/{idAlmacen}/{idArticulo}");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<bool> AgregarDescuento(int idAlmacen, string idArticulo, double porcentaje)
     {
         var dto = new { IdAlmacen = idAlmacen, IdArticulo = idArticulo, DescuentoPorc = porcentaje };

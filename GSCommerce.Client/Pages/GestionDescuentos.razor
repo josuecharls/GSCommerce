@@ -8,7 +8,7 @@
 <h3>📉 Gestión de Descuentos</h3>
 
 <div class="mb-3">
-    <select class="form-select" @onchange="CargarDescuentos">
+    <select class="form-select" @bind="Almacen">
         <option value="0">-- Seleccione Tienda --</option>
         @foreach (var t in tiendas)
         {

@@ -24,6 +24,18 @@ public class DescuentosController : ControllerBase
         return Ok(lista);
     }
 
+    [HttpGet("{idAlmacen}/{idArticulo}")]
+    public async Task<ActionResult<VDescuento>> ObtenerPorArticulo(int idAlmacen, string idArticulo)
+    {
+        var descuento = await _context.VDescuentos
+            .FirstOrDefaultAsync(d => d.IdAlmacen == idAlmacen && d.IdArticulo == idArticulo);
+
+        if (descuento == null)
+            return NotFound();
+
+        return Ok(descuento);
+    }
+
     [HttpPost]
     public async Task<IActionResult> AgregarDescuento([FromBody] DescuentoInput input)
     {

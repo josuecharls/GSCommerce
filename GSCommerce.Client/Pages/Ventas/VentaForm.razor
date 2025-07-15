@@ -10,6 +10,7 @@
 @inject AsignacionSerieCajeroService AsignacionSerieCajeroService
 @inject PersonalService PersonalService
 @inject StockService StockService
+@inject DescuentoService DescuentoService
 @inject NavigationManager Navigation
 @inject TipoDocumentoVentaService TipoDocumentoVentaService
 @inject HttpClient Http
@@ -364,10 +365,29 @@ OnCancelado="CobroCancelado" />
 
             var articulo = await articuloService.BuscarPorCodigoAsync(codigo);
             double descPorc = 0;
+            decimal precioUnitario = 0;
 
             if (articulo != null)
             {
                 string descripcion = articulo.Descripcion;
+                if (idAlmacenActual != null)
+                {
+                    var desc = await DescuentoService.ObtenerDescuento(idAlmacenActual.Value, articulo.IdArticulo);
+                    if (desc != null)
+                    {
+                        descPorc = desc.DescuentoPorc;
+                        precioUnitario = (decimal)(desc.PrecioFinal ?? (double)articulo.PrecioVenta);
+                    }
+                    else
+                    {
+                        precioUnitario = articulo.PrecioVenta;
+                    }
+                }
+                else
+                {
+                    precioUnitario = articulo.PrecioVenta;
+                }
+
 
                 var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
                 if (variantes.Any())
@@ -394,6 +414,7 @@ OnCancelado="CobroCancelado" />
                     }
                     existente.Cantidad += 1;
                     existente.PorcentajeDescuento = (decimal)descPorc;
+                    existente.PrecioUnitario = precioUnitario;
                 }
                 else
                 {
@@ -403,7 +424,7 @@ OnCancelado="CobroCancelado" />
                             CodigoItem = articulo.IdArticulo,
                             DescripcionItem = descripcion,
                             Cantidad = 1,
-                            PrecioUnitario = articulo.PrecioVenta,
+                            PrecioUnitario = precioUnitario,
                             PorcentajeDescuento = (decimal)descPorc
                         });
                 }
