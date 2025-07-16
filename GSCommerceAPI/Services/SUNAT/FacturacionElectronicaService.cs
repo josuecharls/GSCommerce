@@ -312,7 +312,7 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<ext:UBLExtensions>");
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent/></ext:UBLExtension>");
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent><sac:AdditionalInformation>");
-            sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>1001</cbc:ID><cbc:PayableAmount currencyID=\"PEN\">" + dto.Total.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
+            sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>1001</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">" + dto.Total.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
             sb.AppendLine("<sac:AdditionalProperty><cbc:ID>1000</cbc:ID><cbc:Value>" + dto.MontoLetras + "</cbc:Value></sac:AdditionalProperty>");
             sb.AppendLine("</sac:AdditionalInformation></ext:ExtensionContent></ext:UBLExtension>");
             sb.AppendLine("</ext:UBLExtensions>");
@@ -377,18 +377,18 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<cac:PaymentTerms><cbc:ID>FormaPago</cbc:ID><cbc:PaymentMeansID>Contado</cbc:PaymentMeansID></cac:PaymentTerms>");
             // Totales globales
             sb.AppendLine("<cac:TaxTotal>");
-            sb.AppendLine($"<cbc:TaxAmount currencyID=\"PEN\">{dto.Igv:F2}</cbc:TaxAmount>");
+            sb.AppendLine($"<cbc:TaxAmount currencyID=\"{dto.Moneda}\">{dto.Igv:F2}</cbc:TaxAmount>");
             sb.AppendLine("<cac:TaxSubtotal>");
-            sb.AppendLine($"<cbc:TaxableAmount currencyID=\"PEN\">{dto.SubTotal:F2}</cbc:TaxableAmount>");
-            sb.AppendLine($"<cbc:TaxAmount currencyID=\"PEN\">{dto.Igv:F2}</cbc:TaxAmount>");
+            sb.AppendLine($"<cbc:TaxableAmount currencyID=\"{dto.Moneda}\">{dto.SubTotal:F2}</cbc:TaxableAmount>");
+            sb.AppendLine($"<cbc:TaxAmount currencyID=\"{dto.Moneda}\">{dto.Igv:F2}</cbc:TaxAmount>");
             sb.AppendLine("<cac:TaxCategory><cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme></cac:TaxCategory>");
             sb.AppendLine("</cac:TaxSubtotal>");
             sb.AppendLine("</cac:TaxTotal>");
 
             sb.AppendLine("<cac:LegalMonetaryTotal>");
-            sb.AppendLine($"<cbc:LineExtensionAmount currencyID=\"PEN\">{dto.SubTotal:F2}</cbc:LineExtensionAmount>");
-            sb.AppendLine($"<cbc:TaxInclusiveAmount currencyID=\"PEN\">{dto.Total:F2}</cbc:TaxInclusiveAmount>");
-            sb.AppendLine($"<cbc:PayableAmount currencyID=\"PEN\">{dto.Total:F2}</cbc:PayableAmount>");
+            sb.AppendLine($"<cbc:LineExtensionAmount currencyID=\"{dto.Moneda}\">{dto.SubTotal:F2}</cbc:LineExtensionAmount>");
+            sb.AppendLine($"<cbc:TaxInclusiveAmount currencyID=\"{dto.Moneda}\">{dto.Total:F2}</cbc:TaxInclusiveAmount>");
+            sb.AppendLine($"<cbc:PayableAmount currencyID=\"{dto.Moneda}\">{dto.Total:F2}</cbc:PayableAmount>");
             sb.AppendLine("</cac:LegalMonetaryTotal>");
 
             foreach (var item in dto.Detalles)
@@ -400,15 +400,15 @@ namespace GSCommerceAPI.Services.SUNAT
                 sb.AppendLine("<cac:InvoiceLine>");
                 sb.AppendLine($"<cbc:ID>{item.Item}</cbc:ID>");
                 sb.AppendLine($"<cbc:InvoicedQuantity unitCode=\"{item.UnidadMedida}\">{item.Cantidad:F2}</cbc:InvoicedQuantity>");
-                sb.AppendLine($"<cbc:LineExtensionAmount currencyID=\"PEN\">{baseImponible:F2}</cbc:LineExtensionAmount>");
+                sb.AppendLine($"<cbc:LineExtensionAmount currencyID=\"{dto.Moneda}\">{baseImponible:F2}</cbc:LineExtensionAmount>");
 
                 sb.AppendLine("<cac:PricingReference><cac:AlternativeConditionPrice>");
-                sb.AppendLine($"<cbc:PriceAmount currencyID=\"PEN\">{item.PrecioUnitarioConIGV:F2}</cbc:PriceAmount>");
+                sb.AppendLine($"<cbc:PriceAmount currencyID=\"{dto.Moneda}\">{item.PrecioUnitarioConIGV:F2}</cbc:PriceAmount>");
                 sb.AppendLine("<cbc:PriceTypeCode>01</cbc:PriceTypeCode></cac:AlternativeConditionPrice></cac:PricingReference>");
 
-                sb.AppendLine("<cac:TaxTotal><cbc:TaxAmount currencyID=\"PEN\">" + igv.ToString("F2") + "</cbc:TaxAmount>");
-                sb.AppendLine("<cac:TaxSubtotal><cbc:TaxableAmount currencyID=\"PEN\">" + baseImponible.ToString("F2") + "</cbc:TaxableAmount>");
-                sb.AppendLine("<cbc:TaxAmount currencyID=\"PEN\">" + igv.ToString("F2") + "</cbc:TaxAmount>");
+                sb.AppendLine("<cac:TaxTotal><cbc:TaxAmount currencyID=\"" + dto.Moneda + "\">" + igv.ToString("F2") + "</cbc:TaxAmount>");
+                sb.AppendLine("<cac:TaxSubtotal><cbc:TaxableAmount currencyID=\"" + dto.Moneda + "\">" + baseImponible.ToString("F2") + "</cbc:TaxableAmount>");
+                sb.AppendLine("<cbc:TaxAmount currencyID=\"" + dto.Moneda + "\">" + igv.ToString("F2") + "</cbc:TaxAmount>");
                 sb.AppendLine("<cac:TaxCategory>");
                 sb.AppendLine("<cbc:Percent>18</cbc:Percent>");
                 sb.AppendLine("<cbc:TaxExemptionReasonCode>10</cbc:TaxExemptionReasonCode>");
@@ -416,7 +416,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 sb.AppendLine("</cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>");
 
                 sb.AppendLine("<cac:Item><cbc:Description>" + item.DescripcionItem + "</cbc:Description><cac:SellersItemIdentification><cbc:ID>" + item.CodigoItem + "</cbc:ID></cac:SellersItemIdentification></cac:Item>");
-                sb.AppendLine("<cac:Price><cbc:PriceAmount currencyID=\"PEN\">" + item.PrecioUnitarioSinIGV.ToString("F2") + "</cbc:PriceAmount></cac:Price>");
+                sb.AppendLine("<cac:Price><cbc:PriceAmount currencyID=\"" + dto.Moneda + "\">" + item.PrecioUnitarioSinIGV.ToString("F2") + "</cbc:PriceAmount></cac:Price>");
 
                 sb.AppendLine("</cac:InvoiceLine>");
 
@@ -485,17 +485,17 @@ namespace GSCommerceAPI.Services.SUNAT
 
                 sb.AppendLine("<sac:Status><cbc:ConditionCode>1</cbc:ConditionCode></sac:Status>");
 
-                sb.AppendLine("<sac:TotalAmount currencyID=\"PEN\">" + comp.Total.ToString("F2") + "</sac:TotalAmount>");
+                sb.AppendLine("<sac:TotalAmount currencyID=\"" + comp.Moneda + "\">" + comp.Total.ToString("F2") + "</sac:TotalAmount>");
 
                 sb.AppendLine("<sac:BillingPayment>");
-                sb.AppendLine("<cbc:PaidAmount currencyID=\"PEN\">" + comp.Total.ToString("F2") + "</cbc:PaidAmount>");
+                sb.AppendLine("<cbc:PaidAmount currencyID=\"" + comp.Moneda + "\">" + comp.Total.ToString("F2") + "</cbc:PaidAmount>");
                 sb.AppendLine("<cbc:InstructionID>01</cbc:InstructionID>");
                 sb.AppendLine("</sac:BillingPayment>");
 
                 sb.AppendLine("<cac:TaxTotal>");
-                sb.AppendLine("<cbc:TaxAmount currencyID=\"PEN\">" + comp.Igv.ToString("F2") + "</cbc:TaxAmount>");
+                sb.AppendLine("<cbc:TaxAmount currencyID=\"" + comp.Moneda + "\">" + comp.Igv.ToString("F2") + "</cbc:TaxAmount>");
                 sb.AppendLine("<cac:TaxSubtotal>");
-                sb.AppendLine("<cbc:TaxAmount currencyID=\"PEN\">" + comp.Igv.ToString("F2") + "</cbc:TaxAmount>");
+                sb.AppendLine("<cbc:TaxAmount currencyID=\"" + comp.Moneda + "\">" + comp.Igv.ToString("F2") + "</cbc:TaxAmount>");
                 sb.AppendLine("<cac:TaxCategory>");
                 sb.AppendLine("<cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme>");
                 sb.AppendLine("</cac:TaxCategory>");
