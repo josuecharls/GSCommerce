@@ -1,4 +1,5 @@
 ﻿@page "/reportes/ventas-articulo"
+@using GSCommerce.Client.Components
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Models.DTOs.Reportes
 @using GSCommerce.Client.Services
@@ -7,7 +8,7 @@
 @inject ReporteService ReporteService
 @inject IJSRuntime JS
 
-<h3 class="mb-4 fw-bold text-uppercase">📦 Reporte por Artículo</h3>
+<ReportsBreadcrumb Title="Ventas por Artículo" />
 
 <div class="row mb-4">
     <div class="col-md-4">

@@ -1,11 +1,12 @@
 ﻿@page "/reportes/ventas-vendedor"
 @using System.Text
+@using GSCommerce.Client.Components
 @using GSCommerce.Client.Models.DTOs.Reportes
 @using GSCommerce.Client.Services
 @inject VentaService VentaService
 @inject IJSRuntime JS
 
-<h3>📊 Reporte de Ventas por Vendedor</h3>
+<ReportsBreadcrumb Title="Ventas por Vendedor" />
 
 <div class="row mb-3">
     <div class="col-md-3">
@@ -59,6 +60,10 @@ else
     private DateTime desde = DateTime.Today;
     private DateTime hasta = DateTime.Today;
     private List<ReporteVentasVendedorDTO> reporte = new();
+    protected override async Task OnInitializedAsync()
+    {
+        await Buscar();
+    }
 
     private async Task Buscar()
     {

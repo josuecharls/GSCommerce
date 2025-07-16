@@ -1,20 +1,29 @@
 ﻿@page "/"
 @using GSCommerce.Client.Services
+@using GSCommerce.Client.Models
+@inject IJSRuntime JS
 
 <h1>Bienvenido a GSCommerce</h1>
 
 <p>Hola, @personalName 👋. Usa el menú para navegar por el sistema.</p>
 
+<canvas id="ventasChart" width="400" height="200"></canvas>
 
 @code {
     [Inject] AuthService AuthService { get; set; } = null!;
     [Inject] CustomAuthStateProvider AuthStateProvider { get; set; } = null!;
     [Inject] NavigationManager Navigation { get; set; } = null!;
+    [Inject] VentaService VentaService { get; set; } = null!;
 
     private string? personalName;
+    private List<VentaDiariaAlmacenDTO> ventasPorAlmacen = new();
 
     protected override async Task OnInitializedAsync()
     {
         personalName = await AuthService.GetNombrePersonal();
+        var fechaAyer = DateOnly.FromDateTime(DateTime.Today.AddDays(-1));
+        ventasPorAlmacen = await VentaService.ObtenerVentasPorAlmacenDiaAsync(fechaAyer);
+        var idAlmacen = await AuthService.GetUserAlmacenId();
+        await JS.InvokeVoidAsync("renderVentasDiaChart", "ventasChart", ventasPorAlmacen, idAlmacen);
     }
 }

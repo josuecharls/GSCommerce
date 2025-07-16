@@ -1,8 +1,9 @@
 ﻿@page "/reportes/top10-articulos"
+@using GSCommerce.Client.Components
 @using GSCommerce.Client.Models.DTOs.Reportes
 @inject ReporteService ReporteService
 
-<h3>🔥 Top 10 Productos Más Vendidos</h3>
+<ReportsBreadcrumb Title="Top 10 Artículos" />
 
 <div class="row mb-3">
     <div class="col-md-4">
@@ -53,6 +54,11 @@ else
     private List<TopArticuloDTO> top10 = new();
     private DateTime desde = DateTime.Today.AddDays(-30);
     private DateTime hasta = DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Buscar();
+    }
 
     private async Task Buscar()
     {

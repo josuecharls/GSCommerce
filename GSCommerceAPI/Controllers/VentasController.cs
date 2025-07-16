@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using GSCommerce.Client.Models; // For VentaDiariaAlmacenDTO
 
 
 namespace GSCommerceAPI.Controllers
@@ -138,6 +139,30 @@ namespace GSCommerceAPI.Controllers
 
             return Ok(resumen);
         }
+
+        [HttpGet("ventas-almacenes-dia")]
+        public async Task<IActionResult> ObtenerVentasAlmacenesDia([FromQuery] string fecha)
+        {
+            if (!DateOnly.TryParse(fecha, out var fechaDia))
+                return BadRequest("Fecha inválida");
+
+            var inicio = fechaDia.ToDateTime(new TimeOnly(0, 0, 0));
+            var fin = fechaDia.ToDateTime(new TimeOnly(23, 59, 59));
+
+            var ventas = await _context.ComprobanteDeVentaCabeceras
+                .Where(c => c.Fecha >= inicio && c.Fecha <= fin && c.Estado == "E")
+                .GroupBy(c => c.IdAlmacen)
+                .Select(g => new VentaDiariaAlmacenDTO
+                {
+                    IdAlmacen = g.Key,
+                    NombreAlmacen = _context.Almacens.Where(a => a.IdAlmacen == g.Key).Select(a => a.Nombre).FirstOrDefault() ?? "",
+                    Total = g.Sum(c => c.Total)
+                })
+                .ToListAsync();
+
+            return Ok(ventas);
+        }
+
 
         [HttpPost]
         public async Task<IActionResult> RegistrarVenta([FromBody] VentaRegistroDTO ventaRegistro)

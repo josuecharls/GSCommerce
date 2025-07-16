@@ -17,6 +17,14 @@ namespace GSCommerce.Client.Services
             _authService = authService;
         }
 
+        public async Task<List<VentaDiariaAlmacenDTO>> ObtenerVentasPorAlmacenDiaAsync(DateOnly fecha)
+        {
+            string fechaStr = fecha.ToString("yyyy-MM-dd");
+            var response = await _httpClient.GetFromJsonAsync<List<VentaDiariaAlmacenDTO>>($"api/ventas/ventas-almacenes-dia?fecha={fechaStr}");
+            return response ?? new();
+        }
+
+
         public async Task<int?> RegistrarVentaYObtenerNumeroAsync(VentaRegistroDTO venta)
         {
             var response = await _httpClient.PostAsJsonAsync("api/ventas", venta);

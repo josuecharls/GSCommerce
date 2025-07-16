@@ -1,8 +1,9 @@
 ﻿@page "/reportes/ranking-vendedoras"
+@using GSCommerce.Client.Components
 @using GSCommerce.Client.Models.DTOs.Reportes
 @inject ReporteService ReporteService
 
-<h3>🏆 Ranking de Vendedoras</h3>
+<ReportsBreadcrumb Title="Ranking de Vendedoras" />
 
 <div class="row mb-3">
     <div class="col-md-4">
@@ -53,6 +54,12 @@ else
     private List<RankingVendedoraDTO> ranking = new();
     private DateTime desde = DateTime.Today.AddDays(-7);
     private DateTime hasta = DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BuscarRanking();
+    }
+
 
     private async Task BuscarRanking()
     {

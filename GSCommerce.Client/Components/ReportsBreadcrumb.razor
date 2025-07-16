@@ -1,0 +1,20 @@
+﻿@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="javascript:void(0)" @onclick="Volver">Reportes</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Title</li>
+    </ol>
+</nav>
+<button class="btn btn-outline-secondary mb-3" @onclick="Volver">&larr; Volver</button>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/reportes");
+    }
+}

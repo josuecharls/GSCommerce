@@ -44,3 +44,41 @@
         console.error("Error en resizeImage:", error);
     }
 }
+
+window.renderVentasDiaChart = (canvasId, items, highlightId) => {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+
+    const labels = items.map(i => i.nombreAlmacen);
+    const data = items.map(i => i.total);
+    const bg = items.map(i => i.idAlmacen === highlightId ? 'rgba(255,99,132,0.5)' : 'rgba(54,162,235,0.5)');
+    const border = items.map(i => i.idAlmacen === highlightId ? 'rgba(255,99,132,1)' : 'rgba(54,162,235,1)');
+
+    if (window._ventasDiaChart) {
+        window._ventasDiaChart.data.labels = labels;
+        window._ventasDiaChart.data.datasets[0].data = data;
+        window._ventasDiaChart.data.datasets[0].backgroundColor = bg;
+        window._ventasDiaChart.data.datasets[0].borderColor = border;
+        window._ventasDiaChart.update();
+        return;
+    }
+
+    window._ventasDiaChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Ventas (S/)',
+                data: data,
+                backgroundColor: bg,
+                borderColor: border,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
