@@ -112,7 +112,8 @@ namespace GSCommerceAPI.Controllers
                 new Claim(JwtRegisteredClaimNames.Sub, user.Nombre),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim("userId", user.IdUsuario.ToString()),
-                new Claim("Cargo", cargo) // Agregamos el cargo al token
+                new Claim("Cargo", cargo), // Claim personalizado
+                new Claim(ClaimTypes.Role, cargo) // Claim estándar para roles
             };
 
             var token = new JwtSecurityToken(

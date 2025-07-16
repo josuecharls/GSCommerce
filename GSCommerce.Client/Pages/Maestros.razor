@@ -1,53 +1,71 @@
 ﻿@page "/maestros"
+@using GSCommerce.Client.Services
 @inject NavigationManager Navigation
+@inject AuthService AuthService
 
 <h3 class="mb-4 fw-bold text-uppercase">Menú</h3>
 
 <div class="d-flex gap-4">
-    <div class="card text-center shadow-lg p-3"
-         style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
-         @onclick="IrAPersonal">
-        <div class="card-body d-flex flex-column align-items-center justify-content-center">
-            <i class="bi bi-person-fill" style="font-size: 3rem; color: #6c757d;"></i>
-            <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Personal</h5>
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="card text-center shadow-lg p-3"
+             style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
+             @onclick="IrAPersonal">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <i class="bi bi-person-fill" style="font-size: 3rem; color: #6c757d;"></i>
+                <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Personal</h5>
+            </div>
         </div>
-    </div>
 
-    <div class="card text-center shadow-lg p-3"
-         style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
-         @onclick="IrAAlmacen">
-        <div class="card-body d-flex flex-column align-items-center justify-content-center">
-            <i class="bi bi-shop" style="font-size: 3rem; color: #6c757d;"></i>
-            <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Almacén</h5>
+        <div class="card text-center shadow-lg p-3"
+             style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
+             @onclick="IrAAlmacen">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <i class="bi bi-shop" style="font-size: 3rem; color: #6c757d;"></i>
+                <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Almacén</h5>
+            </div>
         </div>
-    </div>
-    <div class="card text-center shadow-lg p-3"
-         style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
-         @onclick="IrAArticulo">
-        <div class="card-body d-flex flex-column align-items-center justify-content-center">
-            <i class="bi bi-cart4" style="font-size: 3rem; color: #6c757d;"></i>
-            <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Artículos</h5>
+
+        <div class="card text-center shadow-lg p-3"
+             style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
+             @onclick="IrAProveedor">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <i class="bi bi-box-seam-fill" style="font-size: 3rem; color: #6c757d;"></i>
+                <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Proveedor</h5>
+            </div>
         </div>
-    </div>
-    <div class="card text-center shadow-lg p-3"
-         style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
-         @onclick="IrAProveedor">
-        <div class="card-body d-flex flex-column align-items-center justify-content-center">
-            <i class="bi bi-box-seam-fill" style="font-size: 3rem; color: #6c757d;"></i>
-            <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Proveedor</h5>
+    }
+
+    @if (cargo == "ADMINISTRADOR" || cargo == "CAJERO")
+    {
+        <div class="card text-center shadow-lg p-3"
+             style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
+             @onclick="IrAArticulo">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <i class="bi bi-cart4" style="font-size: 3rem; color: #6c757d;"></i>
+                <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Artículos</h5>
+            </div>
         </div>
-    </div>
-    <div class="card text-center shadow-lg p-3"
-         style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
-         @onclick="IrACliente">
-        <div class="card-body d-flex flex-column align-items-center justify-content-center">
-            <i class="bi bi-people-fill" style="font-size: 3rem; color: #6c757d;"></i>
-            <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Clientes</h5>
+
+        <div class="card text-center shadow-lg p-3"
+             style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
+             @onclick="IrACliente">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <i class="bi bi-people-fill" style="font-size: 3rem; color: #6c757d;"></i>
+                <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Clientes</h5>
+            </div>
         </div>
-    </div>
+    }
 </div>
 
 @code {
+    private string? cargo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo();
+    }
+
     private void IrAPersonal()
     {
         Navigation.NavigateTo("/personal");
