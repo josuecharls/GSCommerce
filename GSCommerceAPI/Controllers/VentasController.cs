@@ -1,13 +1,14 @@
-﻿using GSCommerceAPI.Models;
+﻿using GSCommerce.Client.Models;
+using GSCommerce.Client.Models.DTOs.Reportes;
+using GSCommerce.Client.Models.SUNAT;
+using GSCommerce.Client.Pages;
+using GSCommerceAPI.Data;
+using GSCommerceAPI.Models;
+using GSCommerceAPI.Models.SUNAT.DTOs;
+using GSCommerceAPI.Services.SUNAT;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using GSCommerceAPI.Data;
-using GSCommerce.Client.Models;
-using GSCommerce.Client.Models.SUNAT;
-using GSCommerceAPI.Services.SUNAT;
-using GSCommerce.Client.Models.DTOs.Reportes;
-using GSCommerceAPI.Models.SUNAT.DTOs;
-using GSCommerce.Client.Pages;
 using System.Security.Claims;
 
 
@@ -173,6 +174,18 @@ namespace GSCommerceAPI.Controllers
 
             try
             {
+                var monedaKey = $"MonedaAlmacen_{idAlmacen}";
+                var monedaConfig = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == monedaKey);
+                var monedaAlmacen = monedaConfig?.Valor ?? "PEN";
+
+                var tipoCambio = 1m;
+                if (monedaAlmacen == "USD")
+                {
+                    var hoy = DateOnly.FromDateTime(DateTime.Today);
+                    var tc = await _context.TipoDeCambios.FirstOrDefaultAsync(t => t.Fecha == hoy);
+                    tipoCambio = tc?.Venta ?? 1m;
+                }
+
                 // Insertar cabecera
                 var cabecera = new ComprobanteDeVentaCabecera
                 {
@@ -183,7 +196,7 @@ namespace GSCommerceAPI.Controllers
                     Nombre = ventaRegistro.Cabecera.NombreCliente,
                     Dniruc = ventaRegistro.Cabecera.DocumentoCliente,
                     Direccion = ventaRegistro.Cabecera.DireccionCliente,
-                    TipoCambio = 1m, // Por ahora fijo, luego mejoramos
+                    TipoCambio = tipoCambio,
                     SubTotal = ventaRegistro.Cabecera.SubTotal,
                     Igv = ventaRegistro.Cabecera.Igv,
                     Total = ventaRegistro.Cabecera.Total,
@@ -478,7 +491,7 @@ namespace GSCommerceAPI.Controllers
             return Ok(topArticulos);
         }
 
-
+        [Authorize]
         [HttpGet("emisor")]
         public async Task<IActionResult> ObtenerDatosEmisor()
         {

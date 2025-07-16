@@ -132,6 +132,10 @@ namespace GSCommerceAPI.Controllers
                 var almacen = await _context.Almacens.FirstOrDefaultAsync(a => a.IdAlmacen == cabecera.IdAlmacen);
                 if (almacen != null)
                 {
+                    var keyMoneda = $"MonedaAlmacen_{almacen.IdAlmacen}";
+                    var configMoneda = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == keyMoneda);
+                    var moneda = configMoneda?.Valor ?? "PEN";
+
                     var comprobanteSunat = new GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteCabeceraDTO
                     {
                         IdComprobante = cabecera.IdNc,
@@ -141,7 +145,7 @@ namespace GSCommerceAPI.Controllers
                         Numero = cabecera.Numero,
                         FechaEmision = cabecera.Fecha,
                         HoraEmision = cabecera.Fecha.TimeOfDay,
-                        Moneda = "PEN",
+                        Moneda = moneda,
                         RucEmisor = almacen.Ruc ?? string.Empty,
                         RazonSocialEmisor = almacen.RazonSocial ?? string.Empty,
                         DireccionEmisor = almacen.Direccion ?? string.Empty,
@@ -153,7 +157,7 @@ namespace GSCommerceAPI.Controllers
                         SubTotal = cabecera.SubTotal,
                         Igv = cabecera.Igv,
                         Total = cabecera.Total,
-                        MontoLetras = ConvertirMontoALetras(cabecera.Total),
+                        MontoLetras = ConvertirMontoALetras(cabecera.Total, moneda),
                         Detalles = dto.Detalles.Select(d => new GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteDetalleDTO
                         {
                             Item = d.Item,
@@ -279,14 +283,15 @@ namespace GSCommerceAPI.Controllers
         }
 
 
-        private static string ConvertirMontoALetras(decimal monto)
+        private static string ConvertirMontoALetras(decimal monto, string moneda)
         {
             var enteros = (long)Math.Floor(monto);
             var decimales = (int)Math.Round((monto - enteros) * 100);
 
             string letras = NumeroALetras(enteros).ToUpper();
+            var sufijo = moneda == "USD" ? "DOLARES" : "SOLES";
 
-            return $"{letras} Y {decimales:D2}/100 SOLES";
+            return $"{letras} Y {decimales:D2}/100 {sufijo}";
         }
 
         private static string NumeroALetras(long numero)

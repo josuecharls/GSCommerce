@@ -568,8 +568,8 @@ OnCancelado="CobroCancelado" />
         }
 
         // ✅ Imprimir ticket en formato texto
-        var textoTicket = GenerarTextoDelTicket();
-        await JS.InvokeVoidAsync("imprimirTicketTexto", textoTicket);
+        var textoTicket = GenerarHtmlDelTicket();
+        await JS.InvokeVoidAsync("imprimirTicket", textoTicket);
         if (EsFactura)
         {
             // SUNAT solo acepta RUC (6) en facturas
@@ -672,6 +672,9 @@ OnCancelado="CobroCancelado" />
 
     private string GenerarTextoDelTicket()
     {
+        if (venta == null)
+        return "🛑 No se pudo generar el ticket. Venta nula.";
+
         const int width = 40;
         string Center(string text)
         {

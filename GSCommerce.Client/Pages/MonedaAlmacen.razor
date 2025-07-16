@@ -1,0 +1,53 @@
+﻿@page "/moneda-almacen"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject AlmacenService AlmacenService
+@inject MonedaAlmacenService MonedaService
+@inject IJSRuntime JS
+
+<h3>Configuraci\u00f3n de Moneda por Tienda</h3>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Tienda</th>
+            <th>Moneda</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var almacen in almacenes)
+        {
+            <tr>
+                <td>@almacen.Nombre</td>
+                <td>
+                    <select class="form-select" @bind="almacen.Moneda">
+                        <option value="PEN">PEN</option>
+                        <option value="USD">USD</option>
+                    </select>
+                </td>
+                <td>
+                    <button class="btn btn-primary btn-sm" @onclick="() => Guardar(almacen)">Guardar</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<AlmacenDTO> almacenes = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new List<AlmacenDTO>();
+    }
+
+    private async Task Guardar(AlmacenDTO almacen)
+    {
+        bool ok = await MonedaService.ActualizarAsync(almacen.IdAlmacen, almacen.Moneda);
+        if (ok)
+            await JS.InvokeVoidAsync("alert", "✅ Moneda actualizada.");
+        else
+            await JS.InvokeVoidAsync("alert", "❌ Error al actualizar.");
+    }
+}

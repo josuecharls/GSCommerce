@@ -118,7 +118,7 @@ namespace GSCommerce.Client.Services
                 Numero = cabecera.Numero,
                 FechaEmision = cabecera.FechaEmision,
                 HoraEmision = cabecera.FechaEmision.TimeOfDay,
-                Moneda = "PEN",
+                Moneda = almacen.Moneda,
                 RucEmisor = almacen.Ruc ?? "",
                 RazonSocialEmisor = almacen.RazonSocial ?? "",
                 DireccionEmisor = almacen.Direccion ?? "",
@@ -130,7 +130,7 @@ namespace GSCommerce.Client.Services
                 SubTotal = cabecera.SubTotal,
                 Igv = cabecera.Igv,
                 Total = cabecera.Total,
-                MontoLetras = ConvertirMontoALetras(cabecera.Total),
+                MontoLetras = ConvertirMontoALetras(cabecera.Total, almacen.Moneda),
 
                 Detalles = detalles.Select(d => new ComprobanteDetalleDTO
                 {
@@ -160,14 +160,15 @@ namespace GSCommerce.Client.Services
             }
         }
 
-        public static string ConvertirMontoALetras(decimal monto)
+        public static string ConvertirMontoALetras(decimal monto, string moneda)
         {
             var enteros = (long)Math.Floor(monto);
             var decimales = (int)Math.Round((monto - enteros) * 100);
 
             string letras = NumeroALetras(enteros).ToUpper();
+            var sufijo = moneda == "USD" ? "DOLARES" : "SOLES";
 
-            return $"{letras} Y {decimales:D2}/100 SOLES";
+            return $"{letras} Y {decimales:D2}/100 {sufijo}";
         }
 
         public static string NumeroALetras(long numero)

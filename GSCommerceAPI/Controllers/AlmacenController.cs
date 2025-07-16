@@ -25,8 +25,15 @@ namespace GSCommerceAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<AlmacenDTO>>> GetAlmacens()
         {
-            var almacenes = await _context.Almacens
-                .Select(a => new AlmacenDTO
+            var almacenes = await _context.Almacens.ToListAsync();
+            var lista = new List<AlmacenDTO>();
+
+            foreach (var a in almacenes)
+            {
+                var key = $"MonedaAlmacen_{a.IdAlmacen}";
+                var config = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == key);
+
+                lista.Add(new AlmacenDTO
                 {
                     IdAlmacen = a.IdAlmacen,
                     Nombre = a.Nombre,
@@ -38,23 +45,44 @@ namespace GSCommerceAPI.Controllers
                     RazonSocial = a.RazonSocial,
                     Ruc = a.Ruc,
                     Estado = a.Estado,
-                    Ubigeo = a.Ubigeo
-                })
-                .ToListAsync();
+                    Ubigeo = a.Ubigeo,
+                    Moneda = config?.Valor ?? "PEN"
+                });
+            }
 
-            return Ok(almacenes);
+            return Ok(lista);
         }
 
         // GET: api/almacen/5 (Obtener un almacén por ID)
         [HttpGet("{id}")]
-        public async Task<ActionResult<Almacen>> GetAlmacen(int id)
+        public async Task<ActionResult<AlmacenDTO>> GetAlmacen(int id)
         {
             var almacen = await _context.Almacens.FindAsync(id);
             if (almacen == null)
             {
                 return NotFound();
             }
-            return Ok(almacen);
+
+            var key = $"MonedaAlmacen_{almacen.IdAlmacen}";
+            var config = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == key);
+
+            var dto = new AlmacenDTO
+            {
+                IdAlmacen = almacen.IdAlmacen,
+                Nombre = almacen.Nombre,
+                EsTienda = almacen.EsTienda,
+                Direccion = almacen.Direccion,
+                Dpd = almacen.Dpd,
+                Telefono = almacen.Telefono,
+                Celular = almacen.Celular,
+                RazonSocial = almacen.RazonSocial,
+                Ruc = almacen.Ruc,
+                Estado = almacen.Estado,
+                Ubigeo = almacen.Ubigeo,
+                Moneda = config?.Valor ?? "PEN"
+            };
+
+            return Ok(dto);
         }
 
         // POST: api/almacen (Crear un nuevo almacén)
@@ -81,10 +109,19 @@ namespace GSCommerceAPI.Controllers
             }
 
             var totalItems = await query.CountAsync();
-            var almacenList = await query
+            var almacenEntities = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(a => new AlmacenDTO
+                .ToListAsync();
+
+            var almacenList = new List<AlmacenDTO>();
+
+            foreach (var a in almacenEntities)
+            {
+                var key = $"MonedaAlmacen_{a.IdAlmacen}";
+                var config = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == key);
+
+                almacenList.Add(new AlmacenDTO
                 {
                     IdAlmacen = a.IdAlmacen,
                     Nombre = a.Nombre,
@@ -95,9 +132,10 @@ namespace GSCommerceAPI.Controllers
                     Celular = a.Celular,
                     RazonSocial = a.RazonSocial,
                     Ruc = a.Ruc,
-                    Estado = a.Estado
-                })
-                .ToListAsync();
+                    Estado = a.Estado,
+                    Moneda = config?.Valor ?? "PEN"
+                });
+            }
 
             var response = new
             {
