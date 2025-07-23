@@ -199,6 +199,26 @@ namespace GSCommerceAPI.Controllers
 
             try
             {
+                Cliente? cliente = null;
+                var documentoCliente = ventaRegistro.Cabecera.DocumentoCliente;
+                if (!string.IsNullOrWhiteSpace(documentoCliente))
+                {
+                    cliente = await _context.Clientes.FirstOrDefaultAsync(c => c.Dniruc == documentoCliente);
+                    if (cliente == null)
+                    {
+                        cliente = new Cliente
+                        {
+                            TipoDocumento = documentoCliente.Length == 11 ? "RUC" : "DNI",
+                            Dniruc = documentoCliente,
+                            Nombre = ventaRegistro.Cabecera.NombreCliente,
+                            Direccion = ventaRegistro.Cabecera.DireccionCliente,
+                            Estado = true
+                        };
+                        _context.Clientes.Add(cliente);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
                 var monedaKey = $"MonedaAlmacen_{idAlmacen}";
                 var monedaConfig = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == monedaKey);
                 var monedaAlmacen = monedaConfig?.Valor ?? "PEN";
@@ -218,6 +238,7 @@ namespace GSCommerceAPI.Controllers
                     Serie = ventaRegistro.Cabecera.Serie,
                     Numero = nuevoNumero,
                     Fecha = DateTime.Now,
+                    IdCliente = cliente?.IdCliente,
                     Nombre = ventaRegistro.Cabecera.NombreCliente,
                     Dniruc = ventaRegistro.Cabecera.DocumentoCliente,
                     Direccion = ventaRegistro.Cabecera.DireccionCliente,

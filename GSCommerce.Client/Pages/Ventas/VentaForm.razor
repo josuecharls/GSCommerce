@@ -6,6 +6,7 @@
 @inject VentaService ventaService
 @inject CajaService CajaService
 @inject SerieCorrelativoService SerieCorrelativoService
+@inject ClienteService ClienteService
 @inject ArticuloVarianteService ArticuloVarianteService
 @inject AsignacionSerieCajeroService AsignacionSerieCajeroService
 @inject PersonalService PersonalService
@@ -464,6 +465,13 @@ OnCancelado="CobroCancelado" />
 
         try
         {
+            var existente = await ClienteService.GetClienteByDocumento(doc);
+            if (existente != null)
+            {
+                venta.NombreCliente = existente.Nombre.ToUpper();
+                return;
+            }
+
             if (doc.Length == 8) //DNI
             {
                 var nombre = await ReniecService.ObtenerNombrePorDNI(doc);

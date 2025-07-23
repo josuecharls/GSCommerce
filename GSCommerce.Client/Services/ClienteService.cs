@@ -131,6 +131,22 @@ namespace GSCommerce.Client.Services
                 return false;
             }
         }
+        public async Task<ClienteDTO?> GetClienteByDocumento(string documento)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"api/clientes/documento/{documento}");
+                if (!response.IsSuccessStatusCode)
+                    return null;
+
+                return await response.Content.ReadFromJsonAsync<ClienteDTO>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error GetClienteByDocumento: {ex.Message}");
+                return null;
+            }
+        }
 
         public class ClienteResponse
         {

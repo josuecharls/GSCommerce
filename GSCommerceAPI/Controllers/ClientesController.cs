@@ -181,5 +181,33 @@ namespace GSCommerceAPI.Controllers
             await _context.SaveChangesAsync();
             return Ok();
         }
+
+        // GET: api/clientes/documento/12345678
+        [HttpGet("documento/{documento}")]
+        public async Task<ActionResult<ClienteDTO>> GetClientePorDocumento(string documento)
+        {
+            var cliente = await _context.Clientes
+                .Where(c => c.Dniruc == documento)
+                .Select(c => new ClienteDTO
+                {
+                    IdCliente = c.IdCliente,
+                    TipoDocumento = c.TipoDocumento,
+                    Dniruc = c.Dniruc,
+                    Nombre = c.Nombre,
+                    Direccion = c.Direccion,
+                    Dpd = c.Dpd,
+                    Telefono = c.Telefono,
+                    Celular = c.Celular,
+                    Email = c.Email,
+                    Estado = c.Estado
+                })
+                .FirstOrDefaultAsync();
+
+            if (cliente == null)
+                return NotFound();
+
+            return Ok(cliente);
+        }
+
     }
 }
