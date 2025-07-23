@@ -3,6 +3,7 @@
 @using GSCommerce.Client.Services
 @inject ArticuloService ArticuloService
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <h3>📦 Lista de Artículos</h3>
 
@@ -53,6 +54,12 @@
                     <td class="text-center">
                         <button @onclick="() => ShowPhoto(a.IdArticulo)" class="btn btn-info btn-sm me-1">
                             <i class="bi bi-image"></i>
+                        </button>
+                        <button @onclick="() => ShowBarcode(a.IdArticulo)" class="btn btn-primary btn-sm me-1">
+                            <i class="bi bi-upc"></i>
+                        </button>
+                        <button @onclick="() => ShowQr(a.IdArticulo)" class="btn btn-secondary btn-sm me-1">
+                            <i class="bi bi-qr-code"></i>
                         </button>
                         <button @onclick="() => EditArticulo(a.IdArticulo)" class="btn btn-warning btn-sm me-1">
                             ✏️ Editar
@@ -105,6 +112,56 @@
     </div>
 }
 
+<!-- Modal para ver QR -->
+@if (showQrModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">QR de @qrArticulo?.Descripcion</h5>
+                    <button type="button" class="btn-close" @onclick="CloseQrModal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="etiqueta-imprimir">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@qrArticulo?.IdArticulo" width="200" />
+                        <div style="font-weight:bold; margin-top:6px">@qrArticulo?.DescripcionCorta</div>
+                        <div style="font-size:small">Código: @qrArticulo?.IdArticulo</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" @onclick="PrintQr">Imprimir</button>
+                    <button class="btn btn-secondary" @onclick="CloseQrModal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+<!-- Modal para ver Código de Barras -->
+@if (showBarcodeModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Código de Barras de @barcodeArticulo?.Descripcion</h5>
+                    <button type="button" class="btn-close" @onclick="CloseBarcodeModal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="etiqueta-imprimir">
+                        <img src="https://barcodeapi.org/api/128/@barcodeArticulo?.IdArticulo" width="200" />
+                        <div style="font-weight:bold; margin-top:6px">@barcodeArticulo?.DescripcionCorta</div>
+                        <div style="font-size:small">Código: @barcodeArticulo?.IdArticulo</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" @onclick="PrintBarcode">Imprimir</button>
+                    <button class="btn btn-secondary" @onclick="CloseBarcodeModal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 <!-- Modal para ver foto -->
 @if (showPhotoModal)
 {
@@ -144,8 +201,12 @@
     private int deleteArticuloId;
     private string deleteArticuloName = "";
     private bool showPhotoModal = false;
+    private bool showBarcodeModal = false;
+    private bool showQrModal = false;
     private string? photoUrl;
+    private ArticuloDTO? barcodeArticulo;
     private ArticuloDTO? selectedArticulo;
+    private ArticuloDTO? qrArticulo;
     private string currentSortColumn = "Codigo";
     private bool sortAscending = true;
 
@@ -252,6 +313,25 @@
         photoUrl = null;
     }
 
+    private void ShowQr(string id)
+    {
+        qrArticulo = articuloList.FirstOrDefault(a => a.IdArticulo == id);
+        if (qrArticulo != null)
+        {
+            showQrModal = true;
+        }
+    }
+
+    private void CloseQrModal()
+    {
+        showQrModal = false;
+    }
+
+    private async Task PrintQr()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
     private void SortBy(string column)
     {
         if (currentSortColumn == column)
@@ -282,6 +362,25 @@
         if (currentSortColumn != column)
             return "bi-arrow-down-up";
         return sortAscending ? "bi-arrow-up" : "bi-arrow-down";
+    }
+
+    private void ShowBarcode(string id)
+    {
+        barcodeArticulo = articuloList.FirstOrDefault(a => a.IdArticulo == id);
+        if (barcodeArticulo != null)
+        {
+            showBarcodeModal = true;
+        }
+    }
+
+    private void CloseBarcodeModal()
+    {
+        showBarcodeModal = false;
+    }
+
+    private async Task PrintBarcode()
+    {
+        await JS.InvokeVoidAsync("window.print");
     }
 
     private bool CanPrev => currentPage > 1;
