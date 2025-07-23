@@ -1,0 +1,123 @@
+﻿@page "/articulo/edit/{id}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject ArticuloService ArticuloService
+@inject ProveedorService ProveedorService
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Forms
+
+<h3>Editar Artículo</h3>
+
+@if (articulo != null)
+{
+    <div class="card p-4">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Código</label>
+                    <input type="text" class="form-control" @bind="articulo.IdArticulo" readonly />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Descripción</label>
+                    <input type="text" class="form-control" @bind="articulo.Descripcion" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Familia</label>
+                    <input type="text" class="form-control" @bind="articulo.Familia" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Línea</label>
+                    <input type="text" class="form-control" @bind="articulo.Linea" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Marca</label>
+                    <input type="text" class="form-control" @bind="articulo.Marca" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Modelo</label>
+                    <input type="text" class="form-control" @bind="articulo.Modelo" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Color</label>
+                    <input type="text" class="form-control" @bind="articulo.Color" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Talla</label>
+                    <input type="text" class="form-control" @bind="articulo.Talla" />
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Precio Compra</label>
+                    <input type="number" class="form-control" @bind="articulo.PrecioCompra" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Precio Venta</label>
+                    <input type="number" class="form-control" @bind="articulo.PrecioVenta" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Estado</label>
+                    <select class="form-control" @bind="articulo.Estado">
+                        <option value="true">Activo</option>
+                        <option value="false">Inactivo</option>
+                    </select>
+                </div>
+                <div class="mb-3 text-center">
+                    <label class="form-label">Nueva Foto</label><br />
+                    <InputFile OnChange="UploadImage" accept="image/*" />
+                </div>
+            </div>
+        </div>
+        <div class="text-center">
+            <button class="btn btn-primary" @onclick="Save">Guardar Cambios</button>
+            <button class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
+        </div>
+    </div>
+}
+else
+{
+    <p>Cargando...</p>
+}
+
+@code {
+    [Parameter]
+    public string id { get; set; } = string.Empty;
+
+    private ArticuloDTO? articulo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        articulo = await ArticuloService.GetArticuloById(id);
+        if (articulo == null)
+        {
+            Navigation.NavigateTo("/articulos");
+        }
+    }
+
+    private async Task UploadImage(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 5_000_000);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var base64 = Convert.ToBase64String(ms.ToArray());
+            articulo!.Foto = $"data:{file.ContentType};base64,{base64}";
+        }
+    }
+
+    private async Task Save()
+    {
+        if (articulo != null)
+        {
+            bool ok = await ArticuloService.UpdateArticulo(id, articulo);
+            if (ok) Navigation.NavigateTo("/articulos");
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/articulos");
+    }
+}

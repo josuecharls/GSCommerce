@@ -14,11 +14,16 @@
     </div>
 </div>
 
+<div class="card p-3 shadow-sm">
 <table class="table table-striped">
     <thead>
         <tr>
-            <th>Código</th>
-            <th>Descripción</th>
+            <th @onclick='() => SortBy("Codigo")' style="cursor:pointer;">
+                <i class="bi @(GetSortIcon("Codigo")) me-1"></i>Código
+            </th>
+            <th @onclick='() => SortBy("Descripcion")' style="cursor:pointer;">
+                <i class="bi @(GetSortIcon("Descripcion")) me-1"></i>Descripción
+            </th>
             <th>Precio Compra</th>
             <th>Precio Venta</th>
             <th>Estado</th>
@@ -46,6 +51,9 @@
                         }
                     </td>
                     <td class="text-center">
+                        <button @onclick="() => ShowPhoto(a.IdArticulo)" class="btn btn-info btn-sm me-1">
+                            <i class="bi bi-image"></i>
+                        </button>
                         <button @onclick="() => EditArticulo(a.IdArticulo)" class="btn btn-warning btn-sm me-1">
                             ✏️ Editar
                         </button>
@@ -62,6 +70,7 @@
         }
     </tbody>
 </table>
+</div>
 
 <!-- Controles de paginación -->
 <div class="d-flex justify-content-between">
@@ -96,6 +105,34 @@
     </div>
 }
 
+<!-- Modal para ver foto -->
+@if (showPhotoModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Foto de @selectedArticulo?.Descripcion</h5>
+                    <button type="button" class="btn-close" @onclick="ClosePhotoModal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    @if (!string.IsNullOrEmpty(photoUrl))
+                    {
+                        <img src="@photoUrl" alt="Foto" class="img-fluid img-thumbnail" style="max-width:300px;max-height:300px;" />
+                    }
+                    else
+                    {
+                        <p>No hay foto disponible.</p>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="ClosePhotoModal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<ArticuloDTO> articuloList = new();
     private int currentPage = 1;
@@ -106,6 +143,11 @@
     private bool showDeleteModal = false;
     private int deleteArticuloId;
     private string deleteArticuloName = "";
+    private bool showPhotoModal = false;
+    private string? photoUrl;
+    private ArticuloDTO? selectedArticulo;
+    private string currentSortColumn = "Codigo";
+    private bool sortAscending = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -117,7 +159,7 @@
         try
         {
             var response = await ArticuloService.GetArticulos(currentPage, pageSize, searchTerm);
-            articuloList = response.Data;
+            articuloList = SortList(response.Data);
             totalPages = response.TotalPages;
         }
         catch (Exception ex)
@@ -193,6 +235,53 @@
             isDeleting = false;
             CloseDeleteModal();
         }
+    }
+    private void ShowPhoto(string id)
+    {
+        selectedArticulo = articuloList.FirstOrDefault(a => a.IdArticulo == id);
+        if (selectedArticulo != null)
+        {
+            photoUrl = $"https://localhost:7246/api/articulos/foto/{id}?t={DateTime.Now.Ticks}";
+            showPhotoModal = true;
+        }
+    }
+
+    private void ClosePhotoModal()
+    {
+        showPhotoModal = false;
+        photoUrl = null;
+    }
+
+    private void SortBy(string column)
+    {
+        if (currentSortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            currentSortColumn = column;
+            sortAscending = true;
+        }
+
+        articuloList = SortList(articuloList);
+    }
+
+    private List<ArticuloDTO> SortList(List<ArticuloDTO> list)
+    {
+        return currentSortColumn switch
+        {
+            "Codigo" => sortAscending ? list.OrderBy(a => a.IdArticulo).ToList() : list.OrderByDescending(a => a.IdArticulo).ToList(),
+            "Descripcion" => sortAscending ? list.OrderBy(a => a.Descripcion).ToList() : list.OrderByDescending(a => a.Descripcion).ToList(),
+            _ => list
+        };
+    }
+
+    private string GetSortIcon(string column)
+    {
+        if (currentSortColumn != column)
+            return "bi-arrow-down-up";
+        return sortAscending ? "bi-arrow-up" : "bi-arrow-down";
     }
 
     private bool CanPrev => currentPage > 1;
