@@ -21,12 +21,12 @@ namespace GSCommerceAPI.Controllers
 
         // GET: api/personal (Obtener todos los registros)
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Personal>>> GetPersonals(
+        public async Task<IActionResult> GetPersonals(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null)
         {
-            var query = _context.Personals.AsQueryable();
+            var query = _context.Personals.Include(p => p.IdAlmacenNavigation).AsQueryable();
 
             if (!string.IsNullOrEmpty(search))
             {
@@ -38,6 +38,19 @@ namespace GSCommerceAPI.Controllers
                 .OrderBy(p => p.IdPersonal) // 🟢 ordenamiento obligatorio antes de paginar
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
+                .Select(p => new PersonalDTO
+                {
+                    IdPersonal = p.IdPersonal,
+                    Nombres = p.Nombres,
+                    Apellidos = p.Apellidos,
+                    Cargo = p.Cargo,
+                    IdAlmacen = p.IdAlmacen,
+                    IdAlmacenNavigation = p.IdAlmacenNavigation == null ? null : new AlmacenDTO
+                    {
+                        IdAlmacen = p.IdAlmacenNavigation.IdAlmacen,
+                        Nombre = p.IdAlmacenNavigation.Nombre
+                    }
+                })
                 .ToListAsync();
 
             return Ok(new

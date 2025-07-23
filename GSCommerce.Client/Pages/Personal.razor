@@ -6,23 +6,32 @@
 @inject IJSRuntime JS
 @using Microsoft.AspNetCore.Components.Forms
 
-<h3>Lista de Personal</h3>
+<h3>🧑‍🤝‍🧑 Gestión de Personal</h3>
 
-<!-- Botón para crear un nuevo empleado -->
-<button @onclick="CreateNewPersonal" class="btn btn-success">+ Nuevo Empleado</button>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <button @onclick="CreateNewPersonal" class="btn btn-success">+ Nuevo Empleado</button>
+    <div class="input-group w-50">
+        <input type="text" class="form-control" @bind="searchTerm" placeholder="Buscar por nombre..." />
+        <button class="btn btn-primary" @onclick="SearchPersonal">Buscar</button>
+    </div>
+</div>
 
-<input type="text" @bind="searchTerm" placeholder="Buscar por nombre..." />
-<button @onclick="SearchPersonal">Buscar</button>
-
-<table class="table">
+<table class="table table-striped">
     <thead>
         <tr>
-            <th>Nombre</th>
-            <th>Cargo</th>
-            <th>Acciones</th>
+            <th @onclick='() => SortBy("Nombre")' style="cursor:pointer;">
+                <i class="bi @(GetSortIcon("Nombre")) me-1"></i>Nombre
+            </th>
+            <th @onclick='() => SortBy("Cargo")' style="cursor:pointer;">
+                <i class="bi @(GetSortIcon("Cargo")) me-1"></i>Cargo
+            </th>
+            <th @onclick='() => SortBy("Almacen")' style="cursor:pointer;">
+                <i class="bi @(GetSortIcon("Almacen")) me-1"></i>Almacén
+            </th>
+            <th class="text-center">Acciones</th>
         </tr>
     </thead>
-    <tbody>
+    <tbody>                             
         @if (personalList.Any())
         {
             @foreach (var p in personalList)
@@ -30,6 +39,7 @@
                 <tr>
                     <td>@p.Nombres @p.Apellidos</td>
                     <td>@p.Cargo</td>
+                    <td>@p.IdAlmacenNavigation?.Nombre</td>
                     <td class="text-center">
                         <button @onclick="() => ShowPhoto(p.IdPersonal)" class="btn btn-info btn-sm me-1">
                             <i class="bi bi-image"></i> Ver Foto
@@ -130,6 +140,8 @@
     private bool showDeleteModal = false;
     private int deletePersonalId;
     private string deletePersonalName = "";
+    private string currentSortColumn = "Nombre";
+    private bool sortAscending = true;
 
     private void ShowPhoto(int id)
     {
@@ -160,6 +172,45 @@
         showDeleteModal = false;
         deletePersonalId = 0;
         deletePersonalName = "";
+    }
+
+    private void SortBy(string column)
+    {
+        if (currentSortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            currentSortColumn = column;
+            sortAscending = true;
+        }
+
+        personalList = SortList(personalList);
+    }
+
+    private List<PersonalDTO> SortList(List<PersonalDTO> list)
+    {
+        return currentSortColumn switch
+        {
+            "Nombre" => sortAscending
+                ? list.OrderBy(p => p.Nombres).ThenBy(p => p.Apellidos).ToList()
+                : list.OrderByDescending(p => p.Nombres).ThenByDescending(p => p.Apellidos).ToList(),
+            "Cargo" => sortAscending
+                ? list.OrderBy(p => p.Cargo).ToList()
+                : list.OrderByDescending(p => p.Cargo).ToList(),
+            "Almacen" => sortAscending
+                ? list.OrderBy(p => p.IdAlmacenNavigation?.Nombre).ToList()
+                : list.OrderByDescending(p => p.IdAlmacenNavigation?.Nombre).ToList(),
+            _ => list
+        };
+    }
+
+    private string GetSortIcon(string column)
+    {
+        if (currentSortColumn != column)
+            return "bi-arrow-down-up";
+        return sortAscending ? "bi-arrow-up" : "bi-arrow-down";
     }
 
     private async Task DeleteConfirmed()
@@ -244,7 +295,7 @@
         try
         {
             var response = await PersonalService.GetPersonalList(currentPage, pageSize, searchTerm);
-            personalList = response.Data;
+            personalList = SortList(response.Data);
             totalPages = response.TotalPages;
         }
         catch (Exception ex)
