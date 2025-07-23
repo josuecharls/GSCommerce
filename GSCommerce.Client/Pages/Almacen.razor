@@ -3,25 +3,36 @@
 @using GSCommerce.Client.Services
 @inject AlmacenService AlmacenService
 @inject NavigationManager Navigation
- 
+
 @using Microsoft.AspNetCore.Components.Forms
+@using System.Linq
 
+<h3>📦 Gestión de Almacenes</h3>
 
-<h3>📦 Lista de Almacenes</h3>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <button @onclick="CreateNewAlmacen" class="btn btn-success">+ Nuevo Almacén</button>
+    <div class="input-group w-50">
+        <input type="text" @bind="searchTerm" placeholder="Buscar por nombre..." class="form-control" />
+        <button @onclick="SearchAlmacen" class="btn btn-primary">🔍 Buscar</button>
+    </div>
+</div>
 
-<button @onclick="CreateNewAlmacen" class="btn btn-success mb-3">+ Nuevo Almacén</button>
+<table class="table table-striped table-responsive">
 
-<input type="text" @bind="searchTerm" placeholder="Buscar por nombre..." class="form-control mb-2" />
-<button @onclick="SearchAlmacen" class="btn btn-primary">🔍 Buscar</button>
-
-<table class="table table-striped">
- 
     <thead>
         <tr>
-            <th>Nombre</th>
-            <th>Dirección</th>
-            <th>Departamento</th>
-            <th>Razón Social</th>
+            <th @onclick='() => SortBy("Nombre")' style="cursor:pointer;">
+                <i class="bi @(GetSortIcon("Nombre")) me-1"></i>Nombre
+            </th>
+            <th @onclick='() => SortBy("Direccion")' style="cursor:pointer;">
+                <i class="bi @(GetSortIcon("Direccion")) me-1"></i>Dirección
+            </th>
+            <th @onclick='() => SortBy("Dpd")' style="cursor:pointer;">
+                <i class="bi @(GetSortIcon("Dpd")) me-1"></i>Departamento
+            </th>
+            <th @onclick='() => SortBy("RazonSocial")' style="cursor:pointer;">
+                <i class="bi @(GetSortIcon("RazonSocial")) me-1"></i>Razón Social
+            </th>
             <th>Acciones</th>
         </tr>
     </thead>
@@ -75,17 +86,6 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
- 
-                    <h5 class="modal-title">Confirmar Eliminación</h5>
-                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
-                </div>
-                <div class="modal-body text-center">
-                    <p>¿Desea eliminar a la tienda <strong>@deleteAlmacenName</strong> de la base de datos?</p>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-danger" @onclick="DeleteConfirmed">Sí</button>
-                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">No</button>
- 
                     <h5 class="modal-title">⚠️ Confirmar Eliminación</h5>
                     <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
                 </div>
@@ -93,9 +93,8 @@
                     <p>¿Desea eliminar el almacén <strong>@deleteAlmacenName</strong> de la base de datos?</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-danger" @onclick="DeleteConfirmed">🗑️ Sí</button>
-                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">❌ No</button>
- 
+                    <button class="btn btn-danger" @onclick="DeleteConfirmed">Sí</button>
+                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">No</button>
                 </div>
             </div>
         </div>
@@ -112,6 +111,9 @@
     private bool showDeleteModal = false;
     private int deleteAlmacenId;
     private string deleteAlmacenName = "";
+
+    private string currentSortColumn = "Nombre";
+    private bool sortAscending = true;
  
 
     protected override async Task OnInitializedAsync()
@@ -124,7 +126,7 @@
         try
         {
             var response = await AlmacenService.GetAlmacenList(currentPage, pageSize, searchTerm);
-            almacenList = response.Data;
+            almacenList = SortList(response.Data);
             totalPages = response.TotalPages;
         }
         catch (Exception ex)
@@ -205,6 +207,48 @@
             isDeleting = false;
             CloseDeleteModal();
         }
+    }
+
+    private void SortBy(string column)
+    {
+        if (currentSortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            currentSortColumn = column;
+            sortAscending = true;
+        }
+
+        almacenList = SortList(almacenList);
+    }
+
+    private List<AlmacenDTO> SortList(List<AlmacenDTO> list)
+    {
+        return currentSortColumn switch
+        {
+            "Nombre" => sortAscending
+                ? list.OrderBy(a => a.Nombre).ToList()
+                : list.OrderByDescending(a => a.Nombre).ToList(),
+            "Direccion" => sortAscending
+                ? list.OrderBy(a => a.Direccion).ToList()
+                : list.OrderByDescending(a => a.Direccion).ToList(),
+            "Dpd" => sortAscending
+                ? list.OrderBy(a => a.Dpd).ToList()
+                : list.OrderByDescending(a => a.Dpd).ToList(),
+            "RazonSocial" => sortAscending
+                ? list.OrderBy(a => a.RazonSocial).ToList()
+                : list.OrderByDescending(a => a.RazonSocial).ToList(),
+            _ => list
+        };
+    }
+
+    private string GetSortIcon(string column)
+    {
+        if (currentSortColumn != column)
+            return "bi-arrow-down-up";
+        return sortAscending ? "bi-arrow-up" : "bi-arrow-down";
     }
 
     private bool CanPrev => currentPage > 1;
