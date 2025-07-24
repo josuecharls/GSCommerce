@@ -492,24 +492,32 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("reporte-ranking-vendedoras")]
-        public async Task<IActionResult> ReporteRankingVendedoras([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
+        public async Task<IActionResult> ReporteRankingVendedoras([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta, [FromQuery] int? idAlmacen, [FromQuery] bool porAlmacen = false)
         {
             var inicio = desde ?? DateTime.Today;
             var fin = hasta ?? DateTime.Today;
 
-            var ranking = await (from c in _context.ComprobanteDeVentaCabeceras
-                                 join p in _context.Personals on c.IdVendedor equals p.IdPersonal
-                                 where c.Fecha.Date >= inicio.Date && c.Fecha.Date <= fin.Date
-                                       && c.Estado == "E"
-                                 group c by new { p.Nombres, p.Apellidos } into g
-                                 orderby g.Sum(c => c.Total) descending
-                                 select new RankingVendedoraDTO
-                                 {
-                                     Vendedora = (g.Key.Nombres + " " + g.Key.Apellidos).Trim(),
-                                     TotalVentas = g.Sum(c => c.Total),
-                                     TotalClientes = g.Select(c => c.Dniruc).Distinct().Count(),
-                                     VentasRealizadas = g.Count()
-                                 }).ToListAsync();
+            var query = from c in _context.ComprobanteDeVentaCabeceras
+                        join p in _context.Personals on c.IdVendedor equals p.IdPersonal
+                        where c.Fecha.Date >= inicio.Date && c.Fecha.Date <= fin.Date
+                              && c.Estado == "E"
+                        select new { c, p };
+
+            if (porAlmacen && idAlmacen.HasValue)
+            {
+                query = query.Where(x => x.c.IdAlmacen == idAlmacen.Value);
+            }
+
+            var ranking = await query
+                .GroupBy(x => new { x.p.Nombres, x.p.Apellidos })
+                .OrderByDescending(g => g.Sum(x => x.c.Total))
+                .Select(g => new RankingVendedoraDTO
+                {
+                    Vendedora = (g.Key.Nombres + " " + g.Key.Apellidos).Trim(),
+                    TotalVentas = g.Sum(x => x.c.Total),
+                    TotalClientes = g.Select(x => x.c.Dniruc).Distinct().Count(),
+                    VentasRealizadas = g.Count()
+                }).ToListAsync();
 
             return Ok(ranking);
         }

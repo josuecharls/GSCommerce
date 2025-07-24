@@ -1,7 +1,10 @@
 ﻿@page "/reportes/ranking-vendedoras"
 @using GSCommerce.Client.Components
+@using GSCommerce.Client.Models
 @using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
 @inject ReporteService ReporteService
+@inject AlmacenService AlmacenService
 
 <ReportsBreadcrumb Title="Ranking de Vendedoras" />
 
@@ -18,7 +21,19 @@
         <button class="btn btn-primary w-100" @onclick="BuscarRanking">Buscar</button>
     </div>
 </div>
-
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label><input type="radio" value="false" @onchange="e => porAlmacen = false" checked="@(!porAlmacen)" /> Global</label>
+        <label class="ms-3"><input type="radio" value="true" @onchange="e => porAlmacen = true" checked="@(porAlmacen)" /> Por Almacén</label>
+        <select class="form-select mt-1" @bind="idAlmacenSeleccionado" disabled="@(porAlmacen == false)">
+            <option value="0">-- Seleccionar almacén --</option>
+            @foreach (var a in almacenes)
+            {
+                <option value="@a.IdAlmacen">@a.Nombre</option>
+            }
+        </select>
+    </div>
+</div>
 @if (ranking.Any())
 {
     <table class="table table-striped table-bordered">
@@ -53,16 +68,24 @@ else
 @code {
     private List<RankingVendedoraDTO> ranking = new();
     private DateTime desde = DateTime.Today.AddDays(-7);
+    private List<AlmacenDTO> almacenes = new();
+    private int idAlmacenSeleccionado;
+    private bool porAlmacen = false;
     private DateTime hasta = DateTime.Today;
 
     protected override async Task OnInitializedAsync()
     {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
         await BuscarRanking();
     }
 
 
     private async Task BuscarRanking()
     {
-        ranking = await ReporteService.ObtenerRankingVendedoras(desde, hasta);
+        ranking = await ReporteService.ObtenerRankingVendedoras(
+            desde,
+            hasta,
+            porAlmacen ? idAlmacenSeleccionado : (int?)null,
+            porAlmacen);
     }
 }

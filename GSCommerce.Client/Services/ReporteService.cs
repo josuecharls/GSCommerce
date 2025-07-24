@@ -17,10 +17,14 @@ public class ReporteService
         return response;
     }
 
-    public async Task<List<RankingVendedoraDTO>> ObtenerRankingVendedoras(DateTime desde, DateTime hasta)
+    public async Task<List<RankingVendedoraDTO>> ObtenerRankingVendedoras(DateTime desde, DateTime hasta, int? idAlmacen, bool porAlmacen)
     {
-        var response = await _http.GetFromJsonAsync<List<RankingVendedoraDTO>>(
-            $"api/ventas/reporte-ranking-vendedoras?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}");
+        var url = $"api/ventas/reporte-ranking-vendedoras?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}&porAlmacen={porAlmacen}";
+        if (porAlmacen && idAlmacen.HasValue)
+        {
+            url += $"&idAlmacen={idAlmacen.Value}";
+        }
+        var response = await _http.GetFromJsonAsync<List<RankingVendedoraDTO>>(url);
         return response ?? new();
     }
 
