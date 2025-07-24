@@ -3,6 +3,7 @@
 @using Blazored.LocalStorage
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Components.Web
 @inject NavigationManager Navigation
 @inject ILocalStorageService LocalStorage
 @inject AuthService AuthService
@@ -105,12 +106,12 @@ else
 
     <div class="form-group">
         <label>Usuario</label>
-        <input type="text" @bind="loginRequest.Usuario" placeholder="Ingresa tu usuario" />
+        <input type="text" @bind="loginRequest.Usuario" @onkeypress="OnKeyEnter" placeholder="Ingresa tu usuario" />
     </div>
 
     <div class="form-group">
         <label>Contraseña</label>
-        <input type="password" @bind="loginRequest.Password" placeholder="Ingresa tu contraseña" />
+        <input type="password" @bind="loginRequest.Password" @onkeypress="OnKeyEnter" placeholder="Ingresa tu contraseña" />
     </div>
 
     <button class="btn-login" @onclick="HandleLogin">Iniciar Sesión</button>
@@ -176,6 +177,14 @@ else
         else
         {
             errorMessage = "Credenciales inválidas.";
+        }
+    }
+
+    private async Task OnKeyEnter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await HandleLogin();
         }
     }
 }
