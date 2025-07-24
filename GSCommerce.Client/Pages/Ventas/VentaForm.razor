@@ -5,6 +5,8 @@
 @inject ArticuloService articuloService
 @inject VentaService ventaService
 @inject CajaService CajaService
+@inject MonedaAlmacenService MonedaAlmacenService
+@inject TipoCambioService TipoCambioService
 @inject SerieCorrelativoService SerieCorrelativoService
 @inject ClienteService ClienteService
 @inject ArticuloVarianteService ArticuloVarianteService
@@ -118,9 +120,9 @@
 </table>
 
 <div class="text-end">
-    <h5>Subtotal: @venta.SubTotal.ToString("N2")</h5>
-    <h5>IGV: @venta.Igv.ToString("N2")</h5>
-    <h5><strong>Total: @venta.Total.ToString("N2")</strong></h5>
+        <h5>Subtotal: @SimboloMoneda@venta.SubTotal.ToString("N2")</h5>
+        <h5>IGV: @SimboloMoneda@venta.Igv.ToString("N2")</h5>
+        <h5><strong>Total: @SimboloMoneda@venta.Total.ToString("N2")</strong></h5>
 </div>
 </fieldset>
 
@@ -166,8 +168,9 @@ OnCancelado="CobroCancelado" />
     private List<PersonalDTO> vendedores = new();
     private int? idVendedorSeleccionado;
     private int? idSerieSeleccionada;
-
-
+    private string monedaAlmacen = "PEN";
+    private decimal tipoCambioActual = 1m;
+    private string SimboloMoneda => monedaAlmacen == "USD" ? "$ " : "S/ ";
 
     protected override async Task OnInitializedAsync()
     {
@@ -180,6 +183,14 @@ OnCancelado="CobroCancelado" />
 
                 if (idAlmacenActual != null && idUsuarioActual != null)
                 {
+                    var monedaDto = await MonedaAlmacenService.ObtenerAsync(idAlmacenActual.Value);
+                    monedaAlmacen = monedaDto?.Moneda ?? "PEN";
+
+                    if (monedaAlmacen == "USD")
+                    {
+                        var tc = await TipoCambioService.ObtenerTipoCambioDeHoyAsync();
+                        tipoCambioActual = tc?.Venta ?? 1m;
+                    }
                     var apertura = await CajaService.VerificarAperturaAsync(idUsuarioActual.Value, idAlmacenActual.Value);
                     if (apertura == null || !apertura.Any(a => a.Estado == "A"))
                     {
@@ -388,7 +399,10 @@ OnCancelado="CobroCancelado" />
                 {
                     precioUnitario = articulo.PrecioVenta;
                 }
-
+                if (monedaAlmacen == "USD" && tipoCambioActual > 0)
+                {
+                    precioUnitario = Math.Round(precioUnitario / tipoCambioActual, 2);
+                }
 
                 var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
                 if (variantes.Any())
@@ -664,7 +678,7 @@ OnCancelado="CobroCancelado" />
                 "YAPE" => $" - Cód. Verif: {pago.CodigoVerificacion}",
                 _ => ""
             };
-            sb.AppendLine($"<p>{pago.FormaPago}{extra} - S/ {pago.Monto:N2}</p>");
+            sb.AppendLine($"<p>{pago.FormaPago}{extra} - {SimboloMoneda}{pago.Monto:N2}</p>");
         }
 
         sb.AppendLine("<div style='text-align:center;'>");
@@ -710,7 +724,7 @@ OnCancelado="CobroCancelado" />
         if (!string.IsNullOrWhiteSpace(venta.NombreCajero))
             sb.AppendLine($"CAJERO(A): {venta.NombreCajero}");
         sb.AppendLine($"VENDEDOR(A): {venta.NombreVendedor}");
-        sb.AppendLine($"DOCUMENTO: {venta.Serie}-{venta.Numero:D4}   MONEDA: SOLES");
+        sb.AppendLine($"DOCUMENTO: {venta.Serie}-{venta.Numero:D4}   MONEDA: {(monedaAlmacen == "USD" ? "DOLARES" : "SOLES")}");
         sb.AppendLine("FORMA DE PAGO: CONTADO");
         sb.AppendLine();
 
@@ -722,9 +736,9 @@ OnCancelado="CobroCancelado" />
             sb.AppendLine(linea);
         }
         sb.AppendLine(new string('-', width));
-        sb.AppendLine($"TOTAL: S/ {venta.Total:N2}");
-        sb.AppendLine($"IMPORTE TOTAL: S/ {venta.APagar:N2}");
-        sb.AppendLine($"VUELTO: S/ {venta.Vuelto:N2}");
+        sb.AppendLine($"TOTAL: {SimboloMoneda}{venta.Total:N2}");
+        sb.AppendLine($"IMPORTE TOTAL: {SimboloMoneda}{venta.APagar:N2}");
+        sb.AppendLine($"VUELTO: {SimboloMoneda}{venta.Vuelto:N2}");
         sb.AppendLine();
         sb.AppendLine(Center("Gracias por su compra"));
 
