@@ -498,10 +498,9 @@ namespace GSCommerceAPI.Controllers
             var fin = hasta ?? DateTime.Today;
 
             var ranking = await (from c in _context.ComprobanteDeVentaCabeceras
-                                 join u in _context.Usuarios on c.IdVendedor equals u.IdUsuario
-                                 join p in _context.Personals on u.IdPersonal equals p.IdPersonal
+                                 join p in _context.Personals on c.IdVendedor equals p.IdPersonal
                                  where c.Fecha.Date >= inicio.Date && c.Fecha.Date <= fin.Date
-                                       && c.Estado == "E" && p.Sexo == "F"
+                                       && c.Estado == "E"
                                  group c by new { p.Nombres, p.Apellidos } into g
                                  orderby g.Sum(c => c.Total) descending
                                  select new RankingVendedoraDTO
