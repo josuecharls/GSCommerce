@@ -12,7 +12,7 @@
 }
 
 .bi {
-    display: inline-block;
+    display: table;
     position: relative;
     width: 1.25rem;
     height: 1.25rem;

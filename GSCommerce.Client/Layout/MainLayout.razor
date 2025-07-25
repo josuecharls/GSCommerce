@@ -7,12 +7,34 @@
     </div>
     <main>
     <div class="main">
-        <div class="top-row">
-                <a class="justify-content-around" href="https://www.sunat.gob.pe/" target="_blank">
-                <img src="https://repositorio.sunat.gob.pe/assets/custom/images/logo-header.png" alt="SUNAT" class="sunat-logo" height="47" />
-                </a>
-                <button class="btn btn-primary" @onclick="Logout">Cerrar Sesión</button>
-        </div>
+            <div class="top-row d-flex align-items-center px-3 py-2 shadow-sm bg-light" style="gap: 1rem;">
+                @if (cargo == "ADMINISTRADOR")
+                {
+                    <NavLink class="topbar-item text-primary text-decoration-none" href="series-correlativos">
+                        <i class="bi bi-card-list me-1"></i>Series y Correlativos
+                    </NavLink>
+                    <NavLink class="topbar-item text-primary text-decoration-none" href="/admin/tipocambio">
+                        <i class="bi bi-cash-coin me-1"></i>Tipo de Cambio
+                    </NavLink>
+                    <NavLink class="topbar-item text-primary text-decoration-none" href="/moneda-almacen">
+                        <i class="bi bi-currency-exchange me-1"></i>Moneda Tienda
+                    </NavLink>
+                    <NavLink class="topbar-item text-primary text-decoration-none" href="/reportes">
+                        <i class="bi bi-bar-chart me-1"></i>Reportes
+                    </NavLink>
+                    <NavLink class="topbar-item text-primary text-decoration-none" href="/estado-sunat">
+                        <i class="bi bi-file-earmark-check me-1"></i>Estado Boletas y Facturas
+                    </NavLink>
+                    <NavLink class="topbar-item text-primary text-decoration-none" href="/resumen-sunat">
+                        <i class="bi bi-journal-text me-1"></i>Resumen Diario SUNAT
+                    </NavLink>
+                }
+                <div class="ms-auto">
+                    <button class="btn btn-primary btn-sm" @onclick="Logout">
+                        <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
+                    </button>
+                </div>
+            </div>
 
         <div class="content px-4">
             @Body
@@ -28,7 +50,12 @@
     [Inject] NavigationManager Navigation { get; set; } = null!;
 
     private string? userName;
+    private string? cargo;
 
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo();
+    }
     private async Task Logout()
     {
         await AuthStateProvider.MarkUserAsLoggedOut();
