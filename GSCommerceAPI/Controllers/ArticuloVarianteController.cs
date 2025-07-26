@@ -31,8 +31,19 @@ namespace GSCommerceAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<ArticuloVariante>> PostVariante(ArticuloVariante variante)
         {
-            _context.ArticuloVariantes.Add(variante);
-            await _context.SaveChangesAsync();
+            var existeArticulo = await _context.Articulos.AnyAsync(a => a.IdArticulo == variante.IdArticulo);
+            if (!existeArticulo)
+                return BadRequest($"El artículo {variante.IdArticulo} no existe. Guárdelo antes de registrar variantes.");
+
+            try
+            {
+                _context.ArticuloVariantes.Add(variante);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error al registrar variante: {ex.Message}");
+            }
 
             return CreatedAtAction(nameof(GetVariantesPorArticulo), new { idArticulo = variante.IdArticulo }, variante);
         }
