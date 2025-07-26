@@ -149,7 +149,7 @@
         if (selectedPersonal != null)
         {
             // Agregar un parámetro único a la URL de la imagen para forzar la recarga
-            photoUrl = $"https://localhost:7246/api/Personal/foto/{id}?t={DateTime.Now.Ticks}";
+            photoUrl = $"{Navigation.BaseUri}api/Personal/foto/{id}?t={DateTime.Now.Ticks}";
             showPhotoModal = true;
         }
     }

@@ -12,6 +12,11 @@
     <link rel="icon" type="image/png" href="LogoGSC.ico" />
     <link href="GSCommerce.Client.styles.css" rel="stylesheet" />
     <link rel="manifest" href="manifest.json" />
+    <script>
+        if (window.location.pathname === "/") {
+            window.location.replace("/login");
+        }
+    </script>
 </head>
 
 <body>

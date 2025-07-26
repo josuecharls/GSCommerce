@@ -25,7 +25,10 @@
     <PackageReference Include="System.ServiceModel.Security" Version="6.0.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GSCommerce.Client\GSCommerce.Client.csproj" />
+	  <Compile Include="..\GSCommerce.Client\Models\DTOs\Reportes\*.cs" />
+	  <Compile Include="..\GSCommerce.Client\Models\*.cs" />
+	  <Compile Include="..\GSCommerce.Client\Models\Series\*.cs" />
+	  <Compile Include="..\GSCommerce.Client\Models\SUNAT\*.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Controllers\SUNAT\" />

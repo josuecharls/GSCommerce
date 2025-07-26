@@ -1,5 +1,4 @@
 ﻿using GSCommerce.Client.Models;
-using GSCommerce.Client.Services;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;

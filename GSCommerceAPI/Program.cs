@@ -12,17 +12,18 @@ QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configurar la conexión con SQL Server usando SyscharlesContext
-builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaService>();
-builder.Services.AddHostedService<TicketValidationBackgroundService>();
-
 builder.Services.AddDbContext<SyscharlesContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+Console.WriteLine(
+    "Cadena de conexión: " + builder.Configuration.GetConnectionString("DefaultConnection"));
 
+builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaService>();
+builder.Services.AddHostedService<TicketValidationBackgroundService>();
 // Habilitar CORS para permitir llamadas desde el frontend
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazor",
-        policy => policy.WithOrigins("https://localhost:7018") // URL del frontend Blazor
+        policy => policy.WithOrigins("https://gscommerce.net/") // URL del frontend Blazor
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials());
@@ -64,11 +65,8 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
     app.UseSwagger();
     app.UseSwaggerUI();
-}
 
 // Habilitar CORS
 app.UseCors("AllowBlazor");
@@ -84,7 +82,7 @@ app.Use(async (context, next) =>
 app.MapControllers();
 try
 {
-    app.Run();
+    app.Run("http://0.0.0.0:5000");
 }
 catch (Exception ex)
 {

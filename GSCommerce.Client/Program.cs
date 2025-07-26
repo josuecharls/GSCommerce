@@ -45,7 +45,7 @@ builder.Services.AddScoped<NotaCreditoService>();
 builder.Services.AddAuthorizationCore();
 
 // Configurar HttpClient para conectarse al backend
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7246") });
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://gscommerce.net/api/") });
 
 var host = builder.Build();
 

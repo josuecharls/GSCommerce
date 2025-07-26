@@ -302,7 +302,7 @@
         selectedArticulo = articuloList.FirstOrDefault(a => a.IdArticulo == id);
         if (selectedArticulo != null)
         {
-            photoUrl = $"https://localhost:7246/api/articulos/foto/{id}?t={DateTime.Now.Ticks}";
+            photoUrl = $"{Navigation.BaseUri}api/articulos/foto/{id}?t={DateTime.Now.Ticks}";
             showPhotoModal = true;
         }
     }

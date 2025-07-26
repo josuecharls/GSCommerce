@@ -1,5 +1,4 @@
-﻿using GSCommerce.Client.Pages;
-
+﻿
 namespace GSCommerce.Client.Models
 {
     public class AperturaCierreCajaDTO
