@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "GSCommerce.Client",
   "resources": {
-    "hash": "sha256-VStEj7K5vdA41oJuWxuIznmoeXgZPyDcw/duzoI7/Tw=",
+    "hash": "sha256-f+tBUrc6EwyLwK+NJa4ouZhGOphfDnJTCShhro34Sz4=",
     "jsModuleNative": {
       "dotnet.native.8.0.18.aewbkx2pen.js": "sha256-CN/vF6YK/IjIjXXCM3Bff6cZ6tPiDyjorgmgjDrE55Y="
     },
@@ -18,7 +18,7 @@
     },
     "assembly": {
       "Blazored.LocalStorage.wasm": "sha256-OaMAAd5n7ORfyur5e3QIyEVKJ76MKIvwbg7/icnnYcU=",
-      "GSCommerce.Client.wasm": "sha256-ZcIKzvMO4qRoCXSL/HseJSDIwvDPQxoDlBRoSRPF5UA=",
+      "GSCommerce.Client.wasm": "sha256-3GAStdYV0xLsIFhZs1xsgzgcgEhREX3+LOn1tUgr/64=",
       "Microsoft.AspNetCore.Authorization.wasm": "sha256-iw0OQBQw5zoA8ytxERryfWV8t9+vvHBBKhhYii8dQJQ=",
       "Microsoft.AspNetCore.Components.Authorization.wasm": "sha256-bLEW5ULj5vcAy+LnchSNYYkPi2fpHOW5cgI5VuKoRuM=",
       "Microsoft.AspNetCore.Components.Forms.wasm": "sha256-b4Fg7yOXRUFn95yJDYpbnJwOu2tjYLscAUnyzqSKAlw=",

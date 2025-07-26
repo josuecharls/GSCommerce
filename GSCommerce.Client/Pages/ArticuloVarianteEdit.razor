@@ -1,0 +1,99 @@
+﻿@page "/articulo-variante/{idArticulo}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject ArticuloService ArticuloService
+@inject ArticuloVarianteService ArticuloVarianteService
+@inject NavigationManager Navigation
+
+<h3>🎨 Variantes de Artículo</h3>
+
+@if (articulo == null)
+{
+    <p>Cargando...</p>
+}
+else
+{
+    <div class="mb-3">
+        <strong>@articulo.IdArticulo - @articulo.DescripcionCorta</strong>
+    </div>
+    <div class="mb-3 row">
+        <div class="col-md-4">
+            <input type="text" class="form-control" placeholder="Color" @bind="nuevaVariante.Color" />
+        </div>
+        <div class="col-md-4">
+            <input type="text" class="form-control" placeholder="Talla" @bind="nuevaVariante.Talla" />
+        </div>
+        <div class="col-md-4">
+            <button class="btn btn-success w-100" @onclick="AgregarVariante">➕ Agregar Variante</button>
+        </div>
+    </div>
+
+    <table class="table table-bordered table-sm">
+        <thead>
+            <tr>
+                <th>Color</th>
+                <th>Talla</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var v in variantes)
+            {
+                <tr>
+                    <td>@v.Color</td>
+                    <td>@v.Talla</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => EliminarVariante(v.IdVariante)">🗑️</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button class="btn btn-secondary" @onclick="Volver">Volver</button>
+}
+
+@code {
+    [Parameter] public string idArticulo { get; set; } = string.Empty;
+
+    private ArticuloDTO? articulo;
+    private List<ArticuloVarianteDTO> variantes = new();
+    private ArticuloVarianteDTO nuevaVariante = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        articulo = await ArticuloService.GetArticuloById(idArticulo);
+        await CargarVariantes();
+    }
+
+    private async Task CargarVariantes()
+    {
+        variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(idArticulo);
+    }
+
+    private async Task AgregarVariante()
+    {
+        if (string.IsNullOrWhiteSpace(nuevaVariante.Color) || string.IsNullOrWhiteSpace(nuevaVariante.Talla))
+            return;
+
+        nuevaVariante.IdArticulo = idArticulo;
+        var exito = await ArticuloVarianteService.RegistrarVariante(nuevaVariante);
+        if (exito)
+        {
+            nuevaVariante = new();
+            await CargarVariantes();
+        }
+    }
+
+    private async Task EliminarVariante(int id)
+    {
+        var exito = await ArticuloVarianteService.EliminarVariante(id);
+        if (exito)
+            await CargarVariantes();
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/articulos");
+    }
+}

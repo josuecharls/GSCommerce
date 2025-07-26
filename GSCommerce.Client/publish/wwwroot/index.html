@@ -12,6 +12,11 @@
     <link rel="icon" type="image/png" href="LogoGSC.ico" />
     <link href="GSCommerce.Client.styles.css" rel="stylesheet" />
     <link rel="manifest" href="manifest.json" />
+    <script>
+        if (window.location.pathname === "/") {
+            window.location.replace("/login");
+        }
+    </script>
 </head>
 
 <body>
@@ -30,11 +35,6 @@
     </div>
     <script src="js/site.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js');
-        }
-    </script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>

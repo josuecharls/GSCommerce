@@ -61,6 +61,9 @@
                         <button @onclick="() => ShowQr(a.IdArticulo)" class="btn btn-secondary btn-sm me-1">
                             <i class="bi bi-qr-code"></i>
                         </button>
+                            <button @onclick="() => EditVariantes(a.IdArticulo)" class="btn btn-info btn-sm me-1">
+                                🎨 Var.
+                            </button>
                         <button @onclick="() => EditArticulo(a.IdArticulo)" class="btn btn-warning btn-sm me-1">
                             ✏️ Editar
                         </button>
@@ -261,6 +264,11 @@
     private void EditArticulo(string id)
     {
         Navigation.NavigateTo($"/articulo/edit/{id}");
+    }
+
+    private void EditVariantes(string id)
+    {
+        Navigation.NavigateTo($"/articulo-variante/{id}");
     }
 
     private void ConfirmDeleteArticulo(string id, string name)
