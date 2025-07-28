@@ -3,6 +3,7 @@
 @using GSCommerce.Client.Services
 @inject PersonalService PersonalService
 @inject NavigationManager Navigation
+@inject HttpClient Http
 @inject IJSRuntime JS
 @using Microsoft.AspNetCore.Components.Forms
 
@@ -149,7 +150,7 @@
         if (selectedPersonal != null)
         {
             // Agregar un parámetro único a la URL de la imagen para forzar la recarga
-            photoUrl = $"{Navigation.BaseUri}api/Personal/foto/{id}?t={DateTime.Now.Ticks}";
+            photoUrl = $"{Http.BaseAddress}api/Personal/foto/{id}?t={DateTime.Now.Ticks}";
             showPhotoModal = true;
         }
     }
@@ -276,7 +277,7 @@
         {
             Console.WriteLine("Foto actualizada correctamente.");
             // Actualizar la URL de la foto con un parámetro único para forzar la recarga
-            photoUrl = $"https://localhost:7246/api/Personal/foto/{selectedPersonal.IdPersonal}?t={DateTime.Now.Ticks}";
+            photoUrl = $"{Http.BaseAddress}Personal/foto/{selectedPersonal.IdPersonal}?t={DateTime.Now.Ticks}";
             ClosePhotoModal();
         }
         else

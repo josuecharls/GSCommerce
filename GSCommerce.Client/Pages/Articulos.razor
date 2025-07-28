@@ -3,6 +3,7 @@
 @using GSCommerce.Client.Services
 @inject ArticuloService ArticuloService
 @inject NavigationManager Navigation
+@inject HttpClient Http
 @inject IJSRuntime JS
 
 <h3>📦 Lista de Artículos</h3>
@@ -310,7 +311,7 @@
         selectedArticulo = articuloList.FirstOrDefault(a => a.IdArticulo == id);
         if (selectedArticulo != null)
         {
-            photoUrl = $"{Navigation.BaseUri}api/articulos/foto/{id}?t={DateTime.Now.Ticks}";
+            photoUrl = $"{Http.BaseAddress}api/articulos/foto/{id}?t={DateTime.Now.Ticks}";
             showPhotoModal = true;
         }
     }
