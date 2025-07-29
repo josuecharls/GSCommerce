@@ -28,7 +28,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var url = $"/api/notascredito/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+                var url = $"/api/api/notascredito/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
 
                 if (!string.IsNullOrWhiteSpace(dniruc))
                     url += $"&dniruc={dniruc}";

@@ -1,6 +1,7 @@
 ﻿@page "/cajita"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@inject HttpClient Http
 @inject CajaService CajaService
 @inject AuthService AuthService
 @using System.Linq
@@ -199,7 +200,7 @@ else
             return;
         }
 
-        var url = $"https://localhost:7246/api/caja/arqueo-pdf/{idApertura}";
+        var url = $"{Http.BaseAddress}/api/caja/arqueo-pdf/{idApertura}";
         await JS.InvokeVoidAsync("open", url, "_blank");
     }
 }
