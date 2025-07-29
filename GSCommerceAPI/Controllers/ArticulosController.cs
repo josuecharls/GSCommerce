@@ -43,12 +43,12 @@ namespace GSCommerceAPI.Controllers
 
         // GET: api/articulos (Obtener todos los artículos con paginación y búsqueda)
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Articulo>>> GetArticulos(
+        public async Task<IActionResult> GetArticulos(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null)
         {
-            var query = _context.Articulos.AsQueryable();
+            var query = _context.Articulos.AsNoTracking();
 
             if (!string.IsNullOrEmpty(search))
             {
@@ -56,9 +56,35 @@ namespace GSCommerceAPI.Controllers
             }
 
             var totalItems = await query.CountAsync();
+
             var articuloList = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
+                .Select(a => new ArticuloDTO
+                {
+                    IdArticulo = a.IdArticulo,
+                    Descripcion = a.Descripcion,
+                    DescripcionCorta = a.DescripcionCorta,
+                    Familia = a.Familia,
+                    Linea = a.Linea,
+                    Marca = a.Marca,
+                    Material = a.Material,
+                    Modelo = a.Modelo,
+                    Color = a.Color,
+                    Detalle = a.Detalle,
+                    Talla = a.Talla,
+                    IdProveedor = a.IdProveedor,
+                    UnidadAlmacen = a.UnidadAlmacen,
+                    MonedaCosteo = a.MonedaCosteo,
+                    PrecioCompra = a.PrecioCompra,
+                    PrecioVenta = a.PrecioVenta,
+                    FechaRegistro = a.FechaRegistro,
+                    // Evitamos enviar la foto para mejorar el rendimiento
+                    Foto = null,
+                    CodigoBarra = a.CodigoBarra != null ? Encoding.UTF8.GetString(a.CodigoBarra) : null,
+                    Estado = a.Estado,
+                    Estacion = a.Estacion
+                })
                 .ToListAsync();
 
             return Ok(new
