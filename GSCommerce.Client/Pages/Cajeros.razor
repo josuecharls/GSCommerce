@@ -23,7 +23,14 @@
                 <tr>
                     <td>@c.Nombre</td>
                     <td>
-                        <button class="btn btn-primary btn-sm" @onclick="() => AbrirModal(c)">Generar Credenciales</button>
+                        @if (c.IdUsuario == 0)
+                        {
+                            <button class="btn btn-primary btn-sm" @onclick="() => AbrirModal(c)">Generar Credenciales</button>
+                        }
+                        else
+                        {
+                            <span class="text-success">Credenciales ya creadas</span>
+                        }
                     </td>
                 </tr>
             }
@@ -67,11 +74,12 @@
     private List<UsuarioDTO> cajeros = new();
     private bool mostrarModal;
     private GenerarCredencialesRequest credenciales = new();
+    private int idAlmacen;
 
     protected override async Task OnInitializedAsync()
     {
-        int idAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
-        cajeros = await UsuarioService.ObtenerCajerosAsync(idAlmacen);
+        idAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
+        cajeros = await UsuarioService.ObjetenerCajerosConUserAsync(idAlmacen);
     }
 
     private void AbrirModal(UsuarioDTO cajero)
@@ -97,6 +105,7 @@
             await JS.InvokeVoidAsync("alert", "✅ Credenciales generadas.");
         else
             await JS.InvokeVoidAsync("alert", "❌ Error al generar credenciales.");
+        cajeros = await UsuarioService.ObjetenerCajerosConUserAsync(idAlmacen);
         CerrarModal();
     }
 }
