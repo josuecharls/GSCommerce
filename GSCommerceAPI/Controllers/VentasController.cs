@@ -409,15 +409,11 @@ namespace GSCommerceAPI.Controllers
             var fechaFin = hasta ?? DateTime.Today;
 
             var reporte = await (from c in _context.ComprobanteDeVentaCabeceras
-                                 join u in _context.Usuarios on c.IdVendedor equals u.IdUsuario into gj
-                                 from subu in gj.DefaultIfEmpty()
-                                 join p in _context.Personals on subu.IdPersonal equals p.IdPersonal into pj
-                                 from subp in pj.DefaultIfEmpty()
+                                 join p in _context.Personals on c.IdVendedor equals p.IdPersonal
+                                 where c.Fecha.Date >= fechaInicio.Date && c.Fecha.Date <= fechaFin.Date 
+                                 && c.Estado == "E"
+                                 group c by new { p.Nombres, p.Apellidos } into g
 
-                                 where c.Fecha.Date >= fechaInicio.Date && c.Fecha.Date <= fechaFin.Date
-                                       && c.Estado == "E"
-
-                                 group c by new { subp.Nombres, subp.Apellidos } into g
                                  select new ReporteVentasVendedorDTO
                                  {
                                      NombreVendedor = (g.Key.Nombres + " " + g.Key.Apellidos).Trim(),

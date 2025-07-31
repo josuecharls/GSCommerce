@@ -81,7 +81,7 @@ namespace GSCommerceAPI.Controllers
                     FechaRegistro = a.FechaRegistro,
                     // Evitamos enviar la foto para mejorar el rendimiento
                     Foto = null,
-                    CodigoBarra = a.CodigoBarra != null ? Encoding.UTF8.GetString(a.CodigoBarra) : null,
+                    CodigoBarra = null,
                     Estado = a.Estado,
                     Estacion = a.Estacion
                 })
