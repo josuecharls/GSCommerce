@@ -408,22 +408,27 @@ namespace GSCommerceAPI.Controllers
             var fechaInicio = desde ?? DateTime.Today;
             var fechaFin = hasta ?? DateTime.Today;
 
-            var reporte = await (from c in _context.ComprobanteDeVentaCabeceras
-                                 join p in _context.Personals on c.IdVendedor equals p.IdPersonal
-                                 where c.Fecha.Date >= fechaInicio.Date && c.Fecha.Date <= fechaFin.Date
-                                       && c.Estado == "E"
+            var query = from c in _context.ComprobanteDeVentaCabeceras
+                        join p in _context.Personals on c.IdVendedor equals p.IdPersonal into gj
+                        from p in gj.DefaultIfEmpty()
+                        where c.Fecha.Date >= fechaInicio.Date && c.Fecha.Date <= fechaFin.Date
+                              && c.Estado == "E"
+                        select new { c, p };
 
-                                 group c by new { p.Nombres, p.Apellidos } into g
-                                 select new ReporteVentasVendedorDTO
-                                 {
-                                     NombreVendedor = (g.Key.Nombres + " " + g.Key.Apellidos).Trim(),
-                                     TotalVentas = g.Count(),
-                                     TotalClientes = g.Select(c => c.Dniruc).Distinct().Count(),
-                                     MontoTotal = g.Sum(c => c.Total)
-                                 }).ToListAsync();
+            var reporte = await query
+                .GroupBy(x => new { x.p.Nombres, x.p.Apellidos })
+                .Select(g => new ReporteVentasVendedorDTO
+                {
+                    NombreVendedor = ((g.Key.Nombres ?? "") + " " + (g.Key.Apellidos ?? "")).Trim(),
+                    TotalVentas = g.Count(),
+                    TotalClientes = g.Select(x => x.c.Dniruc).Distinct().Count(),
+                    MontoTotal = g.Sum(x => x.c.Total)
+                })
+                .ToListAsync();
 
             return Ok(reporte);
         }
+
 
         [HttpGet("reporte-articulo")]
         public async Task<IActionResult> ObtenerReportePorArticulo([FromQuery] string idArticulo, [FromQuery] int mes, [FromQuery] int anio)
