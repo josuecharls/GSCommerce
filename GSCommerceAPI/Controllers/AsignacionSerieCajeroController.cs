@@ -20,9 +20,25 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("disponibles")]
         public async Task<IActionResult> GetSeriesDisponibles([FromQuery] int idAlmacen)
         {
-            var series = await _context.VSeriesXalmacen1s
-                .Where(x => x.IdAlmacen == idAlmacen)
+            var permitidos = new[] { "BOLETA", "FACTURA", "TICKET", "BOLETA M", "FACTURA M" };
+
+            var asignadas = await _context.AsignacionSerieCajeros
+                .Select(a => a.IdSerieCorrelativo)
                 .ToListAsync();
+
+            var series = await (from sc in _context.SerieCorrelativos
+                                join td in _context.TipoDocumentoVenta
+                                    on sc.IdTipoDocumentoVenta equals td.IdTipoDocumentoVenta
+                                where sc.IdAlmacen == idAlmacen
+                                      && sc.Estado
+                                      && permitidos.Contains(td.Descripcion)
+                                      && !asignadas.Contains(sc.IdSerieCorrelativo)
+                                select new VSeriesXalmacen1
+                                {
+                                    IdSerieCorrelativo = sc.IdSerieCorrelativo,
+                                    IdAlmacen = sc.IdAlmacen,
+                                    DocumentoSerie = td.Descripcion + " (" + sc.Serie + ")"
+                                }).ToListAsync();
 
             return Ok(series);
         }
@@ -30,9 +46,24 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("asignadas")]
         public async Task<IActionResult> GetSeriesAsignadas([FromQuery] int idUsuario, [FromQuery] int idAlmacen)
         {
-            var series = await _context.VSeriesXcajero1s
-                .Where(x => x.IdUsuario == idUsuario && x.IdAlmacen == idAlmacen)
-                .ToListAsync();
+            var permitidos = new[] { "BOLETA", "FACTURA", "TICKET", "BOLETA M", "FACTURA M" };
+
+            var series = await (from a in _context.AsignacionSerieCajeros
+                                join sc in _context.SerieCorrelativos
+                                    on a.IdSerieCorrelativo equals sc.IdSerieCorrelativo
+                                join td in _context.TipoDocumentoVenta
+                                    on sc.IdTipoDocumentoVenta equals td.IdTipoDocumentoVenta
+                                where a.IdUsuario == idUsuario
+                                      && a.IdAlmacen == idAlmacen
+                                      && sc.Estado
+                                      && permitidos.Contains(td.Descripcion)
+                                select new VSeriesXcajero1
+                                {
+                                    IdSerieCorrelativo = sc.IdSerieCorrelativo,
+                                    IdUsuario = a.IdUsuario,
+                                    IdAlmacen = a.IdAlmacen,
+                                    DocumentoSerie = td.Descripcion + " (" + sc.Serie + ")"
+                                }).ToListAsync();
 
             return Ok(series);
         }
