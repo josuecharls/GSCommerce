@@ -1,4 +1,25 @@
-﻿window.imprimirTicket = (html) => {
+﻿// Utilidades para impresión de tickets desde el cliente
+// Intenta imprimir el ticket de forma directa usando la librería
+// JSPrintManager. Si no está disponible o se produce un error,
+// se recurre a la impresión clásica del navegador.
+window.imprimirTicket = async (html) => {
+    if (window.JSPM) {
+        try {
+            if (JSPM.JSPrintManager.websocket_status !== JSPM.WSStatus.Open) {
+                await JSPM.JSPrintManager.autoConnect();
+            }
+
+            const cpj = new JSPM.ClientPrintJob();
+            cpj.printer = new JSPM.DefaultPrinter();
+            const file = new JSPM.PrintFileHTML(html, JSPM.FileSourceType.String, "ticket.html", 1);
+            cpj.files.push(file);
+            cpj.sendToClient();
+            return;
+        } catch (error) {
+            console.error("Impresión directa falló, usando método de ventana", error);
+        }
+    }
+
     const ventana = window.open("", "_blank", "width=400,height=600");
     ventana.document.write(`
         <html>
