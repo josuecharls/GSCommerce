@@ -613,7 +613,7 @@ OnCancelado="CobroCancelado" />
                 await JS.InvokeVoidAsync("alert", "❌ Venta registrada, pero falló el envío a SUNAT.");
         }
 
-        LimpiarFormulario();
+        await LimpiarFormulario();
     }
 
     private string GenerarHtmlDelTicket()
@@ -801,7 +801,7 @@ OnCancelado="CobroCancelado" />
             {
                 Console.WriteLine("✅ Venta guardada exitosamente en el servidor.");
                 await JS.InvokeVoidAsync("alert", "Venta registrada exitosamente.");
-                LimpiarFormulario();
+                await LimpiarFormulario();
             }
             else
             {
@@ -821,7 +821,7 @@ OnCancelado="CobroCancelado" />
         Console.WriteLine("Cobro cancelado");
         await Task.CompletedTask;
     }
-    private async void LimpiarFormulario()
+    private async Task LimpiarFormulario()
     {
         venta = new VentaCabeceraDTO();
         pagosRealizados.Clear();

@@ -74,13 +74,13 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("list")]
-        public async Task<IActionResult> ListarVentas([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
+        public async Task<IActionResult> ListarVentas([FromQuery] int idAlmacen, [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
         {
             var inicio = desde ?? DateTime.Today;
             var fin = hasta ?? DateTime.Today;
 
             var ventas = await _context.VVenta1s
-                .Where(v => v.Fecha.Date >= inicio.Date && v.Fecha.Date <= fin.Date)
+                .Where(v => v.Fecha.Date >= inicio.Date && v.Fecha.Date <= fin.Date && v.IdAlmacen == idAlmacen)
                 .Select(v => new VentaConsultaDTO
                 {
                     IdComprobante = v.IdComprobante,

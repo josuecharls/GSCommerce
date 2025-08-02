@@ -66,7 +66,13 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                string url = $"api/ventas/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+                int? idAlmacen = await _authService.GetUserAlmacenId();
+                if (idAlmacen == null)
+                {
+                    return new();
+                }
+
+                string url = $"api/ventas/list?idAlmacen={idAlmacen}&desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
                 var response = await _httpClient.GetFromJsonAsync<List<VentaConsultaDTO>>(url);
                 return response ?? new();
             }

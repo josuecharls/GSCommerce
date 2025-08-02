@@ -106,12 +106,12 @@ else
 
     <div class="form-group">
         <label>Usuario</label>
-        <input type="text" @bind="loginRequest.Usuario" @onkeypress="OnKeyEnter" placeholder="Ingresa tu usuario" />
+        <input type="text" @bind="loginRequest.Usuario" @bind:event="oninput" @onkeydown="OnKeyEnter" placeholder="Ingresa tu usuario" />
     </div>
 
     <div class="form-group">
         <label>Contraseña</label>
-        <input type="password" @bind="loginRequest.Password" @onkeypress="OnKeyEnter" placeholder="Ingresa tu contraseña" />
+        <input type="password" @bind="loginRequest.Password" @bind:event="oninput" @onkeydown="OnKeyEnter" placeholder="Ingresa tu contraseña" />
     </div>
 
     <button class="btn-login" @onclick="HandleLogin">Iniciar Sesión</button>
