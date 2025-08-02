@@ -590,6 +590,7 @@ OnCancelado="CobroCancelado" />
         }
 
         // ✅ Imprimir ticket en formato texto
+        Console.WriteLine("Imprimiendo ticket..."); 
         var textoTicket = GenerarHtmlDelTicket();
         await JS.InvokeVoidAsync("imprimirTicket", textoTicket);
         if (EsFactura)
@@ -617,77 +618,77 @@ OnCancelado="CobroCancelado" />
 
     private string GenerarHtmlDelTicket()
     {
-        string tipoDocumentoCodigoSunat = venta.TipoDocumento == "FACTURA" ? "01" : "03";
-        string tipoDocClienteSunat = venta.DocumentoCliente?.Length == 11 ? "6" : "1"; // 6 = RUC, 1 = DNI
+        const int width = 40;
+        string Center(string text)
+        {
+            text = text.Trim();
+            if (text.Length >= width) return text;
+            int pad = (width - text.Length) / 2;
+            return new string(' ', pad) + text;
+        }
 
-        string textoQR = $"{venta.RucEmisor}|{tipoDocumentoCodigoSunat}|{venta.Serie}|{venta.Numero}|{venta.Igv.ToString("0.00")}|{venta.Total.ToString("0.00")}|{venta.FechaEmision:dd/MM/yyyy}|{tipoDocClienteSunat}|{venta.DocumentoCliente}";
+        string tipoDocumentoCodigoSunat = venta.TipoDocumento == "FACTURA" ? "01" : "03";
+        string tipoDocClienteSunat = venta.DocumentoCliente?.Length == 11 ? "6" : "1";
+
+        string textoQR = $"{venta.RucEmisor}|{tipoDocumentoCodigoSunat}|{venta.Serie}|{venta.Numero}|{venta.Igv:0.00}|{venta.Total:0.00}|{venta.FechaEmision:dd/MM/yyyy}|{tipoDocClienteSunat}|{venta.DocumentoCliente}";
         string urlQR = $"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={Uri.EscapeDataString(textoQR)}";
+
+        decimal descuento = (venta.SubTotal + venta.Igv) - venta.Total;
+        decimal efectivo = venta.Pagos.Where(p => p.FormaPago == "EFECTIVO").Sum(p => p.Monto);
+        decimal tarjeta = venta.Pagos.Where(p => p.FormaPago != "EFECTIVO" && p.FormaPago != "NOTA CREDITO").Sum(p => p.Monto);
+        decimal notaCredito = venta.Pagos.Where(p => p.FormaPago == "NOTA CREDITO").Sum(p => p.Monto);
 
         var sb = new StringBuilder();
 
-        sb.AppendLine("<div style='font-family: monospace; width: 260px;'>");
-        sb.AppendLine("<h4 style='text-align:center;'>GSHOP</h4>");
-        sb.AppendLine("<p style='text-align:center;'>RUC: " + venta.RucEmisor + "<br/>" +
-                      venta.DireccionEmisor + "</p>");
+        sb.AppendLine("<pre style='font-family: monospace; font-size:12px;'>");
+        sb.AppendLine(Center("BOLETA DE VENTA ELECTRONICA"));
+        sb.AppendLine(Center("================================"));
+        sb.AppendLine(Center($"{venta.RazonSocialEmisor?.ToUpper()}"));
+        sb.AppendLine(Center($"RUC: {venta.RucEmisor}"));
+        sb.AppendLine(Center($"{venta.DireccionEmisor}"));
+        sb.AppendLine(Center("================================"));
         if (!string.IsNullOrWhiteSpace(venta.NombreCajero))
-        {
-            sb.AppendLine($"<p>Cajero: {venta.NombreCajero}</p>");
-        }
-        sb.AppendLine("<hr/>");
-
-        sb.AppendLine($"<p><strong>{venta.TipoDocumento} Electrónica</strong><br/>" +
-                      $"Serie: {venta.Serie}-{venta.Numero:D4}<br/>" +
-                      $"Fecha: {venta.FechaEmision:dd/MM/yyyy HH:mm}</p>");
-
-        sb.AppendLine($"<p>Cliente: {venta.NombreCliente}<br/>" +
-                      $"Doc: {venta.DocumentoCliente}</p>");
-
-        sb.AppendLine($"<p>Vendedor: {venta.NombreVendedor} (ID: {venta.IdVendedor})</p>");
-
-        sb.AppendLine("<table style='width:100%; font-size:12px;'>");
-        sb.AppendLine("<thead><tr><th>Item</th><th>Desc</th><th>Cant</th><th>PU</th><th>Tot</th></tr></thead>");
-        sb.AppendLine("<tbody>");
+            sb.AppendLine($"CAJERO: {venta.NombreCajero}");
+        sb.AppendLine($"SERIE: {ObtenerSerieConPrefijo()}-{venta.Numero:D4}");
+        sb.AppendLine($"FECHA EMISION: {venta.FechaEmision:dd/MM/yyyy} HORA: {venta.FechaEmision:HH:mm}");
+        sb.AppendLine($"CLIENTE: {venta.NombreCliente}");
+        sb.AppendLine($"DOC: {venta.DocumentoCliente}");
+        sb.AppendLine($"VENDEDOR: {venta.NombreVendedor}");
+        var formasPago = venta.Pagos.Any() ? string.Join(" / ", venta.Pagos.Select(p => p.FormaPago)) : "-";
+        sb.AppendLine($"FORMA DE PAGO: {formasPago}");
+        sb.AppendLine(Center("================================"));
+        sb.AppendLine("Cant Producto             PU   TOTAL");
+        sb.AppendLine(Center("-----------------------------------"));
 
         foreach (var item in venta.Detalles)
         {
-            sb.AppendLine("<tr>");
-            sb.AppendLine($"<td>{item.Item}</td>");
-            sb.AppendLine($"<td>{item.DescripcionItem}</td>");
-            sb.AppendLine($"<td>{item.Cantidad}</td>");
-            sb.AppendLine($"<td>{item.PrecioUnitario:N2}</td>");
-            sb.AppendLine($"<td>{item.Total:N2}</td>");
-            sb.AppendLine("</tr>");
+            var desc = item.DescripcionItem.Length > 18 ? item.DescripcionItem.Substring(0, 18) : item.DescripcionItem;
+            sb.AppendLine($"{item.Cantidad,3} {desc.PadRight(18)} {item.PrecioUnitario,6:0.00} {item.Total,7:0.00}");
         }
 
-        sb.AppendLine("</tbody></table>");
-
-        sb.AppendLine("<hr/>");
-        sb.AppendLine($"<p>Subtotal: {venta.SubTotal:N2}<br/>" +
-                      $"IGV: {venta.Igv:N2}<br/>" +
-                      $"<strong>Total: {venta.Total:N2}</strong><br/>" +
-                      $"Pagado: {venta.APagar:N2}<br/>" +
-                      $"<strong>Vuelto: {venta.Vuelto:N2}</strong></p>");
-
-        sb.AppendLine("<hr/>");
-        sb.AppendLine("<p>Forma(s) de Pago:</p>");
-        foreach (var pago in venta.Pagos)
-        {
-            var extra = pago.FormaPago switch
-            {
-                "VISA" or "MASTERCARD" => $" - Dígitos: {pago.CodigoVerificacion}",
-                "YAPE" => $" - Cód. Verif: {pago.CodigoVerificacion}",
-                _ => ""
-            };
-            sb.AppendLine($"<p>{pago.FormaPago}{extra} - {SimboloMoneda}{pago.Monto:N2}</p>");
-        }
-
-        sb.AppendLine("<div style='text-align:center;'>");
-        sb.AppendLine($"<img src='{urlQR}' width='100' height='100'/><br/>");
-        sb.AppendLine($"<small>Hash: {venta.CodigoVerificacion}</small>");
-        sb.AppendLine("</div>");
-
-        sb.AppendLine("<p style='text-align:center;'>Gracias por su compra</p>");
-        sb.AppendLine("</div>");
+        sb.AppendLine(Center("-----------------------------------"));
+        sb.AppendLine($"DESCUENTO                S/ {descuento,7:0.00}");
+        sb.AppendLine($"TOTAL                    S/ {venta.Total,7:0.00}");
+        sb.AppendLine(Center("***********************************"));
+        sb.AppendLine($"Subtotal:                {venta.SubTotal,7:0.00}");
+        sb.AppendLine($"IGV:                     {venta.Igv,7:0.00}");
+        sb.AppendLine(Center("-----------------------------------"));
+        sb.AppendLine($"EFECTIVO:                S/ {efectivo,7:0.00}");
+        sb.AppendLine($"TARJETA/ONLINE:          S/ {tarjeta,7:0.00}");
+        sb.AppendLine($"NOTA DE CRÉDITO:         S/ {notaCredito,7:0.00}");
+        sb.AppendLine($"VUELTO:                  S/ {venta.Vuelto,7:0.00}");
+        sb.AppendLine();
+        sb.AppendLine("NO HAY DEVOLUCIÓN DE DINERO.");
+        sb.AppendLine("TODO CAMBIO DE MERCADERÍA SE HARA");
+        sb.AppendLine("DENTRO DE LAS 48 HORAS, PREVIA");
+        sb.AppendLine("PRESENTACIÓN DEL COMPROBANTE Y");
+        sb.AppendLine("VERIFICACIÓN DE LA MERCADERÍA.");
+        sb.AppendLine(Center("-----------------------------------"));
+        sb.AppendLine($"Hash: {venta.CodigoVerificacion}");
+        sb.AppendLine("Representación Impresa del Documento");
+        sb.AppendLine("Gracias por su compra!");
+        sb.AppendLine("</pre>");
+        sb.AppendLine($"<div style='text-align:center;'><img src='{urlQR}' width='100' height='100'/></div>");
 
         return sb.ToString();
     }

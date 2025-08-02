@@ -60,13 +60,23 @@ namespace GSCommerce.Client.Services
         // Última apertura anterior
         public async Task<AperturaCierreCajaDTO?> ObtenerAperturaAnteriorAsync(int idUsuario, int idAlmacen, DateOnly fecha)
         {
-            return await _http.GetFromJsonAsync<AperturaCierreCajaDTO>($"api/caja/anterior/{idUsuario}/{idAlmacen}/{fecha:yyyy-MM-dd}");
+            var response = await _http.GetAsync($"api/caja/anterior/{idUsuario}/{idAlmacen}/{fecha:yyyy-MM-dd}");
+            if (response.StatusCode == HttpStatusCode.NoContent)
+                return null;
+
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<AperturaCierreCajaDTO>();
         }
 
         // Siguiente apertura
         public async Task<AperturaCierreCajaDTO?> ObtenerAperturaSiguienteAsync(int idUsuario, int idAlmacen, DateOnly fecha)
         {
-            return await _http.GetFromJsonAsync<AperturaCierreCajaDTO?>($"api/caja/siguiente/{idUsuario}/{idAlmacen}/{fecha}");
+            var response = await _http.GetAsync($"api/caja/siguiente/{idUsuario}/{idAlmacen}/{fecha}");
+            if (response.StatusCode == HttpStatusCode.NoContent)
+                return null;
+
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<AperturaCierreCajaDTO>();
         }
 
         // Registrar apertura
