@@ -90,6 +90,9 @@ public class CajaController : ControllerBase
             .OrderByDescending(c => c.Fecha)
             .FirstOrDefaultAsync();
 
+        if (anterior == null)
+            return NoContent();
+
         return Ok(anterior);
     }
 
@@ -101,6 +104,9 @@ public class CajaController : ControllerBase
             .Where(c => c.IdUsuario == idUsuario && c.IdAlmacen == idAlmacen && c.Fecha > fecha)
             .OrderBy(c => c.Fecha)
             .FirstOrDefaultAsync();
+
+        if (siguiente == null)
+            return NoContent();
 
         return Ok(siguiente);
     }
