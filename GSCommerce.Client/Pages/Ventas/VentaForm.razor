@@ -613,7 +613,12 @@ OnCancelado="CobroCancelado" />
                 await JS.InvokeVoidAsync("alert", "❌ Venta registrada, pero falló el envío a SUNAT.");
         }
 
-        await LimpiarFormulario();
+        // 🔁 Limpiar manteniendo valores clave
+        string? tipoAnterior = venta.TipoDocumento;
+        int? vendedorAnterior = venta.IdVendedor;
+        string? nombreVendedorAnterior = venta.NombreVendedor;
+
+        await LimpiarFormulario(tipoAnterior, vendedorAnterior, nombreVendedorAnterior);
     }
 
     private string GenerarHtmlDelTicket()
@@ -821,26 +826,27 @@ OnCancelado="CobroCancelado" />
         Console.WriteLine("Cobro cancelado");
         await Task.CompletedTask;
     }
-    private async Task LimpiarFormulario()
+
+    private async Task LimpiarFormulario(string? tipoDoc = null, int? idVendedor = null, string? nombreVendedor = null)
     {
-        venta = new VentaCabeceraDTO();
+        venta = new VentaCabeceraDTO
+        {
+            TipoDocumento = tipoDoc ?? "BOLETA",
+            IdVendedor = idVendedor ?? 0,
+            NombreVendedor = nombreVendedor ?? string.Empty,
+            DocumentoCliente = "99999999",
+            NombreCliente = "CLIENTE VARIOS",
+            IdCajero = idUsuarioActual,
+            IdAlmacen = idAlmacenActual ?? 0
+        };
+
         pagosRealizados.Clear();
         ventaCobrada = false;
 
-        if (idVendedorSeleccionado.HasValue)
-        {
-            var v = vendedores.FirstOrDefault(x => x.IdPersonal == idVendedorSeleccionado.Value);
-            if (v != null)
-            {
-                venta.IdVendedor = v.IdPersonal;
-                venta.NombreVendedor = ($"{v.Nombres} {v.Apellidos}").Trim();
-            }
-        }
-
-        await Task.Delay(100);
-        await inputCodigoRef.FocusAsync();
         await CargarSeriePorTipoYAlmacen();
-
+        await Task.Delay(50);
+        await inputCodigoRef.FocusAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private bool RequiereCliente =>

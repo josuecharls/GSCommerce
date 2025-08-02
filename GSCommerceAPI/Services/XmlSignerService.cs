@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography.X509Certificates;
+﻿using System.IO;
+using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Xml;
@@ -22,7 +23,12 @@ namespace GSCommerceAPI.Services
             xmlDoc.PreserveWhitespace = true;
             xmlDoc.LoadXml(xmlContent);
 
-            var certificado = new X509Certificate2(_certPath, _certPassword);
+            if (!File.Exists(_certPath))
+                throw new FileNotFoundException($"No se encontró el certificado en {_certPath}");
+
+            var certBytes = File.ReadAllBytes(_certPath);
+            using var certificado = new X509Certificate2(certBytes, _certPassword,
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
 
             var signedXml = new SignedXml(xmlDoc)
             {

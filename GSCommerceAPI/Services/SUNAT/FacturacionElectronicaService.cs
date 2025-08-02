@@ -3,6 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Xml;
+using System.IO;
 using System.IO.Compression;
 using System.ServiceModel.Channels;
 using System.ServiceModel;
@@ -192,8 +193,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 // 1. Generar el XML como string (etiquetas UBL completas)
                 var xml = GenerarXmlFactura(comprobante);
                 // TEMPORAL: Guardar XML generado antes de firmar para revisión
-                var rutaXmlTemporal = Path.Combine(_env.ContentRootPath, "Facturacion", "temp_sin_firma.xml");
-                await File.WriteAllTextAsync(rutaXmlTemporal, xml);
+                var rutaXmlTemporal = Path.Combine(_env.ContentRootPath, "Facturacion", $"temp_sin_firma_{Guid.NewGuid()}.xml"); await File.WriteAllTextAsync(rutaXmlTemporal, xml);
                 Console.WriteLine("======= XML SIN FIRMA =======");
                 Console.WriteLine(xml);
                 Console.WriteLine("======= FIN XML SIN FIRMA =======");
@@ -253,10 +253,13 @@ namespace GSCommerceAPI.Services.SUNAT
             var xmlDoc = new XmlDocument { PreserveWhitespace = true };
             xmlDoc.LoadXml(xmlContenido);
 
-            var cert = new X509Certificate2(rutaCertificado, password,
-                      X509KeyStorageFlags.UserKeySet |
-                      X509KeyStorageFlags.PersistKeySet |
-                      X509KeyStorageFlags.Exportable);
+            if (!File.Exists(rutaCertificado))
+                throw new FileNotFoundException($"No se encontró el certificado en {rutaCertificado}");
+
+            // Cargar el certificado en memoria para evitar conflictos al acceder desde múltiples hilos
+            var certBytes = File.ReadAllBytes(rutaCertificado);
+            using var cert = new X509Certificate2(certBytes, password,
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
 
             var signedXml = new SignedXml(xmlDoc)
             {
