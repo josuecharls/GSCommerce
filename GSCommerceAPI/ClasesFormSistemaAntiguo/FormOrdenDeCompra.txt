@@ -1,0 +1,450 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using BusinessLayer;
+using DataAccess;
+
+namespace WinFrontEnd
+{
+    public partial class FormOrdenDeCompra : Form
+    {
+        OrdenDeCompraCabecera CabeceraOC = new OrdenDeCompraCabecera();
+        List<OrdenDeCompraCabecera> CabeOC = new List<OrdenDeCompraCabecera>();
+        BindingList<OrdenDeCompraDetalle> DetalleOC = new BindingList<OrdenDeCompraDetalle>();
+        AuxiliarVariosClass CombosAuxiliares = new AuxiliarVariosClass();
+        TipodeCambioClass TipodeCambio = new TipodeCambioClass();
+        List<TipoDeCambio> TCDia = new List<TipoDeCambio>();
+        ProveedorClass Proveedor = new ProveedorClass();
+        List<Proveedor> Provee = new List<Proveedor>();
+        TipodeCambioClass TipoCambio = new TipodeCambioClass();
+        VariosClass Varios = new VariosClass();
+
+        OrdenDeCompraClass OC = new OrdenDeCompraClass();
+
+        string Foco;
+        int IdProv;
+
+        ClassValidaFormulario cvf = new ClassValidaFormulario();
+        ClassLlenaDatos clld = new ClassLlenaDatos();
+
+        public FormOrdenDeCompra()
+        {
+            InitializeComponent();
+
+            this.KeyPreview = true;
+            this.KeyPress += new KeyPressEventHandler(FormOrdenDeCompra_KeyPress);
+        }
+
+        private void SalirButton_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void FormOrdenDeCompra_Load(object sender, EventArgs e)
+        {
+
+            Inicializa();
+            CargaCombos();
+
+        }
+
+        private void Inicializa()
+        {
+
+            FechaOCDateTimePicker.Value = VariablesPublicas._FechaHoy;
+            FechaEntregaDateTimePicker.Value = VariablesPublicas._FechaHoy;
+
+            GrabarModificarButton.Image = WinFrontEnd.Properties.Resources.grabar;
+            GrabarModificarButton.Enabled = false;
+            GrillaDataGridView.Enabled = true;
+            clld.LimpiaDatos(DatosGroupBox);
+            DatosGroupBox.Enabled = true;
+            GrabarModificarButton.Text = "Grabar";
+            GrabarModificarButton.Image = WinFrontEnd.Properties.Resources.grabar;
+            GrabarModificarButton.Enabled = true;
+            clld.LimpiaDatos(DatosGroupBox);
+            SubtotalLabel.Text = "0.00";
+            IGVLabel.Text = "0.00";
+            TotalLabel.Text = "0.00";
+
+            ActualizaTipoDeCambio();
+
+            GrillaDataGridView.DataSource = DetalleOC;
+
+            FormatoGrilla();
+
+            IdProv = 0;
+
+        }
+
+        private void FormatoGrilla()
+        {
+
+            //GrillaDataGridView.AutoResizeColumns();
+            GrillaDataGridView.Columns[0].Visible = false;
+            GrillaDataGridView.Columns[1].HeaderText = "Item";
+            GrillaDataGridView.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            GrillaDataGridView.Columns[2].HeaderText = "Código";
+            GrillaDataGridView.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            GrillaDataGridView.Columns[3].HeaderText = "Descripción";
+            GrillaDataGridView.Columns[3].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            GrillaDataGridView.Columns[4].HeaderText = "UM";
+            GrillaDataGridView.Columns[4].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            GrillaDataGridView.Columns[5].HeaderText = "Cantidad";
+            GrillaDataGridView.Columns[5].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            GrillaDataGridView.Columns[5].DefaultCellStyle.Format = "N2";
+            GrillaDataGridView.Columns[6].HeaderText = "Costo Unitario";
+            GrillaDataGridView.Columns[6].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            GrillaDataGridView.Columns[6].DefaultCellStyle.Format = "N2";
+            GrillaDataGridView.Columns[7].HeaderText = "Sub Total";
+            GrillaDataGridView.Columns[7].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            GrillaDataGridView.Columns[7].DefaultCellStyle.Format = "N2";
+            GrillaDataGridView.Columns[8].Visible = false;
+            GrillaDataGridView.Columns[9].Visible = false;
+
+        }
+
+        private void CargaCombos()
+        {
+            MonedaComboBox.DisplayMember = "Descripcion";
+            MonedaComboBox.ValueMember = "Descripcion";
+            MonedaComboBox.DataSource = CombosAuxiliares.ObtenerLista("MONEDA");
+            FormaPagoComboBox.DisplayMember = "Descripcion";
+            FormaPagoComboBox.ValueMember = "Descripcion";
+            FormaPagoComboBox.DataSource = CombosAuxiliares.ObtenerLista("FORMA DE PAGO");
+
+        }
+
+        private void RUCProveedorTextBox_Enter(object sender, EventArgs e)
+        {
+            Foco = "P";
+        }
+
+        private void RUCProveedorTextBox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (Foco == "P")
+            {
+                if (e.KeyChar == (char)(Keys.Enter))
+                {
+
+                    e.Handled = true;
+
+                    BuscaProveedor();
+
+                }
+            }
+        }
+        
+        private void RUCProveedorTextBox_Leave(object sender, EventArgs e)
+        {
+
+            if (Foco == "P")
+            {
+
+                //BuscaProveedor();
+
+            }
+
+            Foco = "";
+            
+        }
+
+        private void BuscaProveedor()
+        {
+
+            Provee = Proveedor.ObtenerProveedorXRUC(RUCProveedorTextBox.Text);
+
+            if (Provee.Count == 1)
+            {
+                IdProv = Provee[0].IdProveedor;
+                NombreProveedorLabel.Text = Provee[0].Nombre.ToString();
+                DireccionProveedorLabel.Text = Provee[0].Direccion.ToString();
+                FormaPagoComboBox.Text = Provee[0].FormaPago.ToString();
+
+                AtencionTextBox.Focus();
+                Foco = "";
+
+            }
+            else
+            {
+
+                MessageBox.Show("¡Proveedor no registrado!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                RUCProveedorTextBox.Focus();
+                RUCProveedorTextBox.SelectAll();
+
+            }
+
+        }
+
+        private void BuscaProveedorButton_Click(object sender, EventArgs e)
+        {
+
+            FormBuscarProveedor fbprov = new FormBuscarProveedor();
+
+            fbprov.ShowDialog();
+
+            if (fbprov.Prov != null)
+            {
+                IdProv = fbprov.Prov.IdProveedor;
+                RUCProveedorTextBox.Text = fbprov.Prov.RUC;
+                NombreProveedorLabel.Text = fbprov.Prov.Nombre;
+                DireccionProveedorLabel.Text = fbprov.Prov.Direccion;
+                FormaPagoComboBox.Text = fbprov.Prov.FormaPago;
+            }
+
+        }
+
+        private void FechaOCDateTimePicker_ValueChanged(object sender, EventArgs e)
+        {
+
+            ActualizaTipoDeCambio();
+
+        }
+
+        private void AgregaButton_Click(object sender, EventArgs e)
+        {
+
+            FormOrdenDeCompraArticulos fodcart = new FormOrdenDeCompraArticulos(GrillaDataGridView.Rows.Count + 1, IdProv, true);
+
+            fodcart.ShowDialog();
+
+            if (fodcart.Detalle != null)
+            {
+                DetalleOC.Add(fodcart.Detalle);
+
+                //GrillaDataGridView.AutoResizeColumns();
+
+                CalculaTotales();
+            }
+
+        }
+
+        private void QuitaButton_Click(object sender, EventArgs e)
+        {
+
+            if (GrillaDataGridView.Rows.Count > 0)
+            {
+                DetalleOC.RemoveAt(GrillaDataGridView.CurrentRow.Index);
+
+                //GrillaDataGridView.AutoResizeColumns();
+
+                int i = 0;
+
+                foreach (OrdenDeCompraDetalle LineaDetalle in DetalleOC)
+                {
+                    i++;
+
+                    LineaDetalle.Item = i;
+
+                }
+
+                CalculaTotales();
+
+            }
+        }
+
+        private void CalculaTotales()
+        {
+
+            double SubTotal = 0;
+            
+            foreach (OrdenDeCompraDetalle LineaDetalle in DetalleOC)
+            {
+
+                SubTotal = SubTotal + Convert.ToDouble(LineaDetalle.Total);
+
+            }
+
+            SubtotalLabel.Text = SubTotal.ToString("N2");
+            IGVLabel.Text = (VariablesPublicas._Igv * SubTotal).ToString("N2");
+            TotalLabel.Text = ((1 + VariablesPublicas._Igv) * SubTotal).ToString("N2");
+
+        }
+
+        private void BloqueaTodo(Boolean _estado)
+        {
+
+            DatosGroupBox.Enabled = _estado;
+            GrillaDataGridView.Enabled = _estado;
+            AgregaButton.Enabled = _estado;
+            QuitaButton.Enabled = _estado;
+            ActualizaTCButton.Enabled = _estado;
+            ImprimirButton.Enabled = _estado;
+            GrabarModificarButton.Enabled = _estado;
+            this.KeyPreview = _estado;
+
+            if (_estado)
+            {
+                this.KeyPress += new KeyPressEventHandler(FormOrdenDeCompra_KeyPress);
+                GrillaDataGridView.Focus();
+                if (GrillaDataGridView.RowCount > 0)
+                    GrillaDataGridView.CurrentCell = GrillaDataGridView[2, GrillaDataGridView.RowCount - 1];
+            }
+
+        }
+
+        private void GrabarModificarButton_Click(object sender, EventArgs e)
+        {
+            BloqueaTodo(false);
+            SalirButton.Enabled = false;
+            
+            if (TCDia.Count != 1)
+            {
+
+                MessageBox.Show("¡Tipo de Cambio para la fecha del documento no está registrado!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+            }
+            else if (DetalleOC.Count == 0)
+            {
+
+                MessageBox.Show("¡Ingrese Detalle!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+            }
+            else if (IdProv == 0)
+            {
+                MessageBox.Show("¡Seleccione proveedor!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+            }
+            else if (cvf.VerificaInformacionCompleta(DatosGroupBox, this))
+            {
+
+                DialogResult result;
+
+                result = MessageBox.Show("¿Desea " + GrabarModificarButton.Text + " la información?", "S.G.V.", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                if (result == System.Windows.Forms.DialogResult.Yes)
+                {
+
+                    try
+                    {
+                        CabeceraOC.IdProveedor = IdProv;
+                        CabeceraOC.NumeroOC = "N-";
+                        CabeceraOC.FechaOC = FechaOCDateTimePicker.Value;
+                        CabeceraOC.RUCProveedor = RUCProveedorTextBox.Text.Trim();
+                        CabeceraOC.NombreProveedor = NombreProveedorLabel.Text.Trim();
+                        CabeceraOC.DireccionProveedor = DireccionProveedorLabel.Text.Trim();
+                        CabeceraOC.Moneda = MonedaComboBox.Text.Trim();
+                        CabeceraOC.TipoCambio = (decimal)TCDia[0].Compra;
+                        CabeceraOC.FormaPago = FormaPagoComboBox.Text.Trim();
+
+                        if (SinIGVCheckBox.CheckState == CheckState.Checked)
+                            CabeceraOC.SinIGV = true;
+                        else
+                            CabeceraOC.SinIGV = false;
+
+                        CabeceraOC.FechaEntrega = FechaEntregaDateTimePicker.Value;
+                        CabeceraOC.Atencion = AtencionTextBox.Text.Trim();
+                        CabeceraOC.Glosa = GlosaTextBox.Text.Trim();
+                        CabeceraOC.ImporteSubTotal = Convert.ToDecimal(SubtotalLabel.Text);
+                        CabeceraOC.ImporteIGV = Convert.ToDecimal(IGVLabel.Text);
+                        CabeceraOC.ImporteTotal = Convert.ToDecimal(TotalLabel.Text);
+                        CabeceraOC.EstadoAtencion = "PE";
+                        CabeceraOC.IdUsuarioRegistra = VariablesPublicas._IdUsuario;
+                        CabeceraOC.FechaRegistra = Varios.FechaHoraServidor(); ;
+
+                        CabeOC.Add(CabeceraOC);
+                        
+                        if (OC.InsertaOrdenDeCompra(CabeOC, DetalleOC, FechaOCDateTimePicker.Value.Year))
+                        {
+                            MessageBox.Show("¡Datos registrados con éxito!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            DatosGroupBox.Enabled = false;
+                            GrillaDataGridView.Enabled = false;
+                            GrabarModificarButton.Enabled = false;
+                            AgregaButton.Enabled = false;
+                            QuitaButton.Enabled = false;
+                            CabeOC.Clear();
+                            DetalleOC.Clear();
+
+                            this.Close();
+                        }
+                        else
+                        {
+                            CabeOC.Clear();
+                        }
+
+                    }
+                    catch (Exception ex)
+                    {
+                        UtilitariosClass.RegistrarLog("O/C - Registro", ex.Message, VariablesPublicas._NombreUsuario);
+                        MessageBox.Show("Ha ocurrido un error: " + ex.Message, "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        CabeOC.Clear();
+                    }
+
+                }
+
+            }
+
+            BloqueaTodo(true);
+            SalirButton.Enabled = true;
+
+        }
+        
+        private void FormOrdenDeCompra_KeyPress(object sender, KeyPressEventArgs e)
+        {
+
+            if (this.ActiveControl.Tag != null)
+                cvf.ValidaTeclas(this.ActiveControl.Tag.ToString(), e);
+
+        }
+
+        private void FormOrdenDeCompra_KeyDown(object sender, KeyEventArgs e)
+        {
+
+            switch (e.KeyCode)
+            {
+                case Keys.Insert:
+                    AgregaButton_Click(sender,e);
+                    e.Handled = true;
+                    break;
+
+            }
+
+        }
+
+        private void ActualizaTCButton_Click(object sender, EventArgs e)
+        {
+            ActualizaTipoDeCambio();
+        }
+
+        private void ActualizaTipoDeCambio()
+        {
+
+            TCDia = TipoCambio.ObtenerListaxDia(FechaOCDateTimePicker.Value);
+
+            if (TCDia.Count() == 1)
+            {
+                TCLabel.Text = "TC: " + TCDia[0].Compra.ToString("N2");
+
+                if (VariablesPublicas._TcHoy == 0)
+                    VariablesPublicas._TcHoy = decimal.Parse(TCDia[0].Compra.ToString("N2"));
+            }
+            else
+            { 
+                if (VariablesPublicas._Cargo == "ADMINISTRADOR")
+                {
+                    MessageBox.Show("¡Tipo de cambio no registradoo para esta fecha: " + FechaOCDateTimePicker.Value.ToShortDateString() + ". Favor de registrar!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    FormTipoDeCambio ftc = new FormTipoDeCambio();
+                    ftc.StartPosition = FormStartPosition.CenterScreen;
+                    ftc.ShowDialog();
+
+                    ActualizaTipoDeCambio();
+                }
+                else
+                {
+                    MessageBox.Show("¡Tipo de cambio no registradoo para esta fecha: " + FechaOCDateTimePicker.Value.ToShortDateString() + "!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    TCLabel.Text = "TC: NO REGISTRADO";
+                }
+            }
+        }
+
+        private void ImprimirButton_Click(object sender, EventArgs e)
+        {
+
+        }
+    }
+}
