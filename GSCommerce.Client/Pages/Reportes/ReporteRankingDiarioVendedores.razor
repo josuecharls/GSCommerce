@@ -1,0 +1,132 @@
+﻿@page "/reportes/ranking-diario-vendedores"
+@using GSCommerce.Client.Components
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@inject ReporteService ReporteService
+@inject AuthService AuthService
+
+<ReportsBreadcrumb Title="Ranking Diario de Vendedores" />
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label>Comparar con:</label>
+        <InputDate @bind-Value="fechaComparar" class="form-control" />
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
+    </div>
+</div>
+
+@if (comparativo.Any())
+{
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th rowspan="2">Vendedor</th>
+                <th colspan="3">@DateTime.Today.ToString("dd/MM/yyyy")</th>
+                <th colspan="3">@fechaComparar.ToString("dd/MM/yyyy")</th>
+            </tr>
+            <tr>
+                <th>Ventas</th>
+                <th>Clientes</th>
+                <th>Monto</th>
+                <th>Ventas</th>
+                <th>Clientes</th>
+                <th>Monto</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var v in comparativo)
+            {
+                <tr>
+                    <td>@v.Vendedor</td>
+                    <td>@v.VentasHoy</td>
+                    <td>@v.ClientesHoy</td>
+                    <td>S/ @v.MontoHoy.ToString("N2")</td>
+                    <td>@v.VentasOtraFecha</td>
+                    <td>@v.ClientesOtraFecha</td>
+                    <td>S/ @v.MontoOtraFecha.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="alert alert-info text-center">No hay ventas registradas.</div>
+}
+
+@if (top3.Any())
+{
+    <h4 class="mt-4">Top 3 vendedores del mes</h4>
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>#</th>
+                <th>Vendedor</th>
+                <th>Ventas</th>
+                <th>Clientes</th>
+                <th>Monto</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in top3.Select((r, i) => new { r, i }))
+            {
+                <tr>
+                    <td>@(item.i + 1)</td>
+                    <td>@item.r.Vendedora</td>
+                    <td>@item.r.VentasRealizadas</td>
+                    <td>@item.r.TotalClientes</td>
+                    <td>S/ @item.r.TotalVentas.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private DateTime fechaComparar = DateTime.Today.AddDays(-1);
+    private List<ComparativoVendedorDTO> comparativo = new();
+    private List<RankingVendedoraDTO> top3 = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        comparativo.Clear();
+        top3.Clear();
+
+        var idAlmacen = await AuthService.GetUserAlmacenId();
+        if (idAlmacen is null) return;
+
+        var hoy = DateTime.Today;
+        var rankingHoy = await ReporteService.ObtenerRankingVendedoras(hoy, hoy, idAlmacen.Value, true);
+        var rankingFecha = await ReporteService.ObtenerRankingVendedoras(fechaComparar, fechaComparar, idAlmacen.Value, true);
+
+        var nombres = rankingHoy.Select(r => r.Vendedora).Union(rankingFecha.Select(r => r.Vendedora));
+
+        foreach (var nombre in nombres)
+        {
+            var hoyData = rankingHoy.FirstOrDefault(r => r.Vendedora == nombre);
+            var fechaData = rankingFecha.FirstOrDefault(r => r.Vendedora == nombre);
+            comparativo.Add(new ComparativoVendedorDTO
+            {
+                Vendedor = nombre,
+                VentasHoy = hoyData?.VentasRealizadas ?? 0,
+                ClientesHoy = hoyData?.TotalClientes ?? 0,
+                MontoHoy = hoyData?.TotalVentas ?? 0,
+                VentasOtraFecha = fechaData?.VentasRealizadas ?? 0,
+                ClientesOtraFecha = fechaData?.TotalClientes ?? 0,
+                MontoOtraFecha = fechaData?.TotalVentas ?? 0
+            });
+        }
+
+        var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
+        var finMes = inicioMes.AddMonths(1).AddDays(-1);
+        var rankingMes = await ReporteService.ObtenerRankingVendedoras(inicioMes, finMes, idAlmacen.Value, true);
+        top3 = rankingMes.Take(3).ToList();
+    }
+}

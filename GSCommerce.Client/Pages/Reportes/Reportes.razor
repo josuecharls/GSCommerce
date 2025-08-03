@@ -1,5 +1,7 @@
 ﻿@page "/reportes"
+@using GSCommerce.Client.Services
 @inject NavigationManager Navigation
+@inject AuthService AuthService
 
 <h3 class="mb-4 fw-bold text-uppercase">Reportes</h3>
 <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
@@ -35,6 +37,17 @@
             </div>
         </div>
     </div>
+    @if (cargo == "CAJERO" || cargo == "ADMINISTRADOR")
+    {
+        <div class="col">
+            <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteRankingDiario">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                    <i class="bi bi-bar-chart-fill" style="font-size: 3rem; color: #6c757d;"></i>
+                    <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Ranking Diario Vendedores</h5>
+                </div>
+            </div>
+        </div>
+    }
     <div class="col">
         <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteTOPten">
             <div class="card-body d-flex flex-column align-items-center justify-content-center">
@@ -47,28 +60,40 @@
 
 
 @code {
-        private void IrAReporteVentasVendedor()
-        {
-            Navigation.NavigateTo("/reportes/ventas-vendedor");
-        }
+    private string? cargo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo();
+    }
+
+    private void IrAReporteVentasVendedor()
+    {
+        Navigation.NavigateTo("/reportes/ventas-vendedor");
+    }
 
     private void IrAReporteVentasDetalladas()
     {
         Navigation.NavigateTo("/reportes/ventas-detalladas");
     }
+
     private void IrAReporteVentasArticulo()
     {
         Navigation.NavigateTo("/reportes/ventas-articulo");
     }
+
     private void IrAReporteRanking()
     {
         Navigation.NavigateTo("/reportes/ranking-vendedoras");
+    }
+
+    private void IrAReporteRankingDiario()
+    {
+        Navigation.NavigateTo("/reportes/ranking-diario-vendedores");
     }
 
     private void IrAReporteTOPten()
     {
         Navigation.NavigateTo("/reportes/top10-articulos");
     }
- 
-
 }
