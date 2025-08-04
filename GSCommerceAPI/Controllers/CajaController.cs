@@ -3,6 +3,8 @@ using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using System.Globalization;
 using GSCommerceAPI.Models.SUNAT.DTOs;
+using System.Linq;
+using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
@@ -267,6 +269,7 @@ public class CajaController : ControllerBase
         var apertura = await _context.AperturaCierreCajas
             .Include(x => x.IdUsuarioNavigation)
             .ThenInclude(u => u.IdPersonalNavigation)
+            .Include(x => x.IdAlmacenNavigation)
             .FirstOrDefaultAsync(x => x.IdAperturaCierre == id);
 
         if (apertura == null)
@@ -278,23 +281,42 @@ public class CajaController : ControllerBase
             .OrderBy(r => r.IdGrupo)
             .ToListAsync();
 
+        decimal MontoPorGrupo(string nombre) =>
+            resumen.Where(r => r.Grupo.Equals(nombre, StringComparison.OrdinalIgnoreCase))
+                    .Sum(r => r.Monto);
+
         // Mapear al DTO
         var dto = new ArqueoCajaDTO
         {
             IdAperturaCierre = apertura.IdAperturaCierre,
             Fecha = apertura.Fecha,
             Usuario = apertura.IdUsuarioNavigation?.Nombre ?? "N/A",
-            Cajero = apertura.IdUsuarioNavigation?.IdPersonalNavigation?.Nombres + " " + apertura.IdUsuarioNavigation?.IdPersonalNavigation?.Apellidos,
+            Cajero = $"{apertura.IdUsuarioNavigation?.IdPersonalNavigation?.Nombres} {apertura.IdUsuarioNavigation?.IdPersonalNavigation?.Apellidos}",
+            Empresa = apertura.IdAlmacenNavigation?.RazonSocial ?? string.Empty,
+            Sucursal = apertura.IdAlmacenNavigation?.Nombre ?? string.Empty,
             SaldoInicial = apertura.SaldoInicial,
             Ingresos = apertura.Ingresos,
             Egresos = apertura.Egresos,
             VentaDia = apertura.VentaDia,
             SaldoFinal = apertura.SaldoFinal,
+            FondoFijo = apertura.FondoFijo,
+            SaldoDiaAnterior = apertura.SaldoInicial,
+            VentasDelDia = apertura.VentaDia,
+            OtrosIngresos = MontoPorGrupo("Otros ingresos"),
+            VentaTarjeta = MontoPorGrupo("Venta con tarjeta"),
+            VentaNC = MontoPorGrupo("Venta con N.C."),
+            GastosDia = MontoPorGrupo("Gastos del día"),
+            TransferenciasDia = MontoPorGrupo("Transferencias del día"),
+            PagosProveedores = MontoPorGrupo("Pagos a proveedores"),
             ObservacionCierre = apertura.ObservacionCierre,
             Resumen = resumen.Select(r => new ResumenCierreDeCaja
             {
                 Grupo = r.Grupo,
-                Detalle = r.Detalle,
+                Detalle = r.Grupo.StartsWith("Venta con boleta", StringComparison.OrdinalIgnoreCase)
+                    ? (r.Detalle.Trim().StartsWith("DEL", StringComparison.OrdinalIgnoreCase)
+                        ? r.Detalle.ToUpperInvariant()
+                        : $"DEL {r.Detalle}".ToUpperInvariant())
+                    : r.Detalle,
                 Monto = r.Monto
             }).ToList()
         };

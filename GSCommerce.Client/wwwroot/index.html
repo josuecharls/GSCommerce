@@ -45,6 +45,74 @@
             XLSX.utils.book_append_sheet(wb, ws, "Hoja1");
             XLSX.writeFile(wb, filename + ".xlsx");
         };
+
+        window.importarDesdeExcel = (input) => {
+            return new Promise((resolve) => {
+                const file = input.files[0];
+                if (!file) {
+                    resolve([]);
+                    return;
+                }
+                const name = file.name.toLowerCase();
+                if (!name.endsWith('.xls') && !name.endsWith('.xlsx')) {
+                    alert('Seleccione un archivo de Excel (.xls o .xlsx).');
+                    resolve([]);
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = e => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        if (!workbook.SheetNames.length) {
+                            alert('El archivo no contiene hojas válidas.');
+                            resolve([]);
+                            return;
+                        }
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                        const result = [];
+                        const errors = [];
+                        for (let i = 0; i < rows.length; i++) {
+                            const row = rows[i];
+                            const codigo = row[0];
+                            const qty = parseInt(row[1], 10);
+                            if (!codigo || codigo.toString().trim() === '') {
+                                errors.push(`Fila ${i + 1}: código faltante`);
+                                continue;
+                            }
+                            if (isNaN(qty)) {
+                                errors.push(`Fila ${i + 1}: cantidad inválida`);
+                                continue;
+                            }
+                            result.push({ idArticulo: codigo.toString(), cantidad: qty });
+                        }
+                        if (errors.length) {
+                            alert(errors.join('\n'));
+                        }
+                        resolve(result);
+                    } catch (err) {
+                        alert('No se pudo procesar el archivo. Asegúrese de que sea un Excel válido.');
+                        resolve([]);
+                    }
+                };
+                reader.onerror = () => {
+                    alert('No se pudo leer el archivo.');
+                    resolve([]);
+                };
+                try {
+                    reader.readAsArrayBuffer(file);
+                } catch (err) {
+                    alert('El archivo seleccionado no es válido.');
+                    resolve([]);
+                }
+            });
+        };
+
+        window.triggerFileInput = (input) => {
+            input.value = '';
+            input.click();
+        };
     </script>
     <script>
         window.abrirTicket = function (contenidoHtml) {

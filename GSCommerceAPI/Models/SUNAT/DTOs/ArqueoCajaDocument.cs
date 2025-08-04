@@ -1,16 +1,16 @@
-﻿using QuestPDF.Fluent;
+﻿using GSCommerceAPI.Models.DTOs;
+using GSCommerceAPI.Models.SUNAT.DTOs; // Ajusta si está en otro namespace
+using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using System;
 using System.Collections.Generic;
-using GSCommerceAPI.Models.DTOs;
-using GSCommerceAPI.Models.SUNAT.DTOs; // Ajusta si está en otro namespace
 
 public class ArqueoCajaDocument : IDocument
 {
     private readonly ArqueoCajaDTO _dto;
 
-    public  ArqueoCajaDocument(ArqueoCajaDTO dto)
+    public ArqueoCajaDocument(ArqueoCajaDTO dto)
     {
         _dto = dto;
     }
@@ -25,26 +25,22 @@ public class ArqueoCajaDocument : IDocument
                 page.Margin(40);
                 page.Size(PageSizes.A4);
                 page.DefaultTextStyle(x => x.FontSize(12));
+
+                page.Header().Column(header =>
+                {
+                    header.Item().Text(_dto.Empresa).FontSize(16).Bold().AlignCenter();
+                    header.Item().Text($"Sucursal: {_dto.Sucursal}").AlignCenter();
+                    header.Item().Text($"Fecha: {_dto.Fecha:dd/MM/yyyy}").AlignCenter();
+                    header.Item().Text($"Cajero: {_dto.Cajero}").AlignCenter();
+                    header.Item().LineHorizontal(1).LineColor(Colors.Grey.Darken2);
+                });
+
                 page.Content().Column(column =>
                 {
                     column.Spacing(15);
 
-                    // Título principal
-                    column.Item().Text($"ARQUEO DE CAJA - {_dto.Fecha:dd/MM/yyyy}")
-                        .FontSize(20).Bold().AlignCenter();
+                    column.Item().Text("Detalle de Movimientos").Bold().FontSize(14);
 
-                    // Datos generales
-                    column.Item().Text($"📅 Fecha: {_dto.Fecha:dd/MM/yyyy}");
-                    column.Item().Text($"👤 Usuario: {_dto.Usuario}");
-                    column.Item().Text($"🧾 Cajero: {_dto.Cajero}");
-                    column.Item().Text($"📝 Observación: {_dto.ObservacionCierre ?? "-"}");
-
-                    column.Item().LineHorizontal(1).LineColor(Colors.Grey.Darken2);
-
-                    // Título del resumen
-                    column.Item().Text("Resumen de Movimientos").Bold().FontSize(14);
-
-                    // Tabla del resumen
                     column.Item().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
@@ -58,29 +54,102 @@ public class ArqueoCajaDocument : IDocument
                         {
                             header.Cell().Text("Grupo").Bold();
                             header.Cell().Text("Detalle").Bold();
-                            header.Cell().Text("Monto").Bold().AlignRight();
+                            header.Cell().AlignRight().Text("Total").Bold();
                         });
 
                         foreach (var item in _dto.Resumen)
                         {
                             table.Cell().Text(item.Grupo);
                             table.Cell().Text(item.Detalle);
-                            table.Cell().Text($"S/. {item.Monto:N2}").AlignRight();
+                            table.Cell().AlignRight().Text($"S/. {item.Monto:N2}");
                         }
                     });
 
                     column.Item().LineHorizontal(1).LineColor(Colors.Grey.Darken2);
 
-                    // Totales
-                    column.Item().PaddingTop(10).Column(sub =>
-                    {
-                        sub.Spacing(3);
+                    column.Item().Text("Resumen").Bold().FontSize(14);
 
-                        sub.Item().Text($"💵 Saldo Inicial: S/. {_dto.SaldoInicial:N2}");
-                        sub.Item().Text($"➕ Ingresos: S/. {_dto.Ingresos:N2}");
-                        sub.Item().Text($"➖ Egresos: S/. {_dto.Egresos:N2}");
-                        sub.Item().Text($"🛒 Venta del Día: S/. {_dto.VentaDia:N2}");
-                        sub.Item().Text($"💰 Saldo Final: S/. {_dto.SaldoFinal:N2}").Bold();
+                    column.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(c =>
+                        {
+                            c.RelativeColumn();
+                            c.RelativeColumn();
+                        });
+
+                        table.Cell().Column(col =>
+                        {
+                            col.Item().Text("Ingresos").Bold();
+                            col.Item().Row(row =>
+                            {
+                                row.RelativeColumn().Text("Saldo del día anterior");
+                                row.ConstantColumn(100).AlignRight().Text($"S/. {_dto.SaldoDiaAnterior:N2}");
+                            });
+                            col.Item().Row(row =>
+                            {
+                                row.RelativeColumn().Text("Ventas del día");
+                                row.ConstantColumn(100).AlignRight().Text($"S/. {_dto.VentasDelDia:N2}");
+                            });
+                            col.Item().Row(row =>
+                            {
+                                row.RelativeColumn().Text("Otros ingresos");
+                                row.ConstantColumn(100).AlignRight().Text($"S/. {_dto.OtrosIngresos:N2}");
+                            });
+                            col.Item().Row(row =>
+                            {
+                                row.RelativeColumn().Text("Venta con tarjeta");
+                                row.ConstantColumn(100).AlignRight().Text($"S/. {_dto.VentaTarjeta:N2}");
+                            });
+                            col.Item().Row(row =>
+                            {
+                                row.RelativeColumn().Text("Venta con N.C.");
+                                row.ConstantColumn(100).AlignRight().Text($"S/. {_dto.VentaNC:N2}");
+                            });
+                            col.Item().Row(row =>
+                            {
+                                row.RelativeColumn().Text("Total ingresos").Bold();
+                                row.ConstantColumn(100).AlignRight().Text($"S/. {_dto.Ingresos:N2}").Bold();
+                            });
+                        });
+
+                        table.Cell().Column(col =>
+                        {
+                            col.Item().Text("Egresos").Bold();
+                            col.Item().Row(row =>
+                            {
+                                row.RelativeColumn().Text("Gastos del día");
+                                row.ConstantColumn(100).AlignRight().Text($"S/. {_dto.GastosDia:N2}");
+                            });
+                            col.Item().Row(row =>
+                            {
+                                row.RelativeColumn().Text("Transferencias del día");
+                                row.ConstantColumn(100).AlignRight().Text($"S/. {_dto.TransferenciasDia:N2}");
+                            });
+                            col.Item().Row(row =>
+                            {
+                                row.RelativeColumn().Text("Pagos a proveedores");
+                                row.ConstantColumn(100).AlignRight().Text($"S/. {_dto.PagosProveedores:N2}");
+                            });
+                            col.Item().Row(row =>
+                            {
+                                row.RelativeColumn().Text("Total egresos").Bold();
+                                row.ConstantColumn(100).AlignRight().Text($"S/. {_dto.Egresos:N2}").Bold();
+                            });
+                        });
+                    });
+
+                    column.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(c =>
+                        {
+                            c.RelativeColumn();
+                            c.ConstantColumn(100);
+                        });
+
+                        table.Cell().Text("Saldo de caja").Bold();
+                        table.Cell().AlignRight().Text($"S/. {_dto.SaldoFinal:N2}");
+                        table.Cell().Text("Fondo fijo").Bold();
+                        table.Cell().AlignRight().Text($"S/. {_dto.FondoFijo:N2}");
                     });
 
                     column.Item().PaddingTop(40).LineHorizontal(1).LineColor(Colors.Grey.Darken2);

@@ -24,7 +24,7 @@
 
                 <div class="mb-3">
                     <label>Monto:</label>
-                    <input type="number" class="form-control" @bind="montoPago" min="0" step="0.01" />
+                    <input type="number" class="form-control" @bind="montoPago" min="0" step="0.01" @onkeydown="HandleMontoKeyDown" />
                 </div>
                 @if (pagoSeleccionado == "EFECTIVO")
                 {
@@ -115,7 +115,7 @@
     public void Abrir()
     {
         pagos.Clear();
-        montoPago = 0;
+        montoPago = MontoTotal;
         codigoVerificacion = null;
         pagoSeleccionado = "EFECTIVO";
         Mostrar = true;
@@ -156,6 +156,13 @@
         }
     }
 
+    private void HandleMontoKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            AgregarPago();
+        }
+    }
 
     private void EliminarPago(DetallePagoDTO pago)
     {

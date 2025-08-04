@@ -17,7 +17,11 @@
     <div class="col-md-2">
         <button class="btn btn-primary" @onclick="AgregarDetalle">Agregar</button>
     </div>
-    <div class="col-md-4 text-end">
+    <div class="col-md-2">
+        <button class="btn btn-success" @onclick="AbrirImportar">Importar Excel</button>
+        <input type="file" @ref="fileInput" style="display:none" accept=".xlsx,.xls" @onchange="ProcesarExcel" />
+    </div>
+    <div class="col-md-2 text-end">
         <button class="btn btn-secondary" @onclick="Volver">Volver</button>
     </div>
 </div>
@@ -59,6 +63,7 @@ else
 
     private List<TomaInventarioDetalleDTO> detalles = new();
     private TomaInventarioDetalleDTO nuevo = new();
+    private ElementReference fileInput;
 
     protected override async Task OnInitializedAsync()
     {
@@ -85,6 +90,36 @@ else
                 await JS.InvokeVoidAsync("alert", "No se pudo agregar");
             }
         }
+    }
+
+    private async Task AbrirImportar()
+    {
+        await JS.InvokeVoidAsync("triggerFileInput", fileInput);
+    }
+
+    private async Task ProcesarExcel(ChangeEventArgs _)
+    {
+        var items = await JS.InvokeAsync<List<ImportItem>>("importarDesdeExcel", fileInput);
+        if (items == null || items.Count == 0)
+        {
+            await JS.InvokeVoidAsync("alert", "El archivo no contiene filas válidas.");
+            return;
+        }
+        foreach (var item in items)
+        {
+            await TIService.AgregarDetalleAsync(id, new TomaInventarioDetalleDTO
+            {
+                IdArticulo = item.IdArticulo,
+                Cantidad = item.Cantidad
+            });
+        }
+        await Cargar();
+    }
+
+    private class ImportItem
+    {
+        public string IdArticulo { get; set; } = string.Empty;
+        public int Cantidad { get; set; }
     }
 
     private void Volver()
