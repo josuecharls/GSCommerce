@@ -315,6 +315,13 @@ namespace GSCommerceAPI.Services.SUNAT
             string doc = $"{dto.Serie}-{dto.Numero:D8}";
             var sb = new StringBuilder();
 
+            // Recalcular totales a partir de los detalles para evitar
+            // discrepancias por redondeo entre los importes globales e
+            // individuales.
+            dto.SubTotal = Math.Round(dto.Detalles.Sum(d => d.TotalSinIGV), 2);
+            dto.Igv = Math.Round(dto.Detalles.Sum(d => d.IGV), 2);
+            dto.Total = Math.Round(dto.SubTotal + dto.Igv, 2);
+
             sb.AppendLine($"<?xml version={q}1.0{q} encoding={q}ISO-8859-1{q} standalone={q}no{q}?>");
             sb.AppendLine($"<Invoice xmlns={q}urn:oasis:names:specification:ubl:schema:xsd:Invoice-2{q}" +
                           $" xmlns:cac={q}urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2{q}" +
@@ -489,6 +496,12 @@ namespace GSCommerceAPI.Services.SUNAT
             int correlativo = 1;
             foreach (var comp in comprobantes)
             {
+                // Recalcular totales por comprobante para asegurar que
+                // coincidan con la suma de sus detalles.
+                comp.SubTotal = Math.Round(comp.Detalles.Sum(d => d.TotalSinIGV), 2);
+                comp.Igv = Math.Round(comp.Detalles.Sum(d => d.IGV), 2);
+                comp.Total = Math.Round(comp.SubTotal + comp.Igv, 2);
+
                 sb.AppendLine("<sac:SummaryDocumentsLine>");
                 sb.AppendLine($"<cbc:LineID>{correlativo++}</cbc:LineID>");
                 sb.AppendLine("<cbc:DocumentTypeCode>03</cbc:DocumentTypeCode>");

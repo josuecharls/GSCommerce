@@ -194,7 +194,10 @@ namespace GSCommerceAPI.Controllers
 
             using var transaction = await _context.Database.BeginTransactionAsync();
 
-            var nuevoNumero = await ObtenerNuevoNumeroSerieAsync(ventaRegistro.Cabecera.Serie);
+            var nuevoNumero = await ObtenerNuevoNumeroSerieAsync(
+                ventaRegistro.Cabecera.Serie,
+                idAlmacen,
+                ventaRegistro.TipoDocumento.IdTipoDocumentoVenta);
 
             try
             {
@@ -480,15 +483,14 @@ namespace GSCommerceAPI.Controllers
             return Ok(reporte);
         }
 
-        private async Task<int> ObtenerNuevoNumeroSerieAsync(string serie)
+        private async Task<int> ObtenerNuevoNumeroSerieAsync(string serie, int idAlmacen, int idTipoDocumento)
         {
-            var ultimoNumero = await _context.ComprobanteDeVentaCabeceras
-                .Where(c => c.Serie == serie)
-                .OrderByDescending(c => c.Numero)
-                .Select(c => c.Numero)
+            var correlativo = await _context.SerieCorrelativos
+                .Where(s => s.Serie == serie && s.IdAlmacen == idAlmacen && s.IdTipoDocumentoVenta == idTipoDocumento)
+                .Select(s => s.Correlativo)
                 .FirstOrDefaultAsync();
 
-            return ultimoNumero + 1;
+            return correlativo + 1;
         }
 
         [HttpGet("reporte-ranking-vendedoras")]
