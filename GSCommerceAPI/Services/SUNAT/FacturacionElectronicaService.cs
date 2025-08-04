@@ -4,6 +4,7 @@ using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Xml;
 using System.IO;
+using System.Linq;
 using System.IO.Compression;
 using System.ServiceModel.Channels;
 using System.ServiceModel;
@@ -62,8 +63,8 @@ namespace GSCommerceAPI.Services.SUNAT
                 }
 
                 // 4. Enviar a SUNAT
-                string usuarioSOL = empresa.RucEmisor + "MODDATOS";
-                string claveSOL = "MODDATOS";
+                var (usuarioSOL, claveSOL) = await ObtenerCredencialesSunatAsync(empresa.RucEmisor);
+
                 var resultado = await EnviarResumenDiarioAsync(rutaZip, usuarioSOL, claveSOL);
 
                 // 5. Guardar en base de datos
@@ -140,6 +141,19 @@ namespace GSCommerceAPI.Services.SUNAT
             await _context.SaveChangesAsync();
         }
 
+        private async Task<(string usuario, string clave)> ObtenerCredencialesSunatAsync(string rucEmisor)
+        {
+            var credenciales = await _context.Almacens
+                .Where(a => a.Ruc == rucEmisor)
+                .Select(a => new { a.UsuarioSol, a.ClaveSol })
+                .FirstOrDefaultAsync();
+
+            if (credenciales == null || string.IsNullOrEmpty(credenciales.UsuarioSol) || string.IsNullOrEmpty(credenciales.ClaveSol))
+                throw new Exception("Credenciales SOL no configuradas para el RUC emisor.");
+
+            return ($"{rucEmisor}{credenciales.UsuarioSol}", credenciales.ClaveSol);
+        }
+
         public async Task<(bool exito, string mensaje)> EnviarComprobante(ComprobanteCabeceraDTO comprobante)
         {
             try
@@ -153,9 +167,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 if (!generado) return (false, msg);
 
                 var rutaZip = ComprimirArchivo(rutaXml);
-
-                string usuarioSOL = $"{comprobante.RucEmisor}MODDATOS";
-                string claveSOL = "MODDATOS";
+                var (usuarioSOL, claveSOL) = await ObtenerCredencialesSunatAsync(comprobante.RucEmisor);
 
                 var resultado = await EnviarFacturaAsync(rutaZip, usuarioSOL, claveSOL);
 
@@ -539,7 +551,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 binding.Security.Transport.ClientCredentialType = HttpClientCredentialType.None;
                 binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
 
-                var direccion = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem-beta/billService");
+                var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
 
                 ws.ClientCredentials.UserName.UserName = usuarioSOL;
@@ -584,7 +596,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 binding.Security.Transport.ClientCredentialType = HttpClientCredentialType.None;
                 binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
 
-                var direccion = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem-beta/billService");
+                var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
 
                 ws.ClientCredentials.UserName.UserName = usuarioSOL;
@@ -627,7 +639,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 binding.Security.Transport.ClientCredentialType = HttpClientCredentialType.None;
                 binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
 
-                var direccion = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem-beta/billService");//pruebas sunat
+                var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");//producción SUNAT
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
 
                 ws.ClientCredentials.UserName.UserName = usuarioSOL;
@@ -843,7 +855,7 @@ namespace GSCommerceAPI.Services.SUNAT
             };
             binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
 
-            var endpoint = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem-beta/billService");
+            var endpoint = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
             var client = new billServiceClient(binding, endpoint);
 
             client.ClientCredentials.UserName.UserName = usuarioSOL;

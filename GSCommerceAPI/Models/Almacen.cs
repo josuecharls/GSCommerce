@@ -33,7 +33,7 @@ public partial class Almacen
 
     public string? Abreviacion { get; set; }
 
-    public string? UsuarioSol { get; set; }
+    public string?  UsuarioSol { get; set; }
 
     public string? ClaveSol { get; set; }
 

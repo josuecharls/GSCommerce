@@ -29,6 +29,7 @@
             <th>Número</th>
             <th>Cliente</th>
             <th>Total</th>
+            <th>Forma Pago</th>
             <th>Estado</th>
         </tr>
     </thead>
@@ -44,6 +45,7 @@
                     <td>@v.Numero.ToString("D8")</td>
                     <td>@v.NombreCliente</td>
                     <td>@v.Total.ToString("C")</td>
+                    <td>@v.FormaPago</td>
                     <td>@v.Estado</td>
                 </tr>
             }
@@ -51,7 +53,7 @@
         else
         {
             <tr>
-                <td colspan="7" class="text-center">No se encontraron ventas.</td>
+                <td colspan="8" class="text-center">No se encontraron ventas.</td>
             </tr>
         }
         @if (mostrarMenuContextual && ventaSeleccionada != null)

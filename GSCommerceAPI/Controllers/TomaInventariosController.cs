@@ -130,14 +130,37 @@ namespace GSCommerceAPI.Controllers
             if (toma.EstadoToma != "Terminado")
                 return BadRequest("La toma de inventario no está terminada.");
 
+            // Ids de artículos contados
+            var articulosContados = toma.TomaInventarioDetalles
+                .Where(d => d.Estado)
+                .Select(d => d.IdArticulo)
+                .ToList();
+
+            // Cargar stock existente de los artículos contados
+            var stockExistente = await _context.StockAlmacens
+                .Where(s => s.IdAlmacen == toma.IdAlmacen && articulosContados.Contains(s.IdArticulo))
+                .ToDictionaryAsync(s => s.IdArticulo);
+
+            // Cargar artículos no contados antes de modificar el stock
+            var stockNoContados = await _context.StockAlmacens
+                .Where(s => s.IdAlmacen == toma.IdAlmacen && !articulosContados.Contains(s.IdArticulo))
+                .ToListAsync();
+
+            // Obtener precios de compra de todos los artículos involucrados
+            var idsParaPrecios = articulosContados
+                .Union(stockNoContados.Select(s => s.IdArticulo))
+                .ToList();
+
+            var precios = await _context.Articulos
+                .Where(a => idsParaPrecios.Contains(a.IdArticulo))
+                .Select(a => new { a.IdArticulo, a.PrecioCompra })
+                .ToDictionaryAsync(a => a.IdArticulo, a => a.PrecioCompra);
+
             foreach (var d in toma.TomaInventarioDetalles)
             {
                 if (!d.Estado) continue;
 
-                var stock = await _context.StockAlmacens
-                    .FirstOrDefaultAsync(s => s.IdAlmacen == toma.IdAlmacen && s.IdArticulo == d.IdArticulo);
-
-                if (stock == null)
+                if (!stockExistente.TryGetValue(d.IdArticulo, out var stock))
                 {
                     stock = new StockAlmacen
                     {
@@ -147,6 +170,7 @@ namespace GSCommerceAPI.Controllers
                         StockMinimo = 0
                     };
                     _context.StockAlmacens.Add(stock);
+                    stockExistente[d.IdArticulo] = stock;
                 }
 
                 var actual = stock.Stock;
@@ -156,10 +180,7 @@ namespace GSCommerceAPI.Controllers
 
                 if (diff != 0)
                 {
-                    var precio = await _context.Articulos
-                        .Where(a => a.IdArticulo == d.IdArticulo)
-                        .Select(a => a.PrecioCompra)
-                        .FirstOrDefaultAsync();
+                    var precio = precios.TryGetValue(d.IdArticulo, out var p) ? p : 0m;
 
                     var kardex = new Kardex
                     {
@@ -181,24 +202,11 @@ namespace GSCommerceAPI.Controllers
                 stock.Stock = d.Cantidad;
             }
 
-            // Artículos que no se contaron en la toma
-            var articulosContados = toma.TomaInventarioDetalles
-                .Where(d => d.Estado)
-                .Select(d => d.IdArticulo)
-                .ToHashSet();
-
-            var stockNoContados = await _context.StockAlmacens
-                .Where(s => s.IdAlmacen == toma.IdAlmacen && !articulosContados.Contains(s.IdArticulo))
-                .ToListAsync();
-
             foreach (var stock in stockNoContados)
             {
                 if (stock.Stock == 0) continue;
 
-                var precio = await _context.Articulos
-                    .Where(a => a.IdArticulo == stock.IdArticulo)
-                    .Select(a => a.PrecioCompra)
-                    .FirstOrDefaultAsync();
+                var precio = precios.TryGetValue(stock.IdArticulo, out var p) ? p : 0m;
 
                 var kardex = new Kardex
                 {
@@ -217,7 +225,6 @@ namespace GSCommerceAPI.Controllers
 
                 stock.Stock = 0;
             }
-
 
             await _context.SaveChangesAsync();
             return NoContent();
