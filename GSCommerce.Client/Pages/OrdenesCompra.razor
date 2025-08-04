@@ -1,0 +1,115 @@
+﻿@page "/ordenes-compra"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@using System.Linq
+@inject OrdenCompraService ocService
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<h3>Ordenes de Compra</h3>
+
+<div class="row mb-3">
+    <div class="col-md-3">
+        <label>Desde:</label>
+        <input type="date" class="form-control" @bind-value="desde" @bind-value:event="oninput" />
+    </div>
+    <div class="col-md-3">
+        <label>Hasta:</label>
+        <input type="date" class="form-control" @bind-value="hasta" @bind-value:event="oninput" />
+    </div>
+    <div class="col-md-4">
+        <label>Proveedor:</label>
+        <div class="input-group">
+            <input class="form-control" value="@nombreProveedor" readonly />
+            <button class="btn btn-secondary" @onclick="() => mostrarProveedorModal = true">Buscar</button>
+            <button class="btn btn-outline-secondary" @onclick="LimpiarProveedor">X</button>
+        </div>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
+    </div>
+</div>
+
+<div class="mb-2 text-end">
+    <button class="btn btn-success" @onclick="Nuevo">+ Nueva OC</button>
+</div>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Número</th>
+            <th>Proveedor</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (ordenes.Any())
+        {
+            foreach (var o in ordenes)
+            {
+                <tr>
+                    <td>@o.FechaOc.ToString("dd/MM/yyyy")</td>
+                    <td>@o.NumeroOc</td>
+                    <td>@o.Nombre</td>
+                    <td>@o.ImporteTotal.ToString("C")</td>
+                    <td>@o.Estado</td>
+                    <td>
+                        <button class="btn btn-sm btn-info me-1" @onclick="() => VerDetalle(o.IdOc)">Ver</button>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => GenerarIngreso(o.IdOc)">Ingreso</button>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="6" class="text-center">Sin registros</td></tr>
+        }
+    </tbody>
+</table>
+
+<ProveedorBuscarModal Mostrar="mostrarProveedorModal" MostrarChanged="(v) => mostrarProveedorModal = v" OnSeleccionado="SeleccionarProveedor" />
+
+@code {
+    private DateTime desde = DateTime.Today;
+    private DateTime hasta = DateTime.Today;
+    private List<OrdenCompraConsultaDTO> ordenes = new();
+    private bool mostrarProveedorModal = false;
+    private int? idProveedor;
+    private string nombreProveedor = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        ordenes = await ocService.ListarAsync(desde, hasta, idProveedor);
+    }
+
+    private void Nuevo() => Nav.NavigateTo("/ordenes-compra/nuevo");
+
+    private void VerDetalle(int id) => Nav.NavigateTo($"/ordenes-compra/{id}");
+
+    private async Task GenerarIngreso(int id)
+    {
+        var ok = await ocService.GenerarIngresoAsync(id, 1);
+        await JS.InvokeVoidAsync("alert", ok ? "Ingreso generado" : "No se pudo generar ingreso");
+    }
+
+    private Task SeleccionarProveedor(ProveedorDTO p)
+    {
+        idProveedor = p.IdProveedor;
+        nombreProveedor = p.Nombre;
+        return Task.CompletedTask;
+    }
+
+    private void LimpiarProveedor()
+    {
+        idProveedor = null;
+        nombreProveedor = string.Empty;
+    }
+}

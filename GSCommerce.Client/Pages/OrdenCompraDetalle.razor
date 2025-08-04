@@ -1,0 +1,63 @@
+﻿@page "/ordenes-compra/{id:int}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject OrdenCompraService ocService
+@inject NavigationManager Nav
+
+<h3>Detalle Orden de Compra</h3>
+
+@if (orden == null)
+{
+    <p>Cargando...</p>
+}
+else
+{
+    <p><strong>Proveedor:</strong> @orden.NombreProveedor (@orden.RucProveedor)</p>
+    <p><strong>Fecha:</strong> @orden.FechaOc.ToString("dd/MM/yyyy")</p>
+    <p><strong>Glosa:</strong> @orden.Glosa</p>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Cantidad</th>
+                <th>Costo</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var d in orden.Detalles)
+            {
+                <tr>
+                    <td>@d.Item</td>
+                    <td>@d.IdArticulo</td>
+                    <td>@d.DescripcionArticulo</td>
+                    <td>@d.Cantidad</td>
+                    <td>@d.CostoUnitario.ToString("N2")</td>
+                    <td>@d.Total.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="text-end">
+        <p>SubTotal: @orden.ImporteSubTotal.ToString("N2")</p>
+        <p>IGV: @orden.ImporteIgv.ToString("N2")</p>
+        <h5>Total: @orden.ImporteTotal.ToString("N2")</h5>
+    </div>
+    <button class="btn btn-secondary" @onclick="Volver">Volver</button>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+    private OrdenCompraDTO? orden;
+
+    protected override async Task OnInitializedAsync()
+    {
+        orden = await ocService.ObtenerOrdenPorId(id);
+    }
+
+    private void Volver() => Nav.NavigateTo("/ordenes-compra");
+}

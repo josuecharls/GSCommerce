@@ -1,0 +1,141 @@
+﻿@page "/ordenes-compra/nuevo"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@using System.Linq
+@inject OrdenCompraService ocService
+@inject ArticuloService articuloService
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<h3>Nueva Orden de Compra</h3>
+
+<div class="mb-3">
+    <label>Proveedor:</label>
+    <div class="input-group">
+        <input class="form-control" value="@orden.NombreProveedor" readonly />
+        <button class="btn btn-secondary" @onclick="() => mostrarProveedorModal = true">Buscar</button>
+    </div>
+</div>
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label>Fecha:</label>
+        <input type="date" class="form-control" @bind-value="orden.FechaOc" />
+    </div>
+    <div class="col-md-4">
+        <label>Fecha Entrega:</label>
+        <input type="date" class="form-control" @bind-value="orden.FechaEntrega" />
+    </div>
+    <div class="col-md-4">
+        <label>Atención:</label>
+        <input class="form-control" @bind="orden.Atencion" />
+    </div>
+</div>
+<div class="mb-3">
+    <label>Glosa:</label>
+    <textarea class="form-control" @bind="orden.Glosa"></textarea>
+</div>
+
+<button class="btn btn-sm btn-primary mb-2" @onclick="AgregarDetalle">Agregar Artículo</button>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Item</th>
+            <th>Código</th>
+            <th>Descripción</th>
+            <th>Unidad</th>
+            <th>Cantidad</th>
+            <th>Costo</th>
+            <th>Total</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (int i = 0; i < orden.Detalles.Count; i++)
+        {
+            var d = orden.Detalles[i];
+            <tr>
+                <td>@(i + 1)</td>
+                <td><input class="form-control" @bind="d.IdArticulo" @bind:event="onchange" @onchange:after="async _ => await BuscarArticulo(d)" /></td>
+                <td>@d.DescripcionArticulo</td>
+                <td>@d.UnidadMedida</td>
+                <td><input type="number" class="form-control" @bind="d.Cantidad" @oninput="ActualizarTotales" /></td>
+                <td><input type="number" step="0.01" class="form-control" @bind="d.CostoUnitario" @oninput="ActualizarTotales" /></td>
+                <td>@d.Total.ToString("N2")</td>
+                <td><button class="btn btn-danger btn-sm" @onclick="() => EliminarDetalle(d)">X</button></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<div class="text-end">
+    <p>SubTotal: @orden.ImporteSubTotal.ToString("N2")</p>
+    <p>IGV: @orden.ImporteIgv.ToString("N2")</p>
+    <h5>Total: @orden.ImporteTotal.ToString("N2")</h5>
+</div>
+
+<div class="text-end">
+    <button class="btn btn-success" @onclick="Guardar">Guardar</button>
+    <button class="btn btn-secondary" @onclick="Volver">Cancelar</button>
+</div>
+
+<ProveedorBuscarModal Mostrar="mostrarProveedorModal" MostrarChanged="(v) => mostrarProveedorModal = v" OnSeleccionado="SeleccionarProveedor" />
+
+@code {
+    private OrdenCompraDTO orden = new() { FechaOc = DateTime.Today, FechaEntrega = DateTime.Today };
+    private bool mostrarProveedorModal = false;
+
+    private void AgregarDetalle()
+    {
+        orden.Detalles.Add(new OrdenCompraDetalleDTO { Cantidad = 1, CostoUnitario = 0m });
+    }
+
+    private void EliminarDetalle(OrdenCompraDetalleDTO det)
+    {
+        orden.Detalles.Remove(det);
+        ActualizarTotales();
+    }
+
+    private async Task BuscarArticulo(OrdenCompraDetalleDTO det)
+    {
+        var art = await articuloService.BuscarPorCodigoAsync(det.IdArticulo);
+        if (art != null)
+        {
+            det.DescripcionArticulo = art.Descripcion;
+            det.UnidadMedida = art.UnidadAlmacen;
+            det.CostoUnitario = art.PrecioCompra;
+            det.Cantidad = 1;
+            det.Total = det.CostoUnitario * det.Cantidad;
+            ActualizarTotales();
+        }
+    }
+
+    private void ActualizarTotales()
+    {
+        foreach (var d in orden.Detalles)
+        {
+            d.Total = d.CostoUnitario * d.Cantidad;
+        }
+        orden.ImporteSubTotal = orden.Detalles.Sum(x => x.Total);
+        orden.ImporteIgv = Math.Round(orden.ImporteSubTotal * 0.18m, 2);
+        orden.ImporteTotal = orden.ImporteSubTotal + orden.ImporteIgv;
+    }
+
+    private async Task Guardar()
+    {
+        var id = await ocService.CrearAsync(orden);
+        await JS.InvokeVoidAsync("alert", id != null ? "OC registrada" : "Error al registrar");
+        if (id != null)
+            Nav.NavigateTo("/ordenes-compra");
+    }
+
+    private void Volver() => Nav.NavigateTo("/ordenes-compra");
+
+    private Task SeleccionarProveedor(ProveedorDTO p)
+    {
+        orden.IdProveedor = p.IdProveedor;
+        orden.NombreProveedor = p.Nombre;
+        orden.RucProveedor = p.Ruc;
+        return Task.CompletedTask;
+    }
+}
