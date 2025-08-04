@@ -344,7 +344,7 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<cbc:ProfileID schemeURI=\"urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo17\" schemeAgencyName=\"PE: SUNAT\" schemeName=\"SUNAT: Identificador de Tipo de Operaci\u00f3n\">0101</cbc:ProfileID>");
             sb.AppendLine($"<cbc:ID>{doc}</cbc:ID>");
             sb.AppendLine($"<cbc:IssueDate>{dto.FechaEmision:yyyy-MM-dd}</cbc:IssueDate>");
-            sb.AppendLine($"<cbc:IssueTime>{dto.HoraEmision}</cbc:IssueTime>");
+            sb.AppendLine($"<cbc:IssueTime>{dto.HoraEmision.ToString(@"hh\:mm\:ss")}</cbc:IssueTime>");
             sb.AppendLine($"<cbc:InvoiceTypeCode listID={q}0101{q}>{dto.TipoDocumento}</cbc:InvoiceTypeCode>");
             sb.AppendLine($"<cbc:Note languageLocaleID={q}1000{q}><![CDATA[{dto.MontoLetras}]]></cbc:Note>");
             sb.AppendLine($"<cbc:DocumentCurrencyCode>{dto.Moneda}</cbc:DocumentCurrencyCode>");

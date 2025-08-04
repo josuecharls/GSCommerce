@@ -344,12 +344,14 @@ OnCancelado="CobroCancelado" />
         foreach (var detalle in venta.Detalles)
         {
             decimal precioConDescuento = detalle.PrecioUnitario * (1 - detalle.PorcentajeDescuento / 100);
-            detalle.Total = detalle.Cantidad * precioConDescuento;
+            // Redondear el total de cada ítem a 2 decimales para evitar discrepancias
+            detalle.Total = Math.Round(detalle.Cantidad * precioConDescuento, 2);
         }
 
-        venta.Total = venta.Detalles.Sum(d => d.Total);
-        venta.SubTotal = venta.Total / 1.18m;
-        venta.Igv = venta.Total - venta.SubTotal;
+        // Calcular los totales generales redondeando a 2 decimales
+        venta.Total = Math.Round(venta.Detalles.Sum(d => d.Total), 2);
+        venta.SubTotal = Math.Round(venta.Total / 1.18m, 2);
+        venta.Igv = Math.Round(venta.Total - venta.SubTotal, 2);
         venta.APagar = venta.Total;
     }
 

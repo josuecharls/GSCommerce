@@ -141,10 +141,11 @@ namespace GSCommerce.Client.Services
                 TipoDocumentoCliente = cabecera.DocumentoCliente.Length == 11 ? "6" : "1",
                 NombreCliente = cabecera.NombreCliente,
                 DireccionCliente = cabecera.DireccionCliente,
-                SubTotal = cabecera.SubTotal,
-                Igv = cabecera.Igv,
-                Total = cabecera.Total,
-                MontoLetras = ConvertirMontoALetras(cabecera.Total, almacen.Moneda),
+                // Asegurar que los montos principales estén redondeados a 2 decimales
+                SubTotal = Math.Round(cabecera.SubTotal, 2),
+                Igv = Math.Round(cabecera.Igv, 2),
+                Total = Math.Round(cabecera.Total, 2),
+                MontoLetras = ConvertirMontoALetras(Math.Round(cabecera.Total, 2), almacen.Moneda),
 
                 Detalles = detalles.Select(d => new ComprobanteDetalleDTO
                 {
