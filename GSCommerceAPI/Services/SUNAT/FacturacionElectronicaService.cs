@@ -317,6 +317,16 @@ namespace GSCommerceAPI.Services.SUNAT
             // Retornar el digest value directamente (ya está en Base64)
             return signedXml.GetXml().GetElementsByTagName("DigestValue")[0].InnerText;
         }
+        private string EscaparTextoXml(string texto)
+        {
+            if (string.IsNullOrEmpty(texto))
+                return string.Empty;
+
+            return texto.Replace("&", "&amp;")
+                        .Replace("<", "&lt;")
+                        .Replace(">", "&gt;")
+                        .Replace("'", "&apos;");
+        }
 
         private string GenerarXmlFactura(ComprobanteCabeceraDTO dto)
         {
@@ -446,7 +456,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 sb.AppendLine("<cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme>");
                 sb.AppendLine("</cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>");
 
-                sb.AppendLine("<cac:Item><cbc:Description>" + item.DescripcionItem + "</cbc:Description><cac:SellersItemIdentification><cbc:ID>" + item.CodigoItem + "</cbc:ID></cac:SellersItemIdentification></cac:Item>");
+                sb.AppendLine("<cac:Item><cbc:Description>" + EscaparTextoXml(item.DescripcionItem) + "</cbc:Description><cac:SellersItemIdentification><cbc:ID>" + item.CodigoItem + "</cbc:ID></cac:SellersItemIdentification></cac:Item>");
                 sb.AppendLine("<cac:Price><cbc:PriceAmount currencyID=\"" + dto.Moneda + "\">" + item.PrecioUnitarioSinIGV.ToString("F2") + "</cbc:PriceAmount></cac:Price>");
 
                 sb.AppendLine("</cac:InvoiceLine>");
