@@ -19,7 +19,9 @@
         public string RazonSocialEmisor { get; set; } = string.Empty;
         public string DireccionEmisor { get; set; } = string.Empty;
         public string UbigeoEmisor { get; set; } = string.Empty;
-
+        public string DepartamentoEmisor { get; set; } = string.Empty;
+        public string ProvinciaEmisor { get; set; } = string.Empty;
+        public string DistritoEmisor { get; set; } = string.Empty;
         public string DocumentoCliente { get; set; } = string.Empty;
         public string TipoDocumentoCliente { get; set; } = string.Empty;
         public string NombreCliente { get; set; } = string.Empty;

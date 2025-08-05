@@ -141,20 +141,22 @@ namespace GSCommerceAPI.Services.SUNAT
             await _context.SaveChangesAsync();
         }
 
-        private async Task<(string usuario, string clave)> ObtenerCredencialesSunatAsync(string rucEmisor)
+        private async Task<(string usuarioSOL, string claveSOL)> ObtenerCredencialesSunatAsync(string rucEmisor)
         {
-            Console.WriteLine($"[SUNAT] Obteniendo credenciales para RUC {rucEmisor}");
             var credenciales = await _context.Almacens
                 .Where(a => a.Ruc == rucEmisor)
                 .Select(a => new { a.UsuarioSol, a.ClaveSol })
                 .FirstOrDefaultAsync();
 
-            if (credenciales == null || string.IsNullOrEmpty(credenciales.UsuarioSol) || string.IsNullOrEmpty(credenciales.ClaveSol))
-                throw new Exception("Credenciales SOL no configuradas para el RUC emisor.");
+            if (credenciales == null)
+            {
+                Console.WriteLine($"[SUNAT] Error: No se encontraron credenciales para RUC {rucEmisor}");
+                return (string.Empty, string.Empty);
+            }
 
-            Console.WriteLine($"[SUNAT] Credenciales usadas: RUC {rucEmisor}, Usuario {credenciales.UsuarioSol}");
-
-            return ($"{rucEmisor}{credenciales.UsuarioSol}", credenciales.ClaveSol);
+            var usuarioSOL = $"{rucEmisor}{credenciales.UsuarioSol}";
+            Console.WriteLine($"[SUNAT] Credenciales obtenidas - RUC: {rucEmisor}, Usuario SOL: {usuarioSOL}, Clave SOL: {(string.IsNullOrEmpty(credenciales.ClaveSol) ? "VACÍA" : "******")}");
+            return (usuarioSOL, credenciales.ClaveSol);
         }
 
         public async Task<(bool exito, string mensaje)> EnviarComprobante(ComprobanteCabeceraDTO comprobante)
@@ -386,9 +388,10 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine($"<cbc:ID>{dto.UbigeoEmisor}</cbc:ID>");
             sb.AppendLine("<cbc:AddressTypeCode>0000</cbc:AddressTypeCode>");
             sb.AppendLine("<cbc:CitySubdivisionName>NONE</cbc:CitySubdivisionName>");
-            sb.AppendLine("<cbc:CityName>LIMA</cbc:CityName>");
-            sb.AppendLine("<cbc:CountrySubentity>LIMA</cbc:CountrySubentity>");
-            sb.AppendLine("<cbc:District>LIMA</cbc:District>");
+            sb.AppendLine($"<cbc:CityName>{dto.ProvinciaEmisor}</cbc:CityName>");
+            sb.AppendLine($"<cbc:CountrySubentity>{dto.DepartamentoEmisor}</cbc:CountrySubentity>");
+            sb.AppendLine($"<cbc:District>{dto.DistritoEmisor}</cbc:District>");
+            sb.AppendLine($"<cbc:StreetName>{dto.DireccionEmisor}</cbc:StreetName>");
             sb.AppendLine("<cac:Country><cbc:IdentificationCode>PE</cbc:IdentificationCode></cac:Country>");
             sb.AppendLine("</cac:RegistrationAddress>");
             sb.AppendLine("</cac:PartyLegalEntity>");

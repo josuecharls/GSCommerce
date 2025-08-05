@@ -597,7 +597,7 @@ namespace GSCommerceAPI.Controllers
         {
             var datosAlmacen = await _context.Almacens
                 .Where(a => a.IdAlmacen == idAlmacen)
-                .Select(a => new { a.Nombre, a.Ruc, a.RazonSocial, a.Direccion, a.Ubigeo })
+                .Select(a => new { a.Nombre, a.Ruc, a.RazonSocial, a.Direccion, a.Ubigeo, a.Dpd })
                 .FirstOrDefaultAsync();
 
             if (datosAlmacen == null)
@@ -613,6 +613,11 @@ namespace GSCommerceAPI.Controllers
                 return BadRequest("No hay comprobantes pendientes");
 
             var lista = new List<GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteCabeceraDTO>();
+
+            var dpdParts = (datosAlmacen.Dpd ?? "").Split(new[] { '-', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            string distrito = dpdParts.Length > 0 ? dpdParts[0].Trim() : string.Empty;
+            string provincia = dpdParts.Length > 1 ? dpdParts[1].Trim() : string.Empty;
+            string departamento = dpdParts.Length > 2 ? dpdParts[2].Trim() : string.Empty;
 
             foreach (var p in pendientes)
             {
@@ -635,6 +640,9 @@ namespace GSCommerceAPI.Controllers
                     RazonSocialEmisor = datosAlmacen.RazonSocial ?? string.Empty,
                     DireccionEmisor = datosAlmacen.Direccion ?? string.Empty,
                     UbigeoEmisor = datosAlmacen.Ubigeo ?? string.Empty,
+                    DepartamentoEmisor = departamento,
+                    ProvinciaEmisor = provincia,
+                    DistritoEmisor = distrito,
                     DocumentoCliente = cab.Dniruc ?? string.Empty,
                     TipoDocumentoCliente = (cab.Dniruc != null && cab.Dniruc.Length == 11) ? "6" : "1",
                     NombreCliente = cab.Nombre,

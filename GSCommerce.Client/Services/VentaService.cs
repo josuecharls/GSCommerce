@@ -124,6 +124,11 @@ namespace GSCommerce.Client.Services
             if (almacen == null)
                 return false;
 
+            var dpdParts = (almacen.Dpd ?? "").Split(new[] { '-', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            string distrito = dpdParts.Length > 0 ? dpdParts[0].Trim() : string.Empty;
+            string provincia = dpdParts.Length > 1 ? dpdParts[1].Trim() : string.Empty;
+            string departamento = dpdParts.Length > 2 ? dpdParts[2].Trim() : string.Empty;
+
             var comprobante = new ComprobanteCabeceraDTO
             {
                 IdComprobante = cabecera.IdComprobante,
@@ -141,6 +146,9 @@ namespace GSCommerce.Client.Services
                 TipoDocumentoCliente = cabecera.DocumentoCliente.Length == 11 ? "6" : "1",
                 NombreCliente = cabecera.NombreCliente,
                 DireccionCliente = cabecera.DireccionCliente,
+                DepartamentoEmisor = departamento,
+                ProvinciaEmisor = provincia,
+                DistritoEmisor = distrito,
                 // Asegurar que los montos principales estén redondeados a 2 decimales
                 SubTotal = Math.Round(cabecera.SubTotal, 2),
                 Igv = Math.Round(cabecera.Igv, 2),

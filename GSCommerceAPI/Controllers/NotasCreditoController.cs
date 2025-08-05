@@ -136,6 +136,11 @@ namespace GSCommerceAPI.Controllers
                     var configMoneda = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == keyMoneda);
                     var moneda = configMoneda?.Valor ?? "PEN";
 
+                    var dpdParts = (almacen.Dpd ?? "").Split(new[] { '-', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    string distrito = dpdParts.Length > 0 ? dpdParts[0].Trim() : string.Empty;
+                    string provincia = dpdParts.Length > 1 ? dpdParts[1].Trim() : string.Empty;
+                    string departamento = dpdParts.Length > 2 ? dpdParts[2].Trim() : string.Empty;
+
                     var comprobanteSunat = new GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteCabeceraDTO
                     {
                         IdComprobante = cabecera.IdNc,
@@ -154,6 +159,9 @@ namespace GSCommerceAPI.Controllers
                         TipoDocumentoCliente = (cabecera.Dniruc != null && cabecera.Dniruc.Length == 11) ? "6" : "1",
                         NombreCliente = cabecera.Nombre,
                         DireccionCliente = cabecera.Direccion ?? string.Empty,
+                        DepartamentoEmisor = departamento,
+                        ProvinciaEmisor = provincia,
+                        DistritoEmisor = distrito,
                         SubTotal = cabecera.SubTotal,
                         Igv = cabecera.Igv,
                         Total = cabecera.Total,
