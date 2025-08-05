@@ -143,6 +143,7 @@ namespace GSCommerceAPI.Services.SUNAT
 
         private async Task<(string usuario, string clave)> ObtenerCredencialesSunatAsync(string rucEmisor)
         {
+            Console.WriteLine($"[SUNAT] Obteniendo credenciales para RUC {rucEmisor}");
             var credenciales = await _context.Almacens
                 .Where(a => a.Ruc == rucEmisor)
                 .Select(a => new { a.UsuarioSol, a.ClaveSol })
@@ -150,6 +151,8 @@ namespace GSCommerceAPI.Services.SUNAT
 
             if (credenciales == null || string.IsNullOrEmpty(credenciales.UsuarioSol) || string.IsNullOrEmpty(credenciales.ClaveSol))
                 throw new Exception("Credenciales SOL no configuradas para el RUC emisor.");
+
+            Console.WriteLine($"[SUNAT] Credenciales usadas: RUC {rucEmisor}, Usuario {credenciales.UsuarioSol}");
 
             return ($"{rucEmisor}{credenciales.UsuarioSol}", credenciales.ClaveSol);
         }
@@ -162,6 +165,8 @@ namespace GSCommerceAPI.Services.SUNAT
                 var codigoTipoDoc = ObtenerCodigoTipoDocumentoSUNAT(comprobante.TipoDocumento);
                 var nombreXml = $"{comprobante.RucEmisor}-{codigoTipoDoc}-{comprobante.Serie}-{comprobante.Numero:D8}.xml";
                 var rutaXml = Path.Combine(_env.ContentRootPath, "Facturacion", nombreXml);
+                var rutaCertificado = Path.Combine(_env.ContentRootPath, "Certificados", GetCertificadoArchivo(comprobante.RucEmisor));
+                Console.WriteLine($"[SUNAT] Firmando {comprobante.TipoDocumento}-{comprobante.Serie} con certificado {rutaCertificado}");
 
                 var (generado, msg, hash) = await GenerarYFirmarFacturaAsync(comprobante, rutaXml);
                 if (!generado) return (false, msg);
@@ -629,7 +634,13 @@ namespace GSCommerceAPI.Services.SUNAT
             }
             catch (FaultException ex)
             {
-                return (false, string.Empty, $"SUNAT rechazó el envío: {ex.Message}");
+                var detalle = ObtenerDetalleFaultException(ex);
+                var mensaje = $"SUNAT rechazó el envío: {ex.Message}";
+                if (!string.IsNullOrWhiteSpace(detalle))
+                {
+                    mensaje += $" - {detalle}";
+                }
+                return (false, string.Empty, mensaje);
             }
             catch (Exception ex)
             {
@@ -708,7 +719,13 @@ namespace GSCommerceAPI.Services.SUNAT
             }
             catch (FaultException ex)
             {
-                return (false, "", $"SUNAT rechazó el envío: {ex.Message}");
+                var detalle = ObtenerDetalleFaultException(ex);
+                var mensaje = $"SUNAT rechazó el envío: {ex.Message}";
+                if (!string.IsNullOrWhiteSpace(detalle))
+                {
+                    mensaje += $" - {detalle}";
+                }
+                return (false, "", mensaje);
             }
             catch (Exception ex)
             {
@@ -738,6 +755,27 @@ namespace GSCommerceAPI.Services.SUNAT
                 "20606834048" => "Grupog2021",
                 _ => throw new Exception("RUC no registrado para contraseña de certificado")
             };
+        }
+
+        private string ObtenerDetalleFaultException(FaultException ex)
+        {
+            try
+            {
+                var fault = ex.CreateMessageFault();
+                if (fault.HasDetail)
+                {
+                    using var reader = fault.GetReaderAtDetailContents();
+                    var doc = new XmlDocument();
+                    doc.Load(reader);
+                    return doc.InnerText.Trim();
+                }
+            }
+            catch
+            {
+                // ignorar cualquier error al leer el detalle
+            }
+
+            return string.Empty;
         }
 
         private (string codigo, string descripcion) LeerRespuestaSunat(string rutaXmlRespuesta)

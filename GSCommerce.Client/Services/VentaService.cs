@@ -160,6 +160,8 @@ namespace GSCommerce.Client.Services
             };
 
             var response = await _httpClient.PostAsJsonAsync("api/ventas/enviar-sunat", comprobante);
+            var contenido = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"SUNAT respuesta: {contenido}");
             return response.IsSuccessStatusCode;
         }
 
