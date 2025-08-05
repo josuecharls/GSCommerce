@@ -544,6 +544,20 @@ OnCancelado="CobroCancelado" />
         ventaCobrada = true;
         Console.WriteLine("Venta cobrada con éxito");
 
+        await JS.InvokeVoidAsync("console.log", "Datos de la venta enviados a SUNAT:", new
+        {
+            venta.RucEmisor,
+            venta.TipoDocumento,
+            venta.Serie,
+            venta.Numero,
+            venta.DocumentoCliente,
+            venta.NombreCliente,
+            venta.Total,
+            venta.Igv,
+            venta.SubTotal,
+            Detalles = venta.Detalles.Select(d => new { d.Item, d.CodigoItem, d.DescripcionItem, d.Cantidad, d.PrecioUnitario, d.PorcentajeDescuento, d.Total }).ToList()
+        });
+
         var tipos = await TipoDocumentoVentaService.GetTiposDocumento();
         var tipoDoc = tipos?.FirstOrDefault(t =>
             t.Descripcion.ToUpper() == venta.TipoDocumento.ToUpper()
@@ -576,8 +590,8 @@ OnCancelado="CobroCancelado" />
 
         if (!resultadoRegistro.Success)
         {
+            await JS.InvokeVoidAsync("console.log", "Error al registrar la venta:", resultadoRegistro.ErrorMessage);
             await JS.InvokeVoidAsync("alert", $"❌ Error al registrar la venta: {resultadoRegistro.ErrorMessage}");
-            Console.WriteLine($"Almacen: {venta.IdAlmacen}, Cajero: {venta.IdCajero}");
             return;
         }
 
@@ -592,7 +606,6 @@ OnCancelado="CobroCancelado" />
         }
 
         // ✅ Imprimir ticket en formato texto
-        Console.WriteLine("Imprimiendo ticket..."); 
         var textoTicket = GenerarHtmlDelTicket();
         await JS.InvokeVoidAsync("imprimirTicket", textoTicket);
         if (EsFactura)
@@ -608,6 +621,15 @@ OnCancelado="CobroCancelado" />
         // Luego de registrar correctamente, envía a SUNAT (si no es TICKET)
         if (tipoDoc.Abreviatura != "TK")
         {
+            await JS.InvokeVoidAsync("console.log", "Enviando a SUNAT...", new
+            {
+                venta.RucEmisor,
+                venta.TipoDocumento,
+                venta.Serie,
+                venta.Numero,
+                venta.DocumentoCliente
+            });
+
             var exitoSunat = await ventaService.EnviarASUNATAsync(venta, venta.Detalles, tipoDoc);
             if (exitoSunat)
                 await JS.InvokeVoidAsync("alert", "✅ Venta registrada y declarada a SUNAT.");

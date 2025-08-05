@@ -354,7 +354,7 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent/></ext:UBLExtension>");
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent><sac:AdditionalInformation>");
             sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>1001</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">" + dto.Total.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
-            sb.AppendLine("<sac:AdditionalProperty><cbc:ID>1000</cbc:ID><cbc:Value>" + dto.MontoLetras + "</cbc:Value></sac:AdditionalProperty>");
+            sb.AppendLine("<sac:AdditionalProperty><cbc:ID>1000</cbc:ID><cbc:Value>" + EscaparTextoXml(dto.MontoLetras) + "</cbc:Value></sac:AdditionalProperty>");
             sb.AppendLine("</sac:AdditionalInformation></ext:ExtensionContent></ext:UBLExtension>");
             sb.AppendLine("</ext:UBLExtensions>");
 
