@@ -488,13 +488,14 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent/></ext:UBLExtension>");
             sb.AppendLine("</ext:UBLExtensions>");
 
-            sb.AppendLine("<cbc:UBLVersionID>2.0</cbc:UBLVersionID>");
-            sb.AppendLine("<cbc:CustomizationID>1.1</cbc:CustomizationID>");
-            sb.AppendLine($"<cbc:ID>RC-{DateTime.Now:yyyyMMdd}-001</cbc:ID>");
-            sb.AppendLine($"<cbc:ReferenceDate>{DateTime.Now:yyyy-MM-dd}</cbc:ReferenceDate>");
+            sb.AppendLine("<cbc:UBLVersionID>2.1</cbc:UBLVersionID>");
+            sb.AppendLine("<cbc:CustomizationID>1.0</cbc:CustomizationID>");
+            var fechaReferencia = comprobantes.First().FechaEmision;
+            sb.AppendLine($"<cbc:ID>RC-{fechaReferencia:yyyyMMdd}-001</cbc:ID>");
+            sb.AppendLine($"<cbc:ReferenceDate>{fechaReferencia:yyyy-MM-dd}</cbc:ReferenceDate>");
             sb.AppendLine($"<cbc:IssueDate>{DateTime.Now:yyyy-MM-dd}</cbc:IssueDate>");
 
-            sb.AppendLine("<cac:Signature>");
+            sb.AppendLine("<cac:Signature>");   
             sb.AppendLine($"<cbc:ID>IDSignKG</cbc:ID>");
             sb.AppendLine("<cac:SignatoryParty>");
             sb.AppendLine("<cac:PartyIdentification><cbc:ID>" + empresa.RucEmisor + "</cbc:ID></cac:PartyIdentification>");
@@ -525,8 +526,12 @@ namespace GSCommerceAPI.Services.SUNAT
                 comp.Total = Math.Round(comp.SubTotal + comp.Igv, 2);
 
                 sb.AppendLine("<sac:SummaryDocumentsLine>");
+                var codigoTipoDoc = ObtenerCodigoTipoDocumentoSUNAT(comp.TipoDocumento);
+                var serie = AsegurarSerieConPrefijo(comp.Serie, comp.TipoDocumento);
+                sb.AppendLine("<sac:SummaryDocumentsLine>");
                 sb.AppendLine($"<cbc:LineID>{correlativo++}</cbc:LineID>");
-                sb.AppendLine("<cbc:DocumentTypeCode>03</cbc:DocumentTypeCode>");
+                sb.AppendLine($"<cbc:DocumentTypeCode>{codigoTipoDoc}</cbc:DocumentTypeCode>");
+                sb.AppendLine($"<cbc:ID>{serie}-{comp.Numero:D8}</cbc:ID>");
                 sb.AppendLine($"<cbc:ID>{comp.Serie}-{comp.Numero:D8}</cbc:ID>");
                 sb.AppendLine("<cac:AccountingCustomerParty>");
                 sb.AppendLine("<cbc:CustomerAssignedAccountID>" + comp.DocumentoCliente + "</cbc:CustomerAssignedAccountID>");
@@ -538,9 +543,17 @@ namespace GSCommerceAPI.Services.SUNAT
                 sb.AppendLine("<sac:TotalAmount currencyID=\"" + comp.Moneda + "\">" + comp.Total.ToString("F2") + "</sac:TotalAmount>");
 
                 sb.AppendLine("<sac:BillingPayment>");
-                sb.AppendLine("<cbc:PaidAmount currencyID=\"" + comp.Moneda + "\">" + comp.Total.ToString("F2") + "</cbc:PaidAmount>");
-                sb.AppendLine("<cbc:InstructionID>01</cbc:InstructionID>");
+                sb.AppendLine("<cbc:PaidAmount currencyID=\"" + comp.Moneda + "\">" + comp.SubTotal.ToString("F2") + "</cbc:PaidAmount>"); sb.AppendLine("<cbc:InstructionID>01</cbc:InstructionID>");
                 sb.AppendLine("</sac:BillingPayment>");
+                sb.AppendLine("<sac:BillingPayment>");
+                sb.AppendLine("<cbc:PaidAmount currencyID=\"" + comp.Moneda + "\">" + comp.Igv.ToString("F2") + "</cbc:PaidAmount>");
+                sb.AppendLine("<cbc:InstructionID>05</cbc:InstructionID>");
+                sb.AppendLine("</sac:BillingPayment>");
+
+                sb.AppendLine("<cac:AllowanceCharge>");
+                sb.AppendLine("<cbc:ChargeIndicator>false</cbc:ChargeIndicator>");
+                sb.AppendLine("<cbc:Amount currencyID=\"" + comp.Moneda + "\">0.00</cbc:Amount>");
+                sb.AppendLine("</cac:AllowanceCharge>");
 
                 sb.AppendLine("<cac:TaxTotal>");
                 sb.AppendLine("<cbc:TaxAmount currencyID=\"" + comp.Moneda + "\">" + comp.Igv.ToString("F2") + "</cbc:TaxAmount>");

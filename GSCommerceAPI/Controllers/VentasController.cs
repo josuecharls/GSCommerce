@@ -396,11 +396,11 @@ namespace GSCommerceAPI.Controllers
                                    Serie = c.Serie,
                                    Numero = c.Numero,
                                    FechaEmision = c.Fecha,
-                                   EstadoSunat = sub == null
-                                       ? "PENDIENTE"
-                                       : sub.Estado
-                                           ? "ACEPTADO"
-                                           : "RECHAZADO",
+                                   EstadoSunat = sub == null || sub.EnviadoSunat != true
+                                        ? "PENDIENTE"
+                                        : sub.Estado
+                                            ? "ACEPTADO"
+                                            : "RECHAZADO",
                                    DescripcionSunat = sub != null ? sub.RespuestaSunat : null
                                }).ToListAsync();
 
@@ -596,11 +596,31 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("pendientes-sunat")]
         public async Task<IActionResult> ObtenerPendientesSunat([FromQuery] DateTime fecha, [FromQuery] int idAlmacen)
         {
-            var pendientes = await _context.VComprobantes
-                .Where(c => c.Tienda == _context.Almacens.First(a => a.IdAlmacen == idAlmacen).Nombre &&
-                            c.Fecha == fecha.ToString("dd/MM/yyyy") &&
-                            (c.EnviadoSunat == false || c.EnviadoSunat == null))
-                .ToListAsync();
+            var pendientes = await (from c in _context.ComprobanteDeVentaCabeceras
+                                    join f in _context.Comprobantes on c.IdComprobante equals f.IdComprobante
+                                    join a in _context.Almacens on c.IdAlmacen equals a.IdAlmacen
+                                    join t in _context.TipoDocumentoVenta on c.IdTipoDocumento equals t.IdTipoDocumentoVenta
+                                    where c.IdAlmacen == idAlmacen
+                                          && c.Fecha.Date == fecha.Date
+                                          && (f.EnviadoSunat == false || f.EnviadoSunat == null)
+                                    select new
+                                    {
+                                        IdFe = f.IdFe,
+                                        Tienda = a.Nombre,
+                                        TipoDoc = t.Descripcion,
+                                        Numero = c.Serie.PadLeft(4, '0') + "-" + c.Numero.ToString("D8"),
+                                        Fecha = c.Fecha.ToString("dd/MM/yyyy"),
+                                        Apagar = c.Apagar,
+                                        Hash = f.Hash,
+                                        EnviadoSunat = f.EnviadoSunat ?? false,
+                                        f.FechaEnvio,
+                                        f.FechaRespuestaSunat,
+                                        f.RespuestaSunat,
+                                        f.TicketSunat,
+                                        f.Xml,
+                                        f.IdComprobante
+                                    })
+                                    .ToListAsync();
 
             return Ok(pendientes);
         }
@@ -616,11 +636,13 @@ namespace GSCommerceAPI.Controllers
             if (datosAlmacen == null)
                 return BadRequest("Almacén no encontrado");
 
-            var pendientes = await _context.VComprobantes
-                .Where(c => c.Tienda == datosAlmacen.Nombre &&
-                            c.Fecha == fecha.ToString("dd/MM/yyyy") &&
-                            (c.EnviadoSunat == false || c.EnviadoSunat == null))
-                .ToListAsync();
+            var pendientes = await (from c in _context.ComprobanteDeVentaCabeceras
+                                    join f in _context.Comprobantes on c.IdComprobante equals f.IdComprobante
+                                    where c.IdAlmacen == idAlmacen
+                                          && c.Fecha.Date == fecha.Date
+                                          && (f.EnviadoSunat == false || f.EnviadoSunat == null)
+                                    select c.IdComprobante)
+                                   .ToListAsync();
 
             if (!pendientes.Any())
                 return BadRequest("No hay comprobantes pendientes");
@@ -632,12 +654,12 @@ namespace GSCommerceAPI.Controllers
             string provincia = dpdParts.Length > 1 ? dpdParts[1].Trim() : string.Empty;
             string departamento = dpdParts.Length > 2 ? dpdParts[2].Trim() : string.Empty;
 
-            foreach (var p in pendientes)
+            foreach (var idComprobante in pendientes)
             {
                 var cab = await _context.ComprobanteDeVentaCabeceras
                     .Include(c => c.ComprobanteDeVentaDetalles)
                     .Include(c => c.IdTipoDocumentoNavigation)
-                    .FirstOrDefaultAsync(c => c.IdComprobante == p.IdComprobante);
+                    .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
 
                 if (cab == null) continue;
 
