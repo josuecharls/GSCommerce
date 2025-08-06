@@ -2,7 +2,6 @@
 using GSCommerce.Client.Models;
 using GSCommerce.Client.Models.DTOs.Reportes;
 using GSCommerce.Client.Models.SUNAT;
-using static System.Net.WebRequestMethods;
 
 namespace GSCommerce.Client.Services
 {
@@ -52,6 +51,7 @@ namespace GSCommerce.Client.Services
 
             venta.Cabecera.IdComprobante = resultado.IdComprobante;
             venta.Cabecera.Numero = resultado.Numero;
+            venta.Cabecera.PendienteSunat = resultado.PendienteSunat;
 
             return (true, null);
         }
@@ -83,6 +83,7 @@ namespace GSCommerce.Client.Services
             }
         }
 
+        /*
         public async Task<bool> RegistrarYEnviarVentaAsync(VentaRegistroDTO venta)
         {
             var response = await _httpClient.PostAsJsonAsync("api/ventas", venta);
@@ -107,7 +108,8 @@ namespace GSCommerce.Client.Services
 
             return true;
         }
-
+        */
+        /*
         public async Task<bool> EnviarASUNATAsync(VentaCabeceraDTO cabecera, List<VentaDetalleDTO> detalles, TipoDocumentoVentaDTO tipoDoc)
         {
             if (_authService == null)
@@ -172,7 +174,7 @@ namespace GSCommerce.Client.Services
             Console.WriteLine($"SUNAT respuesta: {contenido}");
             return response.IsSuccessStatusCode;
         }
-
+        */
         public async Task<VentaDTO?> ObtenerVentaPorId(int id)
         {
             try
@@ -185,6 +187,7 @@ namespace GSCommerce.Client.Services
             }
         }
 
+        /*
         public static string ConvertirMontoALetras(decimal monto, string moneda)
         {
             var enteros = (long)Math.Floor(monto);
@@ -251,7 +254,7 @@ namespace GSCommerce.Client.Services
 
             return letras.Trim();
         }
-
+        */
 
         private class NumeroVentaResponse
         {

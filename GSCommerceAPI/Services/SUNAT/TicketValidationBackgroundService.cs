@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using GSCommerceAPI.Data;
 using Microsoft.EntityFrameworkCore;
+using System.IO;
+using System.Linq;
 
 namespace GSCommerceAPI.Services.SUNAT
 {
@@ -41,19 +43,41 @@ namespace GSCommerceAPI.Services.SUNAT
 
             foreach (var resumen in pendientes)
             {
+                string? ruc = null;
                 try
                 {
-                    string zipPath = Path.Combine(env.ContentRootPath, "Facturacion", resumen.NombreArchivo + ".zip");
-                    var respuesta = await feService.ValidarTicketSunatAsync(resumen.TicketSunat, zipPath, "", "");
+                    var nombreBase = Path.GetFileNameWithoutExtension(resumen.NombreArchivo);
+                    string zipPath = Path.Combine(env.ContentRootPath, "Facturacion", nombreBase + ".zip");
+                    ruc = nombreBase.Split('-').First();
+
+                    var credenciales = await context.Almacens
+                        .Where(a => a.Ruc == ruc)
+                        .Select(a => new { a.UsuarioSol, a.ClaveSol })
+                        .FirstOrDefaultAsync(token);
+
+                    if (credenciales == null || string.IsNullOrEmpty(credenciales.UsuarioSol) || string.IsNullOrEmpty(credenciales.ClaveSol))
+                    {
+                        _logger.LogWarning("No se encontraron credenciales SOL para el RUC {Ruc}", ruc);
+                        continue;
+                    }
+
+                    var usuarioSOL = $"{ruc}{credenciales.UsuarioSol}";
+                    var respuesta = await feService.ValidarTicketSunatAsync(resumen.TicketSunat, zipPath, usuarioSOL, credenciales.ClaveSol);
+
                     resumen.RespuestaSunat = respuesta;
                     resumen.FechaRespuestaSunat = DateTime.Now;
-                    await context.SaveChangesAsync(token);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error al validar ticket {Ticket}", resumen.TicketSunat);
+                    _logger.LogError(ex,
+                        "Error al validar ticket {Ticket} del archivo {NombreArchivo} y RUC {Ruc}",
+                        resumen.TicketSunat,
+                        resumen.NombreArchivo,
+                        ruc);
                 }
             }
+
+            await context.SaveChangesAsync(token);
         }
     }
 }

@@ -543,7 +543,7 @@ OnCancelado="CobroCancelado" />
         venta.Vuelto = pagoEfectivo?.Vuelto ?? 0;
         ventaCobrada = true;
         Console.WriteLine("Venta cobrada con éxito");
-
+/*
         await JS.InvokeVoidAsync("console.log", "Datos de la venta enviados a SUNAT:", new
         {
             venta.RucEmisor,
@@ -557,7 +557,7 @@ OnCancelado="CobroCancelado" />
             venta.SubTotal,
             Detalles = venta.Detalles.Select(d => new { d.Item, d.CodigoItem, d.DescripcionItem, d.Cantidad, d.PrecioUnitario, d.PorcentajeDescuento, d.Total }).ToList()
         });
-
+*/
         var tipos = await TipoDocumentoVentaService.GetTiposDocumento();
         var tipoDoc = tipos?.FirstOrDefault(t =>
             t.Descripcion.ToUpper() == venta.TipoDocumento.ToUpper()
@@ -608,7 +608,8 @@ OnCancelado="CobroCancelado" />
         // ✅ Imprimir ticket en formato texto
         var textoTicket = GenerarHtmlDelTicket();
         await JS.InvokeVoidAsync("imprimirTicket", textoTicket);
-        if (EsFactura)
+        await JS.InvokeVoidAsync("alert", "✅ Venta registrada. Pendiente de envío a SUNAT.");
+     /*   if (EsFactura)
         {
             // SUNAT solo acepta RUC (6) en facturas
             venta.TipoDocumento = "6";
@@ -636,7 +637,7 @@ OnCancelado="CobroCancelado" />
             else
                 await JS.InvokeVoidAsync("alert", "❌ Venta registrada, pero falló el envío a SUNAT.");
         }
-
+*/
         // 🔁 Limpiar manteniendo valores clave
         string? tipoAnterior = venta.TipoDocumento;
         int? vendedorAnterior = venta.IdVendedor;

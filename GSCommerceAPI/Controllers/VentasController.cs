@@ -303,12 +303,25 @@ namespace GSCommerceAPI.Controllers
                     _context.DetallePagoVenta.Add(nuevoPago);
                 }
 
-                await transaction.CommitAsync();
-                await _context.SaveChangesAsync(); // Guardar detalles y pagos
-                return Ok(new
+                // Registrar como pendiente de envío a SUNAT
+                var compFe = new Comprobante
                 {
-                    numero = cabecera.Numero,
-                    idComprobante = cabecera.IdComprobante
+                    IdComprobante = cabecera.IdComprobante,
+                    Hash = string.Empty,
+                    EnviadoSunat = false,
+                    Estado = false,
+                    EsNota = false
+                };
+                _context.Comprobantes.Add(compFe);
+
+                await _context.SaveChangesAsync(); // Guardar detalles, pagos y estado SUNAT
+                await transaction.CommitAsync();
+
+                return Ok(new VentaResponseDTO
+                {
+                    Numero = cabecera.Numero,
+                    IdComprobante = cabecera.IdComprobante,
+                    PendienteSunat = true
                 });
                 /*return Ok(new
                 {
