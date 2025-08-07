@@ -37,6 +37,26 @@ namespace GSCommerceAPI.Services.SUNAT
 
                 var empresa = comprobantes.First();
 
+                // Validar certificado digital
+                string nombreCertificado;
+                try
+                {
+                    nombreCertificado = GetCertificadoArchivo(empresa.RucEmisor);
+                }
+                catch
+                {
+                    return (false, "Certificado digital no configurado para el emisor.");
+                }
+
+                string rutaCertificado = Path.Combine(_env.ContentRootPath, "Certificados", nombreCertificado);
+                if (!File.Exists(rutaCertificado))
+                    return (false, $"No se encontró el certificado {nombreCertificado}");
+
+                // Obtener credenciales SOL
+                var (usuarioSOL, claveSOL) = await ObtenerCredencialesSunatAsync(empresa.RucEmisor);
+                if (string.IsNullOrWhiteSpace(usuarioSOL) || string.IsNullOrWhiteSpace(claveSOL))
+                    return (false, "Credenciales SUNAT no configuradas.");
+
                 // 1. Crear XML del resumen diario
                 string nombreArchivoBase = $"{empresa.RucEmisor}-RC-{DateTime.Now:yyyyMMdd}-001";
                 string nombreArchivo = nombreArchivoBase + ".xml";
@@ -49,10 +69,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 xmlDoc.Save(rutaXml);
 
                 // 2. Firmar XML
-                string rutaCertificado = Path.Combine(_env.ContentRootPath, "Certificados", GetCertificadoArchivo(empresa.RucEmisor));
                 string passwordCertificado = GetCertificadoPassword(empresa.RucEmisor);
-
-                FirmarXml(resumenXml, rutaCertificado, passwordCertificado, rutaXml);
                 string hash = FirmarXml(resumenXml, rutaCertificado, passwordCertificado, rutaXml);
 
                 // 3. Comprimir a ZIP
@@ -63,17 +80,36 @@ namespace GSCommerceAPI.Services.SUNAT
                 }
 
                 // 4. Enviar a SUNAT
-                var (usuarioSOL, claveSOL) = await ObtenerCredencialesSunatAsync(empresa.RucEmisor);
-
                 var resultado = await EnviarResumenDiarioAsync(rutaZip, usuarioSOL, claveSOL);
 
-                // 5. Guardar en base de datos
+                // 5. Guardar ticket en base de datos
                 await GuardarResumenSunatAsync(comprobantes, nombreArchivo, hash, resultado.ticket, resultado.mensaje, resultado.exito, empresa.RazonSocialEmisor);
 
                 if (!resultado.exito)
                     return (false, resultado.mensaje);
 
-                return (true, $"Enviado correctamente. Ticket: {resultado.ticket} | SUNAT: {resultado.mensaje}");
+                // 6. Consultar ticket y leer CDR
+                await Task.Delay(TimeSpan.FromSeconds(5));
+                await ValidarTicketSunatAsync(resultado.ticket, rutaZip, usuarioSOL, claveSOL);
+                var (exitoSunat, codigoSunat, descripcionSunat) = await LeerCdrAsync(rutaZip);
+                string rutaCdrXml = Path.Combine(Path.GetDirectoryName(rutaZip)!, Path.GetFileNameWithoutExtension(rutaZip) + ".xml");
+                string cdrXml = File.Exists(rutaCdrXml) ? await File.ReadAllTextAsync(rutaCdrXml) : string.Empty;
+
+                await ActualizarResumenSunatAsync(nombreArchivo, $"SUNAT respondió: [{codigoSunat}] {descripcionSunat}", exitoSunat);
+
+                foreach (var comp in comprobantes)
+                {
+                    await GuardarEstadoSunatAsync(
+                        comp.IdComprobante,
+                        hash,
+                        cdrXml,
+                        resultado.ticket,
+                        $"SUNAT respondió: [{codigoSunat}] {descripcionSunat}",
+                        exitoSunat,
+                        false);
+                }
+
+                return (exitoSunat, $"Ticket: {resultado.ticket} | SUNAT: [{codigoSunat}] {descripcionSunat}");
             }
             catch (Exception ex)
             {
@@ -112,6 +148,17 @@ namespace GSCommerceAPI.Services.SUNAT
             await _context.SaveChangesAsync();
         }
 
+        private async Task ActualizarResumenSunatAsync(string nombreArchivo, string respuestaSunat, bool exito)
+        {
+            var resumen = await _context.Resumen.FirstOrDefaultAsync(r => r.NombreArchivo == nombreArchivo);
+            if (resumen != null)
+            {
+                resumen.RespuestaSunat = respuestaSunat;
+                resumen.FechaRespuestaSunat = DateTime.Now;
+                resumen.EnvioSunat = exito;
+                await _context.SaveChangesAsync();
+            }
+        }
 
         private async Task GuardarEstadoSunatAsync(int idComprobante, string hash, string xml, string ticket, string? respuestaSunat, bool exito, bool esNota)
         {

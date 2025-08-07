@@ -597,28 +597,29 @@ namespace GSCommerceAPI.Controllers
         public async Task<IActionResult> ObtenerPendientesSunat([FromQuery] DateTime fecha, [FromQuery] int idAlmacen)
         {
             var pendientes = await (from c in _context.ComprobanteDeVentaCabeceras
-                                    join f in _context.Comprobantes on c.IdComprobante equals f.IdComprobante
+                                    join f in _context.Comprobantes on c.IdComprobante equals f.IdComprobante into cf
+                                    from f in cf.DefaultIfEmpty()
                                     join a in _context.Almacens on c.IdAlmacen equals a.IdAlmacen
                                     join t in _context.TipoDocumentoVenta on c.IdTipoDocumento equals t.IdTipoDocumentoVenta
                                     where c.IdAlmacen == idAlmacen
                                           && c.Fecha.Date == fecha.Date
-                                          && (f.EnviadoSunat == false || f.EnviadoSunat == null)
+                                          && (f == null || f.EnviadoSunat == false || f.EnviadoSunat == null)
                                     select new
                                     {
-                                        IdFe = f.IdFe,
+                                        IdFe = f != null ? f.IdFe : 0,
                                         Tienda = a.Nombre,
                                         TipoDoc = t.Descripcion,
                                         Numero = c.Serie.PadLeft(4, '0') + "-" + c.Numero.ToString("D8"),
                                         Fecha = c.Fecha.ToString("dd/MM/yyyy"),
                                         Apagar = c.Apagar,
-                                        Hash = f.Hash,
-                                        EnviadoSunat = f.EnviadoSunat ?? false,
-                                        f.FechaEnvio,
-                                        f.FechaRespuestaSunat,
-                                        f.RespuestaSunat,
-                                        f.TicketSunat,
-                                        f.Xml,
-                                        f.IdComprobante
+                                        Hash = f != null ? f.Hash : string.Empty,
+                                        EnviadoSunat = f != null && f.EnviadoSunat.HasValue ? f.EnviadoSunat.Value : false,
+                                        FechaEnvio = f != null ? f.FechaEnvio : null,
+                                        FechaRespuestaSunat = f != null ? f.FechaRespuestaSunat : null,
+                                        RespuestaSunat = f != null ? f.RespuestaSunat : null,
+                                        TicketSunat = f != null ? f.TicketSunat : null,
+                                        Xml = f != null ? f.Xml : null,
+                                        IdComprobante = c.IdComprobante
                                     })
                                     .ToListAsync();
 
@@ -630,17 +631,24 @@ namespace GSCommerceAPI.Controllers
         {
             var datosAlmacen = await _context.Almacens
                 .Where(a => a.IdAlmacen == idAlmacen)
-                .Select(a => new { a.Nombre, a.Ruc, a.RazonSocial, a.Direccion, a.Ubigeo, a.Dpd })
+                .Select(a => new { a.Nombre, a.Ruc, a.RazonSocial, a.Direccion, a.Ubigeo, a.Dpd, a.UsuarioSol, a.ClaveSol })
                 .FirstOrDefaultAsync();
 
             if (datosAlmacen == null)
                 return BadRequest("Almacén no encontrado");
 
+            if (string.IsNullOrWhiteSpace(datosAlmacen.Ruc) ||
+                string.IsNullOrWhiteSpace(datosAlmacen.UsuarioSol) ||
+                string.IsNullOrWhiteSpace(datosAlmacen.ClaveSol))
+                return BadRequest("Configuración SUNAT incompleta para el almacén");
+
             var pendientes = await (from c in _context.ComprobanteDeVentaCabeceras
-                                    join f in _context.Comprobantes on c.IdComprobante equals f.IdComprobante
+                                    join f in _context.Comprobantes on c.IdComprobante equals f.IdComprobante into cf
+                                    from f in cf.DefaultIfEmpty()
                                     where c.IdAlmacen == idAlmacen
                                           && c.Fecha.Date == fecha.Date
-                                          && (f.EnviadoSunat == false || f.EnviadoSunat == null)
+                                          && (c.IdTipoDocumento == 1 || c.IdTipoDocumento == 5)
+                                          && (f == null || f.EnviadoSunat == false || f.EnviadoSunat == null)
                                     select c.IdComprobante)
                                    .ToListAsync();
 
