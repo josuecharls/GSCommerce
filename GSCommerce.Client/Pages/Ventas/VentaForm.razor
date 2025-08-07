@@ -609,7 +609,7 @@ OnCancelado="CobroCancelado" />
         var textoTicket = GenerarHtmlDelTicket();
         await JS.InvokeVoidAsync("imprimirTicket", textoTicket);
         await JS.InvokeVoidAsync("alert", "✅ Venta registrada. Pendiente de envío a SUNAT.");
-     /*   if (EsFactura)
+        if (EsFactura)
         {
             // SUNAT solo acepta RUC (6) en facturas
             venta.TipoDocumento = "6";
@@ -637,7 +637,7 @@ OnCancelado="CobroCancelado" />
             else
                 await JS.InvokeVoidAsync("alert", "❌ Venta registrada, pero falló el envío a SUNAT.");
         }
-*/
+
         // 🔁 Limpiar manteniendo valores clave
         string? tipoAnterior = venta.TipoDocumento;
         int? vendedorAnterior = venta.IdVendedor;

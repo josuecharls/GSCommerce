@@ -465,8 +465,12 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine($"<cbc:CityName>{dto.ProvinciaEmisor}</cbc:CityName>");
             sb.AppendLine($"<cbc:CountrySubentity>{dto.DepartamentoEmisor}</cbc:CountrySubentity>");
             sb.AppendLine($"<cbc:District>{dto.DistritoEmisor}</cbc:District>");
-            sb.AppendLine($"<cbc:StreetName>{dto.DireccionEmisor}</cbc:StreetName>");
-            sb.AppendLine("<cac:Country><cbc:IdentificationCode>PE</cbc:IdentificationCode></cac:Country>");
+            sb.AppendLine("<cac:AddressLine>");
+            sb.AppendLine($"<cbc:Line>{dto.DireccionEmisor}</cbc:Line>");
+            sb.AppendLine("</cac:AddressLine>");
+            sb.AppendLine("<cac:Country>");
+            sb.AppendLine("<cbc:IdentificationCode>PE</cbc:IdentificationCode>");
+            sb.AppendLine("</cac:Country>");
             sb.AppendLine("</cac:RegistrationAddress>");
             sb.AppendLine("</cac:PartyLegalEntity>");
             sb.AppendLine("</cac:Party>");
