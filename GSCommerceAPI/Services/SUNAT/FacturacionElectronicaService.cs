@@ -58,13 +58,19 @@ namespace GSCommerceAPI.Services.SUNAT
                     return (false, "Credenciales SUNAT no configuradas.");
 
                 // 1. Crear XML del resumen diario
-                string nombreArchivoBase = $"{empresa.RucEmisor}-RC-{DateTime.Now:yyyyMMdd}-001";
+                int correlativo = await _context.Resumen
+                    .OrderByDescending(r => r.Correlativo)
+                    .Select(r => (int?)r.Correlativo)
+                    .FirstOrDefaultAsync() ?? 0;
+                correlativo++;
+
+                string nombreArchivoBase = $"{empresa.RucEmisor}-RC-{DateTime.Now:yyyyMMdd}-{correlativo:000}";
                 string nombreArchivo = nombreArchivoBase + ".xml";
                 string rutaXml = Path.Combine(_env.ContentRootPath, "Facturacion", nombreArchivo);
 
                 var xmlDoc = new XmlDocument();
                 xmlDoc.PreserveWhitespace = true;
-                var resumenXml = GenerarXmlResumen(comprobantes, empresa);
+                var resumenXml = GenerarXmlResumen(comprobantes, empresa, correlativo);
                 xmlDoc.LoadXml(resumenXml);
                 xmlDoc.Save(rutaXml);
 
@@ -83,8 +89,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 var resultado = await EnviarResumenDiarioAsync(rutaZip, usuarioSOL, claveSOL);
 
                 // 5. Guardar ticket en base de datos
-                await GuardarResumenSunatAsync(comprobantes, nombreArchivo, hash, resultado.ticket, resultado.mensaje, resultado.exito, empresa.RazonSocialEmisor);
-
+                await GuardarResumenSunatAsync(comprobantes, nombreArchivo, hash, resultado.ticket, resultado.mensaje, resultado.exito, empresa.RazonSocialEmisor, correlativo);
                 if (!resultado.exito)
                     return (false, resultado.mensaje);
 
@@ -129,19 +134,14 @@ namespace GSCommerceAPI.Services.SUNAT
             }
         }
 
-        private async Task GuardarResumenSunatAsync(List<ComprobanteCabeceraDTO> comprobantes, string nombreArchivo, string hash, string ticket, string respuestaSunat, bool exito, string tienda)
+        private async Task GuardarResumenSunatAsync(List<ComprobanteCabeceraDTO> comprobantes, string nombreArchivo, string hash, string ticket, string respuestaSunat, bool exito, string tienda, int correlativo)
         {
             var docInicio = $"{comprobantes.First().Serie}-{comprobantes.First().Numero:D8}";
             var docFin = $"{comprobantes.Last().Serie}-{comprobantes.Last().Numero:D8}";
 
-            int correlativo = await _context.Resumen
-                .OrderByDescending(r => r.Correlativo)
-                .Select(r => (int?)r.Correlativo)
-                .FirstOrDefaultAsync() ?? 0;
-
             var resumen = new Resuman
             {
-                Correlativo = correlativo + 1,
+                Correlativo = correlativo,
                 NombreArchivo = nombreArchivo,
                 Hash = hash,
                 DocInicio = docInicio,
@@ -531,7 +531,7 @@ namespace GSCommerceAPI.Services.SUNAT
             return sb.ToString();
         }
 
-        private string GenerarXmlResumen(List<ComprobanteCabeceraDTO> comprobantes, ComprobanteCabeceraDTO empresa)
+        private string GenerarXmlResumen(List<ComprobanteCabeceraDTO> comprobantes, ComprobanteCabeceraDTO empresa, int correlativoResumen)
         {
             var sb = new StringBuilder();
             string q = "\"";
@@ -552,7 +552,7 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<cbc:UBLVersionID>2.1</cbc:UBLVersionID>");
             sb.AppendLine("<cbc:CustomizationID>1.0</cbc:CustomizationID>");
             var fechaReferencia = comprobantes.First().FechaEmision;
-            sb.AppendLine($"<cbc:ID>RC-{fechaReferencia:yyyyMMdd}-001</cbc:ID>");
+            sb.AppendLine($"<cbc:ID>RC-{fechaReferencia:yyyyMMdd}-{correlativoResumen:000}</cbc:ID>");
             sb.AppendLine($"<cbc:ReferenceDate>{fechaReferencia:yyyy-MM-dd}</cbc:ReferenceDate>");
             sb.AppendLine($"<cbc:IssueDate>{DateTime.Now:yyyy-MM-dd}</cbc:IssueDate>");
 
@@ -577,7 +577,7 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("</cac:Party>");
             sb.AppendLine("</cac:AccountingSupplierParty>");
 
-            int correlativo = 1;
+            int lineId = 1;
             foreach (var comp in comprobantes)
             {
                 // Recalcular totales por comprobante para asegurar que
@@ -589,11 +589,9 @@ namespace GSCommerceAPI.Services.SUNAT
                 sb.AppendLine("<sac:SummaryDocumentsLine>");
                 var codigoTipoDoc = ObtenerCodigoTipoDocumentoSUNAT(comp.TipoDocumento);
                 var serie = AsegurarSerieConPrefijo(comp.Serie, comp.TipoDocumento);
-                sb.AppendLine("<sac:SummaryDocumentsLine>");
-                sb.AppendLine($"<cbc:LineID>{correlativo++}</cbc:LineID>");
+                sb.AppendLine($"<cbc:LineID>{lineId++}</cbc:LineID>");
                 sb.AppendLine($"<cbc:DocumentTypeCode>{codigoTipoDoc}</cbc:DocumentTypeCode>");
                 sb.AppendLine($"<cbc:ID>{serie}-{comp.Numero:D8}</cbc:ID>");
-                sb.AppendLine($"<cbc:ID>{comp.Serie}-{comp.Numero:D8}</cbc:ID>");
                 sb.AppendLine("<cac:AccountingCustomerParty>");
                 sb.AppendLine("<cbc:CustomerAssignedAccountID>" + comp.DocumentoCliente + "</cbc:CustomerAssignedAccountID>");
                 sb.AppendLine("<cbc:AdditionalAccountID>" + comp.TipoDocumentoCliente + "</cbc:AdditionalAccountID>");
@@ -715,7 +713,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 elementos.Find<SecurityBindingElement>().EnableUnsecuredResponse = true;
                 ws.Endpoint.Binding = new CustomBinding(elementos);
 
-                var response = await ws.sendSummaryAsync(nombreZip, archivoZip, "0");
+                var response = await ws.sendSummaryAsync(nombreZip, archivoZip, "1");
 
                 return (true, response.ticket, "Ticket obtenido correctamente");
             }
