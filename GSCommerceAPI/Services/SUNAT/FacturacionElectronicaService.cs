@@ -93,7 +93,19 @@ namespace GSCommerceAPI.Services.SUNAT
                 await ValidarTicketSunatAsync(resultado.ticket, rutaZip, usuarioSOL, claveSOL);
                 var (exitoSunat, codigoSunat, descripcionSunat) = await LeerCdrAsync(rutaZip);
                 string rutaCdrXml = Path.Combine(Path.GetDirectoryName(rutaZip)!, Path.GetFileNameWithoutExtension(rutaZip) + ".xml");
-                string cdrXml = File.Exists(rutaCdrXml) ? await File.ReadAllTextAsync(rutaCdrXml) : string.Empty;
+
+                string cdrXml = string.Empty;
+                int intentos = 0;
+                while (!File.Exists(rutaCdrXml) && intentos < 5)
+                {
+                    await Task.Delay(1000); // espera 1 segundo
+                    intentos++;
+                }
+
+                if (File.Exists(rutaCdrXml))
+                {
+                    cdrXml = await File.ReadAllTextAsync(rutaCdrXml);
+                }
 
                 await ActualizarResumenSunatAsync(nombreArchivo, $"SUNAT respondió: [{codigoSunat}] {descripcionSunat}", exitoSunat);
 
@@ -175,7 +187,7 @@ namespace GSCommerceAPI.Services.SUNAT
             }
 
             comprobante.Hash = hash;
-            comprobante.Xml = xml;
+            comprobante.Xml = string.IsNullOrWhiteSpace(xml) ? null : xml;
             comprobante.EnviadoSunat = true;
             comprobante.FechaEnvio = DateTime.Now;
             comprobante.TicketSunat = ticket;
@@ -184,6 +196,8 @@ namespace GSCommerceAPI.Services.SUNAT
             comprobante.Estado = exito;
             comprobante.EsNota = false;
             comprobante.EsNota = esNota;
+
+            Console.WriteLine($"[SUNAT] Guardado comprobante {idComprobante} - hash: {hash}, exito: {exito}");
 
             await _context.SaveChangesAsync();
         }
