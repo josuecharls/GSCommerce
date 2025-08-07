@@ -334,52 +334,65 @@ namespace GSCommerceAPI.Services.SUNAT
 
         private string FirmarXml(string xmlContenido, string rutaCertificado, string password, string rutaSalida)
         {
-            var xmlDoc = new XmlDocument { PreserveWhitespace = true };
-            xmlDoc.LoadXml(xmlContenido);
-
-            if (!File.Exists(rutaCertificado))
-                throw new FileNotFoundException($"No se encontró el certificado en {rutaCertificado}");
-
-            // Cargar el certificado en memoria para evitar conflictos al acceder desde múltiples hilos
-            var certBytes = File.ReadAllBytes(rutaCertificado);
-            using var cert = new X509Certificate2(certBytes, password,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
-
-            var signedXml = new SignedXml(xmlDoc)
+            try
             {
-                SigningKey = cert.GetRSAPrivateKey()
-            };
+                var xmlDoc = new XmlDocument { PreserveWhitespace = true };
+                xmlDoc.LoadXml(xmlContenido);
 
-            var reference = new Reference("")
-            {
-                DigestMethod = "http://www.w3.org/2000/09/xmldsig#sha1"
-            };
-            reference.AddTransform(new XmlDsigEnvelopedSignatureTransform());
-            reference.AddTransform(new XmlDsigExcC14NTransform());
-            signedXml.AddReference(reference);
+                if (!File.Exists(rutaCertificado))
+                    throw new FileNotFoundException($"No se encontró el certificado en {rutaCertificado}");
 
-            var keyInfo = new KeyInfo();
-            keyInfo.AddClause(new KeyInfoX509Data(cert));
-            signedXml.KeyInfo = keyInfo;
+                var certBytes = File.ReadAllBytes(rutaCertificado);
+                using var cert = new X509Certificate2(certBytes, password,
+                    X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
 
-            signedXml.SignedInfo.SignatureMethod = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
-            signedXml.ComputeSignature();
+                var signedXml = new SignedXml(xmlDoc)
+                {
+                    SigningKey = cert.GetRSAPrivateKey()
+                };
 
-            var signature = signedXml.GetXml();
-            var nodoExt = xmlDoc.GetElementsByTagName("ext:ExtensionContent")[0];
+                var reference = new Reference("")
+                {
+                    DigestMethod = "http://www.w3.org/2000/09/xmldsig#sha1"
+                };
+                reference.AddTransform(new XmlDsigEnvelopedSignatureTransform());
+                reference.AddTransform(new XmlDsigExcC14NTransform());
+                signedXml.AddReference(reference);
 
-            // Limpiar nodo existente antes de insertar
-            if (nodoExt != null)
-            {
-                nodoExt.RemoveAll();
-                nodoExt.AppendChild(xmlDoc.ImportNode(signature, true));
+                var keyInfo = new KeyInfo();
+                keyInfo.AddClause(new KeyInfoX509Data(cert));
+                signedXml.KeyInfo = keyInfo;
+
+                signedXml.SignedInfo.SignatureMethod = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+                signedXml.ComputeSignature();
+
+                var signature = signedXml.GetXml();
+                var nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
+                nsmgr.AddNamespace("ext", "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2");
+                var nodoExt = xmlDoc.SelectSingleNode("//ext:ExtensionContent", nsmgr);
+
+                if (nodoExt != null)
+                {
+                    nodoExt.RemoveAll();
+                    nodoExt.AppendChild(xmlDoc.ImportNode(signature, true));
+                }
+                else
+                {
+                    throw new InvalidOperationException("No se encontró el nodo ext:ExtensionContent para insertar la firma.");
+                }
+
+                xmlDoc.Save(rutaSalida);
+                Console.WriteLine($"XML firmado guardado en: {rutaSalida}");
+
+                return signedXml.GetXml().GetElementsByTagName("DigestValue")[0].InnerText;
             }
-
-            xmlDoc.Save(rutaSalida);
-
-            // Retornar el digest value directamente (ya está en Base64)
-            return signedXml.GetXml().GetElementsByTagName("DigestValue")[0].InnerText;
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al firmar XML: {ex.Message} - StackTrace: {ex.StackTrace}");
+                throw;
+            }
         }
+
         private string EscaparTextoXml(string texto)
         {
             if (string.IsNullOrEmpty(texto))
@@ -648,43 +661,60 @@ namespace GSCommerceAPI.Services.SUNAT
 
         public async Task<string> ValidarTicketSunatAsync(string ticket, string rutaArchivo, string usuarioSOL, string claveSOL)
         {
-            // TODO: Implementar validación real usando servicio SOAP SUNAT
             try
             {
                 var binding = new BasicHttpBinding(BasicHttpSecurityMode.TransportWithMessageCredential)
                 {
-                    MaxReceivedMessageSize = int.MaxValue
+                    MaxReceivedMessageSize = int.MaxValue,
+                    Security =
+            {
+                Transport = { ClientCredentialType = HttpClientCredentialType.None },
+                Message = { ClientCredentialType = BasicHttpMessageCredentialType.UserName }
+            }
                 };
-                binding.Security.Transport.ClientCredentialType = HttpClientCredentialType.None;
-                binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
 
                 var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
+
+                ws.Endpoint.EndpointBehaviors.Add(new SoapLogger
+                {
+                    LogFilePath = Path.Combine(_env.ContentRootPath, "soap_log_ticket.txt")
+                });
 
                 ws.ClientCredentials.UserName.UserName = usuarioSOL;
                 ws.ClientCredentials.UserName.Password = claveSOL;
 
                 var elementos = ws.Endpoint.Binding.CreateBindingElements();
-                elementos.Find<SecurityBindingElement>().EnableUnsecuredResponse = true;
+                var securityElement = elementos.Find<SecurityBindingElement>();
+                if (securityElement != null)
+                {
+                    securityElement.EnableUnsecuredResponse = true;
+                }
                 ws.Endpoint.Binding = new CustomBinding(elementos);
 
+                Console.WriteLine($"Consultando ticket: {ticket}");
                 var respuesta = await ws.getStatusAsync(ticket);
 
                 if (respuesta?.status?.content != null && respuesta.status.content.Length > 0)
                 {
                     await File.WriteAllBytesAsync(rutaArchivo, respuesta.status.content);
                     var (exito, codigo, descripcion) = await LeerCdrAsync(rutaArchivo);
+                    Console.WriteLine($"CDR recibido - Código: {codigo}, Descripción: {descripcion}");
                     return $"SUNAT respondió: [{codigo}] {descripcion}";
                 }
 
+                Console.WriteLine($"Sin CDR - Código de estado: {respuesta?.status?.statusCode}");
                 return $"SUNAT no devolvió CDR. Código de estado: {respuesta?.status?.statusCode}";
             }
             catch (FaultException ex)
             {
-                return $"SUNAT rechazó la consulta: {ex.Message}";
+                var detalle = ObtenerDetalleFaultException(ex);
+                Console.WriteLine($"Error en consulta de ticket: {ex.Message} - Detalle: {detalle}");
+                return $"SUNAT rechazó la consulta: {ex.Message} - Detalle: {detalle}";
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error general en consulta: {ex.Message} - StackTrace: {ex.StackTrace}");
                 return $"Error al consultar ticket: {ex.Message}";
             }
         }
@@ -705,6 +735,11 @@ namespace GSCommerceAPI.Services.SUNAT
 
                 var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
+
+                ws.Endpoint.EndpointBehaviors.Add(new SoapLogger
+                {
+                    LogFilePath = Path.Combine(_env.ContentRootPath, "soap_log.txt")
+                });
 
                 ws.ClientCredentials.UserName.UserName = usuarioSOL;
                 ws.ClientCredentials.UserName.Password = claveSOL;
@@ -762,6 +797,11 @@ namespace GSCommerceAPI.Services.SUNAT
 
                 var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");//producción SUNAT
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
+
+                ws.Endpoint.EndpointBehaviors.Add(new SoapLogger
+                {
+                    LogFilePath = Path.Combine(_env.ContentRootPath, "soap_log.txt")
+                });
 
                 ws.ClientCredentials.UserName.UserName = usuarioSOL;
                 ws.ClientCredentials.UserName.Password = claveSOL;
@@ -852,14 +892,15 @@ namespace GSCommerceAPI.Services.SUNAT
                     using var reader = fault.GetReaderAtDetailContents();
                     var doc = new XmlDocument();
                     doc.Load(reader);
-                    return doc.InnerText.Trim();
+                    string detalle = doc.InnerText.Trim();
+                    Console.WriteLine($"Detalle de fault: {detalle}");
+                    return detalle;
                 }
             }
-            catch
+            catch (Exception exInner)
             {
-                // ignorar cualquier error al leer el detalle
+                Console.WriteLine($"Error al leer detalle de fault: {exInner.Message}");
             }
-
             return string.Empty;
         }
 
@@ -898,57 +939,57 @@ namespace GSCommerceAPI.Services.SUNAT
             }
         }
 
-       /* public async Task<(bool exito, string mensaje)> ConsultarTicketResumenAsync(string ticket, string rucEmisor)
-        {
-            try
-            {
-                // 1. Enviar solicitud a SUNAT con el ticket
-                var respuesta = await _billServiceClient.getStatusAsync(ticket);
+        /* public async Task<(bool exito, string mensaje)> ConsultarTicketResumenAsync(string ticket, string rucEmisor)
+         {
+             try
+             {
+                 // 1. Enviar solicitud a SUNAT con el ticket
+                 var respuesta = await _billServiceClient.getStatusAsync(ticket);
 
-                // 2. Leer y descomprimir el CDR desde los bytes que devuelve SUNAT
-                byte[] cdrZipBytes = respuesta.applicationResponse;
-                if (cdrZipBytes == null || cdrZipBytes.Length == 0)
-                    return (false, "SUNAT no devolvió contenido en el CDR");
+                 // 2. Leer y descomprimir el CDR desde los bytes que devuelve SUNAT
+                 byte[] cdrZipBytes = respuesta.applicationResponse;
+                 if (cdrZipBytes == null || cdrZipBytes.Length == 0)
+                     return (false, "SUNAT no devolvió contenido en el CDR");
 
-                // 3. Extraer el XML del ZIP
-                string rutaCarpeta = Path.Combine(_env.ContentRootPath, "Facturacion", "CDR");
-                Directory.CreateDirectory(rutaCarpeta);
-                string rutaZip = Path.Combine(rutaCarpeta, $"CDR-{ticket}.zip");
-                await File.WriteAllBytesAsync(rutaZip, cdrZipBytes);
+                 // 3. Extraer el XML del ZIP
+                 string rutaCarpeta = Path.Combine(_env.ContentRootPath, "Facturacion", "CDR");
+                 Directory.CreateDirectory(rutaCarpeta);
+                 string rutaZip = Path.Combine(rutaCarpeta, $"CDR-{ticket}.zip");
+                 await File.WriteAllBytesAsync(rutaZip, cdrZipBytes);
 
-                // Descomprimir ZIP y obtener archivo XML
-                string rutaXml = "";
-                using (ZipArchive zip = ZipFile.OpenRead(rutaZip))
-                {
-                    foreach (var entry in zip.Entries)
-                    {
-                        if (entry.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
-                        {
-                            rutaXml = Path.Combine(rutaCarpeta, entry.FullName);
-                            entry.ExtractToFile(rutaXml, overwrite: true);
-                            break;
-                        }
-                    }
-                }
+                 // Descomprimir ZIP y obtener archivo XML
+                 string rutaXml = "";
+                 using (ZipArchive zip = ZipFile.OpenRead(rutaZip))
+                 {
+                     foreach (var entry in zip.Entries)
+                     {
+                         if (entry.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+                         {
+                             rutaXml = Path.Combine(rutaCarpeta, entry.FullName);
+                             entry.ExtractToFile(rutaXml, overwrite: true);
+                             break;
+                         }
+                     }
+                 }
 
-                if (string.IsNullOrEmpty(rutaXml))
-                    return (false, "No se encontró XML en el ZIP del CDR");
+                 if (string.IsNullOrEmpty(rutaXml))
+                     return (false, "No se encontró XML en el ZIP del CDR");
 
-                // 4. Leer respuesta SUNAT desde el XML
-                var (codigo, descripcion) = LeerRespuestaSunat(rutaXml);
-                bool exito = codigo == "0";
+                 // 4. Leer respuesta SUNAT desde el XML
+                 var (codigo, descripcion) = LeerRespuestaSunat(rutaXml);
+                 bool exito = codigo == "0";
 
-                // 5. Actualizar el estado del resumen en BD (opcional si deseas registrar en tabla Resumen)
-                // Aquí podrías actualizar FE.Resumen si tienes el ticket asociado
-                // await ActualizarResumenDesdeTicket(ticket, codigo, descripcion, exito); <-- opcional
+                 // 5. Actualizar el estado del resumen en BD (opcional si deseas registrar en tabla Resumen)
+                 // Aquí podrías actualizar FE.Resumen si tienes el ticket asociado
+                 // await ActualizarResumenDesdeTicket(ticket, codigo, descripcion, exito); <-- opcional
 
-                return (exito, $"SUNAT respondió: [{codigo}] {descripcion}");
-            }
-            catch (Exception ex)
-            {
-                return (false, $"Error al consultar ticket: {ex.Message}");
-            }
-        }*/
+                 return (exito, $"SUNAT respondió: [{codigo}] {descripcion}");
+             }
+             catch (Exception ex)
+             {
+                 return (false, $"Error al consultar ticket: {ex.Message}");
+             }
+         }*/
 
         public async Task<(bool exito, string codigoRespuesta, string mensaje)> LeerCdrAsync(string rutaZipRespuesta)
         {
@@ -972,18 +1013,19 @@ namespace GSCommerceAPI.Services.SUNAT
                 XmlDocument xml = new XmlDocument();
                 xml.Load(rutaXmlRespuesta);
 
-                XmlNamespaceManager nsm = new XmlNamespaceManager(xml.NameTable);
-                nsm.AddNamespace("cac", "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2");
-                nsm.AddNamespace("cbc", "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2");
-
-                // Ubicar el nodo con la respuesta
-                XmlNode? responseNode = xml.SelectSingleNode("//cac:DocumentResponse/cac:Response", nsm);
+                // En algunas respuestas de SUNAT los prefijos de namespaces pueden variar.
+                // Para evitar problemas de parsing se utilizan expresiones basadas en
+                // local-name() en lugar de depender de prefijos específicos.
+                XmlNode? responseNode =
+                    xml.SelectSingleNode("//*[local-name()='DocumentResponse']/*[local-name()='Response']");
 
                 if (responseNode == null)
                     return (false, "", "No se encontró el nodo de respuesta en el XML");
 
-                string codigo = responseNode.SelectSingleNode("cbc:ResponseCode", nsm)?.InnerText ?? "";
-                string descripcion = responseNode.SelectSingleNode("cbc:Description", nsm)?.InnerText ?? "";
+                string codigo =
+                    responseNode.SelectSingleNode("./*[local-name()='ResponseCode']")?.InnerText ?? "";
+                string descripcion =
+                    responseNode.SelectSingleNode("./*[local-name()='Description']")?.InnerText ?? "";
 
                 bool aceptado = codigo == "0";
 
