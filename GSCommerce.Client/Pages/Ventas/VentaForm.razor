@@ -403,7 +403,13 @@ OnCancelado="CobroCancelado" />
                 }
                 if (monedaAlmacen == "USD" && tipoCambioActual > 0)
                 {
-                    precioUnitario = Math.Round(precioUnitario / tipoCambioActual, 2);
+                    var precioEnDolares = precioUnitario / tipoCambioActual;
+                    var parteDecimal = precioEnDolares - Math.Truncate(precioEnDolares);
+                    if (parteDecimal > 0m && parteDecimal <= 0.5m)
+                        precioEnDolares = Math.Truncate(precioEnDolares) + 0.5m;
+                    else if (parteDecimal > 0.5m)
+                        precioEnDolares = Math.Truncate(precioEnDolares) + 1m;
+                    precioUnitario = Math.Round(precioEnDolares, 2);
                 }
 
                 var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
@@ -563,7 +569,7 @@ OnCancelado="CobroCancelado" />
             t.Descripcion.ToUpper() == venta.TipoDocumento.ToUpper()
             && (EsCajaManual ? t.Manual : !t.Manual));
 
-        foreach (var pago in pagos)
+        foreach (var pago in pagosRealizados)
         {
             pago.IdTipoPagoVenta = pago.FormaPago.ToUpper() switch
             {
@@ -578,6 +584,26 @@ OnCancelado="CobroCancelado" />
                 "TRANSFERENCIA" => 10,
                 _ => 2                          // Default a efectivo soles
             };
+        }
+
+        if (monedaAlmacen == "USD" && tipoCambioActual > 0)
+        {
+            foreach (var d in venta.Detalles)
+            {
+                d.PrecioUnitario = Math.Round(d.PrecioUnitario * tipoCambioActual, 2);
+                d.Total = Math.Round(d.Total * tipoCambioActual, 2);
+            }
+            foreach (var p in pagosRealizados)
+            {
+                p.Dolares = p.Monto;
+                p.Soles = Math.Round(p.Monto * tipoCambioActual, 2);
+                p.Monto = p.Soles;
+                if (p.Vuelto.HasValue)
+                    p.Vuelto = Math.Round(p.Vuelto.Value * tipoCambioActual, 2);
+            }
+            venta.Vuelto = Math.Round(venta.Vuelto * tipoCambioActual, 2);
+            monedaAlmacen = "PEN";
+            RecalcularTotales();
         }
 
         var resultadoRegistro = await ventaService.RegistrarVentaAsync(new VentaRegistroDTO

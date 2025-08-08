@@ -131,6 +131,7 @@ namespace GSCommerce.Client.Services
             string provincia = dpdParts.Length > 1 ? dpdParts[1].Trim() : string.Empty;
             string departamento = dpdParts.Length > 2 ? dpdParts[2].Trim() : string.Empty;
 
+            var monedaEnvio = "PEN";
             var comprobante = new ComprobanteCabeceraDTO
             {
                 IdComprobante = cabecera.IdComprobante,
@@ -139,7 +140,7 @@ namespace GSCommerce.Client.Services
                 Numero = cabecera.Numero,
                 FechaEmision = cabecera.FechaEmision,
                 HoraEmision = cabecera.FechaEmision.TimeOfDay,
-                Moneda = almacen.Moneda,
+                Moneda = monedaEnvio,
                 RucEmisor = almacen.Ruc ?? "",
                 RazonSocialEmisor = almacen.RazonSocial ?? "",
                 DireccionEmisor = almacen.Direccion ?? "",
@@ -155,7 +156,7 @@ namespace GSCommerce.Client.Services
                 SubTotal = Math.Round(cabecera.SubTotal, 2),
                 Igv = Math.Round(cabecera.Igv, 2),
                 Total = Math.Round(cabecera.Total, 2),
-                MontoLetras = ConvertirMontoALetras(Math.Round(cabecera.Total, 2), almacen.Moneda),
+                MontoLetras = ConvertirMontoALetras(Math.Round(cabecera.Total, 2), monedaEnvio),
 
                 Detalles = detalles.Select(d => new ComprobanteDetalleDTO
                 {
