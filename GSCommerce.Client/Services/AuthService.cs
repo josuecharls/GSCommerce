@@ -1,9 +1,10 @@
 ﻿using Blazored.LocalStorage;
 using GSCommerce.Client.Models;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
-using System.IdentityModel.Tokens.Jwt;
 using System.Threading.Tasks;
 
 namespace GSCommerce.Client.Services
@@ -34,6 +35,7 @@ namespace GSCommerce.Client.Services
                 Console.WriteLine($" Token recibido en AuthService: {result.Token}");
 
                 await _localStorage.SetItemAsync("authToken", result.Token);
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.Token);
                 await _localStorage.SetItemAsync("userName", result.Nombre);
                 await _localStorage.SetItemAsync("userId", result.UserId);
                 await _localStorage.SetItemAsync("IdAlmacen", result.IdAlmacen);
@@ -107,8 +109,7 @@ namespace GSCommerce.Client.Services
                 return null;
 
             var request = new HttpRequestMessage(HttpMethod.Get, "api/ventas/emisor");
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             var response = await _httpClient.SendAsync(request);
 
             if (response.IsSuccessStatusCode)
