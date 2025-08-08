@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using GSCommerce.Client.Models;
 using System.Linq;
+using System.Net;
 
 namespace GSCommerce.Client.Services
 {
@@ -16,11 +17,11 @@ namespace GSCommerce.Client.Services
             _httpClient = httpClient;
         }
 
-        public async Task<List<StockDTO>> GetStock(int? idAlmacen = null, bool incluirStockCero = false, string? search = null, int filtroBusqueda = 1)
+        public async Task<PagedResult<StockDTO>> GetStock(int? idAlmacen = null, bool incluirStockCero = false, string? search = null, int filtroBusqueda = 1, int page = 1, int pageSize = 50)
         {
             try
             {
-                string url = "api/stock?";
+                string url = $"api/stock?page={page}&pageSize={pageSize}&";
 
                 if (idAlmacen.HasValue)
                     url += $"idAlmacen={idAlmacen}&";
@@ -31,19 +32,24 @@ namespace GSCommerce.Client.Services
                 if (!string.IsNullOrWhiteSpace(search))
                     url += $"&search={search}";
 
-                var resultado = await _httpClient.GetFromJsonAsync<List<StockDTO>>(url);
-                return resultado ?? new List<StockDTO>();
+                var resultado = await _httpClient.GetFromJsonAsync<PagedResult<StockDTO>>(url);
+                return resultado ?? new PagedResult<StockDTO>();
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                Console.WriteLine("❌ Acceso no autorizado al obtener stock.");
+                return new PagedResult<StockDTO>();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ Error al obtener stock: {ex.Message}");
-                return new List<StockDTO>();
+                return new PagedResult<StockDTO>();
             }
         }
         public async Task<int> GetStockDisponible(string codigoArticulo, int idAlmacen)
         {
-            var lista = await GetStock(idAlmacen, false, codigoArticulo, 1);
-            return lista.FirstOrDefault()?.Stock ?? 0;
+            var lista = await GetStock(idAlmacen, false, codigoArticulo, 1, 1, 1);
+            return lista.Items.FirstOrDefault()?.Stock ?? 0;
         }
     }
 }
