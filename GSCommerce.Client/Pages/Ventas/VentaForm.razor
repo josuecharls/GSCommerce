@@ -644,6 +644,8 @@ OnCancelado="CobroCancelado" />
         string? nombreVendedorAnterior = venta.NombreVendedor;
 
         await LimpiarFormulario(tipoAnterior, vendedorAnterior, nombreVendedorAnterior);
+        // Refrescar completamente la página para iniciar una nueva venta
+        Navigation.NavigateTo($"/ventass/crear/{modo}", true);
     }
 
     private string GenerarHtmlDelTicket()

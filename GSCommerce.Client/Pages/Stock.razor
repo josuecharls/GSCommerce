@@ -3,6 +3,7 @@
 @using GSCommerce.Client.Services
 @inject StockService StockService
 @inject AlmacenService AlmacenService
+@inject AuthService AuthService
 @inject IJSRuntime JS
 
 <h3>📦 Control de Stock de Artículos</h3>
@@ -29,15 +30,28 @@ else
 {
     <div class="row mb-3">
         <div class="col-md-4">
-            <label><input type="radio" value="false" @onchange="e => porAlmacen = false" checked="@(!porAlmacen)" /> Total</label>
-            <label class="ms-3"><input type="radio" value="true" @onchange="e => porAlmacen = true" checked="@(porAlmacen)" /> Por Almacén</label>
-            <select class="form-select mt-1" @bind="idAlmacenSeleccionado" disabled="@(porAlmacen == false)">
-                <option value="0">-- Seleccionar almacén --</option>
-                @foreach (var a in almacenes)
-                {
-                    <option value="@a.IdAlmacen">@a.Nombre</option>
-                }
-            </select>
+            @if (cargo == "CAJERO")
+            {
+                <label>Almacén</label>
+                <select class="form-select mt-1" disabled>
+                    @foreach (var a in almacenes)
+                    {
+                        <option value="@a.IdAlmacen">@a.Nombre</option>
+                    }
+                </select>
+            }
+            else
+            {
+                <label><input type="radio" value="false" @onchange="e => porAlmacen = false" checked="@(!porAlmacen)" /> Total</label>
+                <label class="ms-3"><input type="radio" value="true" @onchange="e => porAlmacen = true" checked="@(porAlmacen)" /> Por Almacén</label>
+                <select class="form-select mt-1" @bind="idAlmacenSeleccionado" disabled="@(porAlmacen == false)">
+                    <option value="0">-- Seleccionar almacén --</option>
+                    @foreach (var a in almacenes)
+                    {
+                        <option value="@a.IdAlmacen">@a.Nombre</option>
+                    }
+                </select>
+            }
         </div>
 
         <div class="col-md-3">
@@ -45,10 +59,13 @@ else
                 <input class="form-check-input" type="checkbox" @bind="incluirStockCero" />
                 <label class="form-check-label">Incluir Stock 0</label>
             </div>
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" @bind="valorizado" />
-                <label class="form-check-label">Valorizado</label>
-            </div>
+            @if (cargo != "CAJERO")
+            {
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="valorizado" />
+                    <label class="form-check-label">Valorizado</label>
+                </div>
+            }
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" @bind="soloStockBajo" />
                 <label class="form-check-label">🔴 Solo bajo mínimo</label>
@@ -99,7 +116,7 @@ else
                 <th>Código</th>
                 <th>Descripción</th>
                 <th class="text-end">Stock</th>
-                @if (valorizado)
+                @if (valorizado && cargo != "CAJERO")
                 {
                     <th class="text-end">Precio Compra</th>
                     <th class="text-end">Valor Compra</th>
@@ -118,7 +135,7 @@ else
                     <td>@item.IdArticulo</td>
                     <td>@item.Descripcion</td>
                     <td class="text-end">@item.Stock</td>
-                    @if (valorizado)
+                    @if (valorizado && cargo != "CAJERO")
                     {
                         <td class="text-end">@item.PrecioCompra.ToString("N2")</td>
                         <td class="text-end">@item.ValorCompra?.ToString("N2")</td>
@@ -145,12 +162,34 @@ else
     private List<StockDTO> listaStockFiltrada = new();
     private List<AlmacenDTO> almacenes = new();
 
+    private string? cargo;
+
     private bool mostrarAlertaStock = false;
     private string mensajeAlertaStock = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        cargo = await AuthService.GetUserCargo();
+        var idAlmacenUsuario = await AuthService.GetUserAlmacenId();
+
+        if (cargo == "CAJERO")
+        {
+            if (idAlmacenUsuario.HasValue)
+            {
+                var alm = await AlmacenService.GetAlmacenById(idAlmacenUsuario.Value);
+                if (alm != null)
+                {
+                    almacenes = new List<AlmacenDTO> { alm };
+                    idAlmacenSeleccionado = alm.IdAlmacen;
+                    porAlmacen = true;
+                }
+            }
+        }
+        else
+        {
+            almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        }
+
         await CargarStock();
         isLoading = false;
     }

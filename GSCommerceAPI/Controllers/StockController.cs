@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GSCommerceAPI.Data;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using System.Linq;
 using GSCommerceAPI.Models;
 using GSCommerce.Client.Models;
 
@@ -8,6 +11,7 @@ namespace GSCommerceAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class StockController : ControllerBase
     {
         private readonly SyscharlesContext _context;
@@ -25,6 +29,18 @@ namespace GSCommerceAPI.Controllers
     [FromQuery] int filtroBusqueda = 1, // 1: Código, 2: Descripción
     [FromQuery] string? search = null)
         {
+            var cargo = User.FindFirst("Cargo")?.Value;
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (cargo == "CAJERO" && int.TryParse(userIdClaim, out var userId))
+            {
+                var idAlmacenUsuario = await _context.Usuarios
+                    .Include(u => u.IdPersonalNavigation)
+                    .Where(u => u.IdUsuario == userId)
+                    .Select(u => u.IdPersonalNavigation.IdAlmacen)
+                    .FirstOrDefaultAsync();
+                idAlmacen = idAlmacenUsuario;
+            }
+
             var query = _context.VStockXalmacen1s.AsQueryable();
 
             if (idAlmacen.HasValue && idAlmacen > 0)
@@ -52,10 +68,10 @@ namespace GSCommerceAPI.Controllers
         IdArticulo = s.IdArticulo,
         Descripcion = s.Descripcion,
         Stock = s.Stock,
-        PrecioCompra = s.PrecioCompra,
-        ValorCompra = s.ValorCompra,
-        PrecioVenta = s.PrecioVenta,
-        ValorVenta = s.ValorVenta,
+        PrecioCompra = cargo == "CAJERO" ? 0 : s.PrecioCompra,
+        ValorCompra = cargo == "CAJERO" ? (decimal?)null : s.ValorCompra,
+        PrecioVenta = cargo == "CAJERO" ? (double?)null : s.PrecioVenta,
+        ValorVenta = cargo == "CAJERO" ? (double?)null : s.ValorVenta,
         StockMinimo = s.StockMinimo,
         // Si no se especifica un stock mínimo, usar 5 como límite
         EstaBajoMinimo = s.StockMinimo.HasValue
