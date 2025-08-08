@@ -24,10 +24,12 @@ namespace GSCommerceAPI.Controllers
         // ✅ GET: api/stock
         [HttpGet]
         public async Task<IActionResult> GetStock(
-    [FromQuery] int? idAlmacen = null,
-    [FromQuery] bool incluirStockCero = false,
-    [FromQuery] int filtroBusqueda = 1, // 1: Código, 2: Descripción
-    [FromQuery] string? search = null)
+            [FromQuery] int? idAlmacen = null,
+            [FromQuery] bool incluirStockCero = false,
+            [FromQuery] int filtroBusqueda = 1, // 1: Código, 2: Descripción
+            [FromQuery] string? search = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
         {
             var cargo = User.FindFirst("Cargo")?.Value;
             var userIdClaim = User.FindFirst("userId")?.Value;
@@ -57,29 +59,40 @@ namespace GSCommerceAPI.Controllers
                     query = query.Where(s => s.Descripcion.Contains(search));
             }
 
-            var resultado = await query
-    .OrderBy(s => s.Descripcion)
-    .Select(s => new StockDTO
-    {
-        IdAlmacen = s.IdAlmacen,
-        Almacen = s.Almacen,
-        Familia = s.Familia,
-        Linea = s.Linea,
-        IdArticulo = s.IdArticulo,
-        Descripcion = s.Descripcion,
-        Stock = s.Stock,
-        PrecioCompra = cargo == "CAJERO" ? 0 : s.PrecioCompra,
-        ValorCompra = cargo == "CAJERO" ? (decimal?)null : s.ValorCompra,
-        PrecioVenta = cargo == "CAJERO" ? (double?)null : s.PrecioVenta,
-        ValorVenta = cargo == "CAJERO" ? (double?)null : s.ValorVenta,
-        StockMinimo = s.StockMinimo,
-        // Si no se especifica un stock mínimo, usar 5 como límite
-        EstaBajoMinimo = s.StockMinimo.HasValue
-            ? s.Stock < s.StockMinimo.Value
-            : s.Stock < 5
-    })
-    .ToListAsync();
-            return Ok(resultado);
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+        .OrderBy(s => s.Descripcion)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(s => new StockDTO
+        {
+            IdAlmacen = s.IdAlmacen,
+            Almacen = s.Almacen,
+            Familia = s.Familia,
+            Linea = s.Linea,
+            IdArticulo = s.IdArticulo,
+            Descripcion = s.Descripcion,
+            Stock = s.Stock,
+            PrecioCompra = cargo == "CAJERO" ? 0 : s.PrecioCompra,
+            ValorCompra = cargo == "CAJERO" ? (decimal?)null : s.ValorCompra,
+            PrecioVenta = cargo == "CAJERO" ? (double?)null : s.PrecioVenta,
+            ValorVenta = cargo == "CAJERO" ? (double?)null : s.ValorVenta,
+            StockMinimo = s.StockMinimo,
+            // Si no se especifica un stock mínimo, usar 5 como límite
+            EstaBajoMinimo = s.StockMinimo.HasValue
+                ? s.Stock < s.StockMinimo.Value
+                : s.Stock < 5
+        })
+        .ToListAsync();
+
+                var resultado = new PagedResult<StockDTO>
+                {
+                    Items = items,
+                    TotalCount = totalCount
+                };
+
+                return Ok(resultado);
         }
     }
 }
