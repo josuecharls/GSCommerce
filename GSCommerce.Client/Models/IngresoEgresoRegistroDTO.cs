@@ -1,18 +1,19 @@
-﻿namespace GSCommerce.Client.Models;
+﻿using System;
+using System.Collections.Generic;
 
-public class IngresoEgresoDTO
+namespace GSCommerce.Client.Models;
+
+public class IngresoEgresoRegistroDTO
 {
-    public int IdIngresoEgreso { get; set; }
     public int IdUsuario { get; set; }
-    public string Cajero { get; set; } = string.Empty;
     public int IdAlmacen { get; set; }
-    public string Almacen { get; set; } = string.Empty;
     public string Naturaleza { get; set; } = string.Empty;
     public string Tipo { get; set; } = string.Empty;
     public DateTime Fecha { get; set; }
     public string Glosa { get; set; } = string.Empty;
     public decimal Monto { get; set; }
+    public int? IdProveedor { get; set; }
     public int? IdAlmacenDestino { get; set; }
     public int? IdCajeroDestino { get; set; }
-    public string Estado { get; set; } = string.Empty;
+    public List<IngresoEgresoDetalleDTO> Detalles { get; set; } = new();
 }

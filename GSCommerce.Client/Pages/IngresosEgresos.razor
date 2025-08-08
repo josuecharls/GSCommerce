@@ -1,0 +1,86 @@
+﻿@page "/ingresos-egresos"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject IngresosEgresosService IngresosEgresosService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<h3 class="mb-3">Ingresos y Egresos</h3>
+
+<div class="row mb-3">
+    <div class="col-md-3">
+        <label>Naturaleza</label>
+        <select class="form-select" @bind="naturaleza">
+            <option value="Ingreso">Ingreso</option>
+            <option value="Egreso">Egreso</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label>Desde</label>
+        <InputDate @bind-Value="fechaInicio" class="form-control" />
+    </div>
+    <div class="col-md-3">
+        <label>Hasta</label>
+        <InputDate @bind-Value="fechaFin" class="form-control" />
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary me-2" @onclick="Buscar">Buscar</button>
+        <button class="btn btn-success" @onclick="Nuevo">Nuevo</button>
+    </div>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Glosa</th>
+            <th>Monto</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (lista.Any())
+        {
+            @foreach (var item in lista)
+            {
+                <tr>
+                    <td>@item.Fecha.ToString("yyyy-MM-dd")</td>
+                    <td>@item.Tipo</td>
+                    <td>@item.Glosa</td>
+                    <td>@item.Monto.ToString("N2")</td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="4" class="text-center">Sin registros</td></tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<IngresoEgresoDTO> lista = new();
+    private string naturaleza = "Egreso";
+    private DateTime fechaInicio = DateTime.Today;
+    private DateTime fechaFin = DateTime.Today;
+    private int idAlmacen;
+    private int idUsuario;
+
+    protected override async Task OnInitializedAsync()
+    {
+        idUsuario = await AuthService.GetUserId() ?? 0;
+        idAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        lista = await IngresosEgresosService.Listar(idAlmacen, idUsuario, fechaInicio, fechaFin, naturaleza);
+    }
+
+    private void Nuevo()
+    {
+        Navigation.NavigateTo($"/ingreso-egreso-form?naturaleza={naturaleza}");
+    }
+}

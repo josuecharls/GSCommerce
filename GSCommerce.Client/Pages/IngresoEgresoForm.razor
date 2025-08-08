@@ -1,0 +1,94 @@
+﻿@page "/ingreso-egreso-form"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+@inject IngresosEgresosService IngresosEgresosService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<h3>Registrar @registro.Naturaleza</h3>
+
+<EditForm Model="registro" OnValidSubmit="Guardar">
+    <DataAnnotationsValidator />
+    <div class="mb-3">
+        <label>Tipo</label>
+        <InputText @bind-Value="registro.Tipo" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label>Glosa</label>
+        <InputText @bind-Value="registro.Glosa" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label>Forma</label>
+        <InputSelect @bind-Value="detalle.Forma" class="form-select">
+            <option value="Efectivo">Efectivo</option>
+            <option value="Transferencia">Transferencia</option>
+        </InputSelect>
+    </div>
+    <div class="mb-3">
+        <label>Monto</label>
+        <InputNumber @bind-Value="detalle.Monto" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label>Banco</label>
+        <InputText @bind-Value="detalle.Banco" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label>Cuenta</label>
+        <InputText @bind-Value="detalle.Cuenta" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label>Comprobante</label>
+        <InputFile OnChange="OnFileChange" />
+    </div>
+    <button class="btn btn-primary" type="submit">Guardar</button>
+    <button type="button" class="btn btn-secondary ms-2" @onclick="Volver">Cancelar</button>
+</EditForm>
+
+@code {
+    private IngresoEgresoRegistroDTO registro = new();
+    private IngresoEgresoDetalleDTO detalle = new();
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? naturaleza { get; set; }
+
+    private int idUsuario;
+    private int idAlmacen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        idUsuario = await AuthService.GetUserId() ?? 0;
+        idAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
+        registro.Naturaleza = naturaleza ?? "Egreso";
+        registro.Fecha = DateTime.Now;
+    }
+
+    private async Task OnFileChange(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        using var stream = file.OpenReadStream(5_000_000);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        detalle.ImagenBase64 = Convert.ToBase64String(ms.ToArray());
+    }
+
+    private async Task Guardar()
+    {
+        registro.IdUsuario = idUsuario;
+        registro.IdAlmacen = idAlmacen;
+        registro.Detalles = new List<IngresoEgresoDetalleDTO> { detalle };
+        registro.Monto = detalle.Monto;
+        var ok = await IngresosEgresosService.Registrar(registro);
+        if (ok)
+        {
+            Navigation.NavigateTo($"/ingresos-egresos?naturaleza={registro.Naturaleza}");
+        }
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo($"/ingresos-egresos?naturaleza={registro.Naturaleza}");
+    }
+}

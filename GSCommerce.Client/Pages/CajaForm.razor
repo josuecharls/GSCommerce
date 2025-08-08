@@ -215,7 +215,7 @@ else
             return;
         }
 
-        var url = $"{Http.BaseAddress}/api/caja/arqueo-pdf/{idApertura}";
+        var url = $"{Http.BaseAddress}api/caja/arqueo-pdf/{idApertura}";
         await JS.InvokeVoidAsync("open", url, "_blank");
     }
 }
