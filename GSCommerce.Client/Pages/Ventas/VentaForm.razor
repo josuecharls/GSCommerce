@@ -120,16 +120,24 @@
 </table>
 
 <div class="text-end">
-        <h5>Subtotal: @SimboloMoneda@venta.SubTotal.ToString("N2")</h5>
-        <h5>IGV: @SimboloMoneda@venta.Igv.ToString("N2")</h5>
-        <h5><strong>Total: @SimboloMoneda@venta.Total.ToString("N2")</strong></h5>
-</div>
+        <h5>Subtotal: @SimboloMoneda@venta.SubTotal.ToString("N2")@EquivalenteSoles(venta.SubTotal)</h5>
+        <h5>IGV: @SimboloMoneda@venta.Igv.ToString("N2")@EquivalenteSoles(venta.Igv)</h5>
+        <h5><strong>Total: @SimboloMoneda@venta.Total.ToString("N2")@EquivalenteSoles(venta.Total)</strong></h5>
+    </div>
 </fieldset>
 
 @if (!ventaCobrada)
 {
     <div class="text-end mb-4">
-        <button class="btn btn-success" @onclick="AbrirCobrar">Cobrar</button>
+        @if (monedaAlmacen == "USD")
+        {
+            <button class="btn btn-success me-2" @onclick="() => AbrirCobrar(true)">Cobrar Dólares</button>
+            <button class="btn btn-success" @onclick="() => AbrirCobrar(false)">Cobrar Soles</button>
+        }
+        else
+        {
+            <button class="btn btn-success" @onclick="() => AbrirCobrar(false)">Cobrar</button>
+        }
     </div>
 }
 else
@@ -145,8 +153,7 @@ else
     </div>
 }
 
-<CobrarModal @ref="cobrarModalRef" MontoTotal="@venta.APagar" MonedaAlmacen="@monedaAlmacen"
-             OnConfirmado="CobroConfirmado"
+<CobrarModal @ref="cobrarModalRef" MontoTotal="@montoCobrar" MonedaAlmacen="@monedaCobro" OnConfirmado="CobroConfirmado"
 OnCancelado="CobroCancelado" />
 
 @code {
@@ -173,6 +180,10 @@ OnCancelado="CobroCancelado" />
     private string monedaAlmacen = "PEN";
     private decimal tipoCambioActual = 1m;
     private string SimboloMoneda => monedaAlmacen == "USD" ? "$ " : "S/ ";
+    private decimal montoCobrar;
+    private string monedaCobro = "PEN";
+    private string EquivalenteSoles(decimal monto) =>
+        monedaAlmacen == "USD" ? $" (S/ {Math.Round(monto * tipoCambioActual, 2):N2})" : string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -489,7 +500,7 @@ OnCancelado="CobroCancelado" />
         }
     }
 
-    private async Task AbrirCobrar()
+    private async Task AbrirCobrar(bool enDolares)
     {
         if (venta.Detalles.Count == 0)
         {
@@ -503,6 +514,26 @@ OnCancelado="CobroCancelado" />
             return;
         }
 
+        if (monedaAlmacen == "USD")
+        {
+            if (enDolares)
+            {
+                montoCobrar = venta.APagar;
+                monedaCobro = "USD";
+            }
+            else
+            {
+                montoCobrar = Math.Round(venta.APagar * tipoCambioActual, 2);
+                monedaCobro = "PEN";
+            }
+        }
+        else
+        {
+            montoCobrar = venta.APagar;
+            monedaCobro = monedaAlmacen;
+        }
+
+        await InvokeAsync(StateHasChanged);
         cobrarModalRef?.Abrir();
     }
 
@@ -620,15 +651,27 @@ OnCancelado="CobroCancelado" />
                 d.PrecioUnitario = Math.Round(d.PrecioUnitario * tipoCambioActual, 2);
                 d.Total = Math.Round(d.Total * tipoCambioActual, 2);
             }
-            foreach (var p in pagosRealizados)
+
+            if (monedaCobro == "USD")
             {
-                p.Dolares = p.Monto;
-                p.Soles = Math.Round(p.Monto * tipoCambioActual, 2);
-                p.Monto = p.Soles;
-                if (p.Vuelto.HasValue)
-                    p.Vuelto = Math.Round(p.Vuelto.Value * tipoCambioActual, 2);
+                foreach (var p in pagosRealizados)
+                {
+                    p.Dolares = p.Monto;
+                    p.Soles = Math.Round(p.Monto * tipoCambioActual, 2);
+                    p.Monto = p.Soles;
+                    if (p.Vuelto.HasValue)
+                        p.Vuelto = Math.Round(p.Vuelto.Value * tipoCambioActual, 2);
+                }
+                venta.Vuelto = Math.Round(venta.Vuelto * tipoCambioActual, 2);
             }
-            venta.Vuelto = Math.Round(venta.Vuelto * tipoCambioActual, 2);
+            else
+            {
+                foreach (var p in pagosRealizados)
+                {
+                    p.Soles = p.Monto;
+                }
+            }
+
             monedaAlmacen = "PEN";
             RecalcularTotales();
         }

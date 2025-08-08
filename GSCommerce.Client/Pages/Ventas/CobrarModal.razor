@@ -23,7 +23,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <label>Monto:</label>
+                    <label>Monto (@Simbolo.Trim()):</label>
                     <input type="number" class="form-control" @bind="montoPago" min="0" step="0.01" @onkeydown="HandleMontoKeyDown" />
                 </div>
                 @if (TipoPagoSeleccionado?.Tipo == "Efectivo")
@@ -65,7 +65,7 @@
                         {
                             <tr>
                                 <td>@pago.FormaPago</td>
-                                <td>@pago.Monto.ToString("N2")</td>
+                                <td>@Simbolo@pago.Monto.ToString("N2")</td>
                                 <td>@pago.CodigoVerificacion</td>
                                 <td><button class="btn btn-danger btn-sm" @onclick="() => EliminarPago(pago)">X</button></td>
                             </tr>
@@ -75,12 +75,12 @@
                 @if (VueltoCalculado > 0)
                 {
                     <div class="text-end text-success">
-                        <h5>Vuelto: @VueltoCalculado.ToString("N2")</h5>
+                        <h5>Vuelto: @Simbolo@VueltoCalculado.ToString("N2")</h5>
                     </div>
                 }
                 <div class="text-end">
-                    <h5>Total Pagado: @TotalPagado.ToString("N2")</h5>
-                    <h5>Falta: @(Math.Max(0, MontoTotal - TotalPagado).ToString("N2"))</h5>
+                    <h5>Total Pagado: @Simbolo@TotalPagado.ToString("N2")</h5>
+                    <h5>Falta: @Simbolo@(Math.Max(0, MontoTotal - TotalPagado).ToString("N2"))</h5>
                 </div>
 
             </div>
@@ -106,6 +106,8 @@
     private decimal montoPago;
     private string? codigoVerificacion;
     private List<DetallePagoDTO> pagos = new();
+
+    private string Simbolo => MonedaAlmacen == "USD" ? "$ " : "S/ ";
 
     private TipoPagoVentaDTO? TipoPagoSeleccionado => tiposPago.FirstOrDefault(t => t.IdTipoPagoVenta == idTipoPagoSeleccionado);
 
