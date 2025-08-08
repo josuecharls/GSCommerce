@@ -1,4 +1,5 @@
 ﻿@using GSCommerce.Client.Models
+@inject GSCommerce.Client.Services.TipoPagoVentaService TipoPagoVentaService
 
 <div class="modal fade @(Mostrar ? "show d-block" : "")" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -13,12 +14,11 @@
 
                 <div class="mb-3">
                     <label>Forma de Pago:</label>
-                    <select class="form-select" @bind="pagoSeleccionado">
-                        <option value="EFECTIVO">EFECTIVO</option>
-                        <option value="VISA">VISA</option>
-                        <option value="YAPE">YAPE</option>
-                        <option value="TRANSFERENCIA">TRANSFERENCIA</option>
-                        <option value="NOTA CREDITO">NOTA CREDITO</option>
+                    <select class="form-select" @bind="idTipoPagoSeleccionado">
+                        @foreach (var tp in tiposPago)
+                        {
+                            <option value="@tp.IdTipoPagoVenta">@tp.Descripcion</option>
+                        }
                     </select>
                 </div>
 
@@ -26,21 +26,21 @@
                     <label>Monto:</label>
                     <input type="number" class="form-control" @bind="montoPago" min="0" step="0.01" @onkeydown="HandleMontoKeyDown" />
                 </div>
-                @if (pagoSeleccionado == "EFECTIVO")
+                @if (TipoPagoSeleccionado?.Tipo == "Efectivo")
                 {
                     <div class="mb-3">
                         <label>Vuelto:</label>
                         <input class="form-control" value="@VueltoCalculado.ToString("N2")" readonly />
                     </div>
                 }
-                @if (pagoSeleccionado == "VISA")
+                @if (TipoPagoSeleccionado?.Tipo == "Tarjeta")
                 {
                     <div class="mb-3">
                         <label>4 últimos dígitos de la tarjeta:</label>
                         <input class="form-control" maxlength="4" @bind="codigoVerificacion" />
                     </div>
                 }
-                @if (pagoSeleccionado == "YAPE")
+                @if (TipoPagoSeleccionado?.Descripcion.ToUpper().Contains("YAPE") == true)
                 {
                     <div class="mb-3">
                         <label>3 dígitos de verificación:</label>
@@ -98,26 +98,41 @@
     [Parameter] public decimal MontoTotal { get; set; }
     [Parameter] public EventCallback<List<DetallePagoDTO>> OnConfirmado { get; set; }
     [Parameter] public EventCallback OnCancelado { get; set; }
+    [Parameter] public string MonedaAlmacen { get; set; } = "PEN";
     public bool Mostrar { get; set; }
 
-    private string pagoSeleccionado = "EFECTIVO";
+    private List<TipoPagoVentaDTO> tiposPago = new();
+    private int idTipoPagoSeleccionado;
     private decimal montoPago;
     private string? codigoVerificacion;
     private List<DetallePagoDTO> pagos = new();
 
+    private TipoPagoVentaDTO? TipoPagoSeleccionado => tiposPago.FirstOrDefault(t => t.IdTipoPagoVenta == idTipoPagoSeleccionado);
+
     private decimal TotalPagado => pagos.Sum(p => p.Monto);
     private decimal VueltoCalculado =>
-    pagos.Where(p => p.FormaPago == "EFECTIVO").Sum(p => p.Monto) > MontoTotal
-        ? pagos.Where(p => p.FormaPago == "EFECTIVO").Sum(p => p.Monto) - MontoTotal
-        : 0;
+        pagos.Where(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3).Sum(p => p.Monto) > MontoTotal
+            ? pagos.Where(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3).Sum(p => p.Monto) - MontoTotal
+            : 0;
+
     private bool PuedeConfirmar => TotalPagado >= MontoTotal;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        tiposPago = await TipoPagoVentaService.ObtenerTodosAsync();
+        if (MonedaAlmacen != "USD")
+        {
+            tiposPago = tiposPago.Where(t => t.Descripcion != "Efectivo Dólares").ToList();
+        }
+        idTipoPagoSeleccionado = tiposPago.FirstOrDefault()?.IdTipoPagoVenta ?? 0;
+    }
 
     public void Abrir()
     {
         pagos.Clear();
         montoPago = MontoTotal;
         codigoVerificacion = null;
-        pagoSeleccionado = "EFECTIVO";
+        idTipoPagoSeleccionado = tiposPago.FirstOrDefault()?.IdTipoPagoVenta ?? 0;
         Mostrar = true;
     }
 
@@ -133,13 +148,14 @@
         {
             var nuevoPago = new DetallePagoDTO
             {
-                FormaPago = pagoSeleccionado,
+                FormaPago = TipoPagoSeleccionado?.Descripcion ?? string.Empty,
+                IdTipoPagoVenta = idTipoPagoSeleccionado,
                 Monto = montoPago,
                 CodigoVerificacion = codigoVerificacion,
                 Datos = codigoVerificacion
             };
 
-            if (pagoSeleccionado == "DOLARES")
+            if (idTipoPagoSeleccionado == 3)
             {
                 nuevoPago.Dolares = montoPago;
             }
@@ -152,7 +168,7 @@
 
             montoPago = 0;
             codigoVerificacion = null;
-            pagoSeleccionado = "EFECTIVO";
+            idTipoPagoSeleccionado = tiposPago.FirstOrDefault()?.IdTipoPagoVenta ?? 0;
         }
     }
 
@@ -173,15 +189,15 @@
     {
         // Calculamos el vuelto total antes de enviar los pagos
         var vuelto = VueltoCalculado;
+        var pagoEfectivo = pagos.FirstOrDefault(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3);
 
-        // Si existe un pago en efectivo, asignamos el vuelto a ese registro
-        var pagoEfectivo = pagos.FirstOrDefault(p => p.FormaPago == "EFECTIVO");
         if (pagoEfectivo != null)
         {
             pagoEfectivo.Vuelto = vuelto;
         }
 
         Mostrar = false;
+        await OnConfirmado.InvokeAsync(pagos);
         await OnConfirmado.InvokeAsync(pagos);
     }
 }

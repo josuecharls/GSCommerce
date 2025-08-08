@@ -116,9 +116,16 @@ namespace GSCommerceAPI.Controllers
             {
                 switch (v.Descripcion)
                 {
-                    case "Efectivo": resumen.Efectivo = v.Monto ?? 0; break;
-                    case "Tarjeta": resumen.Tarjeta = v.Monto ?? 0; break;
-                    case "N.C.": resumen.NotaCredito = v.Monto ?? 0; break;
+                    case "Efectivo":
+                        resumen.Efectivo += v.Monto ?? 0;
+                        break;
+                    case "Tarjeta":
+                    case "Yape":
+                        resumen.Tarjeta += v.Monto ?? 0;
+                        break;
+                    case "N.C.":
+                        resumen.NotaCredito += v.Monto ?? 0;
+                        break;
                 }
             }
 

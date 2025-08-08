@@ -145,8 +145,8 @@ else
     </div>
 }
 
-<CobrarModal @ref="cobrarModalRef" MontoTotal="@venta.APagar"
-OnConfirmado="CobroConfirmado"
+<CobrarModal @ref="cobrarModalRef" MontoTotal="@venta.APagar" MonedaAlmacen="@monedaAlmacen"
+             OnConfirmado="CobroConfirmado"
 OnCancelado="CobroCancelado" />
 
 @code {
@@ -489,17 +489,17 @@ OnCancelado="CobroCancelado" />
         }
     }
 
-    private void AbrirCobrar()
+    private async Task AbrirCobrar()
     {
         if (venta.Detalles.Count == 0)
         {
-            JS.InvokeVoidAsync("alert", "⚠️ Debes agregar al menos un producto.");
+            await JS.InvokeVoidAsync("alert", "⚠️ Debes agregar al menos un producto.");
             return;
         }
 
         if (EsFactura && (string.IsNullOrWhiteSpace(venta.DocumentoCliente) || venta.DocumentoCliente.Length != 11))
         {
-            JS.InvokeVoidAsync("alert", "⚠️ El RUC debe tener 11 dígitos.");
+            await JS.InvokeVoidAsync("alert", "⚠️ El RUC debe tener 11 dígitos.");
             return;
         }
 
@@ -573,8 +573,7 @@ OnCancelado="CobroCancelado" />
     {
         pagosRealizados = pagos;
         // Calcular y registrar el vuelto entregado
-        var pagoEfectivo = pagosRealizados.FirstOrDefault(p => p.FormaPago == "EFECTIVO");
-        venta.Vuelto = pagoEfectivo?.Vuelto ?? 0;
+        var pagoEfectivo = pagosRealizados.FirstOrDefault(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3); venta.Vuelto = pagoEfectivo?.Vuelto ?? 0;
         ventaCobrada = true;
         Console.WriteLine("Venta cobrada con éxito");
 /*
@@ -597,7 +596,7 @@ OnCancelado="CobroCancelado" />
             t.Descripcion.ToUpper() == venta.TipoDocumento.ToUpper()
             && (EsCajaManual ? t.Manual : !t.Manual));
 
-        foreach (var pago in pagosRealizados)
+      /*  foreach (var pago in pagosRealizados)
         {
             pago.IdTipoPagoVenta = pago.FormaPago.ToUpper() switch
             {
@@ -612,7 +611,7 @@ OnCancelado="CobroCancelado" />
                 "TRANSFERENCIA" => 10,
                 _ => 2                          // Default a efectivo soles
             };
-        }
+        }*/
 
         if (monedaAlmacen == "USD" && tipoCambioActual > 0)
         {
@@ -720,9 +719,9 @@ OnCancelado="CobroCancelado" />
         string urlQR = $"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={Uri.EscapeDataString(textoQR)}";
 
         decimal descuento = (venta.SubTotal + venta.Igv) - venta.Total;
-        decimal efectivo = venta.Pagos.Where(p => p.FormaPago == "EFECTIVO").Sum(p => p.Monto);
-        decimal tarjeta = venta.Pagos.Where(p => p.FormaPago != "EFECTIVO" && p.FormaPago != "NOTA CREDITO").Sum(p => p.Monto);
-        decimal notaCredito = venta.Pagos.Where(p => p.FormaPago == "NOTA CREDITO").Sum(p => p.Monto);
+        decimal efectivo = venta.Pagos.Where(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3).Sum(p => p.Monto);
+        decimal tarjeta = venta.Pagos.Where(p => p.IdTipoPagoVenta != 2 && p.IdTipoPagoVenta != 3 && p.IdTipoPagoVenta != 8).Sum(p => p.Monto);
+        decimal notaCredito = venta.Pagos.Where(p => p.IdTipoPagoVenta == 8).Sum(p => p.Monto);
 
         var sb = new StringBuilder();
 
@@ -743,7 +742,7 @@ OnCancelado="CobroCancelado" />
         var formasPago = venta.Pagos.Any() ? string.Join(" / ", venta.Pagos.Select(p => p.FormaPago)) : "-";
         sb.AppendLine($"FORMA DE PAGO: {formasPago}");
         sb.AppendLine(Center("================================"));
-        sb.AppendLine("Cant Producto             PU   TOTAL");
+        sb.AppendLine("Cant Producto            PU   TOTAL");
         sb.AppendLine(Center("-----------------------------------"));
 
         foreach (var item in venta.Detalles)
