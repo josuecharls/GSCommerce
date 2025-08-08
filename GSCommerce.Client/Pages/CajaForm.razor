@@ -35,7 +35,15 @@ else
     @if (estadoCaja == "NO APERTURADA")
     {
         <div class="mb-3">
-            <label>Saldo Inicial (último cierre):</label>
+            <label>Saldo Inicial:</label>
+            @if (esPrimeraApertura)
+            {
+                <input type="number" class="form-control" @bind="saldoAnterior" min="0" step="0.01" />
+            }
+            else
+            {
+                <input class="form-control" value="@saldoAnterior.ToString("N2")" disabled />
+            }
             <input class="form-control" value="@saldoAnterior.ToString("N2")" disabled />
         </div>
         <div class="mb-3">
@@ -90,6 +98,7 @@ else
     private int idApertura = 0;
     private int idUsuario;
     private int idAlmacen;
+    private bool esPrimeraApertura = false;
     private decimal saldoAnterior = 0;
     private string mensajeError = string.Empty;
 
@@ -117,7 +126,7 @@ else
 
     private async Task VerificarEstadoCaja()
     {
-        mensajeError = string.Empty;    
+        mensajeError = string.Empty;
         var apertura = await CajaService.ObtenerAperturaAsync(idUsuario, idAlmacen, fechaSeleccionada);
         if (apertura == null)
         {
@@ -141,9 +150,15 @@ else
 
         var anterior = await CajaService.ObtenerAperturaAnteriorAsync(idUsuario, idAlmacen, fechaSeleccionada);
         if (anterior != null && anterior.Estado == "C")
+        {
             saldoAnterior = anterior.SaldoFinal;
+            esPrimeraApertura = false;
+        }
         else
+        {
             saldoAnterior = 0;
+            esPrimeraApertura = true;
+        }
     }
 
     private async Task AperturarCaja()

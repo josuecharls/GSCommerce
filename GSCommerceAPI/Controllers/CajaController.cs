@@ -156,7 +156,7 @@ public class CajaController : ControllerBase
             IdAlmacen = aperturaDto.IdAlmacen,
             Fecha = aperturaDto.Fecha,
             FondoFijo = aperturaDto.FondoFijo,
-            SaldoInicial = ultimaCerrada?.SaldoFinal ?? 0,
+            SaldoInicial = ultimaCerrada != null ? ultimaCerrada.SaldoFinal : aperturaDto.SaldoInicial,
             Estado = aperturaDto.Estado ?? "A",
             ObservacionApertura = aperturaDto.ObservacionApertura,
             ObservacionCierre = null,
@@ -209,7 +209,7 @@ public class CajaController : ControllerBase
 
         actual.Ingresos = cierre.Ingresos;
         actual.Egresos = cierre.Egresos;
-        actual.SaldoFinal = cierre.SaldoFinal;
+        actual.SaldoFinal = actual.FondoFijo + cierre.Ingresos - cierre.Egresos;
         actual.ObservacionCierre = cierre.ObservacionCierre;
         actual.Estado = "C";
 
