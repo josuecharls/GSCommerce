@@ -56,7 +56,7 @@
             var d = orden.Detalles[i];
             <tr>
                 <td>@(i + 1)</td>
-                <td><input class="form-control" @bind="d.IdArticulo" @bind:event="onchange" @onchange:after="async _ => await BuscarArticulo(d)" /></td>
+                <td><input class="form-control" @bind="d.IdArticulo" @bind:event="onchange" @bind:after="async () => await BuscarArticulo(d)" /></td>
                 <td>@d.DescripcionArticulo</td>
                 <td>@d.UnidadMedida</td>
                 <td><input type="number" class="form-control" @bind="d.Cantidad" @oninput="ActualizarTotales" /></td>

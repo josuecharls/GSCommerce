@@ -27,8 +27,8 @@
 <fieldset disabled="@ventaCobrada">
 <div class="mb-3">
     <label>Escanear o Digitar Código:</label>
-    <input @bind="codigoBusqueda" @onkeypress="BuscarAlPresionarEnter" class="form-control" @ref="inputCodigoRef" />
-</div>
+        <input value="@codigoBusqueda" @oninput="DetectarEntradaCodigo" @onkeypress="BuscarAlPresionarEnter" class="form-control" @ref="inputCodigoRef" />
+    </div>
 
 <div class="mb-3">
     <label>Tipo de Documento:</label>
@@ -160,6 +160,8 @@ OnCancelado="CobroCancelado" />
     private CobrarModal? cobrarModalRef;
     private List<DetallePagoDTO> pagosRealizados = new();
     private bool ventaCobrada = false;
+    private DateTime ultimaEntrada = DateTime.MinValue;
+    private bool entradaManual = false;
     //private string? tipoDocumentoSeleccionado;
     private int? idAlmacenActual;
     private int? idUsuarioActual;
@@ -359,105 +361,131 @@ OnCancelado="CobroCancelado" />
     {
         if (e.Key == "Enter")
         {
+            entradaManual = true;
+            await BuscarCodigoAsync();
+        }
+    }
 
-            if (string.IsNullOrWhiteSpace(codigoBusqueda))
+    private async Task DetectarEntradaCodigo(ChangeEventArgs e)
+    {
+        var ahora = DateTime.UtcNow;
+        if (ultimaEntrada != DateTime.MinValue)
+        {
+            if ((ahora - ultimaEntrada).TotalMilliseconds > 100)
+            {
+                entradaManual = true;
+            }
+        }
+        ultimaEntrada = ahora;
+        codigoBusqueda = e.Value?.ToString() ?? string.Empty;
+
+        if (codigoBusqueda.Length >= 6 && !entradaManual)
+        {
+            await BuscarCodigoAsync();
+        }
+    }
+
+    private async Task BuscarCodigoAsync()
+    {
+        if (string.IsNullOrWhiteSpace(codigoBusqueda))
+            return;
+
+        var codigo = codigoBusqueda.Trim().PadLeft(6, '0');
+        codigoBusqueda = string.Empty;
+        ultimaEntrada = DateTime.MinValue;
+        entradaManual = false;
+
+        int stockDisponible = 0;
+        if (idAlmacenActual != null)
+        {
+            stockDisponible = await StockService.GetStockDisponible(codigo, idAlmacenActual.Value);
+            if (stockDisponible <= 0)
+            {
+                await JS.InvokeVoidAsync("alert", "❌ No hay stock disponible para este artículo.");
                 return;
+            }
+        }
 
-            var codigo = codigoBusqueda.Trim().PadLeft(6, '0');
-            codigoBusqueda = string.Empty;
+        var articulo = await articuloService.BuscarPorCodigoAsync(codigo);
+        double descPorc = 0;
+        decimal precioUnitario = 0;
 
-            int stockDisponible = 0;
+        if (articulo != null)
+        {
+            string descripcion = articulo.Descripcion;
             if (idAlmacenActual != null)
             {
-                stockDisponible = await StockService.GetStockDisponible(codigo, idAlmacenActual.Value);
-                if (stockDisponible <= 0)
+                var desc = await DescuentoService.ObtenerDescuento(idAlmacenActual.Value, articulo.IdArticulo);
+                if (desc != null)
                 {
-                    await JS.InvokeVoidAsync("alert", "❌ No hay stock disponible para este artículo.");
-                    return;
-                }
-            }
-
-            var articulo = await articuloService.BuscarPorCodigoAsync(codigo);
-            double descPorc = 0;
-            decimal precioUnitario = 0;
-
-            if (articulo != null)
-            {
-                string descripcion = articulo.Descripcion;
-                if (idAlmacenActual != null)
-                {
-                    var desc = await DescuentoService.ObtenerDescuento(idAlmacenActual.Value, articulo.IdArticulo);
-                    if (desc != null)
-                    {
-                        descPorc = desc.DescuentoPorc;
-                        precioUnitario = (decimal)(desc.PrecioFinal ?? (double)articulo.PrecioVenta);
-                    }
-                    else
-                    {
-                        precioUnitario = articulo.PrecioVenta;
-                    }
+                    descPorc = desc.DescuentoPorc;
+                    precioUnitario = (decimal)(desc.PrecioFinal ?? (double)articulo.PrecioVenta);
                 }
                 else
                 {
                     precioUnitario = articulo.PrecioVenta;
                 }
-                if (monedaAlmacen == "USD" && tipoCambioActual > 0)
-                {
-                    var precioEnDolares = precioUnitario / tipoCambioActual;
-                    var parteDecimal = precioEnDolares - Math.Truncate(precioEnDolares);
-                    if (parteDecimal > 0m && parteDecimal <= 0.5m)
-                        precioEnDolares = Math.Truncate(precioEnDolares) + 0.5m;
-                    else if (parteDecimal > 0.5m)
-                        precioEnDolares = Math.Truncate(precioEnDolares) + 1m;
-                    precioUnitario = Math.Round(precioEnDolares, 2);
-                }
-
-                var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
-                if (variantes.Any())
-                {
-                    var opciones = string.Join("\n", variantes.Select((v, i) => $"{i + 1}) {v.Color} {v.Talla}"));
-                    var resp = await JS.InvokeAsync<string>("prompt", $"Seleccione variante:\n{opciones}", "1");
-                    int idx = 0;
-                    if (!string.IsNullOrWhiteSpace(resp) && int.TryParse(resp, out var sel) && sel > 0 && sel <= variantes.Count)
-                        idx = sel - 1;
-
-                    var vsel = variantes[idx];
-                    descripcion = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {vsel.Color} {vsel.Talla}";
-                }
-
-                var existente = venta.Detalles.FirstOrDefault(d => d.CodigoItem == codigo && d.DescripcionItem == descripcion);
-
-
-                if (existente != null)
-                {
-                    if (existente.Cantidad + 1 > stockDisponible)
-                    {
-                        await JS.InvokeVoidAsync("alert", "❌ Stock insuficiente para este artículo.");
-                        return;
-                    }
-                    existente.Cantidad += 1;
-                    existente.PorcentajeDescuento = (decimal)descPorc;
-                    existente.PrecioUnitario = precioUnitario;
-                }
-                else
-                {
-                    venta.Detalles.Add(new VentaDetalleDTO
-                        {
-                            Item = venta.Detalles.Count + 1,
-                            CodigoItem = articulo.IdArticulo,
-                            DescripcionItem = descripcion,
-                            Cantidad = 1,
-                            PrecioUnitario = precioUnitario,
-                            PorcentajeDescuento = (decimal)descPorc
-                        });
-                }
-
-                RecalcularTotales();
             }
             else
             {
-                await JS.InvokeVoidAsync("alert", "Artículo no encontrado.");
+                precioUnitario = articulo.PrecioVenta;
             }
+            if (monedaAlmacen == "USD" && tipoCambioActual > 0)
+            {
+                var precioEnDolares = precioUnitario / tipoCambioActual;
+                var parteDecimal = precioEnDolares - Math.Truncate(precioEnDolares);
+                if (parteDecimal > 0m && parteDecimal <= 0.5m)
+                    precioEnDolares = Math.Truncate(precioEnDolares) + 0.5m;
+                else if (parteDecimal > 0.5m)
+                    precioEnDolares = Math.Truncate(precioEnDolares) + 1m;
+                precioUnitario = Math.Round(precioEnDolares, 2);
+            }
+
+            var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
+            if (variantes.Any())
+            {
+                var opciones = string.Join("\n", variantes.Select((v, i) => $"{i + 1}) {v.Color} {v.Talla}"));
+                var resp = await JS.InvokeAsync<string>("prompt", $"Seleccione variante:\n{opciones}", "1");
+                int idx = 0;
+                if (!string.IsNullOrWhiteSpace(resp) && int.TryParse(resp, out var sel) && sel > 0 && sel <= variantes.Count)
+                    idx = sel - 1;
+
+                var vsel = variantes[idx];
+                descripcion = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {vsel.Color} {vsel.Talla}";
+            }
+
+            var existente = venta.Detalles.FirstOrDefault(d => d.CodigoItem == codigo && d.DescripcionItem == descripcion);
+
+
+            if (existente != null)
+            {
+                if (existente.Cantidad + 1 > stockDisponible)
+                {
+                    await JS.InvokeVoidAsync("alert", "❌ Stock insuficiente para este artículo.");
+                    return;
+                }
+                existente.Cantidad += 1;
+                existente.PorcentajeDescuento = (decimal)descPorc;
+                existente.PrecioUnitario = precioUnitario;
+            }
+            else
+            {
+                venta.Detalles.Add(new VentaDetalleDTO
+                    {
+                        Item = venta.Detalles.Count + 1,
+                        CodigoItem = articulo.IdArticulo,
+                        DescripcionItem = descripcion,
+                        Cantidad = 1,
+                        PrecioUnitario = precioUnitario,
+                        PorcentajeDescuento = (decimal)descPorc
+                    });
+            }
+
+            RecalcularTotales();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "Artículo no encontrado.");
         }
     }
 
