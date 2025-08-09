@@ -67,7 +67,10 @@ public class ArqueoCajaDocument : IDocument
                     {
                         table.Cell().Text(item.Grupo);
                         table.Cell().Text(item.Detalle);
-                        table.Cell().AlignRight().Text($"{item.Monto:N2}");
+                        table.Cell().AlignRight().Text(
+                            item.Monto < 0
+                                ? $"({Math.Abs(item.Monto):N2})"
+                                : $"{item.Monto:N2}");
                     }
                 });
 
@@ -79,6 +82,7 @@ public class ArqueoCajaDocument : IDocument
                     table.ColumnsDefinition(c =>
                     {
                         c.RelativeColumn();
+                        c.ConstantColumn(1);
                         c.RelativeColumn();
                     });
 
@@ -113,6 +117,9 @@ public class ArqueoCajaDocument : IDocument
                         });
                     });
 
+                    // Línea de separación
+                    table.Cell().Element(e => e.ExtendVertical().AlignCenter().Width(1).LineVertical(1));
+
                     // Egresos
                     table.Cell().Column(col =>
                     {
@@ -136,7 +143,7 @@ public class ArqueoCajaDocument : IDocument
                     table.Cell().PaddingVertical(5).Element(element => element.LineHorizontal(1));
                 });
 
-                column.Item().Table(table =>
+                column.Item().Border(1).Padding(5).Table(table =>
                 {
                     table.ColumnsDefinition(c =>
                     {
@@ -144,8 +151,6 @@ public class ArqueoCajaDocument : IDocument
                         c.ConstantColumn(100);
                     });
 
-                    table.Cell().Text(" ");
-                    table.Cell().Text(" ");
                     table.Cell().Text("Saldo de caja (S/)").Bold();
                     table.Cell().AlignRight().Text(_dto.SaldoFinal.ToString("N2"));
                     table.Cell().Text("Fondo fijo (S/)").Bold();
