@@ -6,9 +6,16 @@
 @using GSCommerce.Client.Services
 @inject UsuarioService UsuarioService
 @inject AuthService AuthService
+@inject AlmacenService AlmacenService
 @inject IJSRuntime JS
 
 <h3>Lista de Cajeros</h3>
+<select class="form-select w-auto mb-3" @onchange="OnAlmacenChanged">
+    @foreach (var a in almacenes)
+    {
+        <option value="@a.IdAlmacen">@a.Nombre</option>
+    }
+</select>
 
 <table class="table table-striped">
     <thead>
@@ -75,13 +82,17 @@
 @code {
     private List<UsuarioDTO> cajeros = new();
     private bool mostrarModal;
+    private List<AlmacenDTO> almacenes = new();
     private GenerarCredencialesRequest credenciales = new();
     private int idAlmacen;
 
     protected override async Task OnInitializedAsync()
     {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
         idAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
-        cajeros = await UsuarioService.ObjetenerCajerosConUserAsync(idAlmacen);
+        if (idAlmacen == 0 && almacenes.Any())
+            idAlmacen = almacenes[0].IdAlmacen;
+        await CargarCajeros();
     }
 
     private void AbrirModal(UsuarioDTO cajero)
@@ -107,7 +118,21 @@
             await JS.InvokeVoidAsync("alert", "✅ Credenciales generadas.");
         else
             await JS.InvokeVoidAsync("alert", "❌ Error al generar credenciales.");
-        cajeros = await UsuarioService.ObjetenerCajerosConUserAsync(idAlmacen);
+        await CargarCajeros();
         CerrarModal();
+    }
+
+    private async Task OnAlmacenChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            idAlmacen = id;
+            await CargarCajeros();
+        }
+    }
+
+    private async Task CargarCajeros()
+    {
+        cajeros = await UsuarioService.ObjetenerCajerosConUserAsync(idAlmacen);
     }
 }

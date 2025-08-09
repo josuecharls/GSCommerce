@@ -74,6 +74,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("list")]
+        [Authorize]
         public async Task<IActionResult> ListarVentas([FromQuery] int? idAlmacen, [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
         {
             var inicio = desde ?? DateTime.Today;
@@ -87,9 +88,7 @@ namespace GSCommerceAPI.Controllers
             if (cargo == "ADMINISTRADOR")
             {
                 if (idAlmacen.HasValue && idAlmacen.Value > 0)
-                {
                     query = query.Where(v => v.IdAlmacen == idAlmacen.Value);
-                }
             }
             else
             {
@@ -97,11 +96,14 @@ namespace GSCommerceAPI.Controllers
                 if (int.TryParse(userIdClaim, out var userId))
                 {
                     var userAlmacen = await _context.Usuarios
-                        .Where(u => u.IdUsuario == userId)
-                        .Select(u => u.IdPersonalNavigation.IdAlmacen)
+                        .Where(u => u.IdUsuario == userId && u.IdPersonalNavigation != null)
+                        .Select(u => (int?)u.IdPersonalNavigation.IdAlmacen)
                         .FirstOrDefaultAsync();
 
-                    query = query.Where(v => v.IdAlmacen == userAlmacen);
+                    if (userAlmacen.HasValue)
+                        query = query.Where(v => v.IdAlmacen == userAlmacen.Value);
+                    else
+                        return Ok(new List<VentaConsultaDTO>());
                 }
             }
 
@@ -123,6 +125,21 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToListAsync();
 
+            var ids = ventas.Select(v => v.IdComprobante).ToList();
+
+            var pagos = await _context.VDetallePagoVenta1s
+                .Where(p => ids.Contains(p.IdComprobante))
+                .GroupBy(p => p.IdComprobante)
+                .ToDictionaryAsync(g => g.Key, g => string.Join(", ", g.Select(p => p.Descripcion)));
+
+            foreach (var venta in ventas)
+            {
+                if (pagos.TryGetValue(venta.IdComprobante, out var forma))
+                {
+                    venta.FormaPago = forma;
+                }
+            }
+
             return Ok(ventas);
         }
 
@@ -139,16 +156,21 @@ namespace GSCommerceAPI.Controllers
 
             foreach (var v in ventas)
             {
-                switch (v.Descripcion?.ToLowerInvariant())
+                var descripcion = (v.Descripcion ?? string.Empty)
+                    .Split(' ')[0]
+                    .ToLowerInvariant();
+
+                switch (descripcion)
                 {
-                    case "Efectivo":
+                    case "efectivo":
                         resumen.Efectivo += v.Monto ?? 0;
                         break;
-                    case "Tarjeta":
-                    case "Online":
+                    case "tarjeta":
+                    case "online":
                         resumen.Tarjeta += v.Monto ?? 0;
                         break;
-                    case "N.C":
+                    case "n.c":
+                    case "n.c.":
                         resumen.NotaCredito += v.Monto ?? 0;
                         break;
                 }
