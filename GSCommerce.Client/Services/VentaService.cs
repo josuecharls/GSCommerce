@@ -62,17 +62,16 @@ namespace GSCommerce.Client.Services
             return response ?? new();
         }
 
-        public async Task<List<VentaConsultaDTO>> ObtenerVentasAsync(DateTime desde, DateTime hasta)
+        public async Task<List<VentaConsultaDTO>> ObtenerVentasAsync(DateTime desde, DateTime hasta, int? idAlmacen = null)
         {
             try
             {
-                int? idAlmacen = await _authService.GetUserAlmacenId();
-                if (idAlmacen == null)
+                string url = $"api/ventas/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+                if (idAlmacen.HasValue)
                 {
-                    return new();
+                    url += $"&idAlmacen={idAlmacen.Value}";
                 }
 
-                string url = $"api/ventas/list?idAlmacen={idAlmacen}&desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
                 var response = await _httpClient.GetFromJsonAsync<List<VentaConsultaDTO>>(url);
                 return response ?? new();
             }
@@ -83,7 +82,7 @@ namespace GSCommerce.Client.Services
             }
         }
 
-        
+
         public async Task<bool> RegistrarYEnviarVentaAsync(VentaRegistroDTO venta)
         {
             var response = await _httpClient.PostAsJsonAsync("api/ventas", venta);

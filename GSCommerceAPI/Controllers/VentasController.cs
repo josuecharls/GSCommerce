@@ -74,13 +74,38 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("list")]
-        public async Task<IActionResult> ListarVentas([FromQuery] int idAlmacen, [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
+        public async Task<IActionResult> ListarVentas([FromQuery] int? idAlmacen, [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
         {
             var inicio = desde ?? DateTime.Today;
             var fin = hasta ?? DateTime.Today;
 
-            var ventas = await _context.VVenta1s
-                .Where(v => v.Fecha.Date >= inicio.Date && v.Fecha.Date <= fin.Date && v.IdAlmacen == idAlmacen)
+            var query = _context.VVenta1s
+                .Where(v => v.Fecha.Date >= inicio.Date && v.Fecha.Date <= fin.Date);
+
+            var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+
+            if (cargo == "ADMINISTRADOR")
+            {
+                if (idAlmacen.HasValue && idAlmacen.Value > 0)
+                {
+                    query = query.Where(v => v.IdAlmacen == idAlmacen.Value);
+                }
+            }
+            else
+            {
+                var userIdClaim = User.FindFirst("userId")?.Value;
+                if (int.TryParse(userIdClaim, out var userId))
+                {
+                    var userAlmacen = await _context.Usuarios
+                        .Where(u => u.IdUsuario == userId)
+                        .Select(u => u.IdPersonalNavigation.IdAlmacen)
+                        .FirstOrDefaultAsync();
+
+                    query = query.Where(v => v.IdAlmacen == userAlmacen);
+                }
+            }
+
+            var ventas = await query
                 .Select(v => new VentaConsultaDTO
                 {
                     IdComprobante = v.IdComprobante,
@@ -623,7 +648,7 @@ namespace GSCommerceAPI.Controllers
                                     join t in _context.TipoDocumentoVenta on c.IdTipoDocumento equals t.IdTipoDocumentoVenta
                                     where c.IdAlmacen == idAlmacen
                                           && c.Fecha.Date == fecha.Date
-                                          && (f == null || f.EnviadoSunat == false || f.EnviadoSunat == null)
+                                          && (f == null || f.EnviadoSunat == false || f.EnviadoSunat == null || f.Estado == false)
                                     select new
                                     {
                                         IdFe = f != null ? f.IdFe : 0,
@@ -668,7 +693,7 @@ namespace GSCommerceAPI.Controllers
                                     where c.IdAlmacen == idAlmacen
                                           && c.Fecha.Date == fecha.Date
                                           && (c.IdTipoDocumento == 1 || c.IdTipoDocumento == 5)
-                                          && (f == null || f.EnviadoSunat == false || f.EnviadoSunat == null)
+                                          && (f == null || f.EnviadoSunat == false || f.EnviadoSunat == null || f.Estado == false)
                                     select c.IdComprobante)
                                    .ToListAsync();
 

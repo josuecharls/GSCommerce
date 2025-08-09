@@ -188,7 +188,7 @@ namespace GSCommerceAPI.Services.SUNAT
 
             comprobante.Hash = hash;
             comprobante.Xml = string.IsNullOrWhiteSpace(xml) ? null : xml;
-            comprobante.EnviadoSunat = true;
+            comprobante.EnviadoSunat = exito;
             comprobante.FechaEnvio = DateTime.Now;
             comprobante.TicketSunat = ticket;
             comprobante.RespuestaSunat = respuestaSunat;
@@ -567,7 +567,7 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("</ext:UBLExtensions>");
 
             sb.AppendLine("<cbc:UBLVersionID>2.1</cbc:UBLVersionID>");
-            sb.AppendLine("<cbc:CustomizationID>1.0</cbc:CustomizationID>");
+            sb.AppendLine("<cbc:CustomizationID>2.0</cbc:CustomizationID>");
             var fechaReferencia = comprobantes.First().FechaEmision;
             sb.AppendLine($"<cbc:ID>RC-{fechaReferencia:yyyyMMdd}-{correlativoResumen:000}</cbc:ID>");
             sb.AppendLine($"<cbc:ReferenceDate>{fechaReferencia:yyyy-MM-dd}</cbc:ReferenceDate>");

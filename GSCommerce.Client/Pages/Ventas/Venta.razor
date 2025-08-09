@@ -2,20 +2,35 @@
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject VentaService ventaService
+@inject AuthService AuthService
+@inject AlmacenService AlmacenService
 @inject IJSRuntime JS
 
 <h3>Ventas Registradas</h3>
 
 <div class="row mb-3">
-    <div class="col-md-4">
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col-md-3">
+            <label>Almacén:</label>
+            <select class="form-control" @bind="selectedAlmacen">
+                <option value="0">General</option>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+    }
+    <div class="@(cargo == "ADMINISTRADOR" ? "col-md-3" : "col-md-4")">
         <label>Desde:</label>
         <input type="date" class="form-control" @bind-value="desde" @bind-value:event="oninput" />
     </div>
-    <div class="col-md-4">
+    <div class="@(cargo == "ADMINISTRADOR" ? "col-md-3" : "col-md-4")">
         <label>Hasta:</label>
         <input type="date" class="form-control" @bind-value="hasta" @bind-value:event="oninput" />
     </div>
-    <div class="col-md-4 d-flex align-items-end">
+    <div class="@(cargo == "ADMINISTRADOR" ? "col-md-3" : "col-md-4") d-flex align-items-end">
         <button class="btn btn-primary w-100" @onclick="BuscarVentas">Buscar</button>
     </div>
 </div>
@@ -75,17 +90,37 @@
     private List<VentaConsultaDTO> ventas = new();
     private DateTime desde = DateTime.Today;
     private DateTime hasta = DateTime.Today;
+    private string cargo = string.Empty;
+    private List<AlmacenDTO> almacenes = new();
+    private int selectedAlmacen;
     private VentaConsultaDTO? ventaSeleccionada;
     private bool mostrarMenuContextual = false;
     private string estiloMenu = "";
 
     private async Task BuscarVentas()
     {
-        ventas = await ventaService.ObtenerVentasAsync(desde, hasta);
+        int? filtro = cargo == "ADMINISTRADOR" && selectedAlmacen == 0 ? (int?)null : selectedAlmacen;
+        ventas = await ventaService.ObtenerVentasAsync(desde, hasta, filtro);
     }
+
 
     protected override async Task OnInitializedAsync()
     {
+        cargo = await AuthService.GetUserCargo() ?? string.Empty;
+        if (cargo == "ADMINISTRADOR")
+        {
+            var lista = await AlmacenService.GetAlmacenes();
+            if (lista != null)
+            {
+                almacenes = lista;
+            }
+            selectedAlmacen = 0;
+        }
+        else
+        {
+            selectedAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
+        }
+
         await BuscarVentas(); // Cargar ventas del día por defecto
     }
 
