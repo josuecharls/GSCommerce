@@ -114,16 +114,16 @@ namespace GSCommerceAPI.Controllers
 
             foreach (var v in ventas)
             {
-                switch (v.Descripcion)
+                switch (v.Descripcion?.ToLowerInvariant())
                 {
                     case "Efectivo":
                         resumen.Efectivo += v.Monto ?? 0;
                         break;
                     case "Tarjeta":
-                    case "Yape":
+                    case "Online":
                         resumen.Tarjeta += v.Monto ?? 0;
                         break;
-                    case "N.C.":
+                    case "N.C":
                         resumen.NotaCredito += v.Monto ?? 0;
                         break;
                 }

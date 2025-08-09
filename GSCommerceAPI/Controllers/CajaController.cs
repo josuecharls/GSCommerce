@@ -281,9 +281,21 @@ public class CajaController : ControllerBase
             .OrderBy(r => r.IdGrupo)
             .ToListAsync();
 
-        decimal MontoPorGrupo(string nombre) =>
-            resumen.Where(r => r.Grupo.Equals(nombre, StringComparison.OrdinalIgnoreCase))
-                    .Sum(r => r.Monto);
+        decimal MontoPorGrupo(params string[] nombres) =>
+            resumen
+                .Where(r => nombres.Any(n => r.Grupo.Equals(n, StringComparison.OrdinalIgnoreCase)))
+                .Sum(r => r.Monto);
+
+        var ventaTarjeta = MontoPorGrupo("Venta con tarjeta", "VENTA TARJETA/ONLINE");
+        var ventaNC = MontoPorGrupo("Venta con N.C.", "VENTA POR N.C.");
+        var otrosIngresos = MontoPorGrupo("Otros ingresos");
+        var gastosDia = MontoPorGrupo("Gastos del día");
+        var transferenciasDia = MontoPorGrupo("Transferencias del día");
+        var pagosProveedores = MontoPorGrupo("Pagos a proveedores");
+        var ventasDelDia = MontoPorGrupo("VENTA DIARIA");
+
+        var ventaEfectivo = ventasDelDia - ventaTarjeta - ventaNC;
+        var saldoFinal = apertura.SaldoInicial + ventaEfectivo + otrosIngresos - gastosDia - transferenciasDia - pagosProveedores;
 
         // Mapear al DTO
         var dto = new ArqueoCajaDTO
@@ -298,16 +310,16 @@ public class CajaController : ControllerBase
             Ingresos = apertura.Ingresos,
             Egresos = apertura.Egresos,
             VentaDia = apertura.VentaDia,
-            SaldoFinal = apertura.SaldoFinal,
+            SaldoFinal = saldoFinal,
             FondoFijo = apertura.FondoFijo,
             SaldoDiaAnterior = apertura.SaldoInicial,
-            VentasDelDia = apertura.VentaDia,
-            OtrosIngresos = MontoPorGrupo("Otros ingresos"),
-            VentaTarjeta = MontoPorGrupo("Venta con tarjeta"),
-            VentaNC = MontoPorGrupo("Venta con N.C."),
-            GastosDia = MontoPorGrupo("Gastos del día"),
-            TransferenciasDia = MontoPorGrupo("Transferencias del día"),
-            PagosProveedores = MontoPorGrupo("Pagos a proveedores"),
+            VentasDelDia = ventasDelDia,
+            OtrosIngresos = otrosIngresos,
+            VentaTarjeta = ventaTarjeta,
+            VentaNC = ventaNC,
+            GastosDia = gastosDia,
+            TransferenciasDia = transferenciasDia,
+            PagosProveedores = pagosProveedores,
             ObservacionCierre = apertura.ObservacionCierre,
             Resumen = resumen.Select(r => new ResumenCierreDeCaja
             {

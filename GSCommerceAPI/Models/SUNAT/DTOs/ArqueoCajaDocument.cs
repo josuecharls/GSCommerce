@@ -1,5 +1,6 @@
 ﻿using GSCommerceAPI.Models.DTOs;
 using GSCommerceAPI.Models.SUNAT.DTOs; // Ajusta si está en otro namespace
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -132,6 +133,7 @@ public class ArqueoCajaDocument : IDocument
                             r.ConstantItem(80).AlignRight().Text(_dto.PagosProveedores.ToString("N2"));
                         });
                     });
+                    table.Cell().PaddingVertical(5).Element(element => element.LineHorizontal(1));
                 });
 
                 column.Item().Table(table =>
