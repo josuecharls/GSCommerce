@@ -1,0 +1,327 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using BusinessLayer;
+using DataAccess;
+
+namespace WinFrontEnd
+{
+    public partial class FormListadoAperturaCierreDeCaja : Form
+    {
+        AperturaCierreCajaClass AperturaCierre = new AperturaCierreCajaClass();
+        List<v_ListadoAperturaCierre_1> ListadoAperturaCierre = new List<v_ListadoAperturaCierre_1>();
+        AlmacenClass ListaAlmacenes = new AlmacenClass();
+
+        DateTime Fecha;
+
+        decimal SaldoInicial;
+        decimal VentaDia;
+        decimal Ingresos;
+        decimal Egresos;
+        decimal SaldoFinal;
+
+        int _Almacen;
+        int LineaVerDetalle;
+
+        public FormListadoAperturaCierreDeCaja()
+        {
+            InitializeComponent();
+        }
+
+        private void TotalesGroupBox_Enter(object sender, EventArgs e)
+        {
+
+        }
+
+        private void SalirButton_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void FormListadoAperturaCierreDeCaja_Load(object sender, EventArgs e)
+        {
+            Fecha = VariablesPublicas._FechaHoy;
+
+            FechaMonthCalendar.SetDate(Fecha);
+
+            AlmacenComboBox.Enabled = false;
+
+            _Almacen = 0;
+
+            LlenarCombos();
+
+            //LlenaGrilla();
+        }
+
+        private void LlenaGrilla()
+        {
+            ListadoAperturaCierre.Clear();
+
+            ListadoAperturaCierre = AperturaCierre.ListadoAperturaCierre(_Almacen, Fecha);
+
+            ResumenBindingSource.DataSource = ListadoAperturaCierre;
+
+            ResumenBindingSource.ResetBindings(false);
+
+            CalculaTotales();
+
+            if (ListadoAperturaCierre.Count > 0)
+                LineaVerDetalle = 0;
+
+        }
+
+        private void LlenarCombos()
+        {
+
+            AlmacenComboBox.DisplayMember = "Nombre";
+            AlmacenComboBox.ValueMember = "IdAlmacen";
+            AlmacenComboBox.DataSource = ListaAlmacenes.ObtenerListaActivos();
+
+        }
+
+        private void CalculaTotales()
+        {
+            SaldoInicial = 0;
+            VentaDia = 0;
+            Ingresos = 0;
+            Egresos = 0;
+            SaldoFinal = 0;
+
+            if (ListadoAperturaCierre.Count > 0)
+            {
+
+                foreach (v_ListadoAperturaCierre_1 Linea in ListadoAperturaCierre)
+                {
+
+                    SaldoInicial = SaldoInicial + Linea.SaldoInicial;
+                    VentaDia = VentaDia + Linea.VentaDia;
+                    Ingresos = Ingresos + Linea.Ingresos;
+                    Egresos = Egresos + Linea.Egresos;
+                    SaldoFinal = SaldoFinal + Linea.SaldoFinal;
+
+                }
+
+            }
+
+            SaldoInicialLabel.Text = SaldoInicial.ToString("N2");
+            VentaDiaLabel.Text = VentaDia.ToString("N2");
+            IngresosLabel.Text = Ingresos.ToString("N2");
+            EgresosLabel.Text = (-1 * Egresos).ToString("N2");
+            SaldoFinalLabel.Text = SaldoFinal.ToString("N2");
+
+        }
+
+        private void AlmacenComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (AlmacenComboBox.Enabled)
+            {
+                _Almacen = int.Parse(AlmacenComboBox.SelectedValue.ToString());
+            }
+            else
+            {
+                _Almacen = 0;
+            }
+
+            LlenaGrilla();
+        }
+
+        private void AlmacenCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (AlmacenCheckBox.Checked == true)
+            {
+                AlmacenComboBox.Enabled = true;
+                _Almacen = int.Parse(AlmacenComboBox.SelectedValue.ToString());
+            }
+            else
+            {
+                AlmacenComboBox.Enabled = false;
+                _Almacen = 0;
+            }
+
+            LlenaGrilla();
+        }
+
+        private void GrillaDataGridView_CellMouseUp(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.RowIndex != -1 & e.ColumnIndex != -1)
+            { 
+                LineaVerDetalle = e.RowIndex;
+
+                if (e.Button == MouseButtons.Right)
+                {
+                    GrillaDataGridView.Rows[e.RowIndex].Selected = true;
+                    GrillaDataGridView.CurrentCell = GrillaDataGridView[e.ColumnIndex, e.RowIndex];
+                    MenuContextMenuStrip.Show(GrillaDataGridView, e.Location);
+                    MenuContextMenuStrip.Show(Cursor.Position);
+                }
+            }
+        }
+
+        private void FechaMonthCalendar_DateSelected(object sender, DateRangeEventArgs e)
+        {
+
+            Fecha = FechaMonthCalendar.SelectionStart;
+
+            LlenaGrilla();
+
+        }
+
+        private void ImprimirButton_Click(object sender, EventArgs e)
+        {
+            if (GrillaDataGridView.RowCount > 0)
+            {
+                if (LineaVerDetalle >= 0)
+                {
+                    if (ListadoAperturaCierre[LineaVerDetalle].Estado == "C")
+                    {
+                        List<usp_get_ResumenCierreDeCajaDetallado_Result> ListaDetallada = new List<usp_get_ResumenCierreDeCajaDetallado_Result>();
+                        List<usp_get_ResumenCierreDeCajaResumido_Result> ListaResumida = new List<usp_get_ResumenCierreDeCajaResumido_Result>();
+
+                        ListaDetallada = AperturaCierre.ResumenCierreDeCajaDetallado(ListadoAperturaCierre[LineaVerDetalle].IdUsuario, ListadoAperturaCierre[LineaVerDetalle].IdAlmacen, ListadoAperturaCierre[LineaVerDetalle].Fecha);
+                        ListaResumida = AperturaCierre.ResumenCierreDeCajaResumido(ListadoAperturaCierre[LineaVerDetalle].IdUsuario, ListadoAperturaCierre[LineaVerDetalle].IdAlmacen, ListadoAperturaCierre[LineaVerDetalle].Fecha);
+
+                        SGVDataSet.ResumenCierreDeCajaDetalladoDataTable dtd = new SGVDataSet.ResumenCierreDeCajaDetalladoDataTable();
+
+                        foreach (usp_get_ResumenCierreDeCajaDetallado_Result linea in ListaDetallada)
+                        {
+                            SGVDataSet.ResumenCierreDeCajaDetalladoRow drd = dtd.NewResumenCierreDeCajaDetalladoRow();
+
+                            drd.Tipo = linea.Tipo;
+                            drd.Detalle = linea.Detalle;
+                            drd.Total = decimal.Parse(linea.Total.ToString());
+
+                            dtd.Rows.Add(drd);
+                        }
+
+                        DataSet ds = new DataSet();
+
+                        ds.Tables.Add(dtd);
+
+                        Reportes.CierreDeCajaCrystalReport rpt = new Reportes.CierreDeCajaCrystalReport();
+                        rpt.SetDataSource(ds);
+
+                        Almacen Alma = ListaAlmacenes.ObtenerAlmacenXID(ListadoAperturaCierre[LineaVerDetalle].IdAlmacen);
+
+                        rpt.SetParameterValue("RazonSocial", Alma.RazonSocial);
+                        rpt.SetParameterValue("Almacen", Alma.Nombre);
+                        rpt.SetParameterValue("Fecha", ListadoAperturaCierre[LineaVerDetalle].Fecha);
+                        rpt.SetParameterValue("Cajero", ListadoAperturaCierre[LineaVerDetalle].Cajero);
+
+                        rpt.SetParameterValue("SaldoDiaAnterior", 0);
+                        rpt.SetParameterValue("VentasDia", 0);
+                        rpt.SetParameterValue("OtrosIngresos", 0);
+                        rpt.SetParameterValue("GastosDia", 0);
+                        rpt.SetParameterValue("TransferenciasDia", 0);
+                        rpt.SetParameterValue("VentaTarjeta", 0);
+                        rpt.SetParameterValue("VentaNC", 0);
+                        rpt.SetParameterValue("PagoProveedores", 0);
+                        rpt.SetParameterValue("SaldoFinal", 0);
+                        rpt.SetParameterValue("FondoFijo", 0);
+
+                        foreach (usp_get_ResumenCierreDeCajaResumido_Result linea in ListaResumida)
+                        {
+                            switch (linea.IdGrupo)
+                            {
+                                case 1:
+                                    rpt.SetParameterValue("SaldoDiaAnterior", linea.Total);
+                                    break;
+                                case 2:
+                                    rpt.SetParameterValue("VentasDia", linea.Total);
+                                    break;
+                                case 3:
+                                    rpt.SetParameterValue("OtrosIngresos", linea.Total);
+                                    break;
+                                case 4:
+                                    rpt.SetParameterValue("GastosDia", linea.Total);
+                                    break;
+                                case 5:
+                                    rpt.SetParameterValue("TransferenciasDia", linea.Total);
+                                    break;
+                                case 6:
+                                    rpt.SetParameterValue("VentaTarjeta", linea.Total);
+                                    break;
+                                case 7:
+                                    rpt.SetParameterValue("VentaNC", linea.Total);
+                                    break;
+                                case 8:
+                                    rpt.SetParameterValue("PagoProveedores", linea.Total);
+                                    break;
+                                case 9:
+                                    rpt.SetParameterValue("SaldoFinal", linea.Total);
+                                    break;
+                                case 10:
+                                    rpt.SetParameterValue("FondoFijo", linea.Total);
+                                    break;
+                            }
+                        }
+
+                        //this.Cursor = Cursors.WaitCursor;
+                        //rpt.PrintToPrinter(1, true, 0, 0);
+                        //this.Cursor = Cursors.Default;
+
+                        FormReportes Contenedor = new FormReportes(rpt);
+                        Contenedor.Show();
+                    }
+                    else
+                    {
+                        MessageBox.Show("¡La caja debe estar cerrada para poder visualizar el reporte!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("¡Seleccione un fila!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                }
+            }
+        }
+
+        private void DesliquidarStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+            if (LineaVerDetalle != -1)
+            {
+                if (VariablesPublicas._Cargo == "ADMINISTRADOR")
+                {
+                    if (ListadoAperturaCierre[LineaVerDetalle].Estado != "A")
+                    {
+                        DialogResult result;
+
+                        result = MessageBox.Show("¿Desea DESLIQUIDAR la caja del Cajero " + ListadoAperturaCierre[LineaVerDetalle].Cajero + " en el Almacén " + ListadoAperturaCierre[LineaVerDetalle].Nombre + " para el día " + ListadoAperturaCierre[LineaVerDetalle].Fecha.ToShortDateString() + "?", "S.G.V.", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                        if (result == System.Windows.Forms.DialogResult.Yes)
+                        {
+
+                            string men = AperturaCierre.DesliquidarCaja(ListadoAperturaCierre[LineaVerDetalle].IdAlmacen, ListadoAperturaCierre[LineaVerDetalle].IdUsuario, ListadoAperturaCierre[LineaVerDetalle].Fecha);
+                            switch (men)
+                            {
+                                case "OK":
+                                    LlenaGrilla();
+                                    MessageBox.Show("¡Se ha desliquidado la caja seleccionada a la fecha: " + ListadoAperturaCierre[LineaVerDetalle].Fecha.ToShortDateString() + "!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                    break;
+                                default:
+                                    MessageBox.Show("¡Ha ocurrido un error, contactar a Soporte Técnico!: " + men, "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                                    break;
+                            }
+
+                        }
+
+                    }
+                    else
+                    {
+                        MessageBox.Show("¡Caja Aperturada para la fecha seleccionada, selecciona otra fecha!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("¡Usted no está autorizado para realizar esta acción, contactar con Central!", "S.G.V.", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                }
+            }
+
+        }
+    }
+}
