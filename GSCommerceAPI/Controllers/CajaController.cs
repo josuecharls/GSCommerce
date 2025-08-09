@@ -217,6 +217,30 @@ public class CajaController : ControllerBase
         return Ok();
     }
 
+    // 9. Listado de aperturas y cierres de caja
+    [HttpGet("listado")]
+    public async Task<IActionResult> ListadoAperturasCierres([FromQuery] string? fechaInicio, [FromQuery] string? fechaFin, [FromQuery] int? idAlmacen)
+    {
+        var query = _context.VListadoAperturaCierre1s.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(fechaInicio) && DateOnly.TryParse(fechaInicio, out var fi))
+            query = query.Where(x => x.Fecha >= fi);
+
+        if (!string.IsNullOrWhiteSpace(fechaFin) && DateOnly.TryParse(fechaFin, out var ff))
+            query = query.Where(x => x.Fecha <= ff);
+
+        if (idAlmacen.HasValue && idAlmacen.Value > 0)
+            query = query.Where(x => x.IdAlmacen == idAlmacen.Value);
+
+        var listado = await query
+            .OrderByDescending(x => x.Fecha)
+            .ThenBy(x => x.IdAlmacen)
+            .ThenBy(x => x.IdUsuario)
+            .ToListAsync();
+
+        return Ok(listado);
+    }
+
     [HttpGet("ventas/{idAlmacen}/{fecha}")]
     public async Task<ActionResult<IEnumerable<VCierreVentaDiaria1>>> GetVentasDiarias(int idAlmacen, string fecha)
     {
@@ -261,7 +285,7 @@ public class CajaController : ControllerBase
         await _context.SaveChangesAsync();
         return Ok();
     }
-
+    // 10. Generar PDF de arqueo de caja
     [HttpGet("arqueo-pdf/{id}")]
     public async Task<IActionResult> GenerarArqueoPDF(int id)
     {

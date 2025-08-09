@@ -1,0 +1,133 @@
+﻿@page "/caja/listado"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject CajaService CajaService
+@inject AlmacenService AlmacenService
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<h3>Listado de Aperturas y Cierres de Caja</h3>
+
+<div class="row mb-3">
+    <div class="col-md-3">
+        <label>Desde:</label>
+        <InputDate @bind-Value="fechaInicio" class="form-control" />
+    </div>
+    <div class="col-md-3">
+        <label>Hasta:</label>
+        <InputDate @bind-Value="fechaFin" class="form-control" />
+    </div>
+    <div class="col-md-3">
+        <label>Almacén:</label>
+        <select class="form-control" @bind="idAlmacen">
+            <option value="0">Todos</option>
+            @foreach (var alm in almacenes)
+            {
+                <option value="@alm.IdAlmacen">@alm.Nombre</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary" @onclick="CargarListado">Buscar</button>
+    </div>
+</div>
+
+@if (listado == null || listado.Count == 0)
+{
+    <p><em>No se encontraron registros.</em></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Almacén</th>
+                <th>Cajero</th>
+                <th>Saldo Inicial</th>
+                <th>Venta Día</th>
+                <th>Ingresos</th>
+                <th>Egresos</th>
+                <th>Saldo Final</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in listado)
+            {
+                <tr>
+                    <td>@item.Fecha.ToString("yyyy-MM-dd")</td>
+                    <td>@item.Nombre</td>
+                    <td>@item.Cajero</td>
+                    <td>@item.SaldoInicial.ToString("N2")</td>
+                    <td>@item.VentaDia.ToString("N2")</td>
+                    <td>@item.Ingresos.ToString("N2")</td>
+                    <td>@item.Egresos.ToString("N2")</td>
+                    <td>@item.SaldoFinal.ToString("N2")</td>
+                    <td>@item.Estado</td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => Descargar(item.IdAperturaCierre)">
+                            <i class="bi bi-download"></i>
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="3">Totales</th>
+                <th>@totalSaldoInicial.ToString("N2")</th>
+                <th>@totalVentaDia.ToString("N2")</th>
+                <th>@totalIngresos.ToString("N2")</th>
+                <th>@totalEgresos.ToString("N2")</th>
+                <th>@totalSaldoFinal.ToString("N2")</th>
+                <th colspan="2"></th>
+            </tr>
+        </tfoot>
+    </table>
+}
+
+@code {
+    private List<VListadoAperturaCierre1DTO> listado = new();
+    private List<AlmacenDTO> almacenes = new();
+    private int idAlmacen = 0;
+
+    private DateOnly fechaInicio = DateOnly.FromDateTime(DateTime.Today);
+    private DateOnly fechaFin = DateOnly.FromDateTime(DateTime.Today);
+
+    private decimal totalSaldoInicial, totalVentaDia, totalIngresos, totalEgresos, totalSaldoFinal;
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        await CargarListado();
+    }
+
+    private async Task CargarListado()
+    {
+        listado = await CajaService.ListadoAperturasCierresAsync(
+            fechaInicio,
+            fechaFin,
+            idAlmacen == 0 ? null : idAlmacen
+        ) ?? new();
+
+        CalcularTotales();
+    }
+
+    private void CalcularTotales()
+    {
+        totalSaldoInicial = listado.Sum(x => x.SaldoInicial);
+        totalVentaDia = listado.Sum(x => x.VentaDia);
+        totalIngresos = listado.Sum(x => x.Ingresos);
+        totalEgresos = listado.Sum(x => x.Egresos);
+        totalSaldoFinal = listado.Sum(x => x.SaldoFinal);
+    }
+
+    private async Task Descargar(int id)
+    {
+        var url = $"{Http.BaseAddress}api/caja/arqueo-pdf/{id}";
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+}

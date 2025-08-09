@@ -178,5 +178,18 @@ namespace GSCommerce.Client.Services
             }
             return response.IsSuccessStatusCode;
         }
+
+        // Listado de aperturas y cierres
+        public async Task<List<VListadoAperturaCierre1DTO>?> ListadoAperturasCierresAsync(DateOnly? fechaInicio, DateOnly? fechaFin, int? idAlmacen)
+        {
+            var url = "api/caja/listado";
+            var parametros = new List<string>();
+            if (fechaInicio.HasValue) parametros.Add($"fechaInicio={fechaInicio:yyyy-MM-dd}");
+            if (fechaFin.HasValue) parametros.Add($"fechaFin={fechaFin:yyyy-MM-dd}");
+            if (idAlmacen.HasValue) parametros.Add($"idAlmacen={idAlmacen}");
+            if (parametros.Count > 0) url += "?" + string.Join("&", parametros);
+
+            return await _http.GetFromJsonAsync<List<VListadoAperturaCierre1DTO>>(url);
+        }
     }
 }
