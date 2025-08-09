@@ -4,6 +4,7 @@
 @using GSCommerce.Client.Models.DTOs.Reportes
 @using GSCommerce.Client.Services
 @using System.Text
+@using System.Linq
 @inject ArticuloService ArticuloService
 @inject ReporteService ReporteService
 @inject IJSRuntime JS
@@ -15,15 +16,27 @@
         <label>Mes:</label>
         <InputDate @bind-Value="fechaSeleccionada" class="form-control" />
     </div>
-    <div class="col-md-4">
+    <div class="col-md-4 position-relative">
         <label>Artículo:</label>
-        <select class="form-select" @bind="idArticuloSeleccionado">
-            <option value="">-- Seleccione --</option>
-            @foreach (var art in articulos)
-            {
-                <option value="@art.IdArticulo">@art.Descripcion</option>
-            }
-        </select>
+        <div class="input-group">
+            <input type="text" class="form-control" placeholder="Buscar por nombre o código..." @bind="searchTerm" />
+            <button class="btn btn-primary" @onclick="BuscarArticulo">🔍</button>
+        </div>
+        @if (resultadosBusqueda.Any())
+        {
+            <ul class="list-group position-absolute w-100" style="z-index:1000;">
+                @foreach (var art in resultadosBusqueda)
+                {
+                    <li class="list-group-item list-group-item-action" @onclick="() => SeleccionarArticulo(art)">
+                        @art.IdArticulo - @art.Descripcion
+                    </li>
+                }
+            </ul>
+        }
+        @if (articuloSeleccionado != null)
+        {
+            <div class="mt-2"><strong>Seleccionado:</strong> @articuloSeleccionado.Descripcion</div>
+        }
     </div>
     <div class="col-md-4 d-flex align-items-end">
         <button class="btn btn-success w-100" @onclick="ExportarReportePDF">📄 Generar PDF</button>
@@ -38,13 +51,10 @@
 @code {
     private DateTime fechaSeleccionada = DateTime.Today;
     private string? idArticuloSeleccionado;
-    private List<ArticuloDTO> articulos = new();
+    private string searchTerm = string.Empty;
+    private List<ArticuloDTO> resultadosBusqueda = new();
+    private ArticuloDTO? articuloSeleccionado;
     private string mensaje = string.Empty;
-
-    protected override async Task OnInitializedAsync()
-    {
-        articulos = await ArticuloService.ObtenerTodos();
-    }
 
     private async Task ExportarReportePDF()
     {
@@ -69,6 +79,33 @@
 
         var html = GenerarHtmlPDF_Articulo(reporte);
         await JS.InvokeVoidAsync("generarPDFDesdeHTML", html, "Reporte_Ventas_Articulo.pdf");
+    }
+
+    private async Task BuscarArticulo()
+    {
+        resultadosBusqueda.Clear();
+        articuloSeleccionado = null;
+
+        if (string.IsNullOrWhiteSpace(searchTerm))
+            return;
+
+        var artCodigo = await ArticuloService.BuscarPorCodigoAsync(searchTerm);
+        if (artCodigo != null)
+        {
+            resultadosBusqueda.Add(artCodigo);
+            return;
+        }
+
+        var resp = await ArticuloService.GetArticulos(1, 10, searchTerm);
+        resultadosBusqueda = resp.Data;
+    }
+
+    private void SeleccionarArticulo(ArticuloDTO art)
+    {
+        idArticuloSeleccionado = art.IdArticulo;
+        articuloSeleccionado = art;
+        searchTerm = $"{art.IdArticulo} - {art.Descripcion}";
+        resultadosBusqueda.Clear();
     }
 
     private string GenerarHtmlPDF_Articulo(ReporteArticuloDTO articulo)

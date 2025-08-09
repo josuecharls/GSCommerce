@@ -1,4 +1,6 @@
 ﻿@page "/resumen-sunat"
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
+@using Microsoft.AspNetCore.Authorization
 @using GSCommerce.Client.Models.SUNAT
 @using GSCommerce.Client.Services
 @inject ResumenSunatService ResumenService

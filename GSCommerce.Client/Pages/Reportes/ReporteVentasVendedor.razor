@@ -32,7 +32,6 @@
             <tr>
                 <th>Vendedor</th>
                 <th>Total Ventas</th>
-                <th>Total Clientes</th>
                 <th>Monto Total</th>
                 <th>Ticket Promedio</th>
             </tr>
@@ -43,9 +42,8 @@
                 <tr>
                     <td>@r.NombreVendedor</td>
                     <td>@r.TotalVentas</td>
-                    <td>@r.TotalClientes</td>
-                    <td>S/ @r.MontoTotal:N2</td>
-                    <td>S/ @r.TicketPromedio:N2</td>
+                    <td>S/ @(r.MontoTotal.ToString("N2"))</td>
+                    <td>S/ @(r.TicketPromedio.ToString("N2"))</td>
                 </tr>
             }
         </tbody>

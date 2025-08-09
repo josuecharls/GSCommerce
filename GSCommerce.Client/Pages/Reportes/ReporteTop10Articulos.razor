@@ -39,7 +39,7 @@
                     <td>@item.r.Codigo</td>
                     <td>@item.r.Descripcion</td>
                     <td>@item.r.TotalUnidadesVendidas</td>
-                    <td>S/ @item.r.TotalImporte:N2</td>
+                    <td>S/ @(item.r.TotalImporte.ToString("N2"))</td>
                 </tr>
             }
         </tbody>

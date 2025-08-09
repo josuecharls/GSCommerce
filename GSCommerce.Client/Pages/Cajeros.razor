@@ -1,5 +1,7 @@
 ﻿<h3>Cajeros</h3>
 @page "/cajeros"
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
+@using Microsoft.AspNetCore.Authorization
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject UsuarioService UsuarioService

@@ -209,8 +209,7 @@ public class CajaController : ControllerBase
 
         actual.Ingresos = cierre.Ingresos;
         actual.Egresos = cierre.Egresos;
-        actual.SaldoFinal = actual.FondoFijo + cierre.Ingresos - cierre.Egresos;
-        actual.ObservacionCierre = cierre.ObservacionCierre;
+        actual.SaldoFinal = actual.SaldoInicial + actual.VentaDia + actual.Ingresos - actual.Egresos; actual.ObservacionCierre = cierre.ObservacionCierre;
         actual.Estado = "C";
 
         await _context.SaveChangesAsync();

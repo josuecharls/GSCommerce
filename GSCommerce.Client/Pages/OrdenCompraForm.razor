@@ -1,4 +1,6 @@
 ﻿@page "/ordenes-compra/nuevo"
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
+@using Microsoft.AspNetCore.Authorization
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using System.Linq

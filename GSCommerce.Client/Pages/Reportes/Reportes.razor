@@ -5,6 +5,7 @@
 
 <h3 class="mb-4 fw-bold text-uppercase">Reportes</h3>
 <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+    @*
     <div class="col">
         <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteVentasVendedor">
             <div class="card-body d-flex flex-column align-items-center justify-content-center">
@@ -12,7 +13,7 @@
                 <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Ventas por Vendedor</h5>
             </div>
         </div>
-    </div>
+    </div>*@
     <div class="col">
         <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteVentasDetalladas">
             <div class="card-body d-flex flex-column align-items-center justify-content-center">
@@ -37,6 +38,7 @@
             </div>
         </div>
     </div>
+    @*
     @if (cargo == "CAJERO" || cargo == "ADMINISTRADOR")
     {
         <div class="col">
@@ -47,15 +49,18 @@
                 </div>
             </div>
         </div>
-    }
-    <div class="col">
-        <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteTOPten">
+    }*@
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col">
+            <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteTOPten">
             <div class="card-body d-flex flex-column align-items-center justify-content-center">
                 <i class="bi bi-receipt-cutoff" style="font-size: 3rem; color: #6c757d;"></i>
-                <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Reporte TOP TEN</h5>
+                <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">TOP 10 ARTICULOS VENDIDOS</h5>
             </div>
         </div>
     </div>
+    }
 </div>
 
 

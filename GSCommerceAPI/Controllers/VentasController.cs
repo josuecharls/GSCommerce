@@ -513,9 +513,22 @@ namespace GSCommerceAPI.Controllers
             return correlativo + 1;
         }
 
+        [Authorize]
         [HttpGet("reporte-ranking-vendedoras")]
         public async Task<IActionResult> ReporteRankingVendedoras([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta, [FromQuery] int? idAlmacen, [FromQuery] bool porAlmacen = false)
         {
+            var cargo = User.FindFirst("Cargo")?.Value;
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (cargo == "CAJERO" && int.TryParse(userIdClaim, out var userId))
+            {
+                idAlmacen = await _context.Usuarios
+                    .Include(u => u.IdPersonalNavigation)
+                    .Where(u => u.IdUsuario == userId)
+                    .Select(u => u.IdPersonalNavigation.IdAlmacen)
+                    .FirstOrDefaultAsync();
+                porAlmacen = true;
+            }
+
             var inicio = desde ?? DateTime.Today;
             var fin = hasta ?? DateTime.Today;
 

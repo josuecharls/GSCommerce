@@ -1,5 +1,7 @@
 ﻿@page "/guias-form/{tipo}"
 @page "/guias-form/{tipo}/{idOC:int?}"
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
+@using Microsoft.AspNetCore.Authorization
 @inject NavigationManager Navigation
 @inject MovimientoGuiaService MovimientoGuiaService
 @inject AlmacenService AlmacenService

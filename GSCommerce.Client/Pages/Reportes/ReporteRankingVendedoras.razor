@@ -5,6 +5,7 @@
 @using GSCommerce.Client.Services
 @inject ReporteService ReporteService
 @inject AlmacenService AlmacenService
+@inject AuthService AuthService
 
 <ReportsBreadcrumb Title="Ranking de Vendedoras" />
 
@@ -22,17 +23,32 @@
     </div>
 </div>
 <div class="row mb-3">
-    <div class="col-md-4">
-        <label><input type="radio" value="false" @onchange="e => porAlmacen = false" checked="@(!porAlmacen)" /> Global</label>
-        <label class="ms-3"><input type="radio" value="true" @onchange="e => porAlmacen = true" checked="@(porAlmacen)" /> Por Almacén</label>
-        <select class="form-select mt-1" @bind="idAlmacenSeleccionado" disabled="@(porAlmacen == false)">
-            <option value="0">-- Seleccionar almacén --</option>
-            @foreach (var a in almacenes)
-            {
-                <option value="@a.IdAlmacen">@a.Nombre</option>
-            }
-        </select>
-    </div>
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col-md-4">
+            <label><input type="radio" value="false" @onchange="e => porAlmacen = false" checked="@(!porAlmacen)" /> Global</label>
+            <label class="ms-3"><input type="radio" value="true" @onchange="e => porAlmacen = true" checked="@(porAlmacen)" /> Por Almacén</label>
+            <select class="form-select mt-1" @bind="idAlmacenSeleccionado" disabled="@(porAlmacen == false)">
+                <option value="0">-- Seleccionar almacén --</option>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+    }
+    else if (cargo == "CAJERO")
+    {
+        <div class="col-md-4">
+            <label>Almacén:</label>
+            <select class="form-select mt-1" @bind="idAlmacenSeleccionado" disabled>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+    }
 </div>
 @if (ranking.Any())
 {
@@ -42,7 +58,6 @@
                 <th>#</th>
                 <th>Vendedora</th>
                 <th>Ventas Realizadas</th>
-                <th>Total Clientes</th>
                 <th>Monto Total</th>
             </tr>
         </thead>
@@ -53,7 +68,6 @@
                     <td>@(item.i + 1)</td>
                     <td>@item.r.Vendedora</td>
                     <td>@item.r.VentasRealizadas</td>
-                    <td>@item.r.TotalClientes</td>
                     <td>S/ @item.r.TotalVentas.ToString("N2")</td>
                 </tr>
             }
@@ -72,10 +86,22 @@ else
     private int idAlmacenSeleccionado;
     private bool porAlmacen = false;
     private DateTime hasta = DateTime.Today;
+    private string? cargo;
+    private int? idAlmacenUsuario;
 
     protected override async Task OnInitializedAsync()
     {
         almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        cargo = await AuthService.GetUserCargo();
+        idAlmacenUsuario = await AuthService.GetUserAlmacenId();
+
+        if (cargo == "CAJERO")
+        {
+            porAlmacen = true;
+            idAlmacenSeleccionado = idAlmacenUsuario ?? 0;
+            almacenes = almacenes.Where(a => a.IdAlmacen == idAlmacenSeleccionado).ToList();
+        }
+
         await BuscarRanking();
     }
 

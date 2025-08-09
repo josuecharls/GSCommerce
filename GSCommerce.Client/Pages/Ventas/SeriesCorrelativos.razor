@@ -1,4 +1,6 @@
 ﻿@page "/series-correlativos"
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
+@using Microsoft.AspNetCore.Authorization
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject AlmacenService AlmacenService

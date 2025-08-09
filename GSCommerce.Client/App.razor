@@ -6,7 +6,14 @@
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                 <NotAuthorized>
-                    <RedirectToLogin />
+                    @if (authenticationState?.User.Identity?.IsAuthenticated ?? false)
+                    {
+                        <p class="text-danger text-center mt-5">SE REPORTÓ AL ADMINISTRADOR EL INGRESO A UNA PAGINA RESTRINGIDA</p>
+                    }
+                    else
+                    {
+                        <RedirectToLogin />
+                    }
                 </NotAuthorized>
                 <Authorizing>
                     <p class="text-center mt-5">⏳ Restaurando sesión...</p>
