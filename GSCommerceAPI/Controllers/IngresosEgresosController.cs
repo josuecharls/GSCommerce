@@ -16,6 +16,7 @@ namespace GSCommerceAPI.Controllers
     public class IngresosEgresosController : ControllerBase
     {
         private readonly SyscharlesContext _context;
+        private const int MaxImageSize = 5 * 1024 * 1024;
 
         public IngresosEgresosController(SyscharlesContext context)
         {
@@ -42,7 +43,10 @@ namespace GSCommerceAPI.Controllers
                 query = query.Where(q => q.Fecha <= fechaFin.Value);
 
             if (!string.IsNullOrEmpty(naturaleza))
-                query = query.Where(q => q.Naturaleza == naturaleza);
+            {
+                var nat = naturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase) ? "I" : "E";
+                query = query.Where(q => q.Naturaleza == nat);
+            }
 
             var result = await query
                 .OrderByDescending(q => q.Fecha)
@@ -62,7 +66,7 @@ namespace GSCommerceAPI.Controllers
             {
                 IdUsuario = dto.IdUsuario,
                 IdAlmacen = dto.IdAlmacen,
-                Naturaleza = dto.Naturaleza,
+                Naturaleza = dto.Naturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase) ? "I" : "E",
                 Tipo = dto.Tipo,
                 Fecha = dto.Fecha,
                 Glosa = dto.Glosa,
@@ -79,6 +83,21 @@ namespace GSCommerceAPI.Controllers
 
             foreach (var det in dto.Detalles)
             {
+                byte[]? imagen = null;
+                if (!string.IsNullOrEmpty(det.ImagenBase64))
+                {
+                    try
+                    {
+                        imagen = Convert.FromBase64String(det.ImagenBase64);
+                    }
+                    catch (FormatException)
+                    {
+                        return BadRequest("Imagen en formato Base64 inválido.");
+                    }
+                    if (imagen.Length > MaxImageSize)
+                        return BadRequest("La imagen excede el tamaño máximo permitido (5 MB).");
+                }
+
                 var detalle = new IngresosEgresosDetalle
                 {
                     IdIngresoEgreso = cabecera.IdIngresoEgreso,
@@ -87,7 +106,7 @@ namespace GSCommerceAPI.Controllers
                     Monto = det.Monto,
                     Banco = det.Banco,
                     Cuenta = det.Cuenta,
-                    Imagen = string.IsNullOrEmpty(det.ImagenBase64) ? null : Convert.FromBase64String(det.ImagenBase64)
+                    Imagen = imagen
                 };
                 _context.IngresosEgresosDetalles.Add(detalle);
             }
@@ -100,7 +119,7 @@ namespace GSCommerceAPI.Controllers
                                           a.Fecha == DateOnly.FromDateTime(dto.Fecha));
             if (apertura != null)
             {
-                if (dto.Naturaleza.Equals("Ingreso", StringComparison.OrdinalIgnoreCase))
+                if (cabecera.Naturaleza == "I")
                     apertura.Ingresos += dto.Monto;
                 else
                     apertura.Egresos += dto.Monto;

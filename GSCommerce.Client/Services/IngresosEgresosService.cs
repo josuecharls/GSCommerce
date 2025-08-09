@@ -19,7 +19,11 @@ public class IngresosEgresosService
         if (idUsuario.HasValue) query.Add($"idUsuario={idUsuario}");
         if (fechaInicio.HasValue) query.Add($"fechaInicio={fechaInicio:yyyy-MM-dd}");
         if (fechaFin.HasValue) query.Add($"fechaFin={fechaFin:yyyy-MM-dd}");
-        if (!string.IsNullOrWhiteSpace(naturaleza)) query.Add($"naturaleza={naturaleza}");
+        if (!string.IsNullOrWhiteSpace(naturaleza))
+        {
+            var nat = naturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase) ? "I" : "E";
+            query.Add($"naturaleza={nat}");
+        }
         var url = "api/IngresosEgresos";
         if (query.Count > 0) url += "?" + string.Join("&", query);
         var data = await _httpClient.GetFromJsonAsync<List<IngresoEgresoDTO>>(url);
@@ -28,7 +32,8 @@ public class IngresosEgresosService
 
     public async Task<bool> Registrar(IngresoEgresoRegistroDTO dto)
     {
-        var response = await _httpClient.PostAsJsonAsync("api/IngresosEgresos", dto);
+        dto.Naturaleza = dto.Naturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase) ? "I" : "E";
+        var response = await _httpClient.PostAsJsonAsync("IngresosEgresos", dto);
         return response.IsSuccessStatusCode;
     }
 }

@@ -1,4 +1,4 @@
-﻿@page "/ingreso-egreso-form"
+﻿﻿@page "/ingreso-egreso-form"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using Microsoft.AspNetCore.Components
@@ -7,7 +7,7 @@
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
-<h3>Registrar @registro.Naturaleza</h3>
+<h3>Registrar @tituloNaturaleza</h3>
 
 <EditForm Model="registro" OnValidSubmit="Guardar">
     <DataAnnotationsValidator />
@@ -56,18 +56,21 @@
 
     private int idUsuario;
     private int idAlmacen;
+    private string tituloNaturaleza = "Egreso";
 
     protected override async Task OnInitializedAsync()
     {
         idUsuario = await AuthService.GetUserId() ?? 0;
         idAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
-        registro.Naturaleza = naturaleza ?? "Egreso";
+        tituloNaturaleza = naturaleza ?? "Egreso";
+        registro.Naturaleza = tituloNaturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase) ? "I" : "E";
         registro.Fecha = DateTime.Now;
     }
 
     private async Task OnFileChange(InputFileChangeEventArgs e)
     {
         var file = e.File;
+        if (file.Size > 5_000_000) return;
         using var stream = file.OpenReadStream(5_000_000);
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
@@ -83,12 +86,12 @@
         var ok = await IngresosEgresosService.Registrar(registro);
         if (ok)
         {
-            Navigation.NavigateTo($"/ingresos-egresos?naturaleza={registro.Naturaleza}");
+            Navigation.NavigateTo($"/ingresos-egresos?naturaleza={tituloNaturaleza}");
         }
     }
 
     private void Volver()
     {
-        Navigation.NavigateTo($"/ingresos-egresos?naturaleza={registro.Naturaleza}");
+        Navigation.NavigateTo($"/ingresos-egresos?naturaleza={tituloNaturaleza}");
     }
 }

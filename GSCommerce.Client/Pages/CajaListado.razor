@@ -65,7 +65,7 @@ else
                     <td>@item.VentaDia.ToString("N2")</td>
                     <td>@item.Ingresos.ToString("N2")</td>
                     <td>@item.Egresos.ToString("N2")</td>
-                    <td>@item.SaldoFinal.ToString("N2")</td>
+                    <td>@((item.SaldoInicial + item.VentaDia + item.Ingresos - item.Egresos).ToString("N2"))</td>
                     <td>@item.Estado</td>
                     <td>
                         <button class="btn btn-sm btn-secondary" @onclick="() => Descargar(item.IdAperturaCierre)">
@@ -122,7 +122,7 @@ else
         totalVentaDia = listado.Sum(x => x.VentaDia);
         totalIngresos = listado.Sum(x => x.Ingresos);
         totalEgresos = listado.Sum(x => x.Egresos);
-        totalSaldoFinal = listado.Sum(x => x.SaldoFinal);
+        totalSaldoFinal = listado.Sum(x => x.SaldoInicial + x.VentaDia + x.Ingresos - x.Egresos);
     }
 
     private async Task Descargar(int id)
