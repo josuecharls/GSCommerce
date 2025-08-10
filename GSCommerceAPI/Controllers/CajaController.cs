@@ -8,6 +8,7 @@ using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
+using System.Collections.Generic;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -276,16 +277,115 @@ public class CajaController : ControllerBase
     [HttpPost("liquidar")]
     public async Task<IActionResult> LiquidarCaja([FromBody] LiquidacionVentaDTO liquidacion)
     {
-        var resumenes = liquidacion.Resumenes
-            .GroupBy(r => new
+        var apertura = await _context.AperturaCierreCajas
+            .FirstOrDefaultAsync(x => x.IdAperturaCierre == liquidacion.IdAperturaCierre);
+
+        if (apertura == null) return NotFound("No se encontró la apertura.");
+
+        var resumenes = new List<ResumenCierreDeCaja>();
+
+        // 1. Ventas por tipo de documento (Boleta, Factura, Ticket)
+        var ventas = await _context.ComprobanteDeVentaCabeceras
+            .Include(c => c.IdTipoDocumentoNavigation)
+            .Where(c => c.IdCajero == apertura.IdUsuario &&
+                        c.IdAlmacen == apertura.IdAlmacen &&
+                        DateOnly.FromDateTime(c.Fecha) == apertura.Fecha &&
+                        c.Estado != "A")
+            .Select(c => new
             {
-                r.IdUsuario,
-                r.IdAlmacen,
-                r.Fecha,
-                r.IdGrupo,
-                r.Grupo,
-                Detalle = (r.Detalle ?? string.Empty).Trim()
+                Tipo = c.IdTipoDocumentoNavigation.Descripcion.ToUpper(),
+                c.Serie,
+                c.Numero,
+                Monto = c.Apagar ?? 0
             })
+            .ToListAsync();
+
+        var ventasAgrupadas = ventas
+            .GroupBy(v => v.Tipo)
+            .Select(g => new
+            {
+                Tipo = g.Key,
+                Min = g.Min(v => $"{v.Serie}-{v.Numero:D8}"),
+                Max = g.Max(v => $"{v.Serie}-{v.Numero:D8}"),
+                Total = g.Sum(v => v.Monto)
+            });
+
+        foreach (var v in ventasAgrupadas)
+        {
+            string? grupo = null;
+            if (v.Tipo.Contains("BOLETA")) grupo = "VENTA BOLETAS";
+            else if (v.Tipo.Contains("FACTURA")) grupo = "VENTA FACTURA";
+            else if (v.Tipo.Contains("TICKET")) grupo = "VENTA TICKET";
+
+            if (grupo != null)
+            {
+                resumenes.Add(new ResumenCierreDeCaja
+                {
+                    IdUsuario = apertura.IdUsuario,
+                    IdAlmacen = apertura.IdAlmacen,
+                    Fecha = apertura.Fecha,
+                    IdGrupo = 2,
+                    Grupo = grupo,
+                    Detalle = $"DESDE {v.Min} - HASTA {v.Max}",
+                    Monto = v.Total,
+                    FechaRegistro = DateTime.Now
+                });
+            }
+        }
+
+        // 2. Movimientos de ingresos y egresos
+        var movimientos = await _context.IngresosEgresosCabeceras
+            .Where(m => m.IdUsuario == apertura.IdUsuario &&
+                        m.IdAlmacen == apertura.IdAlmacen &&
+                        DateOnly.FromDateTime(m.Fecha) == apertura.Fecha &&
+                        m.Estado == "E")
+            .Select(m => new
+            {
+                m.Naturaleza,
+                m.Tipo,
+                m.Glosa,
+                m.Monto
+            })
+            .ToListAsync();
+
+        foreach (var m in movimientos)
+        {
+            var idGrupo = m.Naturaleza == "I" ? 3 : 5;
+            resumenes.Add(new ResumenCierreDeCaja
+            {
+                IdUsuario = apertura.IdUsuario,
+                IdAlmacen = apertura.IdAlmacen,
+                Fecha = apertura.Fecha,
+                IdGrupo = idGrupo,
+                Grupo = m.Tipo,
+                Detalle = m.Glosa,
+                Monto = m.Monto,
+                FechaRegistro = DateTime.Now
+            });
+        }
+
+        // 3. Resumen adicional (tarjeta, NC) recibido desde la petición
+        if (liquidacion.Resumenes != null)
+        {
+            var adicionales = liquidacion.Resumenes
+                .Where(r => r.IdGrupo == 6 || r.IdGrupo == 7)
+                .Select(r => new ResumenCierreDeCaja
+                {
+                    IdUsuario = apertura.IdUsuario,
+                    IdAlmacen = apertura.IdAlmacen,
+                    Fecha = apertura.Fecha,
+                    IdGrupo = r.IdGrupo,
+                    Grupo = r.Grupo,
+                    Detalle = (r.Detalle ?? string.Empty).Trim(),
+                    Monto = r.Monto,
+                    FechaRegistro = DateTime.Now
+                });
+            resumenes.AddRange(adicionales);
+        }
+
+        // Consolidar por grupo y detalle
+        resumenes = resumenes
+            .GroupBy(r => new { r.IdUsuario, r.IdAlmacen, r.Fecha, r.IdGrupo, r.Grupo, r.Detalle })
             .Select(g => new ResumenCierreDeCaja
             {
                 IdUsuario = g.Key.IdUsuario,
@@ -299,11 +399,6 @@ public class CajaController : ControllerBase
             }).ToList();
 
         _context.ResumenCierreDeCajas.AddRange(resumenes);
-
-        var apertura = await _context.AperturaCierreCajas
-            .FirstOrDefaultAsync(x => x.IdAperturaCierre == liquidacion.IdAperturaCierre);
-
-        if (apertura == null) return NotFound("No se encontró la apertura.");
 
         apertura.VentaDia = liquidacion.Total;
         apertura.Estado = "L";
@@ -333,16 +428,16 @@ public class CajaController : ControllerBase
 
         decimal MontoPorGrupo(params string[] nombres) =>
             resumen
-                .Where(r => nombres.Any(n => r.Grupo.Equals(n, StringComparison.OrdinalIgnoreCase)))
+                .Where(r => nombres.Any(n => r.Grupo.StartsWith(n, StringComparison.OrdinalIgnoreCase)))
                 .Sum(r => r.Monto);
 
-        var ventaTarjeta = MontoPorGrupo("Venta con tarjeta", "VENTA TARJETA/ONLINE");
-        var ventaNC = MontoPorGrupo("Venta con N.C.", "VENTA POR N.C.");
-        var otrosIngresos = MontoPorGrupo("Otros ingresos");
-        var gastosDia = MontoPorGrupo("Gastos del día");
-        var transferenciasDia = MontoPorGrupo("Transferencias del día");
-        var pagosProveedores = MontoPorGrupo("Pagos a proveedores");
-        var ventasDelDia = MontoPorGrupo("VENTA DIARIA");
+        var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
+        var ventaNC = MontoPorGrupo("VENTA POR N.C.");
+        var otrosIngresos = resumen.Where(r => r.IdGrupo == 3).Sum(r => r.Monto);
+        var gastosDia = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("GASTO", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
+        var transferenciasDia = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
+        var pagosProveedores = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("PAGO", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
+        var ventasDelDia = MontoPorGrupo("VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET");
 
         var ventaEfectivo = ventasDelDia - ventaTarjeta - ventaNC;
         var saldoFinal = apertura.SaldoInicial + ventaEfectivo + otrosIngresos - gastosDia - transferenciasDia - pagosProveedores;
@@ -374,11 +469,7 @@ public class CajaController : ControllerBase
             Resumen = resumen.Select(r => new ResumenCierreDeCaja
             {
                 Grupo = r.Grupo,
-                Detalle = r.Grupo.StartsWith("Venta con boleta", StringComparison.OrdinalIgnoreCase)
-                    ? (r.Detalle.Trim().StartsWith("DEL", StringComparison.OrdinalIgnoreCase)
-                        ? r.Detalle.ToUpperInvariant()
-                        : $"DEL {r.Detalle}".ToUpperInvariant())
-                    : r.Detalle,
+                Detalle = r.Detalle,
                 Monto = r.Monto
             }).ToList()
         };

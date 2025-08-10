@@ -76,7 +76,7 @@ namespace GSCommerceAPI.Controllers
                 IdCajeroDestino = dto.IdCajeroDestino,
                 IdAlmacenGasto = dto.IdAlmacenGasto,
                 FechaRegistro = DateTime.Now,
-                Estado = "A"
+                Estado = "1"
             };
 
             _context.IngresosEgresosCabeceras.Add(cabecera);
