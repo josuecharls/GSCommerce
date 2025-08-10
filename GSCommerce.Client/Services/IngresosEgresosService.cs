@@ -33,7 +33,7 @@ public class IngresosEgresosService
     public async Task<bool> Registrar(IngresoEgresoRegistroDTO dto)
     {
         dto.Naturaleza = dto.Naturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase) ? "I" : "E";
-        var response = await _httpClient.PostAsJsonAsync("IngresosEgresos", dto);
+        var response = await _httpClient.PostAsJsonAsync("api/IngresosEgresos", dto);
         return response.IsSuccessStatusCode;
     }
 }
