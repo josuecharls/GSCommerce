@@ -207,9 +207,26 @@ public class CajaController : ControllerBase
         /*if (cierre.SaldoFinal == 0)
             return BadRequest("Saldo final no puede ser 0.");*/
 
-        actual.Ingresos = cierre.Ingresos;
-        actual.Egresos = cierre.Egresos;
-        actual.SaldoFinal = actual.SaldoInicial + actual.VentaDia + actual.Ingresos - actual.Egresos; actual.ObservacionCierre = cierre.ObservacionCierre;
+        var ingresos = await _context.IngresosEgresosCabeceras
+            .Where(i => i.IdUsuario == actual.IdUsuario &&
+                        i.IdAlmacen == actual.IdAlmacen &&
+                        DateOnly.FromDateTime(i.Fecha) == actual.Fecha &&
+                        i.Naturaleza == "I" &&
+                        i.Estado == "E")
+            .SumAsync(i => (decimal?)i.Monto) ?? 0;
+
+        var egresos = await _context.IngresosEgresosCabeceras
+            .Where(i => i.IdUsuario == actual.IdUsuario &&
+                        i.IdAlmacen == actual.IdAlmacen &&
+                        DateOnly.FromDateTime(i.Fecha) == actual.Fecha &&
+                        i.Naturaleza == "E" &&
+                        i.Estado == "E")
+            .SumAsync(i => (decimal?)i.Monto) ?? 0;
+
+        actual.Ingresos = ingresos;
+        actual.Egresos = egresos;
+        actual.SaldoFinal = actual.SaldoInicial + actual.VentaDia + ingresos - egresos;
+        actual.ObservacionCierre = cierre.ObservacionCierre;
         actual.Estado = "C";
 
         await _context.SaveChangesAsync();
@@ -259,17 +276,27 @@ public class CajaController : ControllerBase
     [HttpPost("liquidar")]
     public async Task<IActionResult> LiquidarCaja([FromBody] LiquidacionVentaDTO liquidacion)
     {
-        var resumenes = liquidacion.Resumenes.Select(r => new ResumenCierreDeCaja
-        {
-            IdUsuario = r.IdUsuario,
-            IdAlmacen = r.IdAlmacen,
-            Fecha = r.Fecha,
-            IdGrupo = r.IdGrupo,
-            Grupo = r.Grupo,
-            Detalle = r.Detalle,
-            Monto = r.Monto,
-            FechaRegistro = r.FechaRegistro ?? DateTime.Now
-        }).ToList();
+        var resumenes = liquidacion.Resumenes
+            .GroupBy(r => new
+            {
+                r.IdUsuario,
+                r.IdAlmacen,
+                r.Fecha,
+                r.IdGrupo,
+                r.Grupo,
+                Detalle = (r.Detalle ?? string.Empty).Trim()
+            })
+            .Select(g => new ResumenCierreDeCaja
+            {
+                IdUsuario = g.Key.IdUsuario,
+                IdAlmacen = g.Key.IdAlmacen,
+                Fecha = g.Key.Fecha,
+                IdGrupo = g.Key.IdGrupo,
+                Grupo = g.Key.Grupo,
+                Detalle = g.Key.Detalle,
+                Monto = g.Sum(x => x.Monto),
+                FechaRegistro = DateTime.Now
+            }).ToList();
 
         _context.ResumenCierreDeCajas.AddRange(resumenes);
 

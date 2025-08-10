@@ -118,14 +118,30 @@ namespace GSCommerceAPI.Controllers
                 .FirstOrDefaultAsync(a => a.IdUsuario == dto.IdUsuario &&
                                           a.IdAlmacen == dto.IdAlmacen &&
                                           a.Fecha == DateOnly.FromDateTime(dto.Fecha));
+
             if (apertura != null)
             {
-                if (cabecera.Naturaleza == "I")
-                    apertura.Ingresos += dto.Monto;
-                else
-                    apertura.Egresos += dto.Monto;
+                var fecha = DateOnly.FromDateTime(dto.Fecha);
 
-                apertura.SaldoFinal = apertura.SaldoInicial + apertura.VentaDia + apertura.Ingresos - apertura.Egresos;
+                var ingresos = await _context.IngresosEgresosCabeceras
+                    .Where(i => i.IdUsuario == dto.IdUsuario &&
+                                i.IdAlmacen == dto.IdAlmacen &&
+                                DateOnly.FromDateTime(i.Fecha) == fecha &&
+                                i.Naturaleza == "I" &&
+                                i.Estado == "E")
+                    .SumAsync(i => (decimal?)i.Monto) ?? 0;
+
+                var egresos = await _context.IngresosEgresosCabeceras
+                    .Where(i => i.IdUsuario == dto.IdUsuario &&
+                                i.IdAlmacen == dto.IdAlmacen &&
+                                DateOnly.FromDateTime(i.Fecha) == fecha &&
+                                i.Naturaleza == "E" &&
+                                i.Estado == "E")
+                    .SumAsync(i => (decimal?)i.Monto) ?? 0;
+
+                apertura.Ingresos = ingresos;
+                apertura.Egresos = egresos;
+                apertura.SaldoFinal = apertura.SaldoInicial + apertura.VentaDia + ingresos - egresos;
                 await _context.SaveChangesAsync();
             }
 
