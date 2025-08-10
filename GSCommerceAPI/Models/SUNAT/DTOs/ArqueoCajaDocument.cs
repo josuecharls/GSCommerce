@@ -85,18 +85,18 @@ public class ArqueoCajaDocument : IDocument
                         c.ConstantColumn(1);
                         c.RelativeColumn();
                     });
-
+                    const float gap = 12f;
                     // Ingresos
                     table.Cell().Column(col =>
                     {
                         col.Item().Text("Ingresos").Bold();
                         var ventaEfectivo = _dto.VentasDelDia;
-                        var totalIngresos = _dto.SaldoDiaAnterior + ventaEfectivo + _dto.VentaTarjeta + _dto.VentaNC + _dto.OtrosIngresos;
+                        var totalIngresos = _dto.SaldoInicial + ventaEfectivo + _dto.VentaTarjeta + _dto.VentaNC + _dto.OtrosIngresos;
 
                         col.Item().Row(r =>
                         {
                             r.RelativeItem().Text("Saldo del día anterior (S/)");
-                            r.ConstantItem(80).AlignRight().Text(_dto.SaldoDiaAnterior.ToString("N2"));
+                            r.ConstantItem(80).AlignRight().Text(_dto.SaldoInicial.ToString("N2"));
                         });
                         col.Item().Row(r =>
                         {
@@ -121,10 +121,10 @@ public class ArqueoCajaDocument : IDocument
                     });
 
                     // Línea de separación
-                    table.Cell().Element(e => e.ExtendVertical().AlignCenter().Width(1).LineVertical(1));
+                    table.Cell().Element(e => e.PaddingHorizontal(gap).ExtendVertical().AlignCenter().Width(1).LineVertical(1));
 
                     // Egresos
-                    table.Cell().Column(col =>
+                    table.Cell().PaddingLeft(gap).Column(col =>
                     {
                         col.Item().Text("Egresos").Bold();
                         var totalEgresos = _dto.Egresos + _dto.TransferenciasDia + _dto.PagosProveedores;
@@ -150,23 +150,25 @@ public class ArqueoCajaDocument : IDocument
                             r.ConstantItem(80).AlignRight().Text(totalEgresos.ToString("N2")).Bold();
                         });
                     });
+
                     table.Cell().PaddingVertical(5).Element(element => element.LineHorizontal(1));
-                });
 
-                column.Item().Border(1).Padding(5).Table(table =>
-                {
-                    var SaldoEnCaja = _dto.SaldoDiaAnterior + _dto.VentasDelDia + _dto.Ingresos - _dto.Egresos;
-                    table.ColumnsDefinition(c =>
+                    column.Item().Border(1).Padding(5).Table(table =>
                     {
-                        c.RelativeColumn();
-                        c.ConstantColumn(100);
-                    });
+                        var SaldoEnCaja = _dto.SaldoDiaAnterior + _dto.VentasDelDia + _dto.Ingresos - _dto.Egresos;
+                        table.ColumnsDefinition(c =>
+                        {
+                            c.RelativeColumn();
+                            c.ConstantColumn(100);
+                        });
 
-                    table.Cell().Text("Saldo de caja (S/)").Bold();
-                    table.Cell().AlignRight().Text(SaldoEnCaja.ToString("N2"));
-                    table.Cell().Text("Fondo fijo (S/)").Bold();
-                    table.Cell().AlignRight().Text(_dto.FondoFijo.ToString("N2"));
+                        table.Cell().Text("Saldo de caja (S/)").Bold();
+                        table.Cell().AlignRight().Text(SaldoEnCaja.ToString("N2"));
+                        table.Cell().Text("Fondo fijo (S/)").Bold();
+                        table.Cell().AlignRight().Text(_dto.FondoFijo.ToString("N2"));
+                    });
                 });
+
             });
         });
     }

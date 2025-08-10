@@ -191,7 +191,8 @@ else
             }
         }
 
-        totalVenta = totalFinal + totalTarjeta + totalNC;
+        // Total de ventas solo considera efectivo y tarjeta
+        totalVenta = totalFinal + totalTarjeta;
         resumen.Add(new()
         {
             IdUsuario = idUsuario,

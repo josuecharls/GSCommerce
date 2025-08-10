@@ -224,9 +224,28 @@ public class CajaController : ControllerBase
                         i.Estado == "E")
             .SumAsync(i => (decimal?)i.Monto) ?? 0;
 
+        // Calcular venta del día y venta en efectivo a partir del resumen
+        var resumen = await _context.ResumenCierreDeCajas
+            .Where(r => r.IdUsuario == actual.IdUsuario &&
+                        r.IdAlmacen == actual.IdAlmacen &&
+                        r.Fecha == actual.Fecha)
+            .ToListAsync();
+
+        decimal MontoPorGrupo(params string[] nombres) =>
+            resumen.Where(r => nombres.Any(n => r.Grupo.StartsWith(n, StringComparison.OrdinalIgnoreCase)))
+                   .Sum(r => r.Monto);
+
+        var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
+        var ventaNC = MontoPorGrupo("VENTA POR N.C.");
+        var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET");
+        var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC;
+        var ventaDia = ventaEfectivo + ventaTarjeta;
+
+        actual.VentaDia = ventaDia;
         actual.Ingresos = ingresos;
         actual.Egresos = egresos;
-        actual.SaldoFinal = actual.SaldoInicial + actual.VentaDia + ingresos - egresos;
+        // Saldo final solo considera lo generado en efectivo
+        actual.SaldoFinal = actual.SaldoInicial + ventaEfectivo + ingresos - egresos;
         actual.ObservacionCierre = cierre.ObservacionCierre;
         actual.Estado = "C";
 
@@ -400,7 +419,10 @@ public class CajaController : ControllerBase
 
         _context.ResumenCierreDeCajas.AddRange(resumenes);
 
-        apertura.VentaDia = liquidacion.Total;
+        // Calcular venta del día (efectivo + tarjeta/online, sin N.C.)
+        var totalVentas = resumenes.Where(r => r.IdGrupo == 2).Sum(r => r.Monto);
+        var ventaNC = resumenes.Where(r => r.IdGrupo == 7).Sum(r => r.Monto);
+        apertura.VentaDia = totalVentas - ventaNC;
         apertura.Estado = "L";
 
         await _context.SaveChangesAsync();
@@ -448,8 +470,8 @@ public class CajaController : ControllerBase
         // Ingresos y egresos
         var ingresos = resumen.Where(r => r.IdGrupo == 3).Sum(r => r.Monto);
         var transferenciasDia = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
-        var pagosProveedores = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("PAGO", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
-        var gastosGenerales = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("GASTO", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
+        var pagosProveedores = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("PAGO PROVEEDORES", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
+        var gastosGenerales = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("GASTOS", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
         var egresos = gastosGenerales + transferenciasDia + pagosProveedores;
 
         var saldoFinal = saldoDiaAnterior + ventaEfectivo + ingresos - egresos;
