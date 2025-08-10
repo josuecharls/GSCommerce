@@ -6,45 +6,124 @@
 @inject IngresosEgresosService IngresosEgresosService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject AlmacenService AlmacenService
+@inject UsuarioService UsuarioService
 
 <h3>Registrar @tituloNaturaleza</h3>
 
 <EditForm Model="registro" OnValidSubmit="Guardar">
     <DataAnnotationsValidator />
-    <div class="mb-3">
-        <label>Tipo</label>
-        <InputText @bind-Value="registro.Tipo" class="form-control" />
-    </div>
+
+    @if (esIngreso)
+    {
+        <div class="mb-3">
+            <label>Tipo</label>
+            <InputText @bind-Value="registro.Tipo" class="form-control" readonly />
+        </div>
+    }
+    else
+    {
+        <div class="mb-3">
+            <label>Tipo</label>
+            <InputSelect @bind-Value="registro.Tipo" class="form-select" @onchange="OnTipoChange">
+                @foreach (var t in tiposEgreso)
+                {
+                    <option value="@t">@t</option>
+                }
+            </InputSelect>
+        </div>
+
+        @if (registro.Tipo == "PAGO PROVEEDORES")
+        {
+            <div class="mb-3">
+                <label>Proveedor</label>
+                <div class="input-group">
+                    <input class="form-control" readonly value="@proveedorNombre" />
+                    <button class="btn btn-secondary" type="button" @onclick="() => mostrarProveedorModal = true">Buscar</button>
+                </div>
+            </div>
+        }
+
+        @if (registro.Tipo == "TRANSFERENCIA")
+        {
+            <div class="mb-3">
+                <label>Almacén Destino</label>
+                <InputSelect class="form-select" @bind-Value="registro.IdAlmacenDestino" @onchange="OnAlmacenDestinoChange">
+                    <option value="">-- Seleccione --</option>
+                    @foreach (var a in almacenes)
+                    {
+                        <option value="@a.IdAlmacen">@a.Nombre</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="mb-3">
+                <label>Cajero Destino</label>
+                <InputSelect class="form-select" @bind-Value="registro.IdCajeroDestino">
+                    <option value="">-- Seleccione --</option>
+                    @foreach (var c in cajerosDestino)
+                    {
+                        <option value="@c.IdUsuario">@c.Nombre</option>
+                    }
+                </InputSelect>
+            </div>
+        }
+    }
+
     <div class="mb-3">
         <label>Glosa</label>
-        <InputText @bind-Value="registro.Glosa" class="form-control" />
+        <InputTextArea @bind-Value="registro.Glosa" class="form-control" rows="3" />
     </div>
+
+    <div class="mb-3">
+        <label>Fecha</label>
+        <InputDate @bind-Value="registro.Fecha" class="form-control" />
+    </div>
+
     <div class="mb-3">
         <label>Forma</label>
         <InputSelect @bind-Value="detalle.Forma" class="form-select">
-            <option value="Efectivo">Efectivo</option>
-            <option value="Transferencia">Transferencia</option>
+            <option value="EFECTIVO">EFECTIVO</option>
+            <option value="DEPOSITO">DEPOSITO</option>
         </InputSelect>
     </div>
+
+    @if (detalle.Forma == "DEPOSITO")
+    {
+        <div class="mb-3">
+            <label>Banco</label>
+            <InputText @bind-Value="detalle.Banco" class="form-control" />
+        </div>
+        <div class="mb-3">
+            <label>Cuenta</label>
+            <InputText @bind-Value="detalle.Cuenta" class="form-control" />
+        </div>
+    }
+
+    <div class="mb-3">
+        <label>Detalle</label>
+        <InputTextArea @bind-Value="detalle.Detalle" class="form-control" rows="3" />
+    </div>
+
     <div class="mb-3">
         <label>Monto</label>
-        <InputNumber @bind-Value="detalle.Monto" class="form-control" />
+        <InputNumber @bind-Value="MontoDetalle" class="form-control" />
     </div>
+
     <div class="mb-3">
-        <label>Banco</label>
-        <InputText @bind-Value="detalle.Banco" class="form-control" />
+        <label>Monto Total</label>
+        <InputNumber @bind-Value="registro.Monto" class="form-control" readonly />
     </div>
-    <div class="mb-3">
-        <label>Cuenta</label>
-        <InputText @bind-Value="detalle.Cuenta" class="form-control" />
-    </div>
+
     <div class="mb-3">
         <label>Comprobante</label>
         <InputFile OnChange="OnFileChange" />
     </div>
+
     <button class="btn btn-primary" type="submit">Guardar</button>
     <button type="button" class="btn btn-secondary ms-2" @onclick="Volver">Cancelar</button>
 </EditForm>
+
+<ProveedorBuscarModal Mostrar="mostrarProveedorModal" MostrarChanged="(v) => mostrarProveedorModal = v" OnSeleccionado="SeleccionarProveedor" />
 
 @code {
     private IngresoEgresoRegistroDTO registro = new();
@@ -57,14 +136,81 @@
     private int idUsuario;
     private int idAlmacen;
     private string tituloNaturaleza = "Egreso";
+    private bool esIngreso;
+    private bool mostrarProveedorModal;
+    private string proveedorNombre = string.Empty;
+    private List<string> tiposEgreso = new()
+    {
+        "GASTOS DIVERSOS",
+        "TRANSFERENCIA",
+        "PAGO PROVEEDORES",
+        "PAGO LUZ",
+        "PAGO AGUA",
+        "PAGO TELEFONO",
+        "PAGO CELULAR",
+        "PAGO ALQUILER",
+        "PAGO PLANILLAS",
+        "PAGO ADELANTOS",
+        "SUNAT",
+        "FLETE",
+        "AFP",
+        "AFP-REPORTE",
+        "SUNAT-REPORTE",
+        "ALQUILER-REPORTE"
+    };
+
+    private List<AlmacenDTO> almacenes = new();
+    private List<UsuarioDTO> cajerosDestino = new();
+
+    private decimal MontoDetalle
+    {
+        get => detalle.Monto;
+        set
+        {
+            detalle.Monto = value;
+            registro.Monto = value;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
         idUsuario = await AuthService.GetUserId() ?? 0;
         idAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
         tituloNaturaleza = naturaleza ?? "Egreso";
-        registro.Naturaleza = tituloNaturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase) ? "I" : "E";
+        esIngreso = tituloNaturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase);
+        registro.Naturaleza = esIngreso ? "I" : "E";
         registro.Fecha = DateTime.Now;
+        registro.Tipo = esIngreso ? "SOBRANTE DE CAJA" : tiposEgreso.First();
+        if (!esIngreso)
+        {
+            almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        }
+    }
+
+    private void OnTipoChange(ChangeEventArgs e)
+    {
+        registro.IdProveedor = null;
+        registro.IdAlmacenDestino = null;
+        registro.IdCajeroDestino = null;
+        proveedorNombre = string.Empty;
+    }
+
+    private async Task OnAlmacenDestinoChange(ChangeEventArgs e)
+    {
+        if (registro.IdAlmacenDestino.HasValue)
+        {
+            cajerosDestino = await UsuarioService.ObtenerCajerosAsync(registro.IdAlmacenDestino.Value);
+        }
+        else
+        {
+            cajerosDestino.Clear();
+        }
+    }
+
+    private void SeleccionarProveedor(ProveedorDTO prov)
+    {
+        registro.IdProveedor = prov.IdProveedor;
+        proveedorNombre = prov.Nombre;
     }
 
     private async Task OnFileChange(InputFileChangeEventArgs e)
@@ -81,8 +227,8 @@
     {
         registro.IdUsuario = idUsuario;
         registro.IdAlmacen = idAlmacen;
+        registro.IdAlmacenGasto = idAlmacen;
         registro.Detalles = new List<IngresoEgresoDetalleDTO> { detalle };
-        registro.Monto = detalle.Monto;
         var ok = await IngresosEgresosService.Registrar(registro);
         if (ok)
         {

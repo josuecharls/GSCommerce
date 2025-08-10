@@ -74,6 +74,7 @@ namespace GSCommerceAPI.Controllers
                 IdProveedor = dto.IdProveedor,
                 IdAlmacenDestino = dto.IdAlmacenDestino,
                 IdCajeroDestino = dto.IdCajeroDestino,
+                IdAlmacenGasto = dto.IdAlmacenGasto,
                 FechaRegistro = DateTime.Now,
                 Estado = "A"
             };

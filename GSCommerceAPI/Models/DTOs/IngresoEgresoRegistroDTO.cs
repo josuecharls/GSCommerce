@@ -15,6 +15,7 @@ namespace GSCommerceAPI.Models.DTOs
         public int? IdProveedor { get; set; }
         public int? IdAlmacenDestino { get; set; }
         public int? IdCajeroDestino { get; set; }
+        public int? IdAlmacenGasto { get; set; }
         public List<IngresoEgresoDetalleDTO> Detalles { get; set; } = new();
     }
 }
