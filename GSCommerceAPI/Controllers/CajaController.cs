@@ -426,21 +426,33 @@ public class CajaController : ControllerBase
             .OrderBy(r => r.IdGrupo)
             .ToListAsync();
 
+        // Consultar saldo del día anterior
+        var saldoDiaAnterior = await _context.AperturaCierreCajas
+            .Where(a => a.IdAlmacen == apertura.IdAlmacen && a.Fecha < apertura.Fecha)
+            .OrderByDescending(a => a.Fecha)
+            .Select(a => a.SaldoFinal)
+            .FirstOrDefaultAsync();
+
         decimal MontoPorGrupo(params string[] nombres) =>
             resumen
                 .Where(r => nombres.Any(n => r.Grupo.StartsWith(n, StringComparison.OrdinalIgnoreCase)))
                 .Sum(r => r.Monto);
 
+        // Ventas
         var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
         var ventaNC = MontoPorGrupo("VENTA POR N.C.");
-        var otrosIngresos = resumen.Where(r => r.IdGrupo == 3).Sum(r => r.Monto);
-        var gastosDia = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("GASTO", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
+        var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET");
+        var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC;
+        var ventaDia = ventaEfectivo + ventaTarjeta;
+
+        // Ingresos y egresos
+        var ingresos = resumen.Where(r => r.IdGrupo == 3).Sum(r => r.Monto);
         var transferenciasDia = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
         var pagosProveedores = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("PAGO", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
-        var ventasDelDia = MontoPorGrupo("VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET");
+        var gastosGenerales = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("GASTO", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
+        var egresos = gastosGenerales + transferenciasDia + pagosProveedores;
 
-        var ventaEfectivo = ventasDelDia - ventaTarjeta - ventaNC;
-        var saldoFinal = apertura.SaldoInicial + ventaEfectivo + otrosIngresos - gastosDia - transferenciasDia - pagosProveedores;
+        var saldoFinal = saldoDiaAnterior + ventaEfectivo + ingresos - egresos;
 
         // Mapear al DTO
         var dto = new ArqueoCajaDTO
@@ -451,18 +463,18 @@ public class CajaController : ControllerBase
             Cajero = $"{apertura.IdUsuarioNavigation?.IdPersonalNavigation?.Nombres} {apertura.IdUsuarioNavigation?.IdPersonalNavigation?.Apellidos}",
             Empresa = apertura.IdAlmacenNavigation?.RazonSocial ?? string.Empty,
             Sucursal = apertura.IdAlmacenNavigation?.Nombre ?? string.Empty,
-            SaldoInicial = apertura.SaldoInicial,
-            Ingresos = apertura.Ingresos,
-            Egresos = apertura.Egresos,
-            VentaDia = apertura.VentaDia,
+            SaldoInicial = saldoDiaAnterior,
+            Ingresos = ingresos,
+            Egresos = egresos,
+            VentaDia = ventaDia,
             SaldoFinal = saldoFinal,
             FondoFijo = apertura.FondoFijo,
-            SaldoDiaAnterior = apertura.SaldoInicial,
-            VentasDelDia = ventasDelDia,
-            OtrosIngresos = otrosIngresos,
+            SaldoDiaAnterior = saldoDiaAnterior,
+            VentasDelDia = ventaEfectivo,
+            OtrosIngresos = ingresos,
             VentaTarjeta = ventaTarjeta,
             VentaNC = ventaNC,
-            GastosDia = gastosDia,
+            GastosDia = egresos,
             TransferenciasDia = transferenciasDia,
             PagosProveedores = pagosProveedores,
             ObservacionCierre = apertura.ObservacionCierre,
