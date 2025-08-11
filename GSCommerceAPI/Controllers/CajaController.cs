@@ -442,11 +442,31 @@ public class CajaController : ControllerBase
         if (apertura == null)
             return NotFound("No se encontró la apertura de caja.");
 
-        // Obtener resumen
+        // Obtener resumen de ventas y otros movimientos registrados
         var resumen = await _context.ResumenCierreDeCajas
             .Where(r => r.IdUsuario == apertura.IdUsuario && r.IdAlmacen == apertura.IdAlmacen && r.Fecha == apertura.Fecha)
             .OrderBy(r => r.IdGrupo)
             .ToListAsync();
+        // Obtener ingresos y egresos registrados en la tabla IngresosEgresosCabecera
+        var movimientos = await _context.IngresosEgresosCabeceras
+            .Where(m => m.IdUsuario == apertura.IdUsuario &&
+                        m.IdAlmacen == apertura.IdAlmacen &&
+                        DateOnly.FromDateTime(m.Fecha) == apertura.Fecha &&
+                        m.Estado == "E")
+            .Select(m => new ResumenCierreDeCaja
+            {
+                IdGrupo = m.Naturaleza == "I" ? 3 : 5,
+                Grupo = m.Tipo,
+                Detalle = m.Glosa,
+                Monto = m.Monto
+            })
+            .ToListAsync();
+
+        resumen.AddRange(movimientos);
+        resumen = resumen
+            .OrderBy(r => r.IdGrupo)
+            .ThenBy(r => r.Grupo)
+            .ToList();
 
         // Consultar saldo del día anterior
         var saldoDiaAnterior = await _context.AperturaCierreCajas
