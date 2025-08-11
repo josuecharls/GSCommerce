@@ -65,8 +65,8 @@ public class ArqueoCajaDocument : IDocument
 
                     foreach (var item in _dto.Resumen)
                     {
-                        table.Cell().Text(item.Grupo);
-                        table.Cell().Text(item.Detalle);
+                        table.Cell().Text(item.Grupo ?? string.Empty);
+                        table.Cell().Text(item.Detalle ?? string.Empty);
                         table.Cell().AlignRight().Text(
                             item.Monto < 0
                                 ? $"({Math.Abs(item.Monto):N2})"

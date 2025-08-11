@@ -432,106 +432,105 @@ public class CajaController : ControllerBase
     [HttpGet("arqueo-pdf/{id}")]
     public async Task<IActionResult> GenerarArqueoPDF(int id)
     {
-        // Obtener apertura
-        var apertura = await _context.AperturaCierreCajas
-            .Include(x => x.IdUsuarioNavigation)
-            .ThenInclude(u => u.IdPersonalNavigation)
-            .Include(x => x.IdAlmacenNavigation)
-            .FirstOrDefaultAsync(x => x.IdAperturaCierre == id);
-
-        if (apertura == null)
-            return NotFound("No se encontró la apertura de caja.");
-
-        // Obtener resumen de ventas y otros movimientos registrados
-        var resumen = await _context.ResumenCierreDeCajas
-            .Where(r => r.IdUsuario == apertura.IdUsuario && r.IdAlmacen == apertura.IdAlmacen && r.Fecha == apertura.Fecha)
-            .OrderBy(r => r.IdGrupo)
-            .ToListAsync();
-        // Obtener ingresos y egresos registrados en la tabla IngresosEgresosCabecera
-        var movimientos = await _context.IngresosEgresosCabeceras
-            .Where(m => m.IdUsuario == apertura.IdUsuario &&
-                        m.IdAlmacen == apertura.IdAlmacen &&
-                        DateOnly.FromDateTime(m.Fecha) == apertura.Fecha &&
-                        m.Estado == "E")
-            .Select(m => new ResumenCierreDeCaja
-            {
-                IdGrupo = m.Naturaleza == "I" ? 3 : 5,
-                Grupo = m.Tipo,
-                Detalle = m.Glosa,
-                Monto = m.Monto
-            })
-            .ToListAsync();
-
-        resumen.AddRange(movimientos);
-        resumen = resumen
-            .OrderBy(r => r.IdGrupo)
-            .ThenBy(r => r.Grupo)
-            .ToList();
-
-        // Consultar saldo del día anterior
-        var saldoDiaAnterior = await _context.AperturaCierreCajas
-            .Where(a => a.IdAlmacen == apertura.IdAlmacen && a.Fecha < apertura.Fecha)
-            .OrderByDescending(a => a.Fecha)
-            .Select(a => a.SaldoFinal)
-            .FirstOrDefaultAsync();
-
-        decimal MontoPorGrupo(params string[] nombres) =>
-            resumen
-                .Where(r => nombres.Any(n => r.Grupo.StartsWith(n, StringComparison.OrdinalIgnoreCase)))
-                .Sum(r => r.Monto);
-
-        // Ventas
-        var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
-        var ventaNC = MontoPorGrupo("VENTA POR N.C.");
-        var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET");
-        var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC;
-        var ventaDia = ventaEfectivo + ventaTarjeta;
-
-        // Ingresos y egresos
-        var ingresos = resumen.Where(r => r.IdGrupo == 3).Sum(r => r.Monto);
-        var transferenciasDia = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
-        var pagosProveedores = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("PAGO PROVEEDORES", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
-        var gastosGenerales = resumen.Where(r => r.IdGrupo == 5 && r.Grupo.StartsWith("GASTOS", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
-        var egresos = gastosGenerales + transferenciasDia + pagosProveedores;
-
-        var saldoFinal = saldoDiaAnterior + ventaEfectivo + ingresos - egresos;
-
-        // Mapear al DTO
-        var dto = new ArqueoCajaDTO
+        try
         {
-            IdAperturaCierre = apertura.IdAperturaCierre,
-            Fecha = apertura.Fecha,
-            Usuario = apertura.IdUsuarioNavigation?.Nombre ?? "N/A",
-            Cajero = $"{apertura.IdUsuarioNavigation?.IdPersonalNavigation?.Nombres} {apertura.IdUsuarioNavigation?.IdPersonalNavigation?.Apellidos}",
-            Empresa = apertura.IdAlmacenNavigation?.RazonSocial ?? string.Empty,
-            Sucursal = apertura.IdAlmacenNavigation?.Nombre ?? string.Empty,
-            SaldoInicial = saldoDiaAnterior,
-            Ingresos = ingresos,
-            Egresos = egresos,
-            VentaDia = ventaDia,
-            SaldoFinal = saldoFinal,
-            FondoFijo = apertura.FondoFijo,
-            SaldoDiaAnterior = saldoDiaAnterior,
-            VentasDelDia = ventaEfectivo,
-            OtrosIngresos = ingresos,
-            VentaTarjeta = ventaTarjeta,
-            VentaNC = ventaNC,
-            GastosDia = egresos,
-            TransferenciasDia = transferenciasDia,
-            PagosProveedores = pagosProveedores,
-            ObservacionCierre = apertura.ObservacionCierre,
-            Resumen = resumen.Select(r => new ResumenCierreDeCaja
+            // Apertura
+            var apertura = await _context.AperturaCierreCajas
+                .Include(x => x.IdUsuarioNavigation).ThenInclude(u => u.IdPersonalNavigation)
+                .Include(x => x.IdAlmacenNavigation)
+                .FirstOrDefaultAsync(x => x.IdAperturaCierre == id);
+
+            if (apertura == null)
+                return NotFound("No se encontró la apertura de caja.");
+
+            // Resumen (normaliza nulos de Grupo/Detalle)
+            var resumenBase = await _context.ResumenCierreDeCajas
+                .Where(r => r.IdUsuario == apertura.IdUsuario && r.IdAlmacen == apertura.IdAlmacen && r.Fecha == apertura.Fecha)
+                .Select(r => new { r.IdGrupo, Grupo = r.Grupo ?? "", Detalle = r.Detalle ?? "", r.Monto })
+                .ToListAsync();
+
+            // Movimientos (normaliza nulos)
+            var movimientos = await _context.IngresosEgresosCabeceras
+                .Where(m => m.IdUsuario == apertura.IdUsuario &&
+                            m.IdAlmacen == apertura.IdAlmacen &&
+                            DateOnly.FromDateTime(m.Fecha) == apertura.Fecha &&
+                            m.Estado == "E")
+                .Select(m => new { IdGrupo = m.Naturaleza == "I" ? 3 : 5, Grupo = (m.Tipo ?? ""), Detalle = (m.Glosa ?? ""), Monto = m.Monto })
+                .ToListAsync();
+
+            var resumen = resumenBase.Concat(movimientos)
+                                     .OrderBy(r => r.IdGrupo).ThenBy(r => r.Grupo)
+                                     .ToList();
+
+            // Saldo del día anterior (si no hay, cae a saldo inicial de la apertura)
+            var saldoDiaAnterior = await _context.AperturaCierreCajas
+                .Where(a => a.IdAlmacen == apertura.IdAlmacen && a.Fecha < apertura.Fecha && a.Estado == "C")
+                .OrderByDescending(a => a.Fecha)
+                .Select(a => (decimal?)a.SaldoFinal)
+                .FirstOrDefaultAsync() ?? apertura.SaldoInicial;
+
+            // Helper null-safe
+            decimal MontoPorGrupo(params string[] nombres) =>
+                resumen.Where(r => !string.IsNullOrEmpty(r.Grupo) &&
+                                   nombres.Any(n => r.Grupo.StartsWith(n, StringComparison.OrdinalIgnoreCase)))
+                       .Sum(r => r.Monto);
+
+            // Ventas
+            var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
+            var ventaNC = MontoPorGrupo("VENTA POR N.C.", "VENTA CON N.C.");
+            var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET");
+            var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC;
+            var ventaDia = ventaEfectivo + ventaTarjeta;
+
+            // Ingresos/Egresos (null-safe)
+            var ingresos = resumen.Where(r => r.IdGrupo == 3).Sum(r => r.Monto);
+            var transferenciasDia = resumen.Where(r => r.IdGrupo == 5 && !string.IsNullOrEmpty(r.Grupo) && r.Grupo.StartsWith("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
+            var pagosProveedores = resumen.Where(r => r.IdGrupo == 5 && !string.IsNullOrEmpty(r.Grupo) && r.Grupo.StartsWith("PAGO PROVEEDORES", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
+            var gastosGenerales = resumen.Where(r => r.IdGrupo == 5 && !string.IsNullOrEmpty(r.Grupo) && r.Grupo.StartsWith("GASTOS", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
+            var egresos = gastosGenerales + transferenciasDia + pagosProveedores;
+
+            var saldoFinal = saldoDiaAnterior + ventaEfectivo + ingresos - egresos;
+
+            // DTO para el PDF (strings null-safe)
+            var dto = new ArqueoCajaDTO
             {
-                Grupo = r.Grupo,
-                Detalle = r.Detalle,
-                Monto = r.Monto
-            }).ToList()
-        };
+                IdAperturaCierre = apertura.IdAperturaCierre,
+                Fecha = apertura.Fecha,
+                Usuario = apertura.IdUsuarioNavigation?.Nombre ?? "N/A",
+                Cajero = $"{apertura.IdUsuarioNavigation?.IdPersonalNavigation?.Nombres} {apertura.IdUsuarioNavigation?.IdPersonalNavigation?.Apellidos}".Trim(),
+                Empresa = apertura.IdAlmacenNavigation?.RazonSocial ?? string.Empty,
+                Sucursal = apertura.IdAlmacenNavigation?.Nombre ?? string.Empty,
+                SaldoInicial = saldoDiaAnterior,
+                Ingresos = ingresos,
+                Egresos = egresos,
+                VentaDia = ventaDia,
+                SaldoFinal = saldoFinal,
+                FondoFijo = apertura.FondoFijo,
+                SaldoDiaAnterior = saldoDiaAnterior,
+                VentasDelDia = ventaEfectivo,
+                OtrosIngresos = ingresos,
+                VentaTarjeta = ventaTarjeta,
+                VentaNC = ventaNC,
+                GastosDia = egresos,
+                TransferenciasDia = transferenciasDia,
+                PagosProveedores = pagosProveedores,
+                ObservacionCierre = apertura.ObservacionCierre ?? "",
+                Resumen = resumen.Select(r => new ResumenCierreDeCaja
+                {
+                    Grupo = r.Grupo ?? "",
+                    Detalle = r.Detalle ?? "",
+                    Monto = r.Monto
+                }).ToList()
+            };
 
-        // Generar PDF con QuestPDF
-        var document = new ArqueoCajaDocument(dto);
-        var pdf = document.GeneratePdf();
-
-        return File(pdf, "application/pdf", $"ArqueoCaja_{dto.Fecha:yyyyMMdd}.pdf");
+            // PDF
+            var pdf = new ArqueoCajaDocument(dto).GeneratePdf();
+            return File(pdf, "application/pdf", $"ArqueoCaja_{dto.Fecha:yyyyMMdd}.pdf");
+        }
+        catch (Exception ex)
+        {
+            // Si tienes ILogger<CajaController> inyéctalo y loggea: _logger.LogError(ex, "Error en arqueo-pdf {id}", id);
+            return StatusCode(500, $"Error generando PDF: {ex.Message}");
+        }
     }
 }
