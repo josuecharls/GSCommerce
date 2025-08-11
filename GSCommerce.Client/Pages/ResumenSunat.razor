@@ -1,19 +1,29 @@
 ﻿@page "/resumen-sunat"
-@**@
-@using Microsoft.AspNetCore.Authorization
+@using GSCommerce.Client.Models
 @using GSCommerce.Client.Models.SUNAT
 @using GSCommerce.Client.Services
 @inject ResumenSunatService ResumenService
+@inject AlmacenService AlmacenService
 
 <h3>📑 Resumen Diario SUNAT</h3>
 
-<div class="row mb-3">
+<div class="row g-3 mb-3">
     <div class="col-md-4">
         <label>Fecha:</label>
         <InputDate @bind-Value="fecha" class="form-control" />
     </div>
+    <div class="col-md-4">
+        <label>Almacén:</label>
+        <select class="form-control" @bind="selectedAlmacen">
+            <option value="0">Todos</option>
+            @foreach (var a in almacenes)
+            {
+                <option value="@a.IdAlmacen">@a.Nombre</option>
+            }
+        </select>
+    </div>
     <div class="col-md-4 d-flex align-items-end">
-        <button class="btn btn-primary" @onclick="BuscarPendientes">Buscar</button>
+        <button class="btn btn-primary w-100" @onclick="BuscarPendientes">Buscar</button>
     </div>
 </div>
 
@@ -23,26 +33,65 @@
 }
 else if (pendientes.Any())
 {
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Tipo</th>
-                <th>Número</th>
-                <th>Monto</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var p in pendientes)
-            {
-                <tr>
-                    <td>@p.TipoDoc</td>
-                    <td>@p.Numero</td>
-                    <td>@p.Apagar?.ToString("C")</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-    <button class="btn btn-success" @onclick="GenerarResumen">Generar Resumen Diario</button>
+    var grupos = pendientes
+        .Where(p => selectedAlmacen == 0 || p.IdAlmacen == selectedAlmacen)
+        .GroupBy(p => new { p.IdAlmacen, p.Tienda })
+        .OrderBy(g => g.Key.Tienda);
+
+    <div class="accordion" id="acc-alm">
+        @foreach (var g in grupos)
+        {
+            var accId = $"alm-{g.Key.IdAlmacen}";
+            var totalGrupo = g.Sum(x => x.Apagar ?? 0m);
+
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="h-@accId">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-@accId">
+                        <span class="me-2 fw-bold">@g.Key.Tienda</span>
+                        <span class="badge bg-secondary me-2">@g.Count()</span>
+                        <span class="ms-auto fw-bold">@totalGrupo.ToString("C")</span>
+                    </button>
+                </h2>
+                <div id="c-@accId" class="accordion-collapse collapse" data-bs-parent="#acc-alm">
+                    <div class="accordion-body p-2">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width:18%">Tipo</th>
+                                    <th style="width:32%">Número</th>
+                                    <th style="width:20%">Monto</th>
+                                    <th style="width:30%">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var p in g.OrderBy(x => x.Numero))
+                                {
+                                    <tr>
+                                        <td>@p.TipoDoc</td>
+                                        <td>@p.Numero</td>
+                                        <td>@((p.Apagar ?? 0m).ToString("C"))</td>
+                                        <td class="text-end">
+                                            <button class="btn btn-sm btn-outline-secondary me-2" @onclick="() => AbrirEditar(p)">
+                                                Editar XML / Reintentar
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success" title="Marcar para Resumen"
+                                                    @onclick="() => MarcarParaResumenDirecto(p)">
+                                                Marcar RC
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="mt-3">
+        <button class="btn btn-success" @onclick="GenerarResumen">Generar Resumen Diario</button>
+    </div>
 }
 else if (busco)
 {
@@ -54,12 +103,68 @@ else if (busco)
     <div class="alert alert-info mt-3">@mensaje</div>
 }
 
+@* ---------- Modal de edición / reintento ---------- *@
+@if (modalOpen && editando is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.3)">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Editar XML – @editando.TipoDoc @editando.Numero
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body">
+                    @if (cargandoXml)
+                    {
+                        <div>Descargando XML…</div>
+                    }
+                    else
+                    {
+                        <textarea class="form-control font-monospace" rows="22" @bind="xmlEditado"></textarea>
+                        <small class="text-muted">
+                            Al guardar, el XML se actualizará en el servidor. Asegúrate de que esté <b>firmado</b> antes de reenviar.
+                        </small>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" disabled="@guardando" @onclick="GuardarXml">
+                        @((guardando ? "Guardando..." : "Guardar XML"))
+                    </button>
+                    <button class="btn btn-primary" disabled="@enviando" @onclick="EnviarIndividual">
+                        @((enviando ? "Enviando..." : "Enviar ahora (individual)"))
+                    </button>
+                    <button class="btn btn-success" disabled="@enviando" @onclick="MarcarParaResumen">
+                        Marcar para Resumen
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private DateTime fecha = DateTime.Today;
     private List<PendienteSunatDTO> pendientes = new();
+    private List<AlmacenDTO> almacenes = new();
+    private int selectedAlmacen = 0;
     private bool cargando = false;
     private bool busco = false;
     private string mensaje = string.Empty;
+
+    // modal / edición
+    private bool modalOpen = false;
+    private bool cargandoXml = false;
+    private bool guardando = false;
+    private bool enviando = false;
+    private PendienteSunatDTO? editando;
+    private string xmlEditado = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+    }
 
     private async Task BuscarPendientes()
     {
@@ -73,6 +178,60 @@ else if (busco)
     private async Task GenerarResumen()
     {
         mensaje = await ResumenService.GenerarResumenAsync(fecha);
+        await BuscarPendientes();
+    }
+
+    // ------------- edición y reintento -------------
+    private async Task AbrirEditar(PendienteSunatDTO p)
+    {
+        editando = p;
+        modalOpen = true;
+        cargandoXml = true;
+        xmlEditado = await ResumenService.ObtenerXmlAsync(p.IdComprobante) ?? "";
+        cargandoXml = false;
+        StateHasChanged();
+    }
+
+    private void CerrarModal()
+    {
+        modalOpen = false;
+        editando = null;
+        xmlEditado = "";
+    }
+
+    private async Task GuardarXml()
+    {
+        if (editando is null) return;
+        guardando = true;
+        var ok = await ResumenService.ActualizarXmlAsync(editando.IdComprobante, xmlEditado);
+        guardando = false;
+        mensaje = ok ? "XML actualizado." : "No se pudo actualizar el XML.";
+    }
+
+    private async Task EnviarIndividual()
+    {
+        if (editando is null) return;
+        enviando = true;
+        var msg = await ResumenService.ReintentarAsync(editando.IdComprobante, "bill");
+        enviando = false;
+        mensaje = msg;
+        await BuscarPendientes();
+        CerrarModal();
+    }
+
+    private async Task MarcarParaResumen()
+    {
+        if (editando is null) return;
+        var msg = await ResumenService.ReintentarAsync(editando.IdComprobante, "resumen");
+        mensaje = msg;
+        await BuscarPendientes();
+        CerrarModal();
+    }
+
+    private async Task MarcarParaResumenDirecto(PendienteSunatDTO p)
+    {
+        var msg = await ResumenService.ReintentarAsync(p.IdComprobante, "resumen");
+        mensaje = msg;
         await BuscarPendientes();
     }
 }

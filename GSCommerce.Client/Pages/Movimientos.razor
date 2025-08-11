@@ -6,8 +6,17 @@
 <h3 class="mb-4 fw-bold text-uppercase">Movimientos</h3>
 
 <div class="d-flex gap-4 flex-wrap">
-    @if (cargo == "ADMINISTRADOR")
+
+    @if (cargo == "ADMINISTRADOR" || cargo == "CAJERO")
     {
+        <div class="card text-center shadow-lg p-3"
+             style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
+             @onclick="IrAStock">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <i class="bi bi-box-seam-fill" style="font-size: 3rem; color: #0d6efd;"></i>
+                <h5 class="fw-bold mt-2 text-uppercase text-primary" style="white-space: nowrap;">Stock</h5>
+            </div>
+        </div>
         <div class="card text-center shadow-lg p-3"
              style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
              @onclick="IrAGuiasIngreso">
@@ -32,18 +41,6 @@
             <div class="card-body d-flex flex-column align-items-center justify-content-center">
                 <i class="bi bi-arrow-left-right" style="font-size: 3rem; color: #0d6efd;"></i>
                 <h5 class="fw-bold mt-2 text-uppercase text-primary" style="white-space: nowrap;">Transferencia</h5>
-            </div>
-        </div>
-    }
-
-    @if (cargo == "ADMINISTRADOR" || cargo == "CAJERO")
-    {
-        <div class="card text-center shadow-lg p-3"
-             style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
-             @onclick="IrAStock">
-            <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                <i class="bi bi-box-seam-fill" style="font-size: 3rem; color: #0d6efd;"></i>
-                <h5 class="fw-bold mt-2 text-uppercase text-primary" style="white-space: nowrap;">Stock</h5>
             </div>
         </div>
     }

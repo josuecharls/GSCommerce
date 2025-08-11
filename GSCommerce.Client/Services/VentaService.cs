@@ -62,18 +62,17 @@ namespace GSCommerce.Client.Services
             return response ?? new();
         }
 
-        public async Task<List<VentaConsultaDTO>> ObtenerVentasAsync(DateTime desde, DateTime hasta, int? idAlmacen = null)
+        public async Task<List<VentaConsultaDTO>> ObtenerVentasAsync(
+            DateTime desde, DateTime hasta, int? idAlmacen = null, int? idTipoDoc = null)
         {
             try
             {
                 string url = $"api/ventas/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
-                if (idAlmacen.HasValue)
-                {
-                    url += $"&idAlmacen={idAlmacen.Value}";
-                }
+                if (idAlmacen.HasValue) url += $"&idAlmacen={idAlmacen.Value}";
+                if (idTipoDoc.HasValue) url += $"&idTipoDoc={idTipoDoc.Value}";
 
-                var response = await _httpClient.GetFromJsonAsync<List<VentaConsultaDTO>>(url);
-                return response ?? new();
+                Console.WriteLine($"[VentaService] GET {url}");
+                return await _httpClient.GetFromJsonAsync<List<VentaConsultaDTO>>(url) ?? new();
             }
             catch (Exception ex)
             {

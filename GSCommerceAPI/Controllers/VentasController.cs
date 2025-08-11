@@ -77,34 +77,37 @@ namespace GSCommerceAPI.Controllers
         [Authorize]
         public async Task<IActionResult> ListarVentas([FromQuery] int? idAlmacen, [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
         {
-            var inicio = desde ?? DateTime.Today;
-            var fin = hasta ?? DateTime.Today;
+            // Rango [inicio, finExcl)
+            var inicio = (desde?.Date) ?? DateTime.Today;
+            var finExcl = ((hasta?.Date) ?? inicio).AddDays(1);
 
-            var query = _context.VVenta1s
-                .Where(v => v.Fecha.Date >= inicio.Date && v.Fecha.Date <= fin.Date);
+            var query = _context.VVenta1s.Where(v => v.Fecha >= inicio && v.Fecha < finExcl);
 
+            // Filtro por almacén según cargo
             var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
-
-            if (cargo == "ADMINISTRADOR")
-            {
-                if (idAlmacen.HasValue && idAlmacen.Value > 0)
-                    query = query.Where(v => v.IdAlmacen == idAlmacen.Value);
-            }
-            else
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
             {
                 var userIdClaim = User.FindFirst("userId")?.Value;
                 if (int.TryParse(userIdClaim, out var userId))
                 {
                     var userAlmacen = await _context.Usuarios
-                        .Where(u => u.IdUsuario == userId && u.IdPersonalNavigation != null)
-                        .Select(u => (int?)u.IdPersonalNavigation.IdAlmacen)
+                        .Where(u => u.IdUsuario == userId)
+                        .Select(u => u.IdPersonalNavigation != null ? (int?)u.IdPersonalNavigation.IdAlmacen : null)
                         .FirstOrDefaultAsync();
 
-                    if (userAlmacen.HasValue)
-                        query = query.Where(v => v.IdAlmacen == userAlmacen.Value);
-                    else
+                    if (!userAlmacen.HasValue)
                         return Ok(new List<VentaConsultaDTO>());
+
+                    query = query.Where(v => v.IdAlmacen == userAlmacen.Value);
                 }
+                else
+                {
+                    return Ok(new List<VentaConsultaDTO>());
+                }
+            }
+            else if (idAlmacen.HasValue && idAlmacen.Value > 0)
+            {
+                query = query.Where(v => v.IdAlmacen == idAlmacen.Value);
             }
 
             var ventas = await query
@@ -125,19 +128,22 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToListAsync();
 
+            // ---- FIX: agrupar Formas de pago en memoria ----
             var ids = ventas.Select(v => v.IdComprobante).ToList();
-
-            var pagos = await _context.VDetallePagoVenta1s
-                .Where(p => ids.Contains(p.IdComprobante))
-                .GroupBy(p => p.IdComprobante)
-                .ToDictionaryAsync(g => g.Key, g => string.Join(", ", g.Select(p => p.Descripcion)));
-
-            foreach (var venta in ventas)
+            if (ids.Count > 0)
             {
-                if (pagos.TryGetValue(venta.IdComprobante, out var forma))
-                {
-                    venta.FormaPago = forma;
-                }
+                var pagosList = await _context.VDetallePagoVenta1s
+                    .Where(p => ids.Contains(p.IdComprobante))
+                    .Select(p => new { p.IdComprobante, p.Descripcion })
+                    .ToListAsync();
+
+                var pagos = pagosList
+                    .GroupBy(p => p.IdComprobante)
+                    .ToDictionary(g => g.Key, g => string.Join(", ", g.Select(p => p.Descripcion)));
+
+                foreach (var v in ventas)
+                    if (pagos.TryGetValue(v.IdComprobante, out var forma))
+                        v.FormaPago = forma;
             }
 
             return Ok(ventas);
@@ -661,36 +667,303 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("pendientes-sunat")]
-        public async Task<IActionResult> ObtenerPendientesSunat([FromQuery] DateTime fecha, [FromQuery] int idAlmacen)
+        [Authorize]
+        public async Task<IActionResult> ObtenerPendientesSunat([FromQuery] DateTime? fecha, [FromQuery] int? idAlmacen)
         {
-            var pendientes = await (from c in _context.ComprobanteDeVentaCabeceras
-                                    join f in _context.Comprobantes on c.IdComprobante equals f.IdComprobante into cf
-                                    from f in cf.DefaultIfEmpty()
-                                    join a in _context.Almacens on c.IdAlmacen equals a.IdAlmacen
-                                    join t in _context.TipoDocumentoVenta on c.IdTipoDocumento equals t.IdTipoDocumentoVenta
-                                    where c.IdAlmacen == idAlmacen
-                                          && c.Fecha.Date == fecha.Date
-                                          && (f == null || f.EnviadoSunat == false || f.EnviadoSunat == null || f.Estado == false)
-                                    select new
-                                    {
-                                        IdFe = f != null ? f.IdFe : 0,
-                                        Tienda = a.Nombre,
-                                        TipoDoc = t.Descripcion,
-                                        Numero = c.Serie.PadLeft(4, '0') + "-" + c.Numero.ToString("D8"),
-                                        Fecha = c.Fecha.ToString("dd/MM/yyyy"),
-                                        Apagar = c.Apagar,
-                                        Hash = f != null ? f.Hash : string.Empty,
-                                        EnviadoSunat = f != null && f.EnviadoSunat.HasValue ? f.EnviadoSunat.Value : false,
-                                        FechaEnvio = f != null ? f.FechaEnvio : null,
-                                        FechaRespuestaSunat = f != null ? f.FechaRespuestaSunat : null,
-                                        RespuestaSunat = f != null ? f.RespuestaSunat : null,
-                                        TicketSunat = f != null ? f.TicketSunat : null,
-                                        Xml = f != null ? f.Xml : null,
-                                        IdComprobante = c.IdComprobante
-                                    })
-                                    .ToListAsync();
+            var day = (fecha ?? DateTime.Today).Date;
+            var start = day;
+            var end = day.AddDays(1);
+
+            var q = from c in _context.ComprobanteDeVentaCabeceras.AsNoTracking()
+                    join f in _context.Comprobantes.AsNoTracking() on c.IdComprobante equals f.IdComprobante into cf
+                    from f in cf.DefaultIfEmpty()
+                    join a in _context.Almacens.AsNoTracking() on c.IdAlmacen equals a.IdAlmacen
+                    join t in _context.TipoDocumentoVenta.AsNoTracking() on c.IdTipoDocumento equals t.IdTipoDocumentoVenta
+                    where c.Fecha >= start && c.Fecha < end
+                          && c.IdTipoDocumento != 4 // excluir TICKET
+                          && (f == null || f.EnviadoSunat == false || f.EnviadoSunat == null || f.Estado == false)
+                    select new
+                    {
+                        c.IdComprobante,
+                        c.IdAlmacen,
+                        Tienda = a.Nombre,
+                        TipoDoc = t.Descripcion,
+                        c.Serie,
+                        c.Numero,
+                        c.Apagar,
+                        c.Fecha,
+                        IdFe = (int?)(f != null ? f.IdFe : 0),
+                        Hash = f != null ? f.Hash : null,
+                        EnviadoSunat = f != null && f.EnviadoSunat == true,
+                        FechaEnvio = f != null ? f.FechaEnvio : null,
+                        FechaRespuestaSunat = f != null ? f.FechaRespuestaSunat : null,
+                        RespuestaSunat = f != null ? f.RespuestaSunat : null,
+                        TicketSunat = f != null ? f.TicketSunat : null,
+                        Xml = f != null ? f.Xml : null
+                    };
+
+            if (idAlmacen.HasValue && idAlmacen.Value > 0)
+                q = q.Where(x => x.IdAlmacen == idAlmacen.Value);
+
+            var rows = await q
+                .OrderBy(x => x.Tienda).ThenBy(x => x.Serie).ThenBy(x => x.Numero)
+                .ToListAsync();
+
+            // 🚫 Nada de ToString("...")/PadLeft en LINQ-to-Entities; aquí ya es LINQ-to-Objects
+            var pendientes = rows.Select(x => new PendienteSunatDTO
+            {
+                IdFe = x.IdFe ?? 0,
+                IdAlmacen = x.IdAlmacen,
+                Tienda = x.Tienda,
+                TipoDoc = x.TipoDoc,
+                Numero = $"{x.Serie}-{x.Numero:D8}",
+                Fecha = x.Fecha.ToString("dd/MM/yyyy"),
+                Apagar = x.Apagar,
+                Hash = x.Hash ?? string.Empty,
+                EnviadoSunat = x.EnviadoSunat,
+                FechaEnvio = x.FechaEnvio,
+                FechaRespuestaSunat = x.FechaRespuestaSunat,
+                RespuestaSunat = x.RespuestaSunat,
+                TicketSunat = x.TicketSunat,
+                Xml = x.Xml,
+                IdComprobante = x.IdComprobante
+            }).ToList();
 
             return Ok(pendientes);
+        }
+
+        // GET: api/ventas/xml/123
+        [HttpGet("xml/{idComprobante:int}")]
+        [Authorize]
+        public async Task<IActionResult> ObtenerXml(int idComprobante)
+        {
+            var xml = await _context.Comprobantes
+                .Where(c => c.IdComprobante == idComprobante)
+                .Select(c => c.Xml)
+                .FirstOrDefaultAsync();
+
+            if (string.IsNullOrWhiteSpace(xml))
+                return NotFound("No hay XML almacenado para este comprobante.");
+
+            return Content(xml, "application/xml");
+        }
+
+        // PUT: api/ventas/xml/123  (body: { "xml": "<Invoice .../>" })
+        public class XmlUpdateDTO { public string Xml { get; set; } = string.Empty; }
+
+        [HttpPut("xml/{idComprobante:int}")]
+        [Authorize(Roles = "ADMINISTRADOR")] // si quieres restringir edición
+        public async Task<IActionResult> ActualizarXml(int idComprobante, [FromBody] XmlUpdateDTO body)
+        {
+            if (body is null || string.IsNullOrWhiteSpace(body.Xml))
+                return BadRequest("XML vacío.");
+
+            var comp = await _context.Comprobantes.FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+            if (comp == null) return NotFound("Comprobante no existe.");
+
+            // Guardamos el XML editado y lo dejamos como pendiente
+            comp.Xml = body.Xml;
+            comp.EnviadoSunat = false;
+            comp.Estado = true;                  // NO borrar
+            comp.RespuestaSunat = null;
+            comp.TicketSunat = null;
+            comp.FechaEnvio = null;
+            comp.FechaRespuestaSunat = null;
+            await _context.SaveChangesAsync();
+
+            return Ok("XML actualizado. (Asegúrate que esté firmado para re-enviar)");
+        }
+
+        [HttpPost("reintentar/{idComprobante:int}")]
+        [Authorize]
+        public async Task<IActionResult> ReintentarDesdeXml(int idComprobante, [FromQuery] string modo = "bill")
+        {
+            // 1) Comprobante (XML)
+            var comp = await _context.Comprobantes
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+            if (comp == null) return NotFound("Comprobante no existe.");
+            if (string.IsNullOrWhiteSpace(comp.Xml)) return BadRequest("No hay XML para enviar.");
+
+            // 2) Cabecera (serie, número, tipo, almacén)
+            var cab = await _context.ComprobanteDeVentaCabeceras
+                .Include(c => c.IdTipoDocumentoNavigation)
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+            if (cab == null) return NotFound("Cabecera no encontrada.");
+
+            // 3) Almacén (RUC, SOL)
+            var alm = await _context.Almacens
+                .Where(a => a.IdAlmacen == cab.IdAlmacen)
+                .Select(a => new { a.Ruc, a.UsuarioSol, a.ClaveSol })
+                .FirstOrDefaultAsync();
+            if (alm == null || string.IsNullOrWhiteSpace(alm.Ruc) ||
+                string.IsNullOrWhiteSpace(alm.UsuarioSol) || string.IsNullOrWhiteSpace(alm.ClaveSol))
+                return BadRequest("Credenciales SUNAT incompletas para el almacén.");
+
+            // 4) Nombre SUNAT
+            string tipo = MapTipoSunat(cab.IdTipoDocumento); // "01","03","07","08"
+            string serie = cab.Serie ?? "";
+            string numero = cab.Numero.ToString("D8");
+            string baseName = $"{alm.Ruc}-{tipo}-{serie}-{numero}";
+
+            // 5) Guardar XML (debe estar FIRMAdo; si no, SUNAT fallará 1032/1033)
+            var tmpDir = Path.Combine(Path.GetTempPath(), "sunat-retry");
+            Directory.CreateDirectory(tmpDir);
+            var xmlPath = Path.Combine(tmpDir, baseName + ".xml");
+            await System.IO.File.WriteAllTextAsync(xmlPath, comp.Xml);
+
+            // 6) Comprimir y enviar (tu servicio)
+            var zipPath = _facturacionService.ComprimirArchivo(xmlPath);
+            if (!System.IO.File.Exists(zipPath))
+                return StatusCode(500, "No se pudo comprimir el XML.");
+
+            if (modo.Equals("bill", StringComparison.OrdinalIgnoreCase))
+            {
+                var resp = await _facturacionService.EnviarFacturaAsync(zipPath, alm.UsuarioSol!, alm.ClaveSol!);
+
+                comp.EnviadoSunat = resp.exito;
+                comp.RespuestaSunat = resp.mensaje;
+                comp.TicketSunat = string.IsNullOrWhiteSpace(resp.ticket) ? null : resp.ticket;
+                comp.FechaEnvio = DateTime.Now;
+                comp.FechaRespuestaSunat = DateTime.Now;
+
+                await _context.SaveChangesAsync();
+
+                return resp.exito
+                    ? Ok($"Aceptado: {resp.mensaje}")
+                    : BadRequest($"Rechazado: {resp.mensaje}");
+            }
+            else if (modo.Equals("resumen", StringComparison.OrdinalIgnoreCase))
+            {
+                comp.EnviadoSunat = false; // queda pendiente para RC
+                await _context.SaveChangesAsync();
+                return Ok("Marcado como pendiente para incluir en el Resumen Diario.");
+            }
+
+            return BadRequest("Modo inválido. Usa 'bill' o 'resumen'.");
+        }
+
+        private static string MapTipoSunat(int idTipoDocumento) => idTipoDocumento switch
+        {
+            1 or 5 => "03", // Boleta / Boleta M
+            2 or 6 => "01", // Factura / Factura M
+            7 => "07",  // Nota de Crédito
+            8 => "08",  // Nota de Débito
+            _ => "00"
+        };
+
+        [HttpPost("regenerar-y-enviar/{idComprobante:int}")]
+        [Authorize(Roles = "ADMINISTRADOR")]
+        public async Task<IActionResult> RegenerarYEnviar(int idComprobante)
+        {
+            // 1) Cabecera y detalles
+            var cab = await _context.ComprobanteDeVentaCabeceras
+                .Include(c => c.ComprobanteDeVentaDetalles)
+                .Include(c => c.IdTipoDocumentoNavigation)
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+            if (cab == null) return NotFound("Cabecera no encontrada.");
+
+            // 2) Almacén (RUC, SOL)
+            var alm = await _context.Almacens
+                .Where(a => a.IdAlmacen == cab.IdAlmacen)
+                .Select(a => new { a.Ruc, a.RazonSocial, a.Direccion, a.Ubigeo, a.Dpd, a.UsuarioSol, a.ClaveSol })
+                .FirstOrDefaultAsync();
+            if (alm == null || string.IsNullOrWhiteSpace(alm.Ruc) ||
+                string.IsNullOrWhiteSpace(alm.UsuarioSol) || string.IsNullOrWhiteSpace(alm.ClaveSol))
+                return BadRequest("Configuración SUNAT incompleta para el almacén.");
+
+            // 3) Mapear a tu DTO (como en tu GenerarResumenDiario)
+            var dpd = (alm.Dpd ?? "").Split(new[] { '-', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            string distrito = dpd.Length > 0 ? dpd[0].Trim() : "";
+            string provincia = dpd.Length > 1 ? dpd[1].Trim() : "";
+            string departamento = dpd.Length > 2 ? dpd[2].Trim() : "";
+
+            var dto = new Models.SUNAT.DTOs.ComprobanteCabeceraDTO
+            {
+                IdComprobante = cab.IdComprobante,
+                TipoDocumento = cab.IdTipoDocumentoNavigation.Abreviatura, // si tu generador espera "01/03", cámbialo aquí
+                Serie = cab.Serie,
+                Numero = cab.Numero,
+                FechaEmision = cab.Fecha,
+                HoraEmision = cab.Fecha.TimeOfDay,
+                RucEmisor = alm.Ruc ?? "",
+                RazonSocialEmisor = alm.RazonSocial ?? "",
+                DireccionEmisor = alm.Direccion ?? "",
+                UbigeoEmisor = alm.Ubigeo ?? "",
+                DepartamentoEmisor = departamento,
+                ProvinciaEmisor = provincia,
+                DistritoEmisor = distrito,
+                DocumentoCliente = cab.Dniruc ?? "",
+                TipoDocumentoCliente = (cab.Dniruc != null && cab.Dniruc.Length == 11) ? "6" : "1",
+                NombreCliente = cab.Nombre,
+                DireccionCliente = cab.Direccion ?? "",
+                SubTotal = cab.SubTotal,
+                Igv = cab.Igv,
+                Total = cab.Total,
+                Detalles = cab.ComprobanteDeVentaDetalles.Select(d => new Models.SUNAT.DTOs.ComprobanteDetalleDTO
+                {
+                    Item = d.Item,
+                    CodigoItem = d.IdArticulo,
+                    DescripcionItem = d.Descripcion,
+                    UnidadMedida = d.UnidadMedida,
+                    Cantidad = d.Cantidad,
+                    PrecioUnitarioConIGV = d.Precio,
+                    PrecioUnitarioSinIGV = Math.Round(d.Precio / 1.18m, 2),
+                    IGV = Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
+                }).ToList()
+            };
+
+            // 4) Rutas y nombre SUNAT
+            var tipo = MapTipoSunat(cab.IdTipoDocumento);
+            var baseName = $"{alm.Ruc}-{tipo}-{cab.Serie}-{cab.Numero:D8}";
+            var tmpDir = Path.Combine(Path.GetTempPath(), "sunat-retry");
+            Directory.CreateDirectory(tmpDir);
+            var xmlPath = Path.Combine(tmpDir, baseName + ".xml");
+
+            // 5) Generar y firmar con TU servicio
+            var gen = await _facturacionService.GenerarYFirmarFacturaAsync(dto, xmlPath);
+            if (!gen.exito) return BadRequest($"Error al firmar: {gen.mensaje}");
+
+            // 6) Guardar/actualizar en tabla Comprobantes
+            var comp = await _context.Comprobantes.FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+            var xmlFirmado = await System.IO.File.ReadAllTextAsync(xmlPath);
+
+            if (comp == null)
+            {
+                comp = new Comprobante
+                {
+                    IdComprobante = idComprobante,
+                    Hash = gen.hash ?? string.Empty,
+                    Xml = xmlFirmado,
+                    EnviadoSunat = false,
+                    Estado = true
+                };
+                _context.Comprobantes.Add(comp);
+            }
+            else
+            {
+                comp.Xml = xmlFirmado;
+                comp.Hash = gen.hash ?? comp.Hash;
+                comp.EnviadoSunat = false;
+                comp.Estado = true;
+                comp.RespuestaSunat = null;
+                comp.TicketSunat = null;
+                comp.FechaEnvio = null;
+                comp.FechaRespuestaSunat = null;
+            }
+            await _context.SaveChangesAsync();
+
+            // 7) Comprimir y enviar
+            var zipPath = _facturacionService.ComprimirArchivo(xmlPath);
+            var resp = await _facturacionService.EnviarFacturaAsync(zipPath, alm.UsuarioSol!, alm.ClaveSol!);
+
+            comp.EnviadoSunat = resp.exito;
+            comp.RespuestaSunat = resp.mensaje;
+            comp.FechaEnvio = DateTime.Now;
+            comp.FechaRespuestaSunat = DateTime.Now;
+            comp.TicketSunat = string.IsNullOrWhiteSpace(resp.ticket) ? null : resp.ticket;
+            await _context.SaveChangesAsync();
+
+            return resp.exito ? Ok($"Aceptado: {resp.mensaje}") : BadRequest($"Rechazado: {resp.mensaje}");
         }
 
         [HttpPost("generar-resumen")]
@@ -783,7 +1056,6 @@ namespace GSCommerceAPI.Controllers
 
             return BadRequest(resultado.mensaje);
         }
-
 
         [HttpGet("dias-pendientes-envio")]
         public async Task<IActionResult> ObtenerDiasPendientesEnvio([FromQuery] int anio, [FromQuery] int idAlmacen, [FromQuery] int tipoDoc)

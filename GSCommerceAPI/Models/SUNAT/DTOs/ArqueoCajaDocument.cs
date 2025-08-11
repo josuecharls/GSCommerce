@@ -106,7 +106,7 @@ public class ArqueoCajaDocument : IDocument
                     table.Cell().PaddingLeft(sep).Column(col =>
                     {
                         col.Item().Text("Egresos").Bold();
-                        var totalEgresos = _dto.Egresos + _dto.TransferenciasDia + _dto.PagosProveedores;
+                        var totalEgresos = _dto.GastosDia + _dto.TransferenciasDia + _dto.PagosProveedores;
 
                         col.Item().Row(r => { r.RelativeItem().Text("Gastos del día (S/)"); r.ConstantItem(80).AlignRight().Text(_dto.GastosDia.ToString("N2")); });
                         col.Item().Row(r => { r.RelativeItem().Text("Transferencias del día (S/)"); r.ConstantItem(80).AlignRight().Text(_dto.TransferenciasDia.ToString("N2")); });
@@ -119,7 +119,7 @@ public class ArqueoCajaDocument : IDocument
                 column.Item().PaddingVertical(5).LineHorizontal(1);
                 column.Item().Border(1).Padding(8).Table(table =>
                 {
-                    var saldoEnCaja = _dto.SaldoDiaAnterior + _dto.VentasDelDia + _dto.Ingresos - _dto.Egresos;
+                    var saldoEnCaja = _dto.SaldoInicial + _dto.VentasDelDia + _dto.Ingresos - _dto.Egresos;
                     table.ColumnsDefinition(c => { c.RelativeColumn(); c.ConstantColumn(100); });
                     table.Cell().Text("Saldo de caja (S/)").Bold();
                     table.Cell().AlignRight().Text(saldoEnCaja.ToString("N2"));

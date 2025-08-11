@@ -16,22 +16,52 @@ namespace GSCommerce.Client.Services
 
         public async Task<List<PendienteSunatDTO>> ObtenerPendientesAsync(DateTime fecha)
         {
-            int? idAlmacen = await _auth.GetUserAlmacenId();
-            if (idAlmacen == null)
-                return new();
-            string url = $"api/ventas/pendientes-sunat?fecha={fecha:yyyy-MM-dd}&idAlmacen={idAlmacen}";
-            var response = await _http.GetFromJsonAsync<List<PendienteSunatDTO>>(url);
-            return response ?? new();
+            var cargo = await _auth.GetUserCargo() ?? string.Empty;
+            var url = $"api/ventas/pendientes-sunat?fecha={fecha:yyyy-MM-dd}";
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+            {
+                var idAlmacen = await _auth.GetUserAlmacenId();
+                if (idAlmacen != null) url += $"&idAlmacen={idAlmacen}";
+            }
+
+            try
+            {
+                return await _http.GetFromJsonAsync<List<PendienteSunatDTO>>(url) ?? new();
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[ResumenSunatService] {ex.Message}");
+                return new(); // evita el “Unhandled exception rendering component”
+            }
         }
 
         public async Task<string> GenerarResumenAsync(DateTime fecha)
         {
-            int? idAlmacen = await _auth.GetUserAlmacenId();
-            if (idAlmacen == null)
-                return "Almac\u00e9n no encontrado";
+            // lo dejamos como estaba (si quieres generar para todos los almacenes, lo vemos luego)
+            var idAlmacen = await _auth.GetUserAlmacenId();
+            if (idAlmacen == null) return "Almacén no encontrado";
 
-            var response = await _http.PostAsync($"api/ventas/generar-resumen?fecha={fecha:yyyy-MM-dd}&idAlmacen={idAlmacen}", null);
-            return await response.Content.ReadAsStringAsync();
+            var resp = await _http.PostAsync($"api/ventas/generar-resumen?fecha={fecha:yyyy-MM-dd}&idAlmacen={idAlmacen}", null);
+            return await resp.Content.ReadAsStringAsync();
+        }
+
+        public async Task<string?> ObtenerXmlAsync(int idComprobante)
+        {
+            try { return await _http.GetStringAsync($"api/ventas/xml/{idComprobante}"); }
+            catch { return null; }
+        }
+
+        public async Task<bool> ActualizarXmlAsync(int idComprobante, string xml)
+        {
+            var payload = new { xml };
+            var resp = await _http.PutAsJsonAsync($"api/ventas/xml/{idComprobante}", payload);
+            return resp.IsSuccessStatusCode;
+        }
+
+        public async Task<string> ReintentarAsync(int idComprobante, string modo)
+        {
+            var resp = await _http.PostAsync($"api/ventas/reintentar/{idComprobante}?modo={modo}", null);
+            return await resp.Content.ReadAsStringAsync();
         }
     }
 }

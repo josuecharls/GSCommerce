@@ -180,16 +180,19 @@ namespace GSCommerce.Client.Services
         }
 
         // Listado de aperturas y cierres
-        public async Task<List<VListadoAperturaCierre1DTO>?> ListadoAperturasCierresAsync(DateOnly? fechaInicio, DateOnly? fechaFin, int? idAlmacen)
+        public async Task<List<VListadoAperturaCierre1DTO>?> ListadoAperturasCierresAsync(DateOnly fecha, int? idAlmacen)
         {
-            var url = "api/caja/listado";
-            var parametros = new List<string>();
-            if (fechaInicio.HasValue) parametros.Add($"fechaInicio={fechaInicio:yyyy-MM-dd}");
-            if (fechaFin.HasValue) parametros.Add($"fechaFin={fechaFin:yyyy-MM-dd}");
-            if (idAlmacen.HasValue) parametros.Add($"idAlmacen={idAlmacen}");
-            if (parametros.Count > 0) url += "?" + string.Join("&", parametros);
+            var url = $"api/caja/listado?fecha={fecha:yyyy-MM-dd}";
+            if (idAlmacen.HasValue) url += $"&idAlmacen={idAlmacen}";
 
-            return await _http.GetFromJsonAsync<List<VListadoAperturaCierre1DTO>>(url);
+            try
+            {
+                return await _http.GetFromJsonAsync<List<VListadoAperturaCierre1DTO>>(url);
+            }
+            catch
+            {
+                return new List<VListadoAperturaCierre1DTO>();
+            }
         }
     }
 }

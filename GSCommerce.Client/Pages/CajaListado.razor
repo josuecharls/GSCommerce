@@ -13,12 +13,8 @@
 
 <div class="row mb-3">
     <div class="col-md-3">
-        <label>Desde:</label>
-        <InputDate @bind-Value="fechaInicio" class="form-control" />
-    </div>
-    <div class="col-md-3">
-        <label>Hasta:</label>
-        <InputDate @bind-Value="fechaFin" class="form-control" />
+        <label>Fecha:</label>
+        <InputDate @bind-Value="fecha" class="form-control" />
     </div>
     <div class="col-md-3">
         <label>Almacén:</label>
@@ -67,7 +63,7 @@ else
                     <td>@item.VentaDia.ToString("N2")</td>
                     <td>@item.Ingresos.ToString("N2")</td>
                     <td>@item.Egresos.ToString("N2")</td>
-                    <td>@((item.SaldoInicial + item.VentaDia + item.Ingresos - item.Egresos).ToString("N2"))</td>
+                    <td>@item.SaldoFinal.ToString("N2")</td>
                     <td>@item.Estado</td>
                     <td>
                         <button class="btn btn-sm btn-secondary" @onclick="() => Descargar(item.IdAperturaCierre)">
@@ -96,8 +92,7 @@ else
     private List<AlmacenDTO> almacenes = new();
     private int idAlmacen = 0;
 
-    private DateOnly fechaInicio = DateOnly.FromDateTime(DateTime.Today);
-    private DateOnly fechaFin = DateOnly.FromDateTime(DateTime.Today);
+    private DateOnly fecha = DateOnly.FromDateTime(DateTime.Today); // <- una sola fecha
 
     private decimal totalSaldoInicial, totalVentaDia, totalIngresos, totalEgresos, totalSaldoFinal;
 
@@ -110,21 +105,19 @@ else
     private async Task CargarListado()
     {
         listado = await CajaService.ListadoAperturasCierresAsync(
-            fechaInicio,
-            fechaFin,
-            idAlmacen == 0 ? null : idAlmacen
+            fecha,
+            idAlmacen == 0 ? (int?)null : idAlmacen
         ) ?? new();
 
         CalcularTotales();
     }
-
     private void CalcularTotales()
     {
         totalSaldoInicial = listado.Sum(x => x.SaldoInicial);
-        totalVentaDia = listado.Sum(x => x.VentaDia);
+        totalVentaDia = listado.Sum(x => x.VentaDia);      // total (efectivo + tarjeta)
         totalIngresos = listado.Sum(x => x.Ingresos);
         totalEgresos = listado.Sum(x => x.Egresos);
-        totalSaldoFinal = listado.Sum(x => x.SaldoInicial + x.VentaDia + x.Ingresos - x.Egresos);
+        totalSaldoFinal = listado.Sum(x => x.SaldoFinal);    // <- usa el del backend
     }
 
     private async Task Descargar(int id)

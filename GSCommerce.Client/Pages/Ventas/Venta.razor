@@ -30,11 +30,23 @@
         <label>Hasta:</label>
         <input type="date" class="form-control" @bind-value="hasta" @bind-value:event="oninput" />
     </div>
-    <div class="@(cargo == "ADMINISTRADOR" ? "col-md-3" : "col-md-4") d-flex align-items-end">
+
+    <div class="col-md-3">
+        <label>Tipo Doc:</label>
+        <select class="form-control" @bind="selectedTipoDoc">
+            <option value="0">Todos</option>
+            <option value="1">BOLETA</option>
+            <option value="2">FACTURA</option>
+            <option value="4">TICKET</option>
+            <option value="5">BOLETA M</option>
+            <option value="6">FACTURA M</option>
+        </select>
+    </div>
+
+    <div class="@(cargo == "ADMINISTRADOR" ? "col-md-12 col-lg-3" : "col-md-4") d-flex align-items-end">
         <button class="btn btn-primary w-100" @onclick="BuscarVentas">Buscar</button>
     </div>
 </div>
-
 <table class="table table-bordered">
     <thead>
         <tr>
@@ -96,11 +108,14 @@
     private VentaConsultaDTO? ventaSeleccionada;
     private bool mostrarMenuContextual = false;
     private string estiloMenu = "";
+    private int selectedTipoDoc = 0; // 0 = todos
 
     private async Task BuscarVentas()
     {
-        int? filtro = cargo == "ADMINISTRADOR" && selectedAlmacen == 0 ? (int?)null : selectedAlmacen;
-        ventas = await ventaService.ObtenerVentasAsync(desde, hasta, filtro);
+        int? filtroAlmacen = cargo == "ADMINISTRADOR" && selectedAlmacen == 0 ? (int?)null : selectedAlmacen;
+        int? filtroTipoDoc = selectedTipoDoc == 0 ? (int?)null : selectedTipoDoc;
+
+        ventas = await ventaService.ObtenerVentasAsync(desde, hasta, filtroAlmacen, filtroTipoDoc);
     }
 
 

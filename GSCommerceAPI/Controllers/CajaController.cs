@@ -255,28 +255,106 @@ public class CajaController : ControllerBase
 
     // 9. Listado de aperturas y cierres de caja
     [HttpGet("listado")]
-    public async Task<IActionResult> ListadoAperturasCierres([FromQuery] string? fechaInicio, [FromQuery] string? fechaFin, [FromQuery] int? idAlmacen)
+    public async Task<IActionResult> ListadoAperturasCierres([FromQuery] DateOnly? fecha, [FromQuery] int? idAlmacen)
     {
-        var query = _context.VListadoAperturaCierre1s.AsQueryable();
+        if (fecha is null) fecha = DateOnly.FromDateTime(DateTime.Today);
 
-        if (!string.IsNullOrWhiteSpace(fechaInicio) && DateOnly.TryParse(fechaInicio, out var fi))
-            query = query.Where(x => x.Fecha >= fi);
+        var dayStart = fecha.Value.ToDateTime(TimeOnly.MinValue);
+        var dayEnd = fecha.Value.ToDateTime(new TimeOnly(23, 59, 59));
 
-        if (!string.IsNullOrWhiteSpace(fechaFin) && DateOnly.TryParse(fechaFin, out var ff))
-            query = query.Where(x => x.Fecha <= ff);
-
-        if (idAlmacen.HasValue && idAlmacen.Value > 0)
-            query = query.Where(x => x.IdAlmacen == idAlmacen.Value);
-
-        var listado = await query
-            .OrderByDescending(x => x.Fecha)
-            .ThenBy(x => x.IdAlmacen)
-            .ThenBy(x => x.IdUsuario)
+        var aperturas = await _context.AperturaCierreCajas
+            .AsNoTracking()
+            .Include(a => a.IdUsuarioNavigation).ThenInclude(u => u.IdPersonalNavigation)
+            .Include(a => a.IdAlmacenNavigation)
+            .Where(a => a.Fecha == fecha && (!idAlmacen.HasValue || a.IdAlmacen == idAlmacen.Value))
+            .OrderBy(a => a.IdAlmacen).ThenBy(a => a.IdUsuario)
             .ToListAsync();
 
-        return Ok(listado);
+        if (aperturas.Count == 0) return Ok(new List<VListadoAperturaCierre1DTO>());
+
+        var claves = aperturas.Select(a => (a.IdUsuario, a.IdAlmacen)).ToHashSet();
+
+        // Ventas del día desde ResumenCierreDeCajas (solo filas que empiezan con VENTA)
+        var ventasDia = await _context.ResumenCierreDeCajas
+            .AsNoTracking()
+            .Where(r => r.Fecha == fecha && r.Grupo != null && r.Grupo.StartsWith("VENTA"))
+            .Select(r => new { r.IdUsuario, r.IdAlmacen, r.Grupo, r.Monto })
+            .ToListAsync();
+        ventasDia = ventasDia.Where(v => claves.Contains((v.IdUsuario, v.IdAlmacen))).ToList();
+
+        // Movimientos del día (ingresos/egresos)
+        var movsDia = await _context.IngresosEgresosCabeceras
+            .AsNoTracking()
+            .Where(m => m.Fecha >= dayStart && m.Fecha <= dayEnd && m.Estado == "E")
+            .Select(m => new { m.IdUsuario, m.IdAlmacen, m.Naturaleza, Grupo = (m.Tipo ?? "").Trim(), m.Monto })
+            .ToListAsync();
+        movsDia = movsDia.Where(m => claves.Contains((m.IdUsuario, m.IdAlmacen))).ToList();
+
+        bool SW(string s, params string[] pref) => !string.IsNullOrWhiteSpace(s) && pref.Any(p => s.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+
+        decimal VRes(int u, int a) => ventasDia.Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET")).Sum(v => v.Monto);
+        decimal VTar(int u, int a) => ventasDia.Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA TARJETA/ONLINE")).Sum(v => v.Monto);
+        decimal VNC(int u, int a) => ventasDia.Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA POR N.C.", "VENTA CON N.C.")).Sum(v => v.Monto);
+
+        decimal Ingresos(int u, int a) => movsDia.Where(m => m.IdUsuario == u && m.IdAlmacen == a && m.Naturaleza == "I").Sum(m => m.Monto);
+        decimal Transf(int u, int a) => movsDia.Where(m => m.IdUsuario == u && m.IdAlmacen == a && m.Naturaleza == "E" && m.Grupo.StartsWith("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase)).Sum(m => m.Monto);
+        decimal Prov(int u, int a) => movsDia.Where(m => m.IdUsuario == u && m.IdAlmacen == a && m.Naturaleza == "E" && m.Grupo.Equals("PAGO PROVEEDORES", StringComparison.OrdinalIgnoreCase)).Sum(m => m.Monto);
+        decimal Gastos(int u, int a)
+        {
+            var exactos = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PAGO LUZ", "PAGO AGUA", "PAGO TELEFONO", "PAGO CELULAR", "PAGO ALQUILER", "PAGO PLANILLAS", "PAGO ADELANTOS", "SUNAT", "FLETE", "AFP", "AFP-REPORTE", "SUNAT-REPORTE", "ALQUILER-REPORTE" };
+            return movsDia.Where(m => m.IdUsuario == u && m.IdAlmacen == a && m.Naturaleza == "E" && (m.Grupo.StartsWith("GASTOS DIVERSOS", StringComparison.OrdinalIgnoreCase) || exactos.Contains(m.Grupo))).Sum(m => m.Monto);
+        }
+
+        var resultado = new List<VListadoAperturaCierre1DTO>();
+
+        foreach (var ap in aperturas)
+        {
+            // saldo del día anterior (o saldo inicial de la apertura si no hay cierre previo)
+            var saldoDiaAnterior = await _context.AperturaCierreCajas
+                .AsNoTracking()
+                .Where(a => a.IdAlmacen == ap.IdAlmacen && a.Fecha < ap.Fecha && a.Estado == "C")
+                .OrderByDescending(a => a.Fecha)
+                .Select(a => (decimal?)a.SaldoFinal)
+                .FirstOrDefaultAsync() ?? ap.SaldoInicial;
+
+            var vResumen = VRes(ap.IdUsuario, ap.IdAlmacen);
+            var vTarjeta = VTar(ap.IdUsuario, ap.IdAlmacen);
+            var vNC = VNC(ap.IdUsuario, ap.IdAlmacen);
+
+            var vTotal = vResumen - vNC;            // Venta Día = efectivo + tarjeta
+            var vEfectivo = vResumen - vTarjeta - vNC; // solo efectivo (para saldo de caja)
+
+            var ingresos = Ingresos(ap.IdUsuario, ap.IdAlmacen);
+            var egresos = Gastos(ap.IdUsuario, ap.IdAlmacen) + Transf(ap.IdUsuario, ap.IdAlmacen) + Prov(ap.IdUsuario, ap.IdAlmacen);
+
+            resultado.Add(new VListadoAperturaCierre1DTO
+            {
+                IdAperturaCierre = ap.IdAperturaCierre,
+                Fecha = ap.Fecha,
+                IdAlmacen = ap.IdAlmacen,
+                Nombre = ap.IdAlmacenNavigation?.Nombre ?? "",
+                IdUsuario = ap.IdUsuario,
+                Cajero = $"{ap.IdUsuarioNavigation?.IdPersonalNavigation?.Nombres} {ap.IdUsuarioNavigation?.IdPersonalNavigation?.Apellidos}".Trim(),
+                Estado = ap.Estado,
+
+                SaldoInicial = saldoDiaAnterior,
+                VentaDia = vTotal,                                      // <- TOTAL (efectivo + tarjeta)
+                Ingresos = ingresos,
+                Egresos = egresos,
+                SaldoFinal = saldoDiaAnterior + vEfectivo + ingresos - egresos // <- usa EFECTIVO
+            });
+        }
+
+        resultado = resultado
+            .OrderByDescending(x => x.Fecha)
+            .ThenBy(x => x.IdAlmacen)
+            .ThenBy(x => x.Cajero)
+            .ToList();
+
+        return Ok(resultado);
     }
 
+    // 11. Obtener ventas diarias para un almacén y fecha
     [HttpGet("ventas/{idAlmacen}/{fecha}")]
     public async Task<ActionResult<IEnumerable<VCierreVentaDiaria1>>> GetVentasDiarias(int idAlmacen, string fecha)
     {
@@ -434,8 +512,9 @@ public class CajaController : ControllerBase
     {
         try
         {
-            // Apertura
+            // 1) APERTURA
             var apertura = await _context.AperturaCierreCajas
+                .AsNoTracking()
                 .Include(x => x.IdUsuarioNavigation).ThenInclude(u => u.IdPersonalNavigation)
                 .Include(x => x.IdAlmacenNavigation)
                 .FirstOrDefaultAsync(x => x.IdAperturaCierre == id);
@@ -443,55 +522,177 @@ public class CajaController : ControllerBase
             if (apertura == null)
                 return NotFound("No se encontró la apertura de caja.");
 
-            // Resumen (normaliza nulos de Grupo/Detalle)
+            // Ventana del día (DateOnly -> DateTime range)
+            var dayStart = apertura.Fecha.ToDateTime(TimeOnly.MinValue);
+            var dayEnd = apertura.Fecha.ToDateTime(new TimeOnly(23, 59, 59));
+
+            // 2) RESUMEN BASE (solo VENTAS) para ese día
             var resumenBase = await _context.ResumenCierreDeCajas
-                .Where(r => r.IdUsuario == apertura.IdUsuario && r.IdAlmacen == apertura.IdAlmacen && r.Fecha == apertura.Fecha)
-                .Select(r => new { r.IdGrupo, Grupo = r.Grupo ?? "", Detalle = r.Detalle ?? "", r.Monto })
+                .AsNoTracking()
+                .Where(r => r.IdUsuario == apertura.IdUsuario
+                         && r.IdAlmacen == apertura.IdAlmacen
+                         && r.Fecha == apertura.Fecha)
+                .Select(r => new { r.IdGrupo, Grupo = (r.Grupo ?? "").Trim(), Detalle = (r.Detalle ?? "").Trim(), r.Monto, r.Fecha })
                 .ToListAsync();
 
-            // Movimientos (normaliza nulos)
+            var resumenVentas = resumenBase
+                .Where(r => r.Grupo.StartsWith("VENTA", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            // 3) MOVIMIENTOS DEL DÍA (ingresos/egresos) desde IngresosEgresosCabeceras
             var movimientos = await _context.IngresosEgresosCabeceras
-                .Where(m => m.IdUsuario == apertura.IdUsuario &&
-                            m.IdAlmacen == apertura.IdAlmacen &&
-                            DateOnly.FromDateTime(m.Fecha) == apertura.Fecha &&
-                            m.Estado == "E")
-                .Select(m => new { IdGrupo = m.Naturaleza == "I" ? 3 : 5, Grupo = (m.Tipo ?? ""), Detalle = (m.Glosa ?? ""), Monto = m.Monto })
+                .AsNoTracking()
+                .Where(m => m.IdUsuario == apertura.IdUsuario
+                         && m.IdAlmacen == apertura.IdAlmacen
+                         && m.Fecha >= dayStart && m.Fecha <= dayEnd
+                         && m.Estado == "E")
+                .Select(m => new
+                {
+                    IdGrupo = m.Naturaleza == "I" ? 3 : 5,
+                    Grupo = (m.Tipo ?? "").Trim(),   // <- Tipo = Grupo
+                    Detalle = (m.Glosa ?? "").Trim(),   // <- Glosa = Detalle
+                    Monto = m.Monto,
+                    Fecha = apertura.Fecha            // unifica a DateOnly
+                })
                 .ToListAsync();
 
-            var resumen = resumenBase.Concat(movimientos)
-                                     .OrderBy(r => r.IdGrupo).ThenBy(r => r.Grupo)
-                                     .ToList();
+            // 4) LISTA UNIFICADA SOLO DEL DÍA: VENTAS (resumen) + MOVIMIENTOS (ing/eg)
+            var resumenDia = resumenVentas
+                .Concat(movimientos)
+                .OrderBy(r => r.IdGrupo).ThenBy(r => r.Grupo)
+                .ToList();
 
-            // Saldo del día anterior (si no hay, cae a saldo inicial de la apertura)
+            // 5) SALDO DEL DÍA ANTERIOR
             var saldoDiaAnterior = await _context.AperturaCierreCajas
+                .AsNoTracking()
                 .Where(a => a.IdAlmacen == apertura.IdAlmacen && a.Fecha < apertura.Fecha && a.Estado == "C")
                 .OrderByDescending(a => a.Fecha)
                 .Select(a => (decimal?)a.SaldoFinal)
                 .FirstOrDefaultAsync() ?? apertura.SaldoInicial;
 
-            // Helper null-safe
-            decimal MontoPorGrupo(params string[] nombres) =>
-                resumen.Where(r => !string.IsNullOrEmpty(r.Grupo) &&
-                                   nombres.Any(n => r.Grupo.StartsWith(n, StringComparison.OrdinalIgnoreCase)))
-                       .Sum(r => r.Monto);
+            // Helpers
+            bool StartsWithAny(string src, StringComparison cmp, params string[] pref)
+                => !string.IsNullOrWhiteSpace(src) && pref.Any(p => src.StartsWith(p, cmp));
 
-            // Ventas
+            decimal MontoPorGrupo(params string[] nombres) =>
+                resumenVentas.Where(r => !string.IsNullOrWhiteSpace(r.Grupo) &&
+                                         StartsWithAny(r.Grupo, StringComparison.OrdinalIgnoreCase, nombres))
+                             .Sum(r => r.Monto);
+
+            // 6) VENTAS (del día)
             var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
             var ventaNC = MontoPorGrupo("VENTA POR N.C.", "VENTA CON N.C.");
             var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET");
-            var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC;
+            var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC; // efectivo real en caja
             var ventaDia = ventaEfectivo + ventaTarjeta;
 
-            // Ingresos/Egresos (null-safe)
-            var ingresos = resumen.Where(r => r.IdGrupo == 3).Sum(r => r.Monto);
-            var transferenciasDia = resumen.Where(r => r.IdGrupo == 5 && !string.IsNullOrEmpty(r.Grupo) && r.Grupo.StartsWith("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
-            var pagosProveedores = resumen.Where(r => r.IdGrupo == 5 && !string.IsNullOrEmpty(r.Grupo) && r.Grupo.StartsWith("PAGO PROVEEDORES", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
-            var gastosGenerales = resumen.Where(r => r.IdGrupo == 5 && !string.IsNullOrEmpty(r.Grupo) && r.Grupo.StartsWith("GASTOS", StringComparison.OrdinalIgnoreCase)).Sum(r => r.Monto);
-            var egresos = gastosGenerales + transferenciasDia + pagosProveedores;
+            // --- Distribución de efectivo por grupo de venta (para mostrar solo EFECTIVO en la tabla Detalle) ---
+            string[] gruposVentaBase = { "VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET" };
 
+            var totalesVentaPorGrupo = resumenVentas
+                .Where(r => gruposVentaBase.Any(g => r.Grupo.StartsWith(g, StringComparison.OrdinalIgnoreCase)))
+                .GroupBy(r => gruposVentaBase.First(g => r.Grupo.StartsWith(g, StringComparison.OrdinalIgnoreCase)))
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Monto));
+
+            var ventasResumenTotal = totalesVentaPorGrupo.Values.Sum();
+            var efectivoPorGrupo = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+
+            if (ventasResumenTotal > 0)
+            {
+                decimal acumulado = 0;
+                string grupoMayor = totalesVentaPorGrupo.OrderByDescending(kv => kv.Value).First().Key;
+
+                foreach (var kv in totalesVentaPorGrupo)
+                {
+                    var proporcion = kv.Value / ventasResumenTotal;
+                    var monto = Math.Round(ventaEfectivo * proporcion, 2);
+                    efectivoPorGrupo[kv.Key] = monto;
+                    acumulado += monto;
+                }
+
+                var residuo = Math.Round(ventaEfectivo - acumulado, 2);
+                if (residuo != 0 && efectivoPorGrupo.ContainsKey(grupoMayor))
+                    efectivoPorGrupo[grupoMayor] = Math.Round(efectivoPorGrupo[grupoMayor] + residuo, 2);
+            }
+            else
+            {
+                foreach (var g in gruposVentaBase) efectivoPorGrupo[g] = 0m;
+            }
+
+            // 7) INGRESOS / EGRESOS (solo del día) — para totales de tarjetas y egresos
+            var categoriasExactas = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "PAGO LUZ","PAGO AGUA","PAGO TELEFONO","PAGO CELULAR","PAGO ALQUILER",
+            "PAGO PLANILLAS","PAGO ADELANTOS","SUNAT","FLETE","AFP","AFP-REPORTE",
+            "SUNAT-REPORTE","ALQUILER-REPORTE"
+        };
+
+            var ingresos = movimientos.Where(r => r.IdGrupo == 3).Sum(r => r.Monto);
+
+            var transferenciasDia = movimientos
+                .Where(r => r.IdGrupo == 5
+                         && !string.IsNullOrWhiteSpace(r.Grupo)
+                         && r.Grupo.StartsWith("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase))
+                .Sum(r => r.Monto);
+
+            var pagosProveedores = movimientos
+                .Where(r => r.IdGrupo == 5
+                         && !string.IsNullOrWhiteSpace(r.Grupo)
+                         && r.Grupo.Equals("PAGO PROVEEDORES", StringComparison.OrdinalIgnoreCase))
+                .Sum(r => r.Monto);
+
+            var gastosGenerales = movimientos
+                .Where(r => r.IdGrupo == 5
+                         && !string.IsNullOrWhiteSpace(r.Grupo)
+                         && (r.Grupo.StartsWith("GASTOS DIVERSOS", StringComparison.OrdinalIgnoreCase)
+                             || categoriasExactas.Contains(r.Grupo)))
+                .Sum(r => r.Monto);
+
+            var egresos = gastosGenerales + transferenciasDia + pagosProveedores;
             var saldoFinal = saldoDiaAnterior + ventaEfectivo + ingresos - egresos;
 
-            // DTO para el PDF (strings null-safe)
+            // 8) Construir DETALLE para el PDF
+            var detalleHoy = new List<ResumenCierreDeCaja>();
+
+            // Ventas EFECTIVO por grupo (detalle = el primero encontrado del resumen)
+            foreach (var g in gruposVentaBase)
+            {
+                if (totalesVentaPorGrupo.ContainsKey(g))
+                {
+                    var primerDetalle = resumenVentas.First(r => r.Grupo.StartsWith(g, StringComparison.OrdinalIgnoreCase)).Detalle;
+                    detalleHoy.Add(new ResumenCierreDeCaja
+                    {
+                        Grupo = g,
+                        Detalle = primerDetalle,
+                        Monto = efectivoPorGrupo[g] // <-- solo EFECTIVO aquí
+                    });
+                }
+            }
+
+            // Mantener líneas de Tarjeta / NC tal cual vienen del resumen
+            var tarjetasYnc = resumenVentas
+                .Where(r => r.Grupo.StartsWith("VENTA TARJETA/ONLINE", StringComparison.OrdinalIgnoreCase)
+                         || r.Grupo.StartsWith("VENTA POR N.C.", StringComparison.OrdinalIgnoreCase)
+                         || r.Grupo.StartsWith("VENTA CON N.C.", StringComparison.OrdinalIgnoreCase))
+                .Select(r => new ResumenCierreDeCaja { Grupo = r.Grupo, Detalle = r.Detalle, Monto = r.Monto });
+
+            detalleHoy.AddRange(tarjetasYnc);
+
+            // Agregar movimientos del día (Tipo -> Grupo, Glosa -> Detalle)
+            detalleHoy.AddRange(movimientos.Select(m => new ResumenCierreDeCaja
+            {
+                Grupo = m.Grupo,
+                Detalle = m.Detalle,
+                Monto = m.Monto
+            }));
+
+            // Orden final: primero ventas, luego lo demás
+            detalleHoy = detalleHoy
+                .OrderBy(d => d.Grupo.StartsWith("VENTA", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(d => d.Grupo)
+                .ToList();
+
+            // 9) DTO PARA EL PDF
             var dto = new ArqueoCajaDTO
             {
                 IdAperturaCierre = apertura.IdAperturaCierre,
@@ -500,36 +701,33 @@ public class CajaController : ControllerBase
                 Cajero = $"{apertura.IdUsuarioNavigation?.IdPersonalNavigation?.Nombres} {apertura.IdUsuarioNavigation?.IdPersonalNavigation?.Apellidos}".Trim(),
                 Empresa = apertura.IdAlmacenNavigation?.RazonSocial ?? string.Empty,
                 Sucursal = apertura.IdAlmacenNavigation?.Nombre ?? string.Empty,
+
                 SaldoInicial = saldoDiaAnterior,
                 Ingresos = ingresos,
                 Egresos = egresos,
                 VentaDia = ventaDia,
                 SaldoFinal = saldoFinal,
                 FondoFijo = apertura.FondoFijo,
+
                 SaldoDiaAnterior = saldoDiaAnterior,
-                VentasDelDia = ventaEfectivo,
+                VentasDelDia = ventaEfectivo,   // efectivo real en caja
                 OtrosIngresos = ingresos,
                 VentaTarjeta = ventaTarjeta,
                 VentaNC = ventaNC,
-                GastosDia = egresos,
+                GastosDia = gastosGenerales,
                 TransferenciasDia = transferenciasDia,
                 PagosProveedores = pagosProveedores,
+
                 ObservacionCierre = apertura.ObservacionCierre ?? "",
-                Resumen = resumen.Select(r => new ResumenCierreDeCaja
-                {
-                    Grupo = r.Grupo ?? "",
-                    Detalle = r.Detalle ?? "",
-                    Monto = r.Monto
-                }).ToList()
+                Resumen = detalleHoy
             };
 
-            // PDF
+            // 10) PDF
             var pdf = new ArqueoCajaDocument(dto).GeneratePdf();
             return File(pdf, "application/pdf", $"ArqueoCaja_{dto.Fecha:yyyyMMdd}.pdf");
         }
         catch (Exception ex)
         {
-            // Si tienes ILogger<CajaController> inyéctalo y loggea: _logger.LogError(ex, "Error en arqueo-pdf {id}", id);
             return StatusCode(500, $"Error generando PDF: {ex.Message}");
         }
     }
