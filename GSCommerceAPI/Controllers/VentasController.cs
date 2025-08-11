@@ -75,9 +75,17 @@ namespace GSCommerceAPI.Controllers
 
         [HttpGet("list")]
         [Authorize]
-        public async Task<IActionResult> ListarVentas([FromQuery] int? idAlmacen, [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
+        public async Task<IActionResult> ListarVentas(
+            [FromQuery] int? idAlmacen,
+            [FromQuery] DateTime? desde,
+            [FromQuery] DateTime? hasta,
+            // acepta ambos nombres desde el cliente: tipoDoc e idTipoDoc
+            [FromQuery(Name = "tipoDoc")] int? tipoDoc,
+            [FromQuery(Name = "idTipoDoc")] int? idTipoDocAlias,
+            // opcional: buscar por documento del cliente
+            [FromQuery] string? dniruc
+        )
         {
-            // Rango [inicio, finExcl)
             var inicio = (desde?.Date) ?? DateTime.Today;
             var finExcl = ((hasta?.Date) ?? inicio).AddDays(1);
 
@@ -95,9 +103,7 @@ namespace GSCommerceAPI.Controllers
                         .Select(u => u.IdPersonalNavigation != null ? (int?)u.IdPersonalNavigation.IdAlmacen : null)
                         .FirstOrDefaultAsync();
 
-                    if (!userAlmacen.HasValue)
-                        return Ok(new List<VentaConsultaDTO>());
-
+                    if (!userAlmacen.HasValue) return Ok(new List<VentaConsultaDTO>());
                     query = query.Where(v => v.IdAlmacen == userAlmacen.Value);
                 }
                 else
@@ -109,6 +115,15 @@ namespace GSCommerceAPI.Controllers
             {
                 query = query.Where(v => v.IdAlmacen == idAlmacen.Value);
             }
+
+            // ✅ Filtro por tipo de documento
+            var tipo = tipoDoc ?? idTipoDocAlias;
+            if (tipo.HasValue)
+                query = query.Where(v => v.IdTipoDocumento == tipo.Value);
+
+            // ✅ Filtro por documento del cliente (DNI/RUC)
+            if (!string.IsNullOrWhiteSpace(dniruc))
+                query = query.Where(v => v.Dniruc != null && v.Dniruc.Contains(dniruc));
 
             var ventas = await query
                 .Select(v => new VentaConsultaDTO
@@ -128,7 +143,7 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToListAsync();
 
-            // ---- FIX: agrupar Formas de pago en memoria ----
+            // Agrupar formas de pago
             var ids = ventas.Select(v => v.IdComprobante).ToList();
             if (ids.Count > 0)
             {

@@ -71,7 +71,7 @@ namespace GSCommerce.Client.Services
                 if (idAlmacen.HasValue) url += $"&idAlmacen={idAlmacen.Value}";
                 if (idTipoDoc.HasValue) url += $"&idTipoDoc={idTipoDoc.Value}";
 
-                Console.WriteLine($"[VentaService] GET {url}");
+                //Console.WriteLine($"[VentaService] GET {url}");
                 return await _httpClient.GetFromJsonAsync<List<VentaConsultaDTO>>(url) ?? new();
             }
             catch (Exception ex)

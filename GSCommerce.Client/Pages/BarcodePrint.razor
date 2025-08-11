@@ -2,20 +2,83 @@
 @page "/barcode-print/{codigo}/{descripcion}"
 
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<style>
+  :root{
+    --w: 50mm;   /* ← ANCHO de UNA etiqueta */
+    --h: 30mm;   /* ← ALTO de UNA etiqueta  */
+    --gap: 3mm;  /* ← Gap entre etiquetas (si usas 2-up) */
+  }
+
+  .preview {
+    border: 1px dashed gray; padding: 8px; display:inline-block;
+  }
+
+  /* El “lienzo” que se manda a imprimir */
+  .print-area{ width: var(--w); height: var(--h); padding: 1.5mm;
+               box-sizing: border-box; display:flex; flex-direction:column;
+               justify-content:flex-start; align-items:stretch; }
+
+  .print-area img { display:block; width:100%; height:12mm; object-fit:contain; }
+  .desc{ font-size: 8pt; line-height:1.1; max-height: 12mm; overflow:hidden; margin-top: 1mm; }
+  .code{ font-size: 7pt; margin-top: 1mm; }
+
+  /* Si quieres imprimir DOS etiquetas iguales lado a lado (rollo 2-up) */
+  .two-up{ width: calc(var(--w) * 2 + var(--gap)); height: var(--h); display:flex; gap: var(--gap); }
+  .two-up .print-area{ width: var(--w); height: var(--h); }
+
+  @@media print{
+    @@page{ size: var(--w) var(--h); margin:0; }      /* una sola etiqueta por página */
+    html, body{ margin:0; padding:0; }
+    body *{ visibility:hidden; }
+    .to-print, .to-print *{ visibility:visible; }
+    .to-print{ position:fixed; inset:0; margin:0; }  /* ocupa toda la página de impresión */
+  }
+</style>
 
 <h3 class="text-center">🖨️ Imprimir Etiqueta</h3>
 
 @if (!string.IsNullOrEmpty(Codigo))
 {
-    <div class="text-center mt-4" style="border: 1px dashed gray; padding: 1rem;">
-        <img src="https://barcodeapi.org/api/128/@Codigo" width="200" />
-        <div style="font-size: 18px; font-weight: bold; margin-top: 0.5rem;">@Descripcion</div>
-        <div style="font-size: 14px;">Código: @Codigo</div>
+    <!-- Vista previa en pantalla -->
+    <div class="text-center mt-3 preview">
+        <div class="print-area">
+            <img src="https://barcodeapi.org/api/128/@Codigo" alt="barcode" />
+            <div class="desc"><b>@Descripcion</b></div>
+            <div class="code">Código: @Codigo</div>
+        </div>
     </div>
 
     <div class="text-center mt-3">
         <button class="btn btn-success" @onclick="Imprimir">🖨️ Imprimir</button>
         <button class="btn btn-secondary ms-2" @onclick="Volver">↩️ Volver</button>
+    </div>
+
+    <!-- Zona que realmente se imprime (idéntica a la previa). 
+         Si usas rollo 2-up y quieres sacar 2 iguales, 
+         reemplaza el div de abajo por el que está comentado. -->
+    <div class="to-print" style="visibility:hidden">
+        <div class="print-area">
+            <img src="https://barcodeapi.org/api/128/@Codigo" alt="barcode" />
+            <div class="desc"><b>@Descripcion</b></div>
+            <div class="code">Código: @Codigo</div>
+        </div>
+
+        @* Para 2-up idénticas en una pasada, usa esto en lugar de lo de arriba:
+        <div class="two-up">
+            <div class="print-area">
+                <img src="https://barcodeapi.org/api/128/@Codigo" alt="barcode" />
+                <div class="desc"><b>@Descripcion</b></div>
+                <div class="code">Código: @Codigo</div>
+            </div>
+            <div class="print-area">
+                <img src="https://barcodeapi.org/api/128/@Codigo" alt="barcode" />
+                <div class="desc"><b>@Descripcion</b></div>
+                <div class="code">Código: @Codigo</div>
+            </div>
+        </div>
+        *@
     </div>
 }
 else
@@ -23,19 +86,10 @@ else
     <p>Cargando código de barras...</p>
 }
 
-@code {
+@code{
     [Parameter] public string? Codigo { get; set; }
     [Parameter] public string? Descripcion { get; set; }
 
-    private void Imprimir()
-    {
-        JS.InvokeVoidAsync("window.print");
-    }
-
-    private void Volver()
-    {
-        Navigation.NavigateTo("/articulos");
-    }
-
-    [Inject] private IJSRuntime JS { get; set; } = default!;
+    private void Imprimir() => JS.InvokeVoidAsync("window.print");
+    private void Volver() => Navigation.NavigateTo("/articulos");
 }

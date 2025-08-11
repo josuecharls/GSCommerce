@@ -410,12 +410,55 @@ namespace GSCommerceAPI.Services.SUNAT
             string doc = $"{dto.Serie}-{dto.Numero:D8}";
             var sb = new StringBuilder();
 
-            // Recalcular totales a partir de los detalles para evitar
-            // discrepancias por redondeo entre los importes globales e
-            // individuales.
-            dto.SubTotal = Math.Round(dto.Detalles.Sum(d => d.TotalSinIGV), 2);
-            dto.Igv = Math.Round(dto.Detalles.Sum(d => d.IGV), 2);
-            dto.Total = Math.Round(dto.SubTotal + dto.Igv, 2);
+            // -- Manejo de descuentos globales --
+            // Eliminamos las líneas de descuento y acumulamos su monto
+            // para enviarlo como un descuento global (ID 2005).
+            decimal descuentoBase = 0m;      // Monto sin IGV
+            decimal descuentoIgv = 0m;       // IGV del descuento
+            var detallesValidos = new List<ComprobanteDetalleDTO>();
+
+            foreach (var det in dto.Detalles)
+            {
+                // Asegurar unidad de medida
+                if (string.IsNullOrWhiteSpace(det.UnidadMedida))
+                    det.UnidadMedida = "NIU";
+
+                bool esDescuento =
+                    det.PrecioUnitarioSinIGV < 0 ||
+                    det.PrecioUnitarioConIGV < 0 ||
+                    det.TotalSinIGV < 0 ||
+                    det.Total < 0 ||
+
+                    det.DescripcionItem.StartsWith("DESC", StringComparison.OrdinalIgnoreCase);
+
+                if (esDescuento)
+                {
+                    descuentoBase += Math.Abs(det.TotalSinIGV);
+                    descuentoIgv += Math.Abs(det.IGV);
+                }
+                else
+                {
+                    detallesValidos.Add(det);
+                }
+            }
+
+            // Renumerar items para evitar saltos
+            for (int i = 0; i < detallesValidos.Count; i++)
+                detallesValidos[i].Item = i + 1;
+
+            dto.Detalles = detallesValidos;
+
+            descuentoBase = Math.Round(descuentoBase, 2);
+            descuentoIgv = Math.Round(descuentoIgv, 2);
+            decimal descuentoConIgv = Math.Round(descuentoBase + descuentoIgv, 2);
+
+            // Recalcular totales netos a partir de los detalles válidos
+            var subtotalPositivo = Math.Round(dto.Detalles.Sum(d => d.TotalSinIGV), 2);
+            var igvPositivo = Math.Round(dto.Detalles.Sum(d => d.IGV), 2);
+
+            dto.SubTotal = Math.Round(subtotalPositivo - descuentoBase, 2);
+            dto.Igv = Math.Round(igvPositivo - descuentoIgv, 2);
+            dto.Total = Math.Round(subtotalPositivo + igvPositivo - descuentoConIgv, 2);
 
             sb.AppendLine($"<?xml version={q}1.0{q} encoding={q}ISO-8859-1{q} standalone={q}no{q}?>");
             sb.AppendLine($"<Invoice xmlns={q}urn:oasis:names:specification:ubl:schema:xsd:Invoice-2{q}" +
@@ -429,8 +472,9 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<ext:UBLExtensions>");
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent/></ext:UBLExtension>");
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent><sac:AdditionalInformation>");
-            sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>1001</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">" + dto.Total.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
-            sb.AppendLine("<sac:AdditionalProperty><cbc:ID>1000</cbc:ID><cbc:Value>" + EscaparTextoXml(dto.MontoLetras) + "</cbc:Value></sac:AdditionalProperty>");
+            sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>1001</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">" + dto.SubTotal.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
+            if (descuentoConIgv > 0)
+                sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>2005</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">-" + descuentoConIgv.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>"); sb.AppendLine("<sac:AdditionalProperty><cbc:ID>1000</cbc:ID><cbc:Value>" + EscaparTextoXml(dto.MontoLetras) + "</cbc:Value></sac:AdditionalProperty>");
             sb.AppendLine("</sac:AdditionalInformation></ext:ExtensionContent></ext:UBLExtension>");
             sb.AppendLine("</ext:UBLExtensions>");
 

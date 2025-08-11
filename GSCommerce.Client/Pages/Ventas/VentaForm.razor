@@ -704,7 +704,7 @@ OnCancelado="CobroCancelado" />
         // ✅ Imprimir ticket en formato texto
         var textoTicket = GenerarHtmlDelTicket();
         await JS.InvokeVoidAsync("imprimirTicket", textoTicket);
-        await JS.InvokeVoidAsync("alert", "✅ Venta registrada. Pendiente de envío a SUNAT.");
+        //await JS.InvokeVoidAsync("alert", "✅ Venta registrada. Pendiente de envío a SUNAT.");
         if (EsFactura)
         {
             // SUNAT solo acepta RUC (6) en facturas
@@ -755,6 +755,7 @@ OnCancelado="CobroCancelado" />
             return new string(' ', pad) + text;
         }
 
+        // Código SUNAT del comprobante (antes de que lo cambies a “6/1/0”)
         string tipoDocumentoCodigoSunat = venta.TipoDocumento == "FACTURA" ? "01" : "03";
         string tipoDocClienteSunat = venta.DocumentoCliente?.Length == 11 ? "6" : "1";
 
@@ -762,9 +763,40 @@ OnCancelado="CobroCancelado" />
         string urlQR = $"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={Uri.EscapeDataString(textoQR)}";
 
         decimal descuento = (venta.SubTotal + venta.Igv) - venta.Total;
-        decimal efectivo = venta.Pagos.Where(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3).Sum(p => p.Monto);
-        decimal tarjeta = venta.Pagos.Where(p => p.IdTipoPagoVenta != 2 && p.IdTipoPagoVenta != 3 && p.IdTipoPagoVenta != 8).Sum(p => p.Monto);
-        decimal notaCredito = venta.Pagos.Where(p => p.IdTipoPagoVenta == 8).Sum(p => p.Monto);
+
+        // ===== Formas de pago y montos =====
+        string TipoPagoFromId(int id) => id switch
+        {
+            2 => "Efectivo Soles",
+            3 => "Efectivo Dólares",
+            4 => "Tarjeta Visa",
+            5 => "Tarjeta MasterCard",
+            6 => "Tarjeta American Express",
+            7 => "Tarjeta Dinners Club",
+            8 => "Nota de Crédito",
+            9 => "Online Yape",
+            10 => "Online Transferencia",
+            _ => "Pago"
+        };
+
+        bool EsEfectivo(DetallePagoDTO p) =>
+            p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3 ||
+            (!string.IsNullOrWhiteSpace(p.FormaPago) && p.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase));
+
+        bool EsNota(DetallePagoDTO p) =>
+            p.IdTipoPagoVenta == 8 ||
+            (!string.IsNullOrWhiteSpace(p.FormaPago) && p.FormaPago.Contains("NOTA", StringComparison.OrdinalIgnoreCase));
+
+        var formasPago = (venta.Pagos != null && venta.Pagos.Any())
+            ? string.Join(" / ", venta.Pagos.Select(p =>
+                  string.IsNullOrWhiteSpace(p.FormaPago) ? TipoPagoFromId(p.IdTipoPagoVenta) : p.FormaPago))
+            : "-";
+
+        decimal efectivo = venta.Pagos?.Where(EsEfectivo).Sum(p => p.Monto) ?? 0m;
+        decimal notaCredito = venta.Pagos?.Where(EsNota).Sum(p => p.Monto) ?? 0m;
+        decimal totalPagos = venta.Pagos?.Sum(p => p.Monto) ?? 0m;
+        decimal tarjeta = totalPagos - efectivo - notaCredito;
+        // ===================================
 
         var sb = new StringBuilder();
 
@@ -782,7 +814,6 @@ OnCancelado="CobroCancelado" />
         sb.AppendLine($"CLIENTE: {venta.NombreCliente}");
         sb.AppendLine($"DOC: {venta.DocumentoCliente}");
         sb.AppendLine($"VENDEDOR: {venta.NombreVendedor}");
-        var formasPago = venta.Pagos.Any() ? string.Join(" / ", venta.Pagos.Select(p => p.FormaPago)) : "-";
         sb.AppendLine($"FORMA DE PAGO: {formasPago}");
         sb.AppendLine(Center("================================"));
         sb.AppendLine("Cant Producto            PU   TOTAL");
@@ -790,7 +821,7 @@ OnCancelado="CobroCancelado" />
 
         foreach (var item in venta.Detalles)
         {
-            var desc = item.DescripcionItem.Length > 18 ? item.DescripcionItem.Substring(0, 18) : item.DescripcionItem;
+            var desc = item.DescripcionItem.Length > 18 ? item.DescripcionItem[..18] : item.DescripcionItem;
             sb.AppendLine($"{item.Cantidad,3} {desc.PadRight(18)} {item.PrecioUnitario,6:0.00} {item.Total,7:0.00}");
         }
 
@@ -882,8 +913,8 @@ OnCancelado="CobroCancelado" />
 
     private async Task ImprimirTicket()
     {
-        var texto = GenerarTextoDelTicket();
-        await JS.InvokeVoidAsync("imprimirTicketTexto", texto);
+        var texto = GenerarHtmlDelTicket();
+        await JS.InvokeVoidAsync("imprimirTicket", texto);
     }
 
     /*

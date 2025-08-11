@@ -47,6 +47,7 @@
         <button class="btn btn-primary w-100" @onclick="BuscarVentas">Buscar</button>
     </div>
 </div>
+
 <table class="table table-bordered">
     <thead>
         <tr>
@@ -58,6 +59,7 @@
             <th>Total</th>
             <th>Forma Pago</th>
             <th>Estado</th>
+            <th style="min-width:420px;">Acciones</th>
         </tr>
     </thead>
     <tbody>
@@ -65,7 +67,7 @@
         {
             @foreach (var v in ventas)
             {
-                <tr @oncontextmenu="@((e) => MostrarMenuContextual(v, e))">
+                <tr>
                     <td>@v.Fecha.ToString("dd/MM/yyyy")</td>
                     <td>@v.TipoDocumento</td>
                     <td>@v.Serie</td>
@@ -74,26 +76,55 @@
                     <td>@v.Total.ToString("C")</td>
                     <td>@v.FormaPago</td>
                     <td>@v.Estado</td>
+                    <td><div class="btn-group btn-group-sm flex-wrap" role="group">
+                        <button class="btn btn-outline-info"
+                                title="Reimprimir boleta"
+                                @onclick="@(() => ReimprimirBoleta(v))">
+                            🖨️ Imprimir
+                        </button>
+                        </div>
+                        @if (cargo == "ADMINISTRADOR")
+                        {
+                        <div class="btn-group btn-group-sm flex-wrap" role="group">
+                            <button class="btn btn-outline-primary"
+                                    title="Emitir Nota de Crédito Electrónica"
+                                    disabled="@(!PuedeEmitirNC(v))"
+                                    @onclick="@(() => EmitirNotaCredito("ELECTRONICA", v))">
+                                NC Electrónica
+                            </button>
+                            <button class="btn btn-outline-secondary"
+                                    title="Emitir Nota de Crédito Manual"
+                                    disabled="@(!PuedeEmitirNC(v))"
+                                    @onclick="@(() => EmitirNotaCredito("MANUAL", v))">
+                                NC Manual
+                            </button>
+                            <button class="btn btn-outline-dark"
+                                    title="Emitir Nota de Crédito Interna"
+                                    disabled="@(!PuedeEmitirNC(v))"
+                                    @onclick="@(() => EmitirNotaCredito("INTERNA", v))">
+                                NC Interna
+                            </button>
+                            <button class="btn btn-outline-success"
+                                    title="Ver Nota de Crédito"
+                                    disabled="@string.IsNullOrWhiteSpace(v.NumeroNotaCredito)"
+                                    @onclick="@(() => VerNCPdf(v))">
+                                Ver NC
+                            </button>
+                        </div>
+                            @if (!string.IsNullOrWhiteSpace(v.NumeroNotaCredito))
+                            {
+                                <div class="text-muted small mt-1">NC: @v.NumeroNotaCredito</div>
+                            }
+                        }
+                    </td>
                 </tr>
             }
         }
         else
         {
             <tr>
-                <td colspan="8" class="text-center">No se encontraron ventas.</td>
+                <td colspan="9" class="text-center">No se encontraron ventas.</td>
             </tr>
-        }
-        @if (mostrarMenuContextual && ventaSeleccionada != null)
-        {
-            <div class="context-menu bg-light border shadow-sm position-absolute p-2" style="@estiloMenu" @onclick:stopPropagation>
-                <button class="dropdown-item" @onclick="@(() => EmitirNotaCredito("ELECTRONICA"))">Emitir N.C. Electrónica</button>
-                <button class="dropdown-item" @onclick="@(() => EmitirNotaCredito("MANUAL"))">Emitir N.C. Manual</button>
-                <button class="dropdown-item" @onclick="@(() => EmitirNotaCredito("INTERNA"))">Emitir N.C. Interna</button>
-                @if (!string.IsNullOrWhiteSpace(ventaSeleccionada.NumeroNotaCredito))
-                {
-                    <button class="dropdown-item" @onclick="ReimprimirNC">Ver N.C. PDF</button>
-                }
-            </div>
         }
     </tbody>
 </table>
@@ -105,10 +136,24 @@
     private string cargo = string.Empty;
     private List<AlmacenDTO> almacenes = new();
     private int selectedAlmacen;
-    private VentaConsultaDTO? ventaSeleccionada;
-    private bool mostrarMenuContextual = false;
-    private string estiloMenu = "";
     private int selectedTipoDoc = 0; // 0 = todos
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo() ?? string.Empty;
+        if (cargo == "ADMINISTRADOR")
+        {
+            var lista = await AlmacenService.GetAlmacenes();
+            if (lista != null) almacenes = lista;
+            selectedAlmacen = 0;
+        }
+        else
+        {
+            selectedAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
+        }
+
+        await BuscarVentas();
+    }
 
     private async Task BuscarVentas()
     {
@@ -118,83 +163,233 @@
         ventas = await ventaService.ObtenerVentasAsync(desde, hasta, filtroAlmacen, filtroTipoDoc);
     }
 
+    private bool PuedeEmitirNC(VentaConsultaDTO v) =>
+        (v.Estado == "E" || v.Estado == "D") && string.IsNullOrWhiteSpace(v.NumeroNotaCredito);
 
-    protected override async Task OnInitializedAsync()
+    private async Task EmitirNotaCredito(string tipo, VentaConsultaDTO v)
     {
-        cargo = await AuthService.GetUserCargo() ?? string.Empty;
-        if (cargo == "ADMINISTRADOR")
+        if (!PuedeEmitirNC(v))
         {
-            var lista = await AlmacenService.GetAlmacenes();
-            if (lista != null)
-            {
-                almacenes = lista;
-            }
-            selectedAlmacen = 0;
-        }
-        else
-        {
-            selectedAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
-        }
-
-        await BuscarVentas(); // Cargar ventas del día por defecto
-    }
-
-    private void MostrarMenuContextual(VentaConsultaDTO venta, MouseEventArgs e)
-    {
-        ventaSeleccionada = venta;
-        mostrarMenuContextual = true;
-        estiloMenu = $"position: absolute; top: {e.ClientY}px; left: {e.ClientX}px;";
-    }
-
-    private async Task EmitirNotaCredito(string tipo)
-    {
-        mostrarMenuContextual = false;
-
-        if (ventaSeleccionada == null)
-            return;
-
-        if (ventaSeleccionada.Estado != "E" && ventaSeleccionada.Estado != "D")
-        {
-            await JS.InvokeVoidAsync("alert", "⚠️ Solo se puede emitir NC para ventas EMITIDAS o DECLARADAS.");
+            await JS.InvokeVoidAsync("alert", "⚠️ Solo se puede emitir N.C. para ventas EMITIDAS o DECLARADAS y sin N.C. previa.");
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(ventaSeleccionada.NumeroNotaCredito))
+        var url = tipo.ToUpper() switch
         {
-            await JS.InvokeVoidAsync("alert", $"❌ Ya se generó una N.C.: {ventaSeleccionada.NumeroNotaCredito}");
-            return;
-        }
-
-        var url = tipo switch
-        {
-            "ELECTRONICA" => $"/nota-credito/electronica/{ventaSeleccionada.IdComprobante}",
-            "MANUAL" => $"/nota-credito/manual/{ventaSeleccionada.IdComprobante}",
-            "INTERNA" => $"/nota-credito/interna/{ventaSeleccionada.IdComprobante}",
+            "ELECTRONICA" => $"/nota-credito/electronica/{v.IdComprobante}",
+            "MANUAL" => $"/nota-credito/manual/{v.IdComprobante}",
+            "INTERNA" => $"/nota-credito/interna/{v.IdComprobante}",
             _ => null
         };
 
         if (!string.IsNullOrEmpty(url))
-        {
             await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    private async Task VerNCPdf(VentaConsultaDTO v)
+    {
+        if (string.IsNullOrWhiteSpace(v.NumeroNotaCredito))
+            return;
+
+        var partes = v.NumeroNotaCredito.Split('-');
+        if (partes.Length != 2 || !int.TryParse(partes[1], out var numero))
+        {
+            await JS.InvokeVoidAsync("alert", "Formato de N.C. inválido.");
+            return;
+        }
+
+        await JS.InvokeVoidAsync("open", $"/api/notascredito/pdf-por-numero/{partes[0]}/{numero}", "_blank");
+    }
+
+    private async Task ReimprimirBoleta(VentaConsultaDTO ventaRow)
+    {
+        try
+        {
+            var ventaCompleta = await ventaService.ObtenerVentaPorId(ventaRow.IdComprobante);
+            if (ventaCompleta == null)
+            {
+                await JS.InvokeVoidAsync("alert", "No se pudo obtener la venta para reimpresión.");
+                return;
+            }
+
+            // 👇 forzamos object para evitar dynamic binder
+            var html = GenerarHtmlTicketDesdeVenta((object)ventaCompleta);
+            await JS.InvokeVoidAsync("imprimirTicket", html);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            await JS.InvokeVoidAsync("alert", "Error al reimprimir la boleta.");
         }
     }
 
-
-    private async Task ReimprimirNC()
+    // === Helper: genera el mismo ticket en texto monoespaciado ===
+    private static string GenerarHtmlTicketDesdeVenta(object vObj)
     {
-        mostrarMenuContextual = false;
-        if (ventaSeleccionada == null || string.IsNullOrWhiteSpace(ventaSeleccionada.NumeroNotaCredito))
-            return;
-
-        var partes = ventaSeleccionada.NumeroNotaCredito.Split('-');
-        if (partes.Length != 2)
-            return;
-
-        if (int.TryParse(partes[1], out var numero))
+        // Helpers seguros con nombres alternativos
+        T GetAny<T>(object o, T def, params string[] names)
         {
-            var serie = partes[0];
-            var url = $"/api/notascredito/pdf-por-numero/{serie}/{numero}";
-            await JS.InvokeVoidAsync("open", url, "_blank");
+            if (o == null) return def;
+            var t = o.GetType();
+            foreach (var n in names)
+            {
+                var p = t.GetProperty(n);
+                if (p != null)
+                {
+                    var val = p.GetValue(o);
+                    if (val == null) continue;
+
+                    try
+                    {
+                        // Conversión robusta
+                        if (typeof(T) == typeof(string)) return (T)(object)Convert.ToString(val)!;
+                        if (typeof(T) == typeof(int)) return (T)(object)Convert.ToInt32(val);
+                        if (typeof(T) == typeof(decimal)) return (T)(object)Convert.ToDecimal(val);
+                        if (typeof(T) == typeof(DateTime)) return (T)(object)Convert.ToDateTime(val);
+                        if (typeof(T).IsAssignableFrom(val.GetType())) return (T)val;
+                    }
+                    catch { /* ignora y sigue con el siguiente nombre */ }
+                }
+            }
+            return def;
         }
+
+        IEnumerable<object> GetList(object o, params string[] names)
+        {
+            var listObj = (object?)null;
+            foreach (var n in names)
+            {
+                var p = o.GetType().GetProperty(n);
+                if (p != null) { listObj = p.GetValue(o); if (listObj != null) break; }
+            }
+            if (listObj is System.Collections.IEnumerable ie)
+                return ie.Cast<object>();
+            return Enumerable.Empty<object>();
+        }
+
+        const int width = 40;
+        string Center(string text)
+        {
+            text = (text ?? "").Trim();
+            if (text.Length >= width) return text;
+            int pad = (width - text.Length) / 2;
+            return new string(' ', pad) + text;
+        }
+
+        // === Cabecera emisor (opcionales) ===
+        string rucEmisor = GetAny<string>(vObj, "", "RucEmisor", "Ruc");
+        string razonEmisor = GetAny<string>(vObj, "", "RazonSocialEmisor", "RazonSocial");
+        string dirEmisor = GetAny<string>(vObj, "", "DireccionEmisor", "DireccionLocal", "Direccion");
+
+        // === Documento / serie ===
+        string tipoCpeTexto = GetAny<string>(vObj, "BOLETA", "TipoDocumento", "TipoDoc");
+        string tipoDocCpe = tipoCpeTexto.ToUpper() == "FACTURA" ? "01" : "03";
+        string serie = GetAny<string>(vObj, "", "Serie");
+        int numero = GetAny<int>(vObj, 0, "Numero");
+
+        // === Cliente ===
+        string cliente = GetAny<string>(vObj, "", "NombreCliente", "Nombre");
+        string docCliente = GetAny<string>(vObj, "", "DocumentoCliente", "Dniruc");
+        string tipoDocCli = docCliente.Length == 11 ? "6" : (docCliente.Length == 8 ? "1" : "0");
+
+        // === Totales ===
+        decimal subTotal = GetAny<decimal>(vObj, 0m, "SubTotal", "Subtotal");
+        decimal igv = GetAny<decimal>(vObj, 0m, "Igv", "IGV");
+        decimal total = GetAny<decimal>(vObj, 0m, "Total");
+        decimal vuelto = GetAny<decimal>(vObj, 0m, "Vuelto");
+
+        // === Fecha ===
+        DateTime fechaEmision = GetAny<DateTime>(vObj, DateTime.Now, "FechaEmision", "Fecha");
+
+        // === Cajero/Vendedor (opcionales) ===
+        string cajero = GetAny<string>(vObj, "", "NombreCajero", "Cajero");
+        string vendedor = GetAny<string>(vObj, "", "NombreVendedor", "Vendedor");
+
+        // === Pagos (si existen) ===
+        var pagos = GetList(vObj, "Pagos", "PagosRealizados");
+        decimal efectivo = pagos.Where(p =>
+        {
+            int id = GetAny<int>(p, 0, "IdTipoPagoVenta", "IdTipoPago");
+            return id == 2 || id == 3; // efectivo soles/dólares
+        }).Sum(p => GetAny<decimal>(p, 0m, "Monto", "Soles"));
+        decimal tarjeta = pagos.Where(p =>
+        {
+            int id = GetAny<int>(p, 0, "IdTipoPagoVenta", "IdTipoPago");
+            return id != 2 && id != 3 && id != 8;
+        }).Sum(p => GetAny<decimal>(p, 0m, "Monto", "Soles"));
+        decimal notaCredito = pagos.Where(p => GetAny<int>(p, 0, "IdTipoPagoVenta", "IdTipoPago") == 8)
+                                   .Sum(p => GetAny<decimal>(p, 0m, "Monto", "Soles"));
+
+        // === Detalles ===
+        var detalles = GetList(vObj, "Detalles");
+        // Cálculo de descuento “global” mostrado en ticket
+        decimal descuento = (subTotal + igv) - total;
+
+        // === QR ===
+        string textoQR = $"{rucEmisor}|{tipoDocCpe}|{serie}|{numero}|{igv:0.00}|{total:0.00}|{fechaEmision:dd/MM/yyyy}|{tipoDocCli}|{docCliente}";
+        string urlQR = $"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={Uri.EscapeDataString(textoQR)}";
+
+        var sb = new System.Text.StringBuilder();
+
+        sb.AppendLine("<pre style='font-family: monospace; font-size:12px;'>");
+        sb.AppendLine(Center(tipoDocCpe == "01" ? "FACTURA ELECTRONICA" : "BOLETA DE VENTA ELECTRONICA"));
+        sb.AppendLine(Center("================================"));
+        if (!string.IsNullOrWhiteSpace(razonEmisor)) sb.AppendLine(Center(razonEmisor.ToUpper()));
+        if (!string.IsNullOrWhiteSpace(rucEmisor)) sb.AppendLine(Center($"RUC: {rucEmisor}"));
+        if (!string.IsNullOrWhiteSpace(dirEmisor)) sb.AppendLine(Center(dirEmisor));
+        sb.AppendLine(Center("================================"));
+        if (!string.IsNullOrWhiteSpace(cajero)) sb.AppendLine($"CAJERO: {cajero}");
+        if (!string.IsNullOrWhiteSpace(vendedor)) sb.AppendLine($"VENDEDOR: {vendedor}");
+        sb.AppendLine($"SERIE: {serie}-{numero:D4}");
+        sb.AppendLine($"FECHA EMISION: {fechaEmision:dd/MM/yyyy} HORA: {fechaEmision:HH:mm}");
+        if (!string.IsNullOrWhiteSpace(cliente)) sb.AppendLine($"CLIENTE: {cliente}");
+        if (!string.IsNullOrWhiteSpace(docCliente)) sb.AppendLine($"DOC: {docCliente}");
+
+        var formasPago = pagos.Any()
+            ? string.Join(" / ", pagos.Select(p => GetAny<string>(p, "-", "FormaPago", "Descripcion")))
+            : "-";
+        sb.AppendLine($"FORMA DE PAGO: {formasPago}");
+        sb.AppendLine(Center("================================"));
+        sb.AppendLine("Cant Producto            PU   TOTAL");
+        sb.AppendLine(Center("-----------------------------------"));
+
+        foreach (var item in detalles)
+        {
+            decimal cantidad = GetAny<decimal>(item, 0m, "Cantidad");
+            decimal pu = GetAny<decimal>(item, 0m, "PrecioUnitario", "Precio");
+            decimal totalLn = GetAny<decimal>(item, 0m, "Total");
+            string desc = GetAny<string>(item, "", "DescripcionItem", "Descripcion");
+            if (desc.Length > 18) desc = desc[..18];
+
+            sb.AppendLine($"{cantidad,3:0} {desc.PadRight(18)} {pu,6:0.00} {totalLn,7:0.00}");
+        }
+
+        sb.AppendLine(Center("-----------------------------------"));
+        sb.AppendLine($"DESCUENTO                S/ {descuento,7:0.00}");
+        sb.AppendLine($"TOTAL                    S/ {total,7:0.00}");
+        sb.AppendLine(Center("***********************************"));
+        sb.AppendLine($"Subtotal:                {subTotal,7:0.00}");
+        sb.AppendLine($"IGV:                     {igv,7:0.00}");
+        sb.AppendLine(Center("-----------------------------------"));
+        sb.AppendLine($"EFECTIVO:                S/ {efectivo,7:0.00}");
+        sb.AppendLine($"TARJETA/ONLINE:          S/ {tarjeta,7:0.00}");
+        sb.AppendLine($"NOTA DE CRÉDITO:         S/ {notaCredito,7:0.00}");
+        sb.AppendLine($"VUELTO:                  S/ {vuelto,7:0.00}");
+        sb.AppendLine();
+        sb.AppendLine("NO HAY DEVOLUCIÓN DE DINERO.");
+        sb.AppendLine("TODO CAMBIO DE MERCADERÍA SE HARA");
+        sb.AppendLine("DENTRO DE LAS 48 HORAS, PREVIA");
+        sb.AppendLine("PRESENTACIÓN DEL COMPROBANTE Y");
+        sb.AppendLine("VERIFICACIÓN DE LA MERCADERÍA.");
+        sb.AppendLine(Center("-----------------------------------"));
+        // Si tu DTO trae hash:
+        string hash = GetAny<string>(vObj, "", "CodigoVerificacion", "Hash");
+        if (!string.IsNullOrWhiteSpace(hash)) sb.AppendLine($"Hash: {hash}");
+        sb.AppendLine("Representación Impresa del Documento");
+        sb.AppendLine("Gracias por su compra!");
+        sb.AppendLine("</pre>");
+        sb.AppendLine($"<div style='text-align:center;'><img src='{urlQR}' width='100' height='100'/></div>");
+
+        return sb.ToString();
     }
 }
