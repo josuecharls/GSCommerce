@@ -62,14 +62,14 @@ namespace GSCommerceAPI.Controllers
                     IdMovimiento = m.IdMovimiento,
                     Tipo = m.Tipo,
                     Motivo = m.Motivo,
-                    Fecha = m.Fecha.HasValue ? m.Fecha.Value.ToDateTime(TimeOnly.MinValue) : DateTime.MinValue,
+                    Fecha = m.Fecha.HasValue ? m.Fecha.Value.ToDateTime(TimeOnly.MinValue) : m.FechaHoraRegistro,
                     Descripcion = m.Descripcion,
                     IdAlmacen = m.IdAlmacen,
                     IdProveedor = m.IdProveedor,
                     IdAlmacenDestinoOrigen = m.IdAlmacenDestinoOrigen,
                     IdUsuario = m.IdUsuario,
                     Estado = m.Estado,
-    IdUsuarioConfirma = m.IdUsuarioConfirma,
+                    IdUsuarioConfirma = m.IdUsuarioConfirma,
                     FechaHoraConfirma = m.FechaHoraConfirma
                 })
                 .ToListAsync();
@@ -85,7 +85,9 @@ namespace GSCommerceAPI.Controllers
         [HttpPut("{id}/confirmar")]
         public async Task<IActionResult> ConfirmarTransferencia(int id)
         {
-            var movimiento = await _context.MovimientosCabeceras.FirstOrDefaultAsync(m => m.IdMovimiento == id);
+            var movimiento = await _context.MovimientosCabeceras
+                .Include(m => m.MovimientosDetalles)
+                .FirstOrDefaultAsync(m => m.IdMovimiento == id);
 
             if (movimiento == null)
                 return NotFound(new { mensaje = "Movimiento no encontrado" });
@@ -103,6 +105,61 @@ namespace GSCommerceAPI.Controllers
             movimiento.FechaHoraConfirma = DateTime.Now;
 
             await _context.SaveChangesAsync();
+
+            // Actualiza stock mediante el procedimiento almacenado
+            var cabecera = new MovimientoCabeceraOnlyDTO
+            {
+                IdMovimiento = movimiento.IdMovimiento,
+                IdAlmacen = movimiento.IdAlmacen,
+                Tipo = movimiento.Tipo,
+                Motivo = movimiento.Motivo,
+                Fecha = movimiento.Fecha?.ToDateTime(TimeOnly.MinValue) ?? DateTime.Now,
+                Descripcion = movimiento.Descripcion,
+                IdProveedor = movimiento.IdProveedor,
+                IdAlmacenDestinoOrigen = movimiento.IdAlmacenDestinoOrigen,
+                IdOc = movimiento.IdOc,
+                IdUsuario = movimiento.IdUsuario,
+                FechaHoraRegistro = movimiento.FechaHoraRegistro,
+                IdGuiaRemision = movimiento.IdGuiaRemision,
+                IdUsuarioConfirma = movimiento.IdUsuarioConfirma,
+                FechaHoraConfirma = movimiento.FechaHoraConfirma,
+                Estado = movimiento.Estado
+            };
+
+            var dtCabecera = DataTableHelper.ToDataTable(
+                new List<MovimientoCabeceraOnlyDTO> { cabecera },
+                "Almacen.MovimientosCabeceraType");
+
+            var detallesDto = movimiento.MovimientosDetalles.Select(d => new MovimientoDetalleDTO
+            {
+                IdMovimiento = d.IdMovimiento,
+                Item = d.Item,
+                IdArticulo = d.IdArticulo,
+                DescripcionArticulo = d.DescripcionArticulo,
+                Cantidad = d.Cantidad,
+                Valor = d.Valor
+            }).ToList();
+
+            var dtDetalle = DataTableHelper.ToDataTable(
+                detallesDto,
+                "Almacen.MovimientosDetalleType");
+
+            using var conn = new SqlConnection(_context.Database.GetConnectionString());
+            using var cmd = new SqlCommand("Almacen.usp_InsUpd_MovimientoAlmacen", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            var paramCab = cmd.Parameters.AddWithValue("@tblCabecera", dtCabecera);
+            paramCab.SqlDbType = SqlDbType.Structured;
+            paramCab.TypeName = "Almacen.MovimientosCabeceraType";
+
+            var paramDet = cmd.Parameters.AddWithValue("@tblDetalle", dtDetalle);
+            paramDet.SqlDbType = SqlDbType.Structured;
+            paramDet.TypeName = "Almacen.MovimientosDetalleType";
+
+            await conn.OpenAsync();
+            await cmd.ExecuteNonQueryAsync();
 
             return Ok(new { mensaje = "✅ Transferencia confirmada" });
         }
@@ -122,7 +179,7 @@ namespace GSCommerceAPI.Controllers
                 IdMovimiento = cabecera.IdMovimiento,
                 Tipo = cabecera.Tipo,
                 Motivo = cabecera.Motivo,
-                Fecha = cabecera.Fecha.HasValue ? cabecera.Fecha.Value.ToDateTime(TimeOnly.MinValue) : DateTime.MinValue,
+                Fecha = cabecera.Fecha.HasValue ? cabecera.Fecha.Value.ToDateTime(TimeOnly.MinValue) : cabecera.FechaHoraRegistro,
                 Descripcion = cabecera.Descripcion,
                 IdAlmacen = cabecera.IdAlmacen,
                 IdProveedor = cabecera.IdProveedor,
@@ -157,7 +214,7 @@ namespace GSCommerceAPI.Controllers
                     IdAlmacen = dto.IdAlmacen,
                     Tipo = dto.Tipo,
                     Motivo = dto.Motivo,
-                    Fecha = DateOnly.FromDateTime(dto.Fecha),
+                    Fecha = DateOnly.FromDateTime(dto.Fecha == default ? DateTime.Now : dto.Fecha),
                     Descripcion = dto.Descripcion,
                     IdProveedor = dto.IdProveedor,
                     IdAlmacenDestinoOrigen = dto.IdAlmacenDestinoOrigen,
@@ -284,7 +341,7 @@ namespace GSCommerceAPI.Controllers
                     IdAlmacen = dto.IdAlmacen,
                     Tipo = dto.Tipo,
                     Motivo = dto.Motivo,
-                    Fecha = dto.Fecha,
+                    Fecha = dto.Fecha == default ? DateTime.Now : dto.Fecha,
                     Descripcion = dto.Descripcion,
                     IdProveedor = dto.IdProveedor,
                     IdAlmacenDestinoOrigen = dto.IdAlmacenDestinoOrigen,

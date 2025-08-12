@@ -46,18 +46,38 @@ namespace GSCommerceAPI.Controllers
         public async Task<IActionResult> GetArticulos(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
-            [FromQuery] string? search = null)
+            [FromQuery] string? search = null,
+            [FromQuery(Name = "searchTerm")] string? searchTerm = null)
         {
-            var query = _context.Articulos.AsNoTracking();
+            // Acepta ambos nombres: ?search=... o ?searchTerm=...
+            var term = (searchTerm ?? search)?.Trim();
 
-            if (!string.IsNullOrEmpty(search))
+            var query = _context.Articulos
+                .AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(term))
             {
-                query = query.Where(a => a.Descripcion.Contains(search));
+                // Soporte: buscar por código y por descripciones
+                // Opcional: si teclean "123", también matchea "000123" (6 dígitos)
+                string? padded = null;
+                if (int.TryParse(term, out var n) && term.Length < 6)
+                    padded = n.ToString("D6");
+
+                query = query.Where(a =>
+                    a.IdArticulo.Contains(term) ||
+                    (padded != null && a.IdArticulo == padded) ||
+                    a.Descripcion.Contains(term) ||
+                    a.DescripcionCorta.Contains(term)
+                // Si quieres sumar más campos, descomenta:
+                // || a.Marca.Contains(term) || a.Modelo.Contains(term)
+                );
             }
 
             var totalItems = await query.CountAsync();
 
+            // Ordenamos para que Skip/Take sea estable y más performante
             var articuloList = await query
+                .OrderBy(a => a.IdArticulo)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(a => new ArticuloDTO
@@ -79,7 +99,6 @@ namespace GSCommerceAPI.Controllers
                     PrecioCompra = a.PrecioCompra,
                     PrecioVenta = a.PrecioVenta,
                     FechaRegistro = a.FechaRegistro,
-                    // Evitamos enviar la foto para mejorar el rendimiento
                     Foto = null,
                     CodigoBarra = null,
                     Estado = a.Estado,
@@ -283,14 +302,44 @@ namespace GSCommerceAPI.Controllers
 
         // PUT: api/articulos/{id} (Actualizar un artículo)
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutArticulo(string id, Articulo articulo)
+        public async Task<IActionResult> PutArticulo(string id, [FromBody] ArticuloDTO articuloDto)
         {
-            if (id != articulo.IdArticulo)
-            {
-                return BadRequest();
-            }
+            if (id != articuloDto.IdArticulo)
+                return BadRequest("El ID de la ruta no coincide con el artículo enviado.");
 
-            _context.Entry(articulo).State = EntityState.Modified;
+            var articulo = await _context.Articulos.FindAsync(id);
+            if (articulo == null)
+                return NotFound();
+
+            articulo.Descripcion = articuloDto.Descripcion;
+            articulo.DescripcionCorta = articuloDto.DescripcionCorta;
+            articulo.Familia = articuloDto.Familia;
+            articulo.Linea = articuloDto.Linea;
+            articulo.Marca = articuloDto.Marca;
+            articulo.Material = articuloDto.Material;
+            articulo.Modelo = articuloDto.Modelo;
+            articulo.Color = articuloDto.Color;
+            articulo.Detalle = articuloDto.Detalle;
+            articulo.Talla = articuloDto.Talla;
+            articulo.IdProveedor = articuloDto.IdProveedor;
+            articulo.UnidadAlmacen = articuloDto.UnidadAlmacen;
+            articulo.MonedaCosteo = articuloDto.MonedaCosteo;
+            articulo.PrecioCompra = articuloDto.PrecioCompra;
+            articulo.PrecioVenta = articuloDto.PrecioVenta;
+            articulo.FechaRegistro = articuloDto.FechaRegistro;
+            articulo.Estado = articuloDto.Estado;
+            articulo.Estacion = articuloDto.Estacion;
+            articulo.CodigoBarra = !string.IsNullOrEmpty(articuloDto.CodigoBarra)
+                ? Encoding.UTF8.GetBytes(articuloDto.CodigoBarra)
+                : null;
+
+            if (!string.IsNullOrWhiteSpace(articuloDto.Foto))
+            {
+                var base64Data = articuloDto.Foto.Contains(",")
+                    ? articuloDto.Foto.Substring(articuloDto.Foto.IndexOf(",") + 1)
+                    : articuloDto.Foto;
+                articulo.Foto = Convert.FromBase64String(base64Data);
+            }
 
             try
             {
@@ -299,13 +348,8 @@ namespace GSCommerceAPI.Controllers
             catch (DbUpdateConcurrencyException)
             {
                 if (!ArticuloExists(id))
-                {
                     return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                throw;
             }
 
             return NoContent();

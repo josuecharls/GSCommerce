@@ -7,55 +7,33 @@
 
 <style>
   :root{
-    /* Debe coincidir con tu driver: 100 x 50 mm, 2-up */
-    --page-w: 100mm;
+    --page-w: 100mm;   /* Debe coincidir con el driver */
     --page-h: 50mm;
     --gap: 3mm;
     --pad: 1.2mm;
     --label-w: calc((var(--page-w) - var(--gap)) / 2);
   }
-
-  .two-up{
-    width: var(--page-w);
-    height: var(--page-h);
-    display: flex;
-    gap: var(--gap);
-  }
-
+  .two-up{ width:var(--page-w); height:var(--page-h); display:flex; gap:var(--gap);}
   .print-area{
-    width: var(--label-w);
-    height: var(--page-h);
-    box-sizing: border-box;
-    padding: var(--pad);
-    border: 1px solid #000;
-    border-radius: .8mm;
-    display: flex;
-    flex-direction: column;
-    gap: 1mm;
+    width:var(--label-w); height:var(--page-h);
+    box-sizing:border-box; padding:var(--pad);
+    border:1px solid #000; border-radius:.8mm;
+    display:flex; flex-direction:column; gap:1mm;
   }
-
-  .barcode-box{
-    border: 1px solid #000;
-    border-radius: .5mm;
-    height: 20mm;                 /* más alto para tu “MÁS LARGO” */
-    padding: .6mm;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+  .barcode-box{ border:1px solid #000; border-radius:.5mm; height:20mm; padding:.6mm;
+    display:flex; align-items:center; justify-content:center; }
   .barcode{ width:100%; height:100%; object-fit:contain; display:block; }
-
   .price-row{ display:flex; justify-content:flex-end; align-items:center; }
   .price{ font-weight:700; font-size:10pt; }
   .desc{ font-size:8pt; line-height:1.15; font-weight:700; }
   .code{ font-size:7pt; }
 
   @@media print{
-    @@page { size: var(--page-w) var(--page-h); margin: 0; }
-    html, body { margin:0; padding:0; }
-    body * { visibility: hidden !important; }
-    .to-print, .to-print * { visibility: visible !important; }
-    .to-print { position: fixed; inset: 0; }
+    @@page{ size:var(--page-w) var(--page-h); margin:0; }
+    html, body{ margin:0; padding:0; }
+    body *{ visibility:hidden !important; }
+    .to-print, .to-print *{ visibility:visible !important; }
+    .to-print{ position:fixed; inset:0; }
   }
 </style>
 
@@ -63,24 +41,23 @@
 {
   <div class="to-print">
     <div class="two-up">
-      <!-- Izquierda -->
       <div class="print-area">
         <div class="barcode-box">
           <img class="barcode" src="https://barcodeapi.org/api/128/@Codigo" />
         </div>
         <div class="price-row">
-          @if (Precio.HasValue){ <div class="price">S/. @Precio.Value.ToString("0.00")</div> }
+          @if (PrecioDecimal.HasValue){ <div class="price">S/. @PrecioDecimal.Value.ToString("0.00")</div> }
         </div>
         <div class="desc">@Descripcion</div>
         <div class="code">Código: @Codigo</div>
       </div>
-      <!-- Derecha -->
+
       <div class="print-area">
         <div class="barcode-box">
           <img class="barcode" src="https://barcodeapi.org/api/128/@Codigo" />
         </div>
         <div class="price-row">
-          @if (Precio.HasValue){ <div class="price">S/. @Precio.Value.ToString("0.00")</div> }
+          @if (PrecioDecimal.HasValue){ <div class="price">S/. @PrecioDecimal.Value.ToString("0.00")</div> }
         </div>
         <div class="desc">@Descripcion</div>
         <div class="code">Código: @Codigo</div>
@@ -88,16 +65,43 @@
     </div>
   </div>
 }
-else { <p>Cargando código de barras…</p> }
+else
+{
+  <p>Cargando código de barras…</p>
+}
 
 @code{
   [Parameter] public string? Codigo { get; set; }
   [Parameter] public string? Descripcion { get; set; }
-  [Parameter] public decimal? Precio { get; set; }
+
+  // 👇 Recíbelo como string para evitar el cast
+  [Parameter] public string? Precio { get; set; }
+
+  private decimal? PrecioDecimal;
+
+  protected override void OnParametersSet()
+  {
+      // Intenta primero con InvariantCulture (punto) y luego con cultura actual (coma)
+      if (!string.IsNullOrWhiteSpace(Precio))
+      {
+          if (decimal.TryParse(Precio, System.Globalization.NumberStyles.Any,
+              System.Globalization.CultureInfo.InvariantCulture, out var vInv))
+              PrecioDecimal = vInv;
+          else if (decimal.TryParse(Precio, out var vLoc))
+              PrecioDecimal = vLoc;
+          else
+              PrecioDecimal = null;
+      }
+      else
+      {
+          PrecioDecimal = null;
+      }
+  }
 
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
-    if (firstRender) await JS.InvokeVoidAsync("window.print"); // auto-imprimir
+      if (firstRender)
+          await JS.InvokeVoidAsync("window.print");
   }
 
   private void Volver() => Navigation.NavigateTo("/articulos");

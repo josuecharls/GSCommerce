@@ -1,8 +1,7 @@
 ﻿@page "/articulos"
-@using System.Globalization
-@using Microsoft.AspNetCore.Authorization
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using System.Globalization
 @inject ArticuloService ArticuloService
 @inject NavigationManager Navigation
 @inject HttpClient Http
@@ -13,76 +12,80 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <button class="btn btn-success" @onclick="CreateNewArticulo">+ Nuevo Artículo</button>
     <div class="input-group w-50">
-        <input type="text" class="form-control" placeholder="Buscar por descripción..." @bind="searchTerm" />
+        <input type="text"
+               class="form-control"
+               placeholder="Buscar por CÓDIGO o DESCRIPCIÓN..."
+               @bind="searchTerm"
+               @onkeydown="@(e => { if (e.Key == "Enter") _ = SearchArticulos(); })" />
         <button class="btn btn-primary" @onclick="SearchArticulos">🔍 Buscar</button>
     </div>
 </div>
 
 <div class="card p-3 shadow-sm">
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th @onclick='() => SortBy("Codigo")' style="cursor:pointer;">
-                <i class="bi @(GetSortIcon("Codigo")) me-1"></i>Código
-            </th>
-            <th @onclick='() => SortBy("Descripcion")' style="cursor:pointer;">
-                <i class="bi @(GetSortIcon("Descripcion")) me-1"></i>Descripción
-            </th>
-            <th>Precio Compra</th>
-            <th>Precio Venta</th>
-            <th>Estado</th>
-            <th class="text-center">Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (articuloList.Any())
-        {
-            @foreach (var a in articuloList)
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th @onclick='() => SortBy("Codigo")' style="cursor:pointer;">
+                    <i class="bi @(GetSortIcon("Codigo")) me-1"></i>Código
+                </th>
+                <th @onclick='() => SortBy("Descripcion")' style="cursor:pointer;">
+                    <i class="bi @(GetSortIcon("Descripcion")) me-1"></i>Descripción
+                </th>
+                <th>Precio Compra</th>
+                <th>Precio Venta</th>
+                <th>Estado</th>
+                <th class="text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (articuloList.Any())
             {
-                <tr>
-                    <td>@a.IdArticulo</td>
-                    <td>@a.Descripcion</td>
-                    <td>S/. @a.PrecioCompra</td>
-                    <td>S/. @a.PrecioVenta</td>
-                    <td>
-                        @if (a.Estado)
-                        {
-                            <span class="badge bg-success">Activo</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-danger">Inactivo</span>
-                        }
-                    </td>
-                    <td class="text-center">
-                        <button @onclick="() => ShowPhoto(a.IdArticulo)" class="btn btn-info btn-sm me-1">
-                            <i class="bi bi-image"></i>
-                        </button>
-                        <button @onclick="() => ShowBarcode(a.IdArticulo)" class="btn btn-primary btn-sm me-1">
-                            <i class="bi bi-upc"></i>
-                        </button>
-                        <button @onclick="() => ShowQr(a.IdArticulo)" class="btn btn-secondary btn-sm me-1">
-                            <i class="bi bi-qr-code"></i>
-                        </button>
+                @foreach (var a in articuloList)
+                {
+                    <tr>
+                        <td>@a.IdArticulo</td>
+                        <td>@a.Descripcion</td>
+                        <td>S/. @a.PrecioCompra</td>
+                        <td>S/. @a.PrecioVenta</td>
+                        <td>
+                            @if (a.Estado)
+                            {
+                                <span class="badge bg-success">Activo</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">Inactivo</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <button @onclick="() => ShowPhoto(a.IdArticulo)" class="btn btn-info btn-sm me-1">
+                                <i class="bi bi-image"></i>
+                            </button>
+                            <button @onclick="() => ShowBarcode(a.IdArticulo)" class="btn btn-primary btn-sm me-1">
+                                <i class="bi bi-upc"></i>
+                            </button>
+                            <button @onclick="() => ShowQr(a.IdArticulo)" class="btn btn-secondary btn-sm me-1">
+                                <i class="bi bi-qr-code"></i>
+                            </button>
                             <button @onclick="() => EditVariantes(a.IdArticulo)" class="btn btn-info btn-sm me-1">
                                 🎨 Var.
                             </button>
-                        <button @onclick="() => EditArticulo(a.IdArticulo)" class="btn btn-warning btn-sm me-1">
-                            ✏️ Editar
-                        </button>
-                        <button @onclick="() => ConfirmDeleteArticulo(a.IdArticulo, a.Descripcion)" class="btn btn-danger btn-sm">
-                            🗑 Eliminar
-                        </button>
-                    </td>
-                </tr>
+                            <button @onclick="() => EditArticulo(a.IdArticulo)" class="btn btn-warning btn-sm me-1">
+                                ✏️ Editar
+                            </button>
+                            <button @onclick="() => ConfirmDeleteArticulo(a.IdArticulo, a.Descripcion)" class="btn btn-danger btn-sm">
+                                🗑 Eliminar
+                            </button>
+                        </td>
+                    </tr>
+                }
             }
-        }
-        else
-        {
-            <tr><td colspan="6" class="text-center">Cargando... Espere...</td></tr>
-        }
-    </tbody>
-</table>
+            else
+            {
+                <tr><td colspan="6" class="text-center">Cargando... Espere...</td></tr>
+            }
+        </tbody>
+    </table>
 </div>
 
 <!-- Controles de paginación -->
@@ -118,82 +121,118 @@
     </div>
 }
 
-<!-- Modal para ver QR -->
+<!-- Modal de QR (2-up 100x50mm) -->
 @if (showQrModal)
 {
-  <div class="modal fade show d-block" tabindex="-1" role="dialog">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">QR de @qrArticulo?.Descripcion</h5>
-          <button type="button" class="btn-close" @onclick="CloseQrModal"></button>
-        </div>
-        <div class="modal-body text-center">
-          <div class="etiqueta-imprimir">
-            <div class="label">
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@qrArticulo?.IdArticulo" />
-              <div class="desc">@qrArticulo?.DescripcionCorta</div>
-              <div class="code">Código: @qrArticulo?.IdArticulo</div>
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content p-4 text-center">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">QR de @qrArticulo?.Descripcion</h5>
+                    <button type="button" class="btn-close" @onclick="CloseQrModal"></button>
+                </div>
+                <div class="modal-body text-center pt-0">
+                    <div class="etiqueta-imprimir">
+                        <div class="label">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@qrArticulo?.IdArticulo" />
+                            <div class="desc">@qrArticulo?.DescripcionCorta</div>
+                            <div class="code">Código: @qrArticulo?.IdArticulo</div>
+                        </div>
+                        <div class="label">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@qrArticulo?.IdArticulo" />
+                            <div class="desc">@qrArticulo?.DescripcionCorta</div>
+                            <div class="code">Código: @qrArticulo?.IdArticulo</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button class="btn btn-success" @onclick="PrintQr">Imprimir</button>
+                    <button class="btn btn-secondary" @onclick="CloseQrModal">Cerrar</button>
+                </div>
             </div>
-            <div class="label">
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@qrArticulo?.IdArticulo" />
-              <div class="desc">@qrArticulo?.DescripcionCorta</div>
-              <div class="code">Código: @qrArticulo?.IdArticulo</div>
-            </div>
-          </div>
         </div>
-        <div class="modal-footer">
-          <button class="btn btn-success" @onclick="PrintQr">Imprimir</button>
-          <button class="btn btn-secondary" @onclick="CloseQrModal">Cerrar</button>
-        </div>
-      </div>
     </div>
-  </div>
 
-  <style>
-  @@media print{
-    @@page{ size:100mm 50mm; margin:0; }
-    body *{ visibility:hidden !important; }
-    .etiqueta-imprimir, .etiqueta-imprimir *{ visibility:visible !important; }
-    .etiqueta-imprimir{
-      position:fixed; inset:0;
-      width:100mm; height:50mm;
-      display:flex; gap:3mm;
-    }
-    .label{
-      width: calc((100mm - 3mm)/2); height:50mm;
-      border:1px solid #000; border-radius:.8mm;
-      padding:1.2mm; box-sizing:border-box;
-      display:flex; flex-direction:column; gap:1mm; justify-content:center;
-      align-items:center;
-    }
-    .label img{ width:22mm; height:22mm; object-fit:contain; display:block; }
-    .desc{ font-weight:700; font-size:8pt; line-height:1.15; text-align:center; }
-    .code{ font-size:7pt; }
-  }
-  </style>
+    <style>
+        @@media print {
+            @@page {
+                size: 100mm 50mm;
+                margin: 0;
+            }
+
+            body * {
+                visibility: hidden !important;
+            }
+
+            .etiqueta-imprimir, .etiqueta-imprimir * {
+                visibility: visible !important;
+            }
+
+            .etiqueta-imprimir {
+                position: fixed;
+                inset: 0;
+                width: 100mm;
+                height: 50mm;
+                display: flex;
+                gap: 3mm;
+            }
+
+            .label {
+                width: calc((100mm - 3mm)/2);
+                height: 50mm;
+                border: 1px solid #000;
+                border-radius: .8mm;
+                padding: 1.2mm;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                gap: 1mm;
+                justify-content: center;
+                align-items: center;
+            }
+
+                .label img {
+                    width: 22mm;
+                    height: 22mm;
+                    object-fit: contain;
+                    display: block;
+                }
+
+            .desc {
+                font-weight: 700;
+                font-size: 8pt;
+                line-height: 1.15;
+                text-align: center;
+            }
+
+            .code {
+                font-size: 7pt;
+            }
+        }
+    </style>
 }
-<!-- Modal para ver Código de Barras -->
+
+<!-- Modal de Código de Barras (preview; impresión abre /barcode-print) -->
 @if (showBarcodeModal)
 {
     <div class="modal fade show d-block" tabindex="-1" role="dialog">
         <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
+            <div class="modal-content p-4 text-center">
+                <div class="modal-header border-0">
                     <h5 class="modal-title">Código de Barras de @barcodeArticulo?.Descripcion</h5>
                     <button type="button" class="btn-close" @onclick="CloseBarcodeModal"></button>
                 </div>
-                <div class="modal-body text-center">
-                    <div class="etiqueta-imprimir">
+                <div class="modal-body text-center pt-0">
+                    <div class="etiqueta-preview">
                         <div class="barcode-price">
-                            <img src="https://barcodeapi.org/api/128/@barcodeArticulo?.IdArticulo" width="200" />
+                            <img src="https://barcodeapi.org/api/128/@barcodeArticulo?.IdArticulo" width="240" />
                             <div class="price">S/. @barcodeArticulo?.PrecioVenta.ToString("0.00")</div>
                         </div>
                         <div style="font-weight:bold; margin-top:6px">@barcodeArticulo?.DescripcionCorta</div>
                         <div style="font-size:small">Código: @barcodeArticulo?.IdArticulo</div>
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer justify-content-center">
                     <button class="btn btn-success" @onclick="PrintBarcode">Imprimir</button>
                     <button class="btn btn-secondary" @onclick="CloseBarcodeModal">Cerrar</button>
                 </div>
@@ -201,6 +240,7 @@
         </div>
     </div>
 }
+
 <!-- Modal para ver foto -->
 @if (showPhotoModal)
 {
@@ -341,6 +381,7 @@
             CloseDeleteModal();
         }
     }
+
     private void ShowPhoto(string id)
     {
         selectedArticulo = articuloList.FirstOrDefault(a => a.IdArticulo == id);
@@ -422,6 +463,7 @@
         showBarcodeModal = false;
     }
 
+    // Abre la página calibrada /barcode-print (dos etiquetas, 100x50mm)
     private void PrintBarcode()
     {
         if (barcodeArticulo is null) return;
