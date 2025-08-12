@@ -455,29 +455,31 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("estado-sunat")]
         public async Task<IActionResult> ObtenerEstadosSunat([FromQuery] DateTime desde, [FromQuery] DateTime hasta)
         {
-            var lista = await (from c in _context.ComprobanteDeVentaCabeceras
-                               join s in _context.Comprobantes on c.IdComprobante equals s.IdComprobante into gj
-                               from sub in gj.DefaultIfEmpty()
-                               where c.Fecha.Date >= desde.Date && c.Fecha.Date <= hasta.Date
-                                     && c.IdTipoDocumento != 4 // ❌ Excluir TICKET
-                               select new EstadoSunatDTO
-                               {
-                                   IdComprobante = c.IdComprobante,
-                                   TipoDocumento = c.IdTipoDocumento == 1 ? "BOLETA" :
-                                                   c.IdTipoDocumento == 2 ? "FACTURA" :
-                                                   c.IdTipoDocumento == 5 ? "BOLETA M" :
-                                                   c.IdTipoDocumento == 6 ? "FACTURA M" :
-                                                   "OTRO",
-                                   Serie = c.Serie,
-                                   Numero = c.Numero,
-                                   FechaEmision = c.Fecha,
-                                   EstadoSunat = sub == null || sub.EnviadoSunat != true
-                                        ? "PENDIENTE"
-                                        : sub.Estado
-                                            ? "ACEPTADO"
-                                            : "RECHAZADO",
-                                   DescripcionSunat = sub != null ? sub.RespuestaSunat : null
-                               }).ToListAsync();
+            var ini = desde.Date;
+            var finExclusivo = hasta.Date.AddDays(1);
+
+            var lista = await (
+                from c in _context.ComprobanteDeVentaCabeceras
+                join td in _context.TipoDocumentoVenta   // DbSet real
+                    on c.IdTipoDocumento equals td.IdTipoDocumentoVenta
+                join s in _context.Comprobantes
+                    on c.IdComprobante equals s.IdComprobante into gj
+                from sub in gj.DefaultIfEmpty()
+                where c.Fecha >= ini && c.Fecha < finExclusivo
+                      && td.IdTipoDocumentoVenta != 4      // excluir TICKET
+                select new EstadoSunatDTO
+                {
+                    IdComprobante = c.IdComprobante,
+                    TipoDocumento = td.Descripcion,         // "BOLETA", "FACTURA", "BOLETA M", "FACTURA M"
+                    Serie = c.Serie,
+                    Numero = c.Numero,
+                    FechaEmision = c.Fecha,
+                    EstadoSunat = (sub == null || sub.EnviadoSunat != true)
+                        ? "PENDIENTE"
+                        : (sub.Estado ? "ACEPTADO" : "RECHAZADO"),
+                    DescripcionSunat = sub != null ? sub.RespuestaSunat : null
+                }
+            ).ToListAsync();
 
             return Ok(lista);
         }

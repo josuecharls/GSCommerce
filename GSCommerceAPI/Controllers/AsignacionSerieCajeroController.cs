@@ -20,7 +20,7 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("disponibles")]
         public async Task<IActionResult> GetSeriesDisponibles([FromQuery] int idAlmacen)
         {
-            var permitidos = new[] { "BOLETA", "FACTURA", "TICKET", "BOLETA M", "FACTURA M" };
+            var permitidos = new[] { "BOLETA", "FACTURA", "TICKET", "BOLETA M", "FACTURA M", "NOTA CREDITO" };
 
             var asignadas = await _context.AsignacionSerieCajeros
                 .Select(a => a.IdSerieCorrelativo)
@@ -46,7 +46,7 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("asignadas")]
         public async Task<IActionResult> GetSeriesAsignadas([FromQuery] int idUsuario, [FromQuery] int idAlmacen)
         {
-            var permitidos = new[] { "BOLETA", "FACTURA", "TICKET", "BOLETA M", "FACTURA M" };
+            var permitidos = new[] { "BOLETA", "FACTURA", "TICKET", "BOLETA M", "FACTURA M", "NOTA CREDITO" };
 
             var series = await (from a in _context.AsignacionSerieCajeros
                                 join sc in _context.SerieCorrelativos

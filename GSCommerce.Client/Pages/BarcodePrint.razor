@@ -1,95 +1,104 @@
 ﻿@page "/barcode-print"
 @page "/barcode-print/{codigo}/{descripcion}"
+@page "/barcode-print/{codigo}/{descripcion}/{precio}"
 
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
 <style>
   :root{
-    --w: 50mm;   /* ← ANCHO de UNA etiqueta */
-    --h: 30mm;   /* ← ALTO de UNA etiqueta  */
-    --gap: 3mm;  /* ← Gap entre etiquetas (si usas 2-up) */
+    /* Debe coincidir con tu driver: 100 x 50 mm, 2-up */
+    --page-w: 100mm;
+    --page-h: 50mm;
+    --gap: 3mm;
+    --pad: 1.2mm;
+    --label-w: calc((var(--page-w) - var(--gap)) / 2);
   }
 
-  .preview {
-    border: 1px dashed gray; padding: 8px; display:inline-block;
+  .two-up{
+    width: var(--page-w);
+    height: var(--page-h);
+    display: flex;
+    gap: var(--gap);
   }
 
-  /* El “lienzo” que se manda a imprimir */
-  .print-area{ width: var(--w); height: var(--h); padding: 1.5mm;
-               box-sizing: border-box; display:flex; flex-direction:column;
-               justify-content:flex-start; align-items:stretch; }
+  .print-area{
+    width: var(--label-w);
+    height: var(--page-h);
+    box-sizing: border-box;
+    padding: var(--pad);
+    border: 1px solid #000;
+    border-radius: .8mm;
+    display: flex;
+    flex-direction: column;
+    gap: 1mm;
+  }
 
-  .print-area img { display:block; width:100%; height:12mm; object-fit:contain; }
-  .desc{ font-size: 8pt; line-height:1.1; max-height: 12mm; overflow:hidden; margin-top: 1mm; }
-  .code{ font-size: 7pt; margin-top: 1mm; }
+  .barcode-box{
+    border: 1px solid #000;
+    border-radius: .5mm;
+    height: 20mm;                 /* más alto para tu “MÁS LARGO” */
+    padding: .6mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .barcode{ width:100%; height:100%; object-fit:contain; display:block; }
 
-  /* Si quieres imprimir DOS etiquetas iguales lado a lado (rollo 2-up) */
-  .two-up{ width: calc(var(--w) * 2 + var(--gap)); height: var(--h); display:flex; gap: var(--gap); }
-  .two-up .print-area{ width: var(--w); height: var(--h); }
+  .price-row{ display:flex; justify-content:flex-end; align-items:center; }
+  .price{ font-weight:700; font-size:10pt; }
+  .desc{ font-size:8pt; line-height:1.15; font-weight:700; }
+  .code{ font-size:7pt; }
 
   @@media print{
-    @@page{ size: var(--w) var(--h); margin:0; }      /* una sola etiqueta por página */
-    html, body{ margin:0; padding:0; }
-    body *{ visibility:hidden; }
-    .to-print, .to-print *{ visibility:visible; }
-    .to-print{ position:fixed; inset:0; margin:0; }  /* ocupa toda la página de impresión */
+    @@page { size: var(--page-w) var(--page-h); margin: 0; }
+    html, body { margin:0; padding:0; }
+    body * { visibility: hidden !important; }
+    .to-print, .to-print * { visibility: visible !important; }
+    .to-print { position: fixed; inset: 0; }
   }
 </style>
 
-<h3 class="text-center">🖨️ Imprimir Etiqueta</h3>
-
-@if (!string.IsNullOrEmpty(Codigo))
+@if (!string.IsNullOrWhiteSpace(Codigo))
 {
-    <!-- Vista previa en pantalla -->
-    <div class="text-center mt-3 preview">
-        <div class="print-area">
-            <img src="https://barcodeapi.org/api/128/@Codigo" alt="barcode" />
-            <div class="desc"><b>@Descripcion</b></div>
-            <div class="code">Código: @Codigo</div>
+  <div class="to-print">
+    <div class="two-up">
+      <!-- Izquierda -->
+      <div class="print-area">
+        <div class="barcode-box">
+          <img class="barcode" src="https://barcodeapi.org/api/128/@Codigo" />
         </div>
-    </div>
-
-    <div class="text-center mt-3">
-        <button class="btn btn-success" @onclick="Imprimir">🖨️ Imprimir</button>
-        <button class="btn btn-secondary ms-2" @onclick="Volver">↩️ Volver</button>
-    </div>
-
-    <!-- Zona que realmente se imprime (idéntica a la previa). 
-         Si usas rollo 2-up y quieres sacar 2 iguales, 
-         reemplaza el div de abajo por el que está comentado. -->
-    <div class="to-print" style="visibility:hidden">
-        <div class="print-area">
-            <img src="https://barcodeapi.org/api/128/@Codigo" alt="barcode" />
-            <div class="desc"><b>@Descripcion</b></div>
-            <div class="code">Código: @Codigo</div>
+        <div class="price-row">
+          @if (Precio.HasValue){ <div class="price">S/. @Precio.Value.ToString("0.00")</div> }
         </div>
-
-        @* Para 2-up idénticas en una pasada, usa esto en lugar de lo de arriba:
-        <div class="two-up">
-            <div class="print-area">
-                <img src="https://barcodeapi.org/api/128/@Codigo" alt="barcode" />
-                <div class="desc"><b>@Descripcion</b></div>
-                <div class="code">Código: @Codigo</div>
-            </div>
-            <div class="print-area">
-                <img src="https://barcodeapi.org/api/128/@Codigo" alt="barcode" />
-                <div class="desc"><b>@Descripcion</b></div>
-                <div class="code">Código: @Codigo</div>
-            </div>
+        <div class="desc">@Descripcion</div>
+        <div class="code">Código: @Codigo</div>
+      </div>
+      <!-- Derecha -->
+      <div class="print-area">
+        <div class="barcode-box">
+          <img class="barcode" src="https://barcodeapi.org/api/128/@Codigo" />
         </div>
-        *@
+        <div class="price-row">
+          @if (Precio.HasValue){ <div class="price">S/. @Precio.Value.ToString("0.00")</div> }
+        </div>
+        <div class="desc">@Descripcion</div>
+        <div class="code">Código: @Codigo</div>
+      </div>
     </div>
+  </div>
 }
-else
-{
-    <p>Cargando código de barras...</p>
-}
+else { <p>Cargando código de barras…</p> }
 
 @code{
-    [Parameter] public string? Codigo { get; set; }
-    [Parameter] public string? Descripcion { get; set; }
+  [Parameter] public string? Codigo { get; set; }
+  [Parameter] public string? Descripcion { get; set; }
+  [Parameter] public decimal? Precio { get; set; }
 
-    private void Imprimir() => JS.InvokeVoidAsync("window.print");
-    private void Volver() => Navigation.NavigateTo("/articulos");
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender) await JS.InvokeVoidAsync("window.print"); // auto-imprimir
+  }
+
+  private void Volver() => Navigation.NavigateTo("/articulos");
 }

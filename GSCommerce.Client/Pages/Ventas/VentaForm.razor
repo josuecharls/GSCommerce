@@ -107,9 +107,9 @@
                 <td>@detalle.Item</td>
                 <td><input class="form-control" @bind="detalle.CodigoItem" disabled /></td>
                 <td><input class="form-control" @bind="detalle.DescripcionItem" disabled /></td>
-                <td><input type="number" class="form-control" step="1" min="1" @bind="detalle.Cantidad" @oninput="RecalcularTotales" /></td>
-                <td><input type="number" class="form-control" step="0.01" @bind="detalle.PrecioUnitario" @oninput="RecalcularTotales" /></td>
-                <td><input type="number" class="form-control" step="0.01" @bind="detalle.PorcentajeDescuento" @oninput="RecalcularTotales" /></td>
+                    <td><input type="number" class="form-control" step="1" min="1" @bind="detalle.Cantidad" @oninput="RecalcularTotales" disabled /></td>
+                    <td><input type="number" class="form-control" step="0.01" @bind="detalle.PrecioUnitario" @oninput="RecalcularTotales" disabled /></td>
+                    <td><input type="number" class="form-control" step="0.01" @bind="detalle.PorcentajeDescuento" @oninput="RecalcularTotales" disabled /></td>
                 <td>@detalle.Total.ToString("N2")</td>
                 <td>
                     <button class="btn btn-danger btn-sm" @onclick="() => EliminarProducto(detalle)">X</button>
@@ -801,7 +801,7 @@ OnCancelado="CobroCancelado" />
         var sb = new StringBuilder();
 
         sb.AppendLine("<pre style='font-family: monospace; font-size:12px;'>");
-        sb.AppendLine(Center("BOLETA DE VENTA ELECTRONICA"));
+        sb.AppendLine(Center($"{venta.TipoDocumento} DE VENTA ELECTRONICA"));
         sb.AppendLine(Center("================================"));
         sb.AppendLine(Center($"{venta.RazonSocialEmisor?.ToUpper()}"));
         sb.AppendLine(Center($"RUC: {venta.RucEmisor}"));

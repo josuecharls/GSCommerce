@@ -2,6 +2,7 @@
 @page "/articulo-form/{dummy}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using System.Globalization
 @inject ArticuloService ArticuloService
 @inject ProveedorService ProveedorService
 @using GSCommerce.Client.Pages
@@ -62,9 +63,6 @@
                     <label class="form-label">Talla</label>
                     <input type="text" class="form-control" @bind="articulo.Talla" @oninput="ActualizarDescripcion" />
                 </div>
-                <div>
-
-                </div>
             </div>
 
             <!-- Derecha -->
@@ -116,10 +114,12 @@
                     <label class="form-label">Código de Barras</label><br />
                     <img src="https://barcodeapi.org/api/128/@(articulo.IdArticulo)" class="img-thumbnail" width="150" />
                     <div><strong>@articulo.IdArticulo</strong></div>
-                    <button class="btn btn-secondary mt-2 me-2" @onclick="() => mostrarModal = true">📄 Imprimir</button>
+                    <!-- Imprime con la página calibrada /barcode-print -->
+                    <button class="btn btn-success mt-2 me-2" @onclick="PrintBarcode">🖨️ Imprimir</button>
                     <button class="btn btn-info mt-2" @onclick="() => mostrarModalQR = true">📱 QR</button>
                 </div>
             </div>
+
             <div class="col-md-6">
                 <div class="mb-3">
                     <label class="form-label">Estación</label>
@@ -138,84 +138,34 @@
             <button class="btn btn-danger" @onclick="Cancel">❌ Cancelar</button>
         </div>
     </div>
-    <style>
-        @@media print {
-        body * {
-        visibility: hidden !important;
-        }
-
-        .modal,
-        .modal-backdrop {
-        visibility: hidden !important;
-        }
-
-        .etiqueta-imprimir,
-        .etiqueta-imprimir * {
-        visibility: visible !important;
-        }
-
-        .etiqueta-imprimir {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        width: 58mm; /* Ajusta si tu etiqueta es más chica */
-        height: auto;
-        margin: auto;
-        padding: 5mm;
-        font-size: 10pt;
-        page-break-inside: avoid;
-        background: white;
-        }
-
-        .no-print {
-        display: none !important;
-        }
-
-        @@page {
-        margin: 0;
-        }
-        }
-    </style>
 }
 else
 {
     <p>Cargando...</p>
 }
-@if (mostrarModal)
-{
-    <div class="modal-backdrop fade show"></div>
-    <div class="modal d-block" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content p-4 text-center">
-                <h4>🖨️ Imprimir Etiqueta</h4>
-                <hr />
-                <div class="etiqueta-imprimir">
-                    <img src="https://barcodeapi.org/api/128/@(articulo.IdArticulo)" width="200" />
-                    <div style="font-weight:bold; margin-top:6px">@articulo.DescripcionCorta</div>
-                    <div style="font-size:small">Código: @articulo.IdArticulo</div>
-                </div>
-                <div class="mt-3 no-print">
-                    <button class="btn btn-success me-2" @onclick="Imprimir">🖨️ Imprimir</button>
-                    <button class="btn btn-secondary" @onclick="()=> mostrarModal = false">❌ Cancelar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+
 @if (mostrarModalQR)
 {
     <div class="modal-backdrop fade show"></div>
     <div class="modal d-block" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog">
             <div class="modal-content p-4 text-center">
                 <h4>📱 Código QR</h4>
                 <hr />
+                <!-- Área de impresión 2-up 100x50mm -->
                 <div class="etiqueta-imprimir">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@(articulo.IdArticulo)" width="200" />
-                    <div style="font-weight:bold; margin-top:6px">@articulo.DescripcionCorta</div>
-                    <div style="font-size:small">Código: @articulo.IdArticulo</div>
+                    <div class="label">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@(articulo.IdArticulo)" />
+                        <div class="desc">@articulo.DescripcionCorta</div>
+                        <div class="code">Código: @articulo.IdArticulo</div>
+                    </div>
+                    <div class="label">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@(articulo.IdArticulo)" />
+                        <div class="desc">@articulo.DescripcionCorta</div>
+                        <div class="code">Código: @articulo.IdArticulo</div>
+                    </div>
                 </div>
+
                 <div class="mt-3 no-print">
                     <button class="btn btn-success me-2" @onclick="Imprimir">🖨️ Imprimir</button>
                     <button class="btn btn-secondary" @onclick="() => mostrarModalQR = false">❌ Cancelar</button>
@@ -223,7 +173,71 @@ else
             </div>
         </div>
     </div>
+
+    <style>
+        /* Estilos SOLO para impresión del modal de QR */
+        @@media print {
+            @@page {
+                size: 100mm 50mm;
+                margin: 0;
+            }
+
+            body * {
+                visibility: hidden !important;
+            }
+
+            .etiqueta-imprimir, .etiqueta-imprimir * {
+                visibility: visible !important;
+            }
+
+            .etiqueta-imprimir {
+                position: fixed;
+                inset: 0;
+                width: 100mm;
+                height: 50mm;
+                display: flex;
+                gap: 3mm;
+            }
+
+            .label {
+                width: calc((100mm - 3mm)/2);
+                height: 50mm;
+                border: 1px solid #000;
+                border-radius: .8mm;
+                padding: 1.2mm;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                gap: 1mm;
+                justify-content: center;
+                align-items: center;
+            }
+
+                .label img {
+                    width: 22mm;
+                    height: 22mm;
+                    object-fit: contain;
+                    display: block;
+                }
+
+            .desc {
+                font-weight: 700;
+                font-size: 8pt;
+                line-height: 1.15;
+                text-align: center;
+            }
+
+            .code {
+                font-size: 7pt;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
 }
+
 @if (!string.IsNullOrEmpty(articulo.IdArticulo))
 {
     <hr />
@@ -268,30 +282,33 @@ else
 
 @code {
 
-    [Parameter]
-    public string? dummy { get; set; }
+    [Parameter] public string? dummy { get; set; }
+
     private ArticuloDTO articulo = new();
     private List<ProveedorDTO>? proveedores = new();
     private bool isLoading = true;
     private bool yaInicializado = false;
-    private bool mostrarModal = false;
+
     private bool mostrarModalQR = false;
     private bool mostrarProveedorModal = false;
+
     private string rucProveedor = string.Empty;
     private string nombreProveedor = string.Empty;
+
     private ArticuloVarianteDTO nuevaVariante = new();
     private List<ArticuloVarianteDTO> variantes = new();
 
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-
         articulo.Estado = true;
 
         if (!yaInicializado)
         {
             isLoading = true;
 
-            articulo = new ArticuloDTO(); // Reinicia los datos
+            articulo = new ArticuloDTO();
             articulo.IdArticulo = await ArticuloService.GetNuevoIdArticulo();
             articulo.CodigoBarra = articulo.IdArticulo;
 
@@ -300,24 +317,10 @@ else
             yaInicializado = true;
             isLoading = false;
 
-            StateHasChanged(); // Vuelve a renderizar
+            StateHasChanged();
             await CargarVariantes();
         }
     }
-
-    /*
-    protected override async Task OnInitializedAsync()
-    {
-        isLoading = true;
-        articulo.IdArticulo = await ArticuloService.GetNuevoIdArticulo();
-        proveedores = await ProveedorService.GetProveedores();
-        isLoading = false;
-
-        //Para elegir automáticamente el id de articulo en el codigo de barras
-        articulo.CodigoBarra = articulo.IdArticulo.ToString();
-        }*/
-
-    [Inject] private IJSRuntime JS { get; set; } = default!;
 
     private async Task Imprimir()
     {
@@ -326,8 +329,10 @@ else
 
     private void ActualizarDescripcion()
     {
-        articulo.Descripcion = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Color} {articulo.Talla}";
-        articulo.DescripcionCorta = $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Color} {articulo.Talla}";
+        articulo.Descripcion =
+            $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Color} {articulo.Talla}";
+        articulo.DescripcionCorta =
+            $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Color} {articulo.Talla}";
     }
 
     private async Task SaveArticulo()
@@ -338,7 +343,6 @@ else
             return;
         }
 
-        // Validar foto
         if (string.IsNullOrEmpty(articulo.Foto))
         {
             Console.WriteLine("❌ Debe subir una imagen del artículo");
@@ -384,16 +388,17 @@ else
 
     private void PrintBarcode()
     {
-        Navigation.NavigateTo($"/barcode-print/{articulo.IdArticulo}/{Uri.EscapeDataString(articulo.DescripcionCorta)}");
+        var precio = articulo.PrecioVenta.ToString(CultureInfo.InvariantCulture);
+        var desc = Uri.EscapeDataString(articulo.DescripcionCorta ?? string.Empty);
+        Navigation.NavigateTo($"/barcode-print/{articulo.IdArticulo}/{desc}/{precio}", true);
     }
-
 
     private async Task UploadImage(InputFileChangeEventArgs e)
     {
         var file = e.File;
         if (file != null)
         {
-            using var stream = file.OpenReadStream(maxAllowedSize: 5_000_000); // 5MB
+            using var stream = file.OpenReadStream(maxAllowedSize: 5_000_000);
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
             var imageBytes = ms.ToArray();
@@ -401,7 +406,7 @@ else
             articulo.Foto = $"data:{file.ContentType};base64,{base64}";
         }
     }
-    
+
     private async Task BuscarProveedorPorRuc(FocusEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(rucProveedor))

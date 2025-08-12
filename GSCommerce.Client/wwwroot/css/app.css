@@ -22,7 +22,7 @@ html, body {
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        width: 58mm; /* Ajusta si tu etiqueta es más chica */
+        width: 80mm; /* Formato ZEBRA ZT410 */
         height: auto;
         margin: auto;
         padding: 5mm;
@@ -139,3 +139,21 @@ a, .btn-link {
 code {
     color: #c02d76;
 }
+
+.barcode-price {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+    .barcode-price img {
+        width: 70%;
+        height: 12mm;
+        object-fit: contain;
+    }
+
+    .barcode-price .price {
+        font-size: 10pt;
+        font-weight: bold;
+    }

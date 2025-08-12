@@ -1,5 +1,5 @@
 ﻿@page "/articulos"
-@**@
+@using System.Globalization
 @using Microsoft.AspNetCore.Authorization
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
@@ -121,27 +121,57 @@
 <!-- Modal para ver QR -->
 @if (showQrModal)
 {
-    <div class="modal fade show d-block" tabindex="-1" role="dialog">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">QR de @qrArticulo?.Descripcion</h5>
-                    <button type="button" class="btn-close" @onclick="CloseQrModal"></button>
-                </div>
-                <div class="modal-body text-center">
-                    <div class="etiqueta-imprimir">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@qrArticulo?.IdArticulo" width="200" />
-                        <div style="font-weight:bold; margin-top:6px">@qrArticulo?.DescripcionCorta</div>
-                        <div style="font-size:small">Código: @qrArticulo?.IdArticulo</div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-success" @onclick="PrintQr">Imprimir</button>
-                    <button class="btn btn-secondary" @onclick="CloseQrModal">Cerrar</button>
-                </div>
-            </div>
+  <div class="modal fade show d-block" tabindex="-1" role="dialog">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">QR de @qrArticulo?.Descripcion</h5>
+          <button type="button" class="btn-close" @onclick="CloseQrModal"></button>
         </div>
+        <div class="modal-body text-center">
+          <div class="etiqueta-imprimir">
+            <div class="label">
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@qrArticulo?.IdArticulo" />
+              <div class="desc">@qrArticulo?.DescripcionCorta</div>
+              <div class="code">Código: @qrArticulo?.IdArticulo</div>
+            </div>
+            <div class="label">
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@qrArticulo?.IdArticulo" />
+              <div class="desc">@qrArticulo?.DescripcionCorta</div>
+              <div class="code">Código: @qrArticulo?.IdArticulo</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-success" @onclick="PrintQr">Imprimir</button>
+          <button class="btn btn-secondary" @onclick="CloseQrModal">Cerrar</button>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <style>
+  @@media print{
+    @@page{ size:100mm 50mm; margin:0; }
+    body *{ visibility:hidden !important; }
+    .etiqueta-imprimir, .etiqueta-imprimir *{ visibility:visible !important; }
+    .etiqueta-imprimir{
+      position:fixed; inset:0;
+      width:100mm; height:50mm;
+      display:flex; gap:3mm;
+    }
+    .label{
+      width: calc((100mm - 3mm)/2); height:50mm;
+      border:1px solid #000; border-radius:.8mm;
+      padding:1.2mm; box-sizing:border-box;
+      display:flex; flex-direction:column; gap:1mm; justify-content:center;
+      align-items:center;
+    }
+    .label img{ width:22mm; height:22mm; object-fit:contain; display:block; }
+    .desc{ font-weight:700; font-size:8pt; line-height:1.15; text-align:center; }
+    .code{ font-size:7pt; }
+  }
+  </style>
 }
 <!-- Modal para ver Código de Barras -->
 @if (showBarcodeModal)
@@ -155,7 +185,10 @@
                 </div>
                 <div class="modal-body text-center">
                     <div class="etiqueta-imprimir">
-                        <img src="https://barcodeapi.org/api/128/@barcodeArticulo?.IdArticulo" width="200" />
+                        <div class="barcode-price">
+                            <img src="https://barcodeapi.org/api/128/@barcodeArticulo?.IdArticulo" width="200" />
+                            <div class="price">S/. @barcodeArticulo?.PrecioVenta.ToString("0.00")</div>
+                        </div>
                         <div style="font-weight:bold; margin-top:6px">@barcodeArticulo?.DescripcionCorta</div>
                         <div style="font-size:small">Código: @barcodeArticulo?.IdArticulo</div>
                     </div>
@@ -389,9 +422,12 @@
         showBarcodeModal = false;
     }
 
-    private async Task PrintBarcode()
+    private void PrintBarcode()
     {
-        await JS.InvokeVoidAsync("window.print");
+        if (barcodeArticulo is null) return;
+        var desc = Uri.EscapeDataString(barcodeArticulo.DescripcionCorta ?? "");
+        var precio = barcodeArticulo.PrecioVenta.ToString(CultureInfo.InvariantCulture);
+        Navigation.NavigateTo($"/barcode-print/{barcodeArticulo.IdArticulo}/{desc}/{precio}", true);
     }
 
     private bool CanPrev => currentPage > 1;

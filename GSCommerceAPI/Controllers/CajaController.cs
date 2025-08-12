@@ -532,7 +532,16 @@ public class CajaController : ControllerBase
                 .Where(r => r.IdUsuario == apertura.IdUsuario
                          && r.IdAlmacen == apertura.IdAlmacen
                          && r.Fecha == apertura.Fecha)
-                .Select(r => new { r.IdGrupo, Grupo = (r.Grupo ?? "").Trim(), Detalle = (r.Detalle ?? "").Trim(), r.Monto, r.Fecha })
+                .Select(r => new
+                {
+                    r.IdGrupo,
+                    Grupo = ((r.Grupo ?? "").Trim().Equals("VENTA TICKET", StringComparison.OrdinalIgnoreCase))
+                                ? "VENTA BOLETA 2"
+                                : (r.Grupo ?? "").Trim(),
+                    Detalle = (r.Detalle ?? "").Trim(),
+                    r.Monto,
+                    r.Fecha
+                })
                 .ToListAsync();
 
             var resumenVentas = resumenBase
@@ -582,12 +591,12 @@ public class CajaController : ControllerBase
             // 6) VENTAS (del día)
             var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
             var ventaNC = MontoPorGrupo("VENTA POR N.C.", "VENTA CON N.C.");
-            var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET");
+            var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA FACTURA", "VENTA BOLETA 2");
             var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC; // efectivo real en caja
             var ventaDia = ventaEfectivo + ventaTarjeta;
 
             // --- Distribución de efectivo por grupo de venta (para mostrar solo EFECTIVO en la tabla Detalle) ---
-            string[] gruposVentaBase = { "VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET" };
+            string[] gruposVentaBase = { "VENTA BOLETAS", "VENTA FACTURA", "VENTA BOLETA 2" };
 
             var totalesVentaPorGrupo = resumenVentas
                 .Where(r => gruposVentaBase.Any(g => r.Grupo.StartsWith(g, StringComparison.OrdinalIgnoreCase)))
@@ -662,6 +671,7 @@ public class CajaController : ControllerBase
                     var primerDetalle = resumenVentas.First(r => r.Grupo.StartsWith(g, StringComparison.OrdinalIgnoreCase)).Detalle;
                     detalleHoy.Add(new ResumenCierreDeCaja
                     {
+                        IdGrupo = 1,
                         Grupo = g,
                         Detalle = primerDetalle,
                         Monto = efectivoPorGrupo[g] // <-- solo EFECTIVO aquí
@@ -674,13 +684,14 @@ public class CajaController : ControllerBase
                 .Where(r => r.Grupo.StartsWith("VENTA TARJETA/ONLINE", StringComparison.OrdinalIgnoreCase)
                          || r.Grupo.StartsWith("VENTA POR N.C.", StringComparison.OrdinalIgnoreCase)
                          || r.Grupo.StartsWith("VENTA CON N.C.", StringComparison.OrdinalIgnoreCase))
-                .Select(r => new ResumenCierreDeCaja { Grupo = r.Grupo, Detalle = r.Detalle, Monto = r.Monto });
+                .Select(r => new ResumenCierreDeCaja { IdGrupo = 1, Grupo = r.Grupo, Detalle = r.Detalle, Monto = r.Monto });
 
             detalleHoy.AddRange(tarjetasYnc);
 
             // Agregar movimientos del día (Tipo -> Grupo, Glosa -> Detalle)
             detalleHoy.AddRange(movimientos.Select(m => new ResumenCierreDeCaja
             {
+                IdGrupo = m.IdGrupo,
                 Grupo = m.Grupo,
                 Detalle = m.Detalle,
                 Monto = m.Monto
@@ -688,7 +699,7 @@ public class CajaController : ControllerBase
 
             // Orden final: primero ventas, luego lo demás
             detalleHoy = detalleHoy
-                .OrderBy(d => d.Grupo.StartsWith("VENTA", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .OrderBy(d => d.IdGrupo == 1 ? 0 : d.IdGrupo == 3 ? 1 : 2)
                 .ThenBy(d => d.Grupo)
                 .ToList();
 
