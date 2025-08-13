@@ -44,8 +44,28 @@ namespace GSCommerceAPI.Controllers
                 .Include(m => m.IdAlmacenNavigation)
                 .Where(m => m.Tipo == tipoMap);
 
-            if (idAlmacen.HasValue && idAlmacen.Value > 0)
-                query = query.Where(m => m.IdAlmacen == idAlmacen.Value); // ⬅️ filtra por almacén
+            var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+            var userIdClaim = User.FindFirst("userId")?.Value;
+
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(userIdClaim, out var userId))
+                    return Unauthorized(new { message = "Usuario no autorizado." });
+
+                var userAlmacen = await _context.Usuarios
+                    .Where(u => u.IdUsuario == userId)
+                    .Select(u => u.IdPersonalNavigation != null ? (int?)u.IdPersonalNavigation.IdAlmacen : null)
+                    .FirstOrDefaultAsync();
+
+                if (!userAlmacen.HasValue)
+                    return Ok(new { TotalItems = 0, TotalPages = 0, Data = new List<MovimientoGuiaDTO>() });
+
+                query = query.Where(m => m.IdAlmacen == userAlmacen.Value);
+            }
+            else if (idAlmacen.HasValue && idAlmacen.Value > 0)
+            {
+                query = query.Where(m => m.IdAlmacen == idAlmacen.Value); // ⬅️ filtra por almacén para admin
+            }
 
             if (!string.IsNullOrWhiteSpace(search))
                 query = query.Where(m => m.Motivo.Contains(search) || m.Descripcion.Contains(search));
@@ -117,10 +137,23 @@ namespace GSCommerceAPI.Controllers
             if (egreso == null)
                 return BadRequest(new { mensaje = "No se encontró la guía de TRANSFERENCIA EGRESO asociada y pendiente." });
 
-            // 🔒 (opcional) valida que el usuario logueado pertenezca al almacén destino (ingreso.IdAlmacen)
+            // 🔒 valida que el usuario logueado pertenezca al almacén destino o sea administrador
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (!int.TryParse(userIdClaim, out var userId))
+                return Unauthorized(new { mensaje = "Usuario no autorizado" });
 
-            // 3) Marcar ambas como confirmadas (no se persiste si el SP falla porque hay tx)
-            var userId = 1; // TODO: obtener desde el token
+            var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+            {
+                var userAlmacen = await _context.Usuarios
+                    .Where(u => u.IdUsuario == userId)
+                    .Select(u => u.IdPersonalNavigation != null ? (int?)u.IdPersonalNavigation.IdAlmacen : null)
+                    .FirstOrDefaultAsync();
+
+                if (!userAlmacen.HasValue || userAlmacen.Value != ingreso.IdAlmacen)
+                    return Forbid();
+            }
+
             var fechaConf = DateTime.Now;
 
             ingreso.IdUsuarioConfirma = userId;

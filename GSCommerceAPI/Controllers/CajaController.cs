@@ -237,7 +237,7 @@ public class CajaController : ControllerBase
 
         var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
         var ventaNC = MontoPorGrupo("VENTA POR N.C.");
-        var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET");
+        var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA TICKET");
         var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC;
         var ventaDia = ventaEfectivo + ventaTarjeta;
 
@@ -292,8 +292,7 @@ public class CajaController : ControllerBase
 
         bool SW(string s, params string[] pref) => !string.IsNullOrWhiteSpace(s) && pref.Any(p => s.StartsWith(p, StringComparison.OrdinalIgnoreCase));
 
-        decimal VRes(int u, int a) => ventasDia.Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA BOLETAS", "VENTA FACTURA", "VENTA TICKET")).Sum(v => v.Monto);
-        decimal VTar(int u, int a) => ventasDia.Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA TARJETA/ONLINE")).Sum(v => v.Monto);
+        decimal VRes(int u, int a) => ventasDia.Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA TICKET")).Sum(v => v.Monto); decimal VTar(int u, int a) => ventasDia.Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA TARJETA/ONLINE")).Sum(v => v.Monto);
         decimal VNC(int u, int a) => ventasDia.Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA POR N.C.", "VENTA CON N.C.")).Sum(v => v.Monto);
 
         decimal Ingresos(int u, int a) => movsDia.Where(m => m.IdUsuario == u && m.IdAlmacen == a && m.Naturaleza == "I").Sum(m => m.Monto);
@@ -410,7 +409,8 @@ public class CajaController : ControllerBase
         foreach (var v in ventasAgrupadas)
         {
             string? grupo = null;
-            if (v.Tipo.Contains("BOLETA")) grupo = "VENTA BOLETAS";
+            if (v.Tipo.Contains("BOLETA M")) grupo = "VENTA BOLETA M";
+            else if (v.Tipo.Contains("BOLETA")) grupo = "VENTA BOLETAS";
             else if (v.Tipo.Contains("FACTURA")) grupo = "VENTA FACTURA";
             else if (v.Tipo.Contains("TICKET")) grupo = "VENTA TICKET";
 
@@ -591,12 +591,12 @@ public class CajaController : ControllerBase
             // 6) VENTAS (del día)
             var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
             var ventaNC = MontoPorGrupo("VENTA POR N.C.", "VENTA CON N.C.");
-            var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA FACTURA", "VENTA BOLETA 2");
+            var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2");
             var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC; // efectivo real en caja
             var ventaDia = ventaEfectivo + ventaTarjeta;
 
             // --- Distribución de efectivo por grupo de venta (para mostrar solo EFECTIVO en la tabla Detalle) ---
-            string[] gruposVentaBase = { "VENTA BOLETAS", "VENTA FACTURA", "VENTA BOLETA 2" };
+            string[] gruposVentaBase = { "VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2" };
 
             var totalesVentaPorGrupo = resumenVentas
                 .Where(r => gruposVentaBase.Any(g => r.Grupo.StartsWith(g, StringComparison.OrdinalIgnoreCase)))

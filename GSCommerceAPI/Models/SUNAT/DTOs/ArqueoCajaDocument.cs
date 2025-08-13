@@ -101,7 +101,7 @@ public class ArqueoCajaDocument : IDocument
                     });
 
                     // Separador: línea centrada dentro de la columna ancha
-                    table.Cell().Element(e => e.ExtendVertical().AlignCenter().Width(1).Height(5).LineVertical(1));
+                    table.Cell().Element(e => e.ExtendVertical().AlignCenter().Width(20).Height(5).LineVertical(1));
 
                     // Egresos (con respiración a la izquierda)
                     table.Cell().PaddingLeft(sep).Column(col =>
