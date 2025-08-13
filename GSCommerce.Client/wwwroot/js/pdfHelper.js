@@ -12,6 +12,7 @@
     tempDiv.innerHTML = htmlString;
     tempDiv.style.position = "absolute";
     tempDiv.style.left = "-9999px";
+    tempDiv.style.top = "0";
     document.body.appendChild(tempDiv);
 
     const canvas = await html2canvas(tempDiv, {
@@ -22,10 +23,22 @@
     const imgData = canvas.toDataURL("image/png");
     const imgProps = pdf.getImageProperties(imgData);
     const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
     const imgWidth = pageWidth - 20;
     const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
 
-    pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+    let heightLeft = imgHeight;
+    let position = 10;
+
+    pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight - 20;
+
+    while (heightLeft > 0) {
+        position = heightLeft - imgHeight + 10;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight - 20;
+    }
     pdf.save(nombreArchivo + ".pdf");
 
     document.body.removeChild(tempDiv);

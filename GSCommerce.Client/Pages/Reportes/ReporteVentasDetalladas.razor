@@ -1,3 +1,6 @@
+﻿+102
+-41
+
 ﻿@page "/reportes/ventas-detalladas"
 @using GSCommerce.Client.Components
 @using GSCommerce.Client.Models
@@ -5,56 +8,90 @@
 @using System.Text
 @using GSCommerce.Client.Services
 @inject VentaService VentaService
+@inject AuthService AuthService
+@inject AlmacenService AlmacenService
 @inject IJSRuntime JS
 
 <ReportsBreadcrumb Title="Ventas Detalladas" />
 
-<div class="row mb-3">
-    <div class="col-md-3">
-        <label>Desde:</label>
-        <InputDate @bind-Value="desde" class="form-control" />
-    </div>
-    <div class="col-md-3">
-        <label>Hasta:</label>
-        <InputDate @bind-Value="hasta" class="form-control" />
-    </div>
-    <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-primary w-100" @onclick="Buscar">🔍 Buscar</button>
-    </div>
-    <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-success w-100" @onclick="ExportarPDF">📄 Exportar a PDF</button>
-    </div>
+<div class="row g-3 mb-3">
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col-md-3">
+            <label>Almacén:</label>
+            <select class="form-control" @bind="selectedAlmacen">
+                <option value="0">General</option>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Desde:</label>
+            <InputDate @bind-Value="desde" class="form-control" />
+        </div>
+        <div class="col-md-2">
+            <label>Hasta:</label>
+            <InputDate @bind-Value="hasta" class="form-control" />
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100" @onclick="Buscar">🔍 Buscar</button>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-success w-100" @onclick="ExportarPDF">📄 Exportar a PDF</button>
+        </div>
+    }
+    else
+    {
+        <div class="col-md-4">
+            <label>Desde:</label>
+            <InputDate @bind-Value="desde" class="form-control" />
+        </div>
+        <div class="col-md-4">
+            <label>Hasta:</label>
+            <InputDate @bind-Value="hasta" class="form-control" />
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100" @onclick="Buscar">🔍 Buscar</button>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-success w-100" @onclick="ExportarPDF">📄 Exportar a PDF</button>
+        </div>
+    }
 </div>
 
 @if (ventas.Any())
 {
-    <table class="table table-striped table-bordered">
-        <thead class="table-light">
-            <tr>
-                <th>Fecha</th>
-                <th>Tipo Doc</th>
-                <th>Serie</th>
-                <th>Número</th>
-                <th>Cliente</th>
-                <th>Total</th>
-                <th>Estado</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var v in ventas)
-            {
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead class="table-light">
                 <tr>
-                    <td>@v.Fecha.ToString("dd/MM/yyyy")</td>
-                    <td>@v.TipoDocumento</td>
-                    <td>@v.Serie</td>
-                    <td>@v.Numero.ToString("D8")</td>
-                    <td>@v.NombreCliente</td>
-                    <td>S/ @v.Total.ToString("N2")</td>
-                    <td>@v.Estado</td>
+                    <th>Fecha</th>
+                    <th>Tipo Doc</th>
+                    <th>Serie</th>
+                    <th>Número</th>
+                    <th>Cliente</th>
+                    <th>Total</th>
+                    <th>Estado</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var v in ventas)
+                {
+                    <tr>
+                        <td>@v.Fecha.ToString("dd/MM/yyyy")</td>
+                        <td>@v.TipoDocumento</td>
+                        <td>@v.Serie</td>
+                        <td>@v.Numero.ToString("D8")</td>
+                        <td>@v.NombreCliente</td>
+                        <td>S/ @v.Total.ToString("N2")</td>
+                        <td>@v.Estado</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
 else
 {
@@ -65,17 +102,31 @@ else
     private List<VentaConsultaDTO> ventas = new();
     private DateTime desde = DateTime.Today;
     private DateTime hasta = DateTime.Today;
+    private string cargo = string.Empty;
+    private List<AlmacenDTO> almacenes = new();
+    private int selectedAlmacen;
 
     private async Task Buscar()
     {
-        ventas = await VentaService.ObtenerVentasAsync(desde, hasta);
+        int? filtroAlmacen = cargo == "ADMINISTRADOR"
+            ? (selectedAlmacen == 0 ? (int?)null : selectedAlmacen)
+            : selectedAlmacen;
+        ventas = await VentaService.ObtenerVentasAsync(desde, hasta, filtroAlmacen);
     }
 
     private async Task ExportarPDF()
     {
         var sb = new StringBuilder();
+        sb.AppendLine("<div style='font-family:Arial; font-size:12px;'>");
         sb.AppendLine("<h2 style='text-align:center;'>Ventas Detalladas</h2>");
         sb.AppendLine($"<p><strong>Desde:</strong> {desde:dd/MM/yyyy} <strong>Hasta:</strong> {hasta:dd/MM/yyyy}</p>");
+        if (cargo == "ADMINISTRADOR")
+        {
+            var nombre = selectedAlmacen > 0
+                ? almacenes.FirstOrDefault(a => a.IdAlmacen == selectedAlmacen)?.Nombre ?? "N/A"
+                : "General";
+            sb.AppendLine($"<p><strong>Almacén:</strong> {nombre}</p>");
+        }
         sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
         sb.AppendLine("<thead><tr><th>Fecha</th><th>Tipo Doc</th><th>Serie</th><th>Número</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead>");
         sb.AppendLine("<tbody>");
@@ -92,12 +143,25 @@ else
             sb.AppendLine("</tr>");
         }
         sb.AppendLine("</tbody></table>");
+        sb.AppendLine("</div>");
 
         await JS.InvokeVoidAsync("generarPDFDesdeHTML", sb.ToString(), $"VentasDetalladas_{DateTime.Now:yyyyMMdd_HHmmss}");
     }
 
     protected override async Task OnInitializedAsync()
     {
+        cargo = await AuthService.GetUserCargo() ?? string.Empty;
+        if (cargo == "ADMINISTRADOR")
+        {
+            var lista = await AlmacenService.GetAlmacenes();
+            if (lista != null) almacenes = lista;
+            selectedAlmacen = 0;
+        }
+        else
+        {
+            selectedAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
+        }
+
         await Buscar();
     }
 }
