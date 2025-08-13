@@ -4,9 +4,44 @@
 @inject VentaService ventaService
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService
+@inject ResumenService ResumenService
 @inject IJSRuntime JS
 
 <h3>Ventas Registradas</h3>
+@if (cargo == "ADMINISTRADOR" && selectedAlmacen > 0)
+{
+    @if (!cajaAbierta)
+    {
+        <div class="alert alert-warning">⚠️ Debes aperturar caja para ver el resumen.</div>
+    }
+    else
+    {
+        <div class="row mb-3">
+            <div class="mb-4">
+                <p><strong>Almacén:</strong> @nombreAlmacen</p>
+                <p><strong>Cajero:</strong> @personalName</p>
+            </div>
+            <div class="col-md-6">
+                <h5>📊 Venta Diaria</h5>
+                <ul>
+                    <li><strong>Efectivo:</strong> @resumen.Efectivo.ToString("N2")</li>
+                    <li><strong>Tarjeta:</strong> @resumen.Tarjeta.ToString("N2")</li>
+                    <li><strong>Nota de Crédito:</strong> @resumen.NotaCredito.ToString("N2")</li>
+                    <li><strong>Total:</strong> <span class="text-danger">@resumen.Total.ToString("N2")</span></li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h5>💰 Cierre Diario</h5>
+                <ul>
+                    <li><strong>Saldo Inicial:</strong> @resumen.SaldoInicial.ToString("N2")</li>
+                    <li><strong>Ingresos:</strong> @resumen.Ingresos.ToString("N2")</li>
+                    <li><strong>Egresos:</strong> @resumen.Egresos.ToString("N2")</li>
+                    <li><strong>Saldo Actual:</strong> <span class="text-danger">@resumen.SaldoActual.ToString("N2")</span></li>
+                </ul>
+            </div>
+        </div>
+    }
+}
 
 <div class="row mb-3">
     @if (cargo == "ADMINISTRADOR")
@@ -137,10 +172,17 @@
     private List<AlmacenDTO> almacenes = new();
     private int selectedAlmacen;
     private int selectedTipoDoc = 0; // 0 = todos
+    private ResumenDiarioDTO resumen = new();
+    private bool cajaAbierta = false;
+    private string nombreAlmacen = string.Empty;
+    private string? personalName;
+    private int? idUsuario;
 
     protected override async Task OnInitializedAsync()
     {
         cargo = await AuthService.GetUserCargo() ?? string.Empty;
+        idUsuario = await AuthService.GetUserId();
+        personalName = await AuthService.GetNombrePersonal();
         if (cargo == "ADMINISTRADOR")
         {
             var lista = await AlmacenService.GetAlmacenes();
@@ -161,6 +203,24 @@
         int? filtroTipoDoc = selectedTipoDoc == 0 ? (int?)null : selectedTipoDoc;
 
         ventas = await ventaService.ObtenerVentasAsync(desde, hasta, filtroAlmacen, filtroTipoDoc);
+        await ActualizarResumen();
+    }
+
+    private async Task ActualizarResumen()
+    {
+        if (cargo != "ADMINISTRADOR" || selectedAlmacen == 0 || idUsuario == null)
+        {
+            cajaAbierta = false;
+            resumen = new ResumenDiarioDTO();
+            return;
+        }
+
+        nombreAlmacen = almacenes.FirstOrDefault(a => a.IdAlmacen == selectedAlmacen)?.Nombre ?? "N/A";
+
+        cajaAbierta = await ResumenService.VerificarAperturaAsync(selectedAlmacen, idUsuario.Value);
+        resumen = cajaAbierta
+            ? await ResumenService.ObtenerResumenAsync(selectedAlmacen, idUsuario.Value)
+            : new ResumenDiarioDTO();
     }
 
     private bool PuedeEmitirNC(VentaConsultaDTO v) =>

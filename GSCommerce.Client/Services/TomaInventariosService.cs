@@ -42,7 +42,6 @@ namespace GSCommerce.Client.Services
             var response = await _httpClient.PostAsJsonAsync($"api/toma-inventarios/{idToma}/detalles", dto);
             return response.IsSuccessStatusCode;
         }
-
         public async Task<bool> TerminarAsync(int idToma)
         {
             var response = await _httpClient.PutAsync($"api/toma-inventarios/{idToma}/terminar", null);
@@ -55,10 +54,14 @@ namespace GSCommerce.Client.Services
             return response.IsSuccessStatusCode;
         }
 
-
         public async Task<bool> AnularAsync(int idToma)
         {
             var response = await _httpClient.PutAsync($"api/toma-inventarios/{idToma}/anular", null);
+            return response.IsSuccessStatusCode;
+        }
+        public async Task<bool> ReemplazarStockAsync(int idToma)
+        {
+            var response = await _httpClient.PutAsync($"api/toma-inventarios/{idToma}/reemplazo", null);
             return response.IsSuccessStatusCode;
         }
     }

@@ -62,7 +62,7 @@
                         }
                         else if (t.EstadoToma == "Terminado")
                         {
-                            <button class="btn btn-sm btn-warning me-1" @onclick="() => AplicarDiferencias(t.IdTomaInventario)">📦 Aplicar</button>
+                            <button class="btn btn-sm btn-warning me-1" @onclick="() => ReemplazarStock(t.IdTomaInventario)">📦 Aplicar</button>
                         }
                     </td>
                 </tr>
@@ -142,11 +142,11 @@ else
     }
 
 
-    private async Task AplicarDiferencias(int idToma)
+    private async Task ReemplazarStock(int idToma)
     {
-        if (await JS.InvokeAsync<bool>("confirm", "¿Aplicar diferencias a esta toma de inventario?"))
+        if (await JS.InvokeAsync<bool>("confirm", "¿Reemplazar stock para los códigos ingresados?"))
         {
-            if (await TIService.AplicarDiferenciasAsync(idToma))
+            if (await TIService.ReemplazarStockAsync(idToma))
             {
                 await CargarTomas();
             }

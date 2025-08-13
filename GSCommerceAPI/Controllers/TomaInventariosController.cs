@@ -117,6 +117,86 @@ namespace GSCommerceAPI.Controllers
             return NoContent();
         }
 
+        [HttpPut("{id}/reemplazo")]
+        public async Task<IActionResult> ReemplazarStock(int id)
+        {
+            var toma = await _context.TomaInventarios
+                .Include(t => t.TomaInventarioDetalles)
+                .FirstOrDefaultAsync(t => t.IdTomaInventario == id);
+
+            if (toma == null)
+                return NotFound();
+
+            if (toma.EstadoToma != "Terminado")
+                return BadRequest("La toma de inventario no está terminada.");
+
+            // Ids de artículos contados
+            var articulosContados = toma.TomaInventarioDetalles
+                .Where(d => d.Estado)
+                .Select(d => d.IdArticulo)
+                .ToList();
+
+            // Cargar stock existente de los artículos contados
+            var stockExistente = await _context.StockAlmacens
+                .Where(s => s.IdAlmacen == toma.IdAlmacen && articulosContados.Contains(s.IdArticulo))
+                .ToDictionaryAsync(s => s.IdArticulo);
+
+            // Obtener precios de compra de los artículos contados
+            var precios = await _context.Articulos
+                .Where(a => articulosContados.Contains(a.IdArticulo))
+                .Select(a => new { a.IdArticulo, a.PrecioCompra })
+                .ToDictionaryAsync(a => a.IdArticulo, a => a.PrecioCompra);
+
+            foreach (var d in toma.TomaInventarioDetalles)
+            {
+                if (!d.Estado) continue;
+
+                if (!stockExistente.TryGetValue(d.IdArticulo, out var stock))
+                {
+                    stock = new StockAlmacen
+                    {
+                        IdAlmacen = toma.IdAlmacen,
+                        IdArticulo = d.IdArticulo,
+                        Stock = 0,
+                        StockMinimo = 0
+                    };
+                    _context.StockAlmacens.Add(stock);
+                    stockExistente[d.IdArticulo] = stock;
+                }
+
+                var actual = stock.Stock;
+                var diff = d.Cantidad - actual;
+                d.Sobrante = diff > 0 ? diff : 0;
+                d.Faltante = diff < 0 ? -diff : 0;
+
+                if (diff != 0)
+                {
+                    var precio = precios.TryGetValue(d.IdArticulo, out var p) ? p : 0m;
+
+                    var kardex = new Kardex
+                    {
+                        IdAlmacen = toma.IdAlmacen,
+                        IdArticulo = d.IdArticulo,
+                        TipoMovimiento = diff > 0 ? "I" : "E",
+                        Fecha = DateTime.Now,
+                        SaldoInicial = actual,
+                        Cantidad = Math.Abs(diff),
+                        SaldoFinal = d.Cantidad,
+                        Valor = precio,
+                        Origen = (diff > 0 ? "Sobrante" : "Faltante") +
+                                 $" por Toma de Inventario Nro: {id}"
+                    };
+
+                    _context.Kardices.Add(kardex);
+                }
+
+                stock.Stock = d.Cantidad;
+            }
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
         [HttpPut("{id}/aplicar-diferencias")]
         public async Task<IActionResult> AplicarDiferencias(int id)
         {
