@@ -540,17 +540,12 @@ else
 
     private async Task SaveArticulo()
     {
-        if (string.IsNullOrEmpty(articulo.UnidadAlmacen) || articulo.UnidadAlmacen == "string")
-        {
-            Console.WriteLine("❌ UnidadAlmacen no puede ser 'string'");
-            return;
-        }
+        // Si UnidadAlmacen viene como "string" (valor por defecto del template), lo dejamos nulo
+        if (articulo.UnidadAlmacen == "string")
+            articulo.UnidadAlmacen = null;
 
-        if (string.IsNullOrEmpty(articulo.Foto))
-        {
-            Console.WriteLine("❌ Debe subir una imagen del artículo");
-            return;
-        }
+        // Si Foto viene vacía, simplemente se enviará como null
+        // No bloqueamos el guardado
 
         var creado = await ArticuloService.CreateArticulo(articulo);
         if (creado) Navigation.NavigateTo("/articulos");

@@ -73,6 +73,56 @@ namespace GSCommerceAPI.Controllers
             return Ok(venta);
         }
 
+        [HttpGet("reporte-total-tiendas")]
+        public async Task<ActionResult<List<ReporteTotalTiendasDTO>>> GetReporteTotalTiendas(
+            [FromQuery] DateTime desde,
+            [FromQuery] DateTime hasta,
+            [FromQuery] int? idAlmacen // ← filtro opcional
+        )
+        {
+            var hastaExcl = hasta.Date.AddDays(1);
+
+            var query =
+                from c in _context.ComprobanteDeVentaCabeceras
+                where c.Fecha >= desde.Date && c.Fecha < hastaExcl
+                      && (c.Estado != "ANULADO") // ajusta a tu esquema real
+                      && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen.Value) // ← aplica filtro si viene
+                group c by c.IdAlmacen into g
+                select new
+                {
+                    IdAlmacen = g.Key,
+                    Venta = g.Sum(x => x.Total)
+                };
+
+            var montos = await query.ToListAsync();
+            var ids = montos.Select(x => x.IdAlmacen).ToList();
+
+            var nombres = await _context.Almacens
+                .Where(a => ids.Contains(a.IdAlmacen))
+                .Select(a => new { a.IdAlmacen, a.Nombre })
+                .ToListAsync();
+
+            var totalGlobal = montos.Sum(x => x.Venta);
+
+            var resultado = montos
+                .Select(x =>
+                {
+                    var nombre = nombres.FirstOrDefault(n => n.IdAlmacen == x.IdAlmacen)?.Nombre ?? $"Almacén {x.IdAlmacen}";
+                    var porcentaje = totalGlobal > 0 ? Math.Round((double)(x.Venta / totalGlobal) * 100, 2) : 0;
+                    return new ReporteTotalTiendasDTO
+                    {
+                        IdAlmacen = x.IdAlmacen,
+                        Tienda = nombre,
+                        Venta = x.Venta,
+                        Porcentaje = porcentaje
+                    };
+                })
+                .OrderBy(r => r.Venta) // o .OrderByDescending(r => r.Venta)
+                .ToList();
+
+            return resultado;
+        }
+
         [HttpGet("list")]
         [Authorize]
         public async Task<IActionResult> ListarVentas(
@@ -116,12 +166,12 @@ namespace GSCommerceAPI.Controllers
                 query = query.Where(v => v.IdAlmacen == idAlmacen.Value);
             }
 
-            // ✅ Filtro por tipo de documento
+            // Filtro por tipo de documento
             var tipo = tipoDoc ?? idTipoDocAlias;
             if (tipo.HasValue)
                 query = query.Where(v => v.IdTipoDocumento == tipo.Value);
 
-            // ✅ Filtro por documento del cliente (DNI/RUC)
+            // Filtro por documento del cliente (DNI/RUC)
             if (!string.IsNullOrWhiteSpace(dniruc))
                 query = query.Where(v => v.Dniruc != null && v.Dniruc.Contains(dniruc));
 

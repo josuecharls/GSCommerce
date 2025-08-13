@@ -78,6 +78,16 @@ namespace GSCommerce.Client.Services
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<AperturaCierreCajaDTO>();
         }
+        public async Task<bool> DesliquidarCajaAsync(int id)
+        {
+            var response = await _http.PutAsync($"api/caja/desliquidar/{id}", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ Error al desliquidar: {error}");
+            }
+            return response.IsSuccessStatusCode;
+        }
 
         // Registrar apertura
         public async Task<bool> RegistrarAperturaAsync(AperturaCierreCajaDTO apertura)

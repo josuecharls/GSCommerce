@@ -34,5 +34,13 @@ public class ReporteService
             $"api/ventas/reporte-top10-articulos?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}");
         return response ?? new();
     }
+    public async Task<List<ReporteTotalTiendasDTO>> ObtenerTotalTiendas(DateTime desde, DateTime hasta, int? idAlmacen = null)
+    {
+        var url = $"api/ventas/reporte-total-tiendas?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+        if (idAlmacen.HasValue && idAlmacen.Value > 0)
+            url += $"&idAlmacen={idAlmacen.Value}";
 
+        var resp = await _http.GetFromJsonAsync<List<ReporteTotalTiendasDTO>>(url);
+        return resp ?? new();
+    }
 }

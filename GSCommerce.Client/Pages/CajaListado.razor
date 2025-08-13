@@ -66,9 +66,15 @@ else
                     <td>@item.SaldoFinal.ToString("N2")</td>
                     <td>@item.Estado</td>
                     <td>
-                        <button class="btn btn-sm btn-secondary" @onclick="() => Descargar(item.IdAperturaCierre)">
+                        <button class="btn btn-sm btn-secondary me-1" @onclick="() => Descargar(item.IdAperturaCierre)">
                             <i class="bi bi-download"></i>
                         </button>
+                        @if (item.Estado == "L")
+                        {
+                            <button class="btn btn-sm btn-warning" @onclick="() => Desliquidar(item.IdAperturaCierre)">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        }
                     </td>
                 </tr>
             }
@@ -124,5 +130,22 @@ else
     {
         var url = $"{Http.BaseAddress}api/caja/arqueo-pdf/{id}";
         await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    private async Task Desliquidar(int id)
+    {
+        var confirmado = await JS.InvokeAsync<bool>("confirm", "¿Deseas desliquidar esta caja?");
+        if (!confirmado) return;
+
+        var ok = await CajaService.DesliquidarCajaAsync(id);
+        if (ok)
+        {
+            await JS.InvokeVoidAsync("alert", "✅ Caja desliquidada.");
+            await CargarListado();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "❌ Error al desliquidar la caja.");
+        }
     }
 }

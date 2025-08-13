@@ -742,4 +742,34 @@ public class CajaController : ControllerBase
             return StatusCode(500, $"Error generando PDF: {ex.Message}");
         }
     }
+
+    //desliquidar
+
+    [HttpPut("desliquidar/{id}")]
+    public async Task<IActionResult> DesliquidarCaja(int id)
+    {
+        var apertura = await _context.AperturaCierreCajas
+            .FirstOrDefaultAsync(x => x.IdAperturaCierre == id);
+
+        if (apertura == null)
+            return NotFound("No se encontró la apertura.");
+
+        if (apertura.Estado != "L")
+            return BadRequest("La caja no está liquidada.");
+
+        var resumenes = await _context.ResumenCierreDeCajas
+            .Where(r => r.IdUsuario == apertura.IdUsuario &&
+                        r.IdAlmacen == apertura.IdAlmacen &&
+                        r.Fecha == apertura.Fecha)
+            .ToListAsync();
+
+        if (resumenes.Count > 0)
+            _context.ResumenCierreDeCajas.RemoveRange(resumenes);
+
+        apertura.Estado = "A";
+        apertura.VentaDia = 0;
+
+        await _context.SaveChangesAsync();
+        return Ok();
+    }
 }

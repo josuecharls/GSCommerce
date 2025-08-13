@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GSCommerceAPI.Services.SUNAT;
 using QuestPDF.Fluent;
+using System.Linq;
 
 namespace GSCommerceAPI.Controllers
 {
@@ -26,6 +27,38 @@ namespace GSCommerceAPI.Controllers
         {
             if (dto == null || dto.Cabecera == null || dto.Detalles == null || !dto.Detalles.Any())
                 return BadRequest("Datos incompletos.");
+
+            var comprobante = await _context.ComprobanteDeVentaCabeceras
+                .FirstOrDefaultAsync(c => c.IdComprobante == dto.IdComprobanteOriginal);
+
+            if (comprobante == null)
+                return BadRequest("Comprobante original no encontrado.");
+
+            if (!string.IsNullOrEmpty(comprobante.GeneroNc))
+                return BadRequest("El comprobante ya tiene una nota de crédito generada.");
+
+            var tipoLower = tipo.ToLowerInvariant();
+            bool enviarSunat;
+            switch (tipoLower)
+            {
+                case "electronica":
+                    enviarSunat = true;
+                    if (comprobante.IdTipoDocumento != 1 && comprobante.IdTipoDocumento != 2)
+                        return BadRequest("Solo se permite nota de crédito electrónica para boletas o facturas.");
+                    break;
+                case "manual":
+                    enviarSunat = true;
+                    if (comprobante.IdTipoDocumento != 5)
+                        return BadRequest("Solo se permite nota de crédito manual para boletas M.");
+                    break;
+                case "interna":
+                    enviarSunat = false;
+                    if (comprobante.IdTipoDocumento != 4)
+                        return BadRequest("La nota de crédito interna solo aplica a tickets.");
+                    break;
+                default:
+                    return BadRequest("Tipo de nota de crédito no válido.");
+            }
 
             using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -117,72 +150,69 @@ namespace GSCommerceAPI.Controllers
                 }
 
                 // Marcar en el comprobante original que ya tiene NC
-                var comprobante = await _context.ComprobanteDeVentaCabeceras
-                    .FirstOrDefaultAsync(c => c.IdComprobante == dto.IdComprobanteOriginal);
-
-                if (comprobante != null)
-                {
-                    comprobante.GeneroNc = $"{cabecera.Serie}-{cabecera.Numero.ToString("D8")}";
-                }
+                comprobante.GeneroNc = $"{cabecera.Serie}-{cabecera.Numero.ToString("D8")}";
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // Enviar a SUNAT si corresponde
-                var almacen = await _context.Almacens.FirstOrDefaultAsync(a => a.IdAlmacen == cabecera.IdAlmacen);
-                if (almacen != null)
+                // Enviar a SUNAT
+                if (enviarSunat)
                 {
-                    var keyMoneda = $"MonedaAlmacen_{almacen.IdAlmacen}";
-                    var configMoneda = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == keyMoneda);
-                    var moneda = configMoneda?.Valor ?? "PEN";
-
-                    var dpdParts = (almacen.Dpd ?? "").Split(new[] { '-', ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    string distrito = dpdParts.Length > 0 ? dpdParts[0].Trim() : string.Empty;
-                    string provincia = dpdParts.Length > 1 ? dpdParts[1].Trim() : string.Empty;
-                    string departamento = dpdParts.Length > 2 ? dpdParts[2].Trim() : string.Empty;
-
-                    var comprobanteSunat = new GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteCabeceraDTO
+                    var almacen = await _context.Almacens.FirstOrDefaultAsync(a => a.IdAlmacen == cabecera.IdAlmacen);
+                    if (almacen != null)
                     {
-                        IdComprobante = cabecera.IdNc,
-                        TipoDocumento = "07",
-                        TipoNotaCredito = cabecera.IdMotivo ?? "01", // SUNAT motivo
-                        Serie = cabecera.Serie,
-                        Numero = cabecera.Numero,
-                        FechaEmision = cabecera.Fecha,
-                        HoraEmision = cabecera.Fecha.TimeOfDay,
-                        Moneda = moneda,
-                        RucEmisor = almacen.Ruc ?? string.Empty,
-                        RazonSocialEmisor = almacen.RazonSocial ?? string.Empty,
-                        DireccionEmisor = almacen.Direccion ?? string.Empty,
-                        UbigeoEmisor = almacen.Ubigeo ?? string.Empty,
-                        DocumentoCliente = cabecera.Dniruc ?? string.Empty,
-                        TipoDocumentoCliente = (cabecera.Dniruc != null && cabecera.Dniruc.Length == 11) ? "6" : "1",
-                        NombreCliente = cabecera.Nombre,
-                        DireccionCliente = cabecera.Direccion ?? string.Empty,
-                        DepartamentoEmisor = departamento,
-                        ProvinciaEmisor = provincia,
-                        DistritoEmisor = distrito,
-                        SubTotal = cabecera.SubTotal,
-                        Igv = cabecera.Igv,
-                        Total = cabecera.Total,
-                        MontoLetras = ConvertirMontoALetras(cabecera.Total, moneda),
-                        Detalles = dto.Detalles.Select(d => new GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteDetalleDTO
+                        var keyMoneda = $"MonedaAlmacen_{almacen.IdAlmacen}";
+                        var configMoneda = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == keyMoneda);
+                        var moneda = configMoneda?.Valor ?? "PEN";
+
+                        var dpdParts = (almacen.Dpd ?? "").Split(new[] { '-', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                        string distrito = dpdParts.Length > 0 ? dpdParts[0].Trim() : string.Empty;
+                        string provincia = dpdParts.Length > 1 ? dpdParts[1].Trim() : string.Empty;
+                        string departamento = dpdParts.Length > 2 ? dpdParts[2].Trim() : string.Empty;
+
+                        var comprobanteSunat = new GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteCabeceraDTO
                         {
-                            Item = d.Item,
-                            CodigoItem = d.IdArticulo,
-                            DescripcionItem = d.Descripcion,
-                            UnidadMedida = d.UnidadMedida,
-                            Cantidad = d.Cantidad,
-                            PrecioUnitarioConIGV = d.Precio,
-                            PrecioUnitarioSinIGV = Math.Round(d.Precio / 1.18m, 2),
-                            IGV = Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
-                        }).ToList()
-                    };
+                            IdComprobante = cabecera.IdNc,
+                            TipoDocumento = "07",
+                            TipoNotaCredito = cabecera.IdMotivo ?? "01", // SUNAT motivo
+                            Serie = cabecera.Serie,
+                            Numero = cabecera.Numero,
+                            FechaEmision = cabecera.Fecha,
+                            HoraEmision = cabecera.Fecha.TimeOfDay,
+                            Moneda = moneda,
+                            RucEmisor = almacen.Ruc ?? string.Empty,
+                            RazonSocialEmisor = almacen.RazonSocial ?? string.Empty,
+                            DireccionEmisor = almacen.Direccion ?? string.Empty,
+                            UbigeoEmisor = almacen.Ubigeo ?? string.Empty,
+                            DocumentoCliente = cabecera.Dniruc ?? string.Empty,
+                            TipoDocumentoCliente = (cabecera.Dniruc != null && cabecera.Dniruc.Length == 11) ? "6" : "1",
+                            NombreCliente = cabecera.Nombre,
+                            DireccionCliente = cabecera.Direccion ?? string.Empty,
+                            DepartamentoEmisor = departamento,
+                            ProvinciaEmisor = provincia,
+                            DistritoEmisor = distrito,
+                            SubTotal = cabecera.SubTotal,
+                            Igv = cabecera.Igv,
+                            Total = cabecera.Total,
+                            MontoLetras = ConvertirMontoALetras(cabecera.Total, moneda),
+                            Detalles = dto.Detalles.Select(d => new GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteDetalleDTO
+                            {
+                                Item = d.Item,
+                                CodigoItem = d.IdArticulo,
+                                DescripcionItem = d.Descripcion,
+                                UnidadMedida = d.UnidadMedida,
+                                Cantidad = d.Cantidad,
+                                PrecioUnitarioConIGV = d.Precio,
+                                PrecioUnitarioSinIGV = Math.Round(d.Precio / 1.18m, 2),
+                                IGV = Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
+                            }).ToList()
+                        };
 
-                    var (exito, mensajeSunat) = await _facturacion.EnviarComprobante(comprobanteSunat);
-                    if (!exito)
-                    {
-                        return StatusCode(500, $"❌ SUNAT rechazó la nota de crédito: {mensajeSunat}");
+                        var (exito, mensajeSunat) = await _facturacion.EnviarComprobante(comprobanteSunat);
+                        if (!exito)
+                        {
+                            return StatusCode(500, $"❌ SUNAT rechazó la nota de crédito: {mensajeSunat}");
+                        }
                     }
                 }
 

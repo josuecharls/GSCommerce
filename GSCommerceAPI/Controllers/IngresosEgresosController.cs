@@ -36,11 +36,13 @@ namespace GSCommerceAPI.Controllers
             if (idUsuario.HasValue)
                 query = query.Where(q => q.IdUsuario == idUsuario);
 
-            if (fechaInicio.HasValue)
-                query = query.Where(q => q.Fecha >= fechaInicio.Value);
+            if (fechaInicio.HasValue || fechaFin.HasValue)
+            {
+                var inicio = (fechaInicio ?? DateTime.MinValue).Date;
+                var finExclusivo = ((fechaFin ?? DateTime.MaxValue).Date).AddDays(1);
 
-            if (fechaFin.HasValue)
-                query = query.Where(q => q.Fecha <= fechaFin.Value);
+                query = query.Where(q => q.Fecha >= inicio && q.Fecha < finExclusivo);
+            }
 
             if (!string.IsNullOrEmpty(naturaleza))
             {

@@ -258,41 +258,63 @@ namespace GSCommerceAPI.Controllers
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(articuloDto.Foto))
-                    return BadRequest("Debe enviar una imagen en base64.");
+                // Normaliza valores opcionales
+                var unidadAlmacen = string.IsNullOrWhiteSpace(articuloDto.UnidadAlmacen) ? "" : articuloDto.UnidadAlmacen;
+                var monedaCosteo = string.IsNullOrWhiteSpace(articuloDto.MonedaCosteo) ? "" : articuloDto.MonedaCosteo;
+
+                // Fecha de registro por defecto = hoy
+                var fechaRegistro = articuloDto.FechaRegistro == default
+                    ? DateOnly.FromDateTime(DateTime.Now)
+                    : articuloDto.FechaRegistro;
+
+                // Foto opcional
+                byte[]? fotoBytes = null;
+                if (!string.IsNullOrWhiteSpace(articuloDto.Foto))
+                {
+                    var base64 = articuloDto.Foto.Contains(",")
+                        ? articuloDto.Foto[(articuloDto.Foto.IndexOf(',') + 1)..]
+                        : articuloDto.Foto;
+                    fotoBytes = Convert.FromBase64String(base64);
+                }
 
                 var nuevoArticulo = new Articulo
                 {
                     IdArticulo = articuloDto.IdArticulo,
-                    Descripcion = articuloDto.Descripcion,
-                    DescripcionCorta = articuloDto.DescripcionCorta,
-                    Familia = articuloDto.Familia,
-                    Linea = articuloDto.Linea,
-                    Marca = articuloDto.Marca,
-                    Material = articuloDto.Material,
-                    Modelo = articuloDto.Modelo,
-                    Color = articuloDto.Color,
-                    Detalle = articuloDto.Detalle,
-                    Talla = articuloDto.Talla,
-                    IdProveedor = articuloDto.IdProveedor,
-                    UnidadAlmacen = articuloDto.UnidadAlmacen,
-                    MonedaCosteo = articuloDto.MonedaCosteo,
+                    Descripcion = articuloDto.Descripcion ?? "",
+                    DescripcionCorta = articuloDto.DescripcionCorta ?? "",
+                    Familia = articuloDto.Familia ?? "",
+                    Linea = articuloDto.Linea ?? "",
+                    Marca = articuloDto.Marca ?? "",
+                    Material = articuloDto.Material ?? "",
+                    Modelo = articuloDto.Modelo ?? "",
+                    Color = articuloDto.Color ?? "",
+                    Detalle = articuloDto.Detalle ?? "",
+                    Talla = articuloDto.Talla ?? "",
+                    IdProveedor = articuloDto.IdProveedor,      // si puede ser 0, asegúrate que BD lo permita
+                    UnidadAlmacen = unidadAlmacen,                // ← ya no null
+                    MonedaCosteo = monedaCosteo,                 // ← ya no null
                     PrecioCompra = articuloDto.PrecioCompra,
                     PrecioVenta = articuloDto.PrecioVenta,
-                    FechaRegistro = articuloDto.FechaRegistro,
-                    CodigoBarra = !string.IsNullOrEmpty(articuloDto.CodigoBarra) ? Encoding.UTF8.GetBytes(articuloDto.CodigoBarra) : null,
-                    Estacion = articuloDto.Estacion,
-                    Estado = articuloDto.Estado,
-                    Foto = !string.IsNullOrEmpty(articuloDto.Foto)? Convert.FromBase64String(articuloDto.Foto.Split(',')[1]) : null
-                };  
+                    FechaRegistro = fechaRegistro,                // ← hoy si venía 0001-01-01
+                    CodigoBarra = !string.IsNullOrEmpty(articuloDto.CodigoBarra)
+                                       ? Encoding.UTF8.GetBytes(articuloDto.CodigoBarra) : null,
+                    Estacion = articuloDto.Estacion,         // puede ser null
+                    Estado = articuloDto.Estado == false ? true : articuloDto.Estado, // activo por defecto
+                    Foto = fotoBytes
+                };
 
                 _context.Articulos.Add(nuevoArticulo);
                 await _context.SaveChangesAsync();
                 return Ok(nuevoArticulo);
             }
-            catch (FormatException ex)
+            catch (FormatException)
             {
-                return BadRequest("Formato de imagen inválido. Asegúrese de enviar un Base64 válido.");
+                return BadRequest("Formato de imagen inválido. Asegúrate de enviar un Base64 válido.");
+            }
+            catch (DbUpdateException ex)
+            {
+                // Devuelve el detalle útil del SQL/EF
+                return StatusCode(500, $"Error al guardar: {ex.InnerException?.Message ?? ex.Message}");
             }
             catch (Exception ex)
             {
