@@ -22,7 +22,7 @@
                 <p><strong>Cajero:</strong> @personalName</p>
             </div>
             <div class="col-md-6">
-                <h5>📊 Venta Diaria</h5>
+                <h5>Venta Diaria</h5>
                 <ul>
                     <li><strong>Efectivo:</strong> @resumen.Efectivo.ToString("N2")</li>
                     <li><strong>Tarjeta:</strong> @resumen.Tarjeta.ToString("N2")</li>
@@ -31,7 +31,7 @@
                 </ul>
             </div>
             <div class="col-md-6">
-                <h5>💰 Cierre Diario</h5>
+                <h5>Cierre Diario</h5>
                 <ul>
                     <li><strong>Saldo Inicial:</strong> @resumen.SaldoInicial.ToString("N2")</li>
                     <li><strong>Ingresos:</strong> @resumen.Ingresos.ToString("N2")</li>
@@ -108,7 +108,7 @@
                     <td>@v.Serie</td>
                     <td>@v.Numero.ToString("D8")</td>
                     <td>@v.NombreCliente</td>
-                    <td>@v.Total.ToString("C")</td>
+                    <td>@v.Total.ToString("C", new System.Globalization.CultureInfo("es-PE"))</td>
                     <td>@v.FormaPago</td>
                     <td>@v.Estado</td>
                     <td><div class="btn-group btn-group-sm flex-wrap" role="group">

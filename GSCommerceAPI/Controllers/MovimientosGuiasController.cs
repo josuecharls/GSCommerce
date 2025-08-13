@@ -6,11 +6,13 @@ using GSCommerce.Client.Models;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using GSCommerceAPI.Helpers;
+using Microsoft.AspNetCore.Authorization;
 
 namespace GSCommerceAPI.Controllers
 {
     [ApiController]
     [Route("api/movimientos-guias")]
+    [Authorize(Roles = "ADMINISTRADOR,CAJERO")]
     public class MovimientosGuiasController : ControllerBase
     {
         private readonly SyscharlesContext _context;
@@ -154,6 +156,7 @@ namespace GSCommerceAPI.Controllers
                     return Forbid();
             }
 
+            // 3) Marcar ambas como confirmadas (no se persiste si el SP falla porque hay tx)
             var fechaConf = DateTime.Now;
 
             ingreso.IdUsuarioConfirma = userId;
@@ -166,95 +169,49 @@ namespace GSCommerceAPI.Controllers
 
             await _context.SaveChangesAsync();
 
-            // 4) Construir TVPs para el SP: una fila E (origen) + una fila I (destino)
-            var cabeceras = new List<MovimientoCabeceraOnlyDTO>
-    {
-        // EGRESO (origen) → resta stock
-        new MovimientoCabeceraOnlyDTO
-        {
-            IdMovimiento = egreso.IdMovimiento,
-            IdAlmacen = egreso.IdAlmacen, // ORIGEN
-            Tipo = "E",
-            Motivo = "TRANSFERENCIA EGRESO",
-            Fecha = egreso.Fecha?.ToDateTime(TimeOnly.MinValue) ?? egreso.FechaHoraRegistro,
-            Descripcion = egreso.Descripcion,
-            IdProveedor = egreso.IdProveedor,
-            IdAlmacenDestinoOrigen = egreso.IdAlmacenDestinoOrigen, // DESTINO
-            IdOc = egreso.IdOc,
-            IdUsuario = egreso.IdUsuario,
-            FechaHoraRegistro = egreso.FechaHoraRegistro,
-            IdGuiaRemision = egreso.IdGuiaRemision,
-            IdUsuarioConfirma = egreso.IdUsuarioConfirma,
-            FechaHoraConfirma = egreso.FechaHoraConfirma,
-            Estado = "C"
-        },
-
-        // INGRESO (destino) → suma stock
-        new MovimientoCabeceraOnlyDTO
-        {
-            IdMovimiento = ingreso.IdMovimiento,
-            IdAlmacen = ingreso.IdAlmacen, // DESTINO
-            Tipo = "I",
-            Motivo = "TRANSFERENCIA INGRESO",
-            Fecha = ingreso.Fecha?.ToDateTime(TimeOnly.MinValue) ?? ingreso.FechaHoraRegistro,
-            Descripcion = ingreso.Descripcion,
-            IdProveedor = ingreso.IdProveedor,
-            IdAlmacenDestinoOrigen = ingreso.IdAlmacenDestinoOrigen, // ORIGEN
-            IdOc = ingreso.IdOc,
-            IdUsuario = ingreso.IdUsuario,
-            FechaHoraRegistro = ingreso.FechaHoraRegistro,
-            IdGuiaRemision = ingreso.IdGuiaRemision,
-            IdUsuarioConfirma = ingreso.IdUsuarioConfirma,
-            FechaHoraConfirma = ingreso.FechaHoraConfirma,
-            Estado = "C"
-        }
-    };
-
-            var dtCabecera = DataTableHelper.ToDataTable(cabeceras, "Almacen.MovimientosCabeceraType");
-
-            // Detalles para ambas guías
-            var detTodo = new List<MovimientoDetalleDTO>();
-
-            detTodo.AddRange(egreso.MovimientosDetalles.Select(d => new MovimientoDetalleDTO
+            // 4) Actualiza stock: resta en ORIGEN y suma en DESTINO
+            foreach (var detalle in egreso.MovimientosDetalles)
             {
-                IdMovimiento = d.IdMovimiento,
-                Item = d.Item,
-                IdArticulo = d.IdArticulo,
-                DescripcionArticulo = d.DescripcionArticulo,
-                Cantidad = d.Cantidad,
-                Valor = d.Valor
-            }));
+                var stockOrigen = await _context.StockAlmacens
+                    .FirstOrDefaultAsync(s => s.IdAlmacen == egreso.IdAlmacen && s.IdArticulo == detalle.IdArticulo);
 
-            detTodo.AddRange(ingreso.MovimientosDetalles.Select(d => new MovimientoDetalleDTO
-            {
-                IdMovimiento = d.IdMovimiento,
-                Item = d.Item,
-                IdArticulo = d.IdArticulo,
-                DescripcionArticulo = d.DescripcionArticulo,
-                Cantidad = d.Cantidad,
-                Valor = d.Valor
-            }));
+                if (stockOrigen == null)
+                {
+                    _context.StockAlmacens.Add(new StockAlmacen
+                    {
+                        IdAlmacen = egreso.IdAlmacen,
+                        IdArticulo = detalle.IdArticulo,
+                        Stock = -detalle.Cantidad,
+                        StockMinimo = 0
+                    });
+                }
+                else
+                {
+                    stockOrigen.Stock -= detalle.Cantidad;
+                }
 
-            var dtDetalle = DataTableHelper.ToDataTable(detTodo, "Almacen.MovimientosDetalleType");
+                var stockDestino = await _context.StockAlmacens
+                    .FirstOrDefaultAsync(s => s.IdAlmacen == ingreso.IdAlmacen && s.IdArticulo == detalle.IdArticulo);
 
-            // 5) Ejecutar SP en una sola llamada
-            using var conn = new SqlConnection(_context.Database.GetConnectionString());
-            using var cmd = new SqlCommand("Almacen.usp_InsUpd_MovimientoAlmacen", conn)
-            { CommandType = CommandType.StoredProcedure };
+                if (stockDestino == null)
+                {
+                    _context.StockAlmacens.Add(new StockAlmacen
+                    {
+                        IdAlmacen = ingreso.IdAlmacen,
+                        IdArticulo = detalle.IdArticulo,
+                        Stock = detalle.Cantidad,
+                        StockMinimo = 0
+                    });
+                }
+                else
+                {
+                    stockDestino.Stock += detalle.Cantidad;
+                }
+            }
 
-            var pCab = cmd.Parameters.AddWithValue("@tblCabecera", dtCabecera);
-            pCab.SqlDbType = SqlDbType.Structured;
-            pCab.TypeName = "Almacen.MovimientosCabeceraType";
-
-            var pDet = cmd.Parameters.AddWithValue("@tblDetalle", dtDetalle);
-            pDet.SqlDbType = SqlDbType.Structured;
-            pDet.TypeName = "Almacen.MovimientosDetalleType";
-
-            await conn.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
+            await _context.SaveChangesAsync();
 
             await tx.CommitAsync();
-
             return Ok(new { mensaje = "✅ Transferencia confirmada: se descontó en ORIGEN y se ingresó en DESTINO." });
         }
 

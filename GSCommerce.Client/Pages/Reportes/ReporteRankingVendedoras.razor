@@ -3,9 +3,12 @@
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Models.DTOs.Reportes
 @using GSCommerce.Client.Services
+@using System.Text
+@using System.Linq
 @inject ReporteService ReporteService
 @inject AlmacenService AlmacenService
 @inject AuthService AuthService
+@inject IJSRuntime JS
 
 <ReportsBreadcrumb Title="Ranking de Vendedoras" />
 
@@ -49,6 +52,18 @@
             </select>
         </div>
     }
+</div>
+<div class="row mb-3">
+    <div class="col d-flex justify-content-end">
+        @if (cargo == "CAJERO")
+        {
+            <button class="btn btn-success" @onclick="ExportarExcel">📥 Exportar a Excel</button>
+        }
+        else if (cargo == "ADMINISTRADOR")
+        {
+            <button class="btn btn-danger" @onclick="ExportarPDF">📄 Descargar PDF</button>
+        }
+    </div>
 </div>
 @if (ranking.Any())
 {
@@ -113,5 +128,65 @@ else
             hasta,
             porAlmacen ? idAlmacenSeleccionado : (int?)null,
             porAlmacen);
+    }
+
+
+    private async Task ExportarExcel()
+    {
+        var headers = new[] { "Ranking", "Vendedor", "Cantidad", "Monto" };
+        var rows = ranking.Select((r, i) => new object[]
+        {
+            i + 1,
+            r.Vendedora,
+            r.VentasRealizadas,
+            r.TotalVentas
+        }).ToArray();
+
+        await JS.InvokeVoidAsync("exportToExcel", headers, rows, $"RankingVendedoras_{desde:yyyyMMdd}_{hasta:yyyyMMdd}");
+    }
+
+    private async Task ExportarPDF()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<div style='font-family:Arial;font-size:12px;'>");
+        sb.AppendLine("<h2 style='text-align:center;'>REPORTE DE VENTAS - VENDEDORES</h2>");
+        sb.AppendLine($"<p>Del {desde:dd/MM/yyyy} al {hasta:dd/MM/yyyy}</p>");
+
+        var almacenesPdf = porAlmacen && idAlmacenSeleccionado > 0
+            ? almacenes.Where(a => a.IdAlmacen == idAlmacenSeleccionado).ToList()
+            : almacenes;
+
+        foreach (var alm in almacenesPdf)
+        {
+            sb.AppendLine($"<h3>{alm.Nombre}:</h3>");
+            var datos = await ReporteService.ObtenerRankingVendedoras(desde, hasta, alm.IdAlmacen, true);
+
+            if (datos.Any())
+            {
+                sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
+                sb.AppendLine("<thead><tr><th>#</th><th>Vendedor</th><th>Cantidad</th><th>Monto</th></tr></thead>");
+                sb.AppendLine("<tbody>");
+                var index = 1;
+                foreach (var d in datos)
+                {
+                    sb.AppendLine("<tr>");
+                    sb.AppendLine($"<td>{index}</td>");
+                    sb.AppendLine($"<td>{d.Vendedora}</td>");
+                    sb.AppendLine($"<td>{d.VentasRealizadas}</td>");
+                    sb.AppendLine($"<td>S/ {d.TotalVentas:N2}</td>");
+                    sb.AppendLine("</tr>");
+                    index++;
+                }
+                sb.AppendLine("</tbody></table>");
+            }
+            else
+            {
+                sb.AppendLine("<p>No hay ventas registradas.</p>");
+            }
+        }
+
+        sb.AppendLine("</div>");
+
+        await JS.InvokeVoidAsync("generarPDFDesdeHTML", sb.ToString(), $"Reporte_Ranking_Vendedoras_{DateTime.Now:yyyyMMdd_HHmmss}");
     }
 }
