@@ -1061,23 +1061,30 @@ namespace GSCommerceAPI.Services.SUNAT
                 XmlDocument xml = new XmlDocument();
                 xml.Load(rutaXmlRespuesta);
 
-                // En algunas respuestas de SUNAT los prefijos de namespaces pueden variar.
-                // Para evitar problemas de parsing se utilizan expresiones basadas en
-                // local-name() en lugar de depender de prefijos específicos.
+
+                // 1. Intenta buscar nodo DocumentResponse
                 XmlNode? responseNode =
                     xml.SelectSingleNode("//*[local-name()='DocumentResponse']/*[local-name()='Response']");
 
-                if (responseNode == null)
-                    return (false, "", "No se encontró el nodo de respuesta en el XML");
+                if (responseNode != null)
+                {
+                    string codigo = responseNode.SelectSingleNode("./*[local-name()='ResponseCode']")?.InnerText ?? "";
+                    string descripcion = responseNode.SelectSingleNode("./*[local-name()='Description']")?.InnerText ?? "";
 
-                string codigo =
-                    responseNode.SelectSingleNode("./*[local-name()='ResponseCode']")?.InnerText ?? "";
-                string descripcion =
-                    responseNode.SelectSingleNode("./*[local-name()='Description']")?.InnerText ?? "";
+                    bool aceptado = codigo == "0";
+                    return (aceptado, codigo, descripcion);
+                }
 
-                bool aceptado = codigo == "0";
+                // 2. Si no hay DocumentResponse, buscar código de estado global (SUNAT aún lo procesa o error general)
+                string responseCode = xml.SelectSingleNode("//*[local-name()='ResponseCode']")?.InnerText ?? "";
+                string description = xml.SelectSingleNode("//*[local-name()='Description']")?.InnerText ?? "Sin descripción de SUNAT";
 
-                return (aceptado, codigo, descripcion);
+                if (!string.IsNullOrWhiteSpace(responseCode))
+                {
+                    return (false, responseCode, description);
+                }
+
+                return (false, "", "No se encontró el nodo de respuesta en el XML");
             }
             catch (Exception ex)
             {
