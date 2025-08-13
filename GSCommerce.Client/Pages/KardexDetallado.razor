@@ -1,8 +1,10 @@
 ﻿@page "/kardex-detallado"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using System.Linq
 @inject KardexDetalladoService KardexDetalladoService
 @inject AlmacenService AlmacenService
+@inject AuthService AuthService
 @inject IJSRuntime JS
 
 <h3>📘 Kardex Detallado</h3>
@@ -11,8 +13,11 @@
     <div class="row mb-3">
         <div class="col-md-3">
             <label>Almacén</label>
-            <select class="form-control" @bind="idAlmacen">
-                <option value="0">-- Todos --</option>
+            <select class="form-control" @bind="idAlmacen" disabled="@soloLecturaAlmacen">
+                @if (!soloLecturaAlmacen)
+                {
+                    <option value="0">-- Todos --</option>
+                }
                 @foreach (var almacen in almacenes)
                 {
                     <option value="@almacen.IdAlmacen">@almacen.Nombre</option>
@@ -115,10 +120,19 @@
     private string familia = "";
     private string linea = "";
     private bool isLoading = false;
+    private bool soloLecturaAlmacen = false;
 
     protected override async Task OnInitializedAsync()
     {
         almacenes = await AlmacenService.GetAlmacenes();
+        var cargo = await AuthService.GetUserCargo();
+        if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+        {
+            var userAlmacen = await AuthService.GetUserAlmacenId();
+            idAlmacen = userAlmacen ?? 0;
+            almacenes = almacenes.Where(a => a.IdAlmacen == idAlmacen).ToList();
+            soloLecturaAlmacen = true;
+        }
     }
 
     private async Task BuscarKardex()
