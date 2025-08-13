@@ -44,6 +44,7 @@ builder.Services.AddScoped<TipoPagoVentaService>();
 builder.Services.AddScoped<MonedaAlmacenService>();
 builder.Services.AddScoped<NotaCreditoService>();
 builder.Services.AddScoped<IngresosEgresosService>();
+builder.Services.AddScoped<ComplementoService>();
 builder.Services.AddAuthorizationCore();
 
 // Configurar HttpClient para conectarse al backend

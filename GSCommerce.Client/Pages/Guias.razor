@@ -1,6 +1,7 @@
 ﻿@page "/guias"
 @**@
 @using Microsoft.AspNetCore.Authorization
+@inject AuthService AuthService
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using Microsoft.AspNetCore.WebUtilities
@@ -63,7 +64,7 @@
                         <button class="btn btn-danger btn-sm me-1" @onclick="() => AnularGuia(g.IdMovimiento)" disabled="@(g.Estado == "A")">
                             🛑 Anular
                         </button>
-                        @if (g.Motivo == "TRANSFERENCIA INGRESO" && g.Estado == "E" && g.IdUsuarioConfirma == null)
+                        @if (EsPendienteDeRecepcion(g, idAlmacenUsuario))
                         {
                             <button class="btn btn-info btn-sm" @onclick="() => Confirmar(g.IdMovimiento)">✅ Confirmar</button>
                         }
@@ -93,22 +94,26 @@
     private int totalPages = 1;
     private string searchTerm = "";
     private string tipoFiltro = "Ingreso";
+    private int? idAlmacenUsuario;
+
 
     protected override async Task OnInitializedAsync()
     {
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("tipo", out var tipoQuery))
-        {
             tipoFiltro = tipoQuery;
-        }
+
+        // 🔹 Obtén el almacén real del usuario (ajusta al método que uses)
+        // idAlmacenUsuario = await AuthService.GetIdAlmacenAsync();
+        idAlmacenUsuario = idAlmacenUsuario ?? 0; // <-- quítalo cuando uses AuthService
 
         await LoadGuias();
     }
 
     private async Task LoadGuias()
     {
-        // ✅ Ahora los parámetros están en el orden correcto:
-        var result = await MovimientoGuiaService.GetGuiasList(currentPage, pageSize, searchTerm, tipoFiltro);
+        var result = await MovimientoGuiaService.GetGuiasList(
+            currentPage, pageSize, searchTerm, tipoFiltro, idAlmacenUsuario);
         guias = result.Data;
         totalPages = result.TotalPages;
     }
@@ -121,6 +126,13 @@
             await LoadGuias(); // Refresca
         }
     }
+
+    private static bool EsPendienteDeRecepcion(MovimientoGuiaDTO g, int? idAlmacenUsuario)
+        => g?.Tipo?.Equals("T", StringComparison.OrdinalIgnoreCase) == true
+        && string.Equals(g.Motivo?.Trim(), "TRANSFERENCIA INGRESO", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(g.Estado?.Trim(), "E", StringComparison.OrdinalIgnoreCase)
+        && g.IdUsuarioConfirma == null
+        && (idAlmacenUsuario == null || idAlmacenUsuario == 0 || g.IdAlmacen == idAlmacenUsuario);
 
     private async Task SearchGuias()
     {

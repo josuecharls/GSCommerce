@@ -16,42 +16,32 @@ namespace GSCommerce.Client.Services
         }
 
         // Obtener lista de guías con paginación y búsqueda
-        public async Task<MovimientoGuiaResponse> GetGuiasList(int page, int pageSize, string search = "", string tipo = "")
+        public async Task<MovimientoGuiaResponse> GetGuiasList(
+            int page, int pageSize, string search = "", string tipo = "", int? idAlmacen = null)
         {
             try
             {
-                var response = await _httpClient.GetAsync($"api/movimientos-guias/list?page={page}&pageSize={pageSize}&search={search}&tipo={tipo}");
-                var jsonResponse = await response.Content.ReadAsStringAsync(); // 🔹 Imprime la respuesta
-                Console.WriteLine($"🔹 JSON recibido en GetGuiasList(): {jsonResponse}");
+                var url = $"api/movimientos-guias/list?page={page}&pageSize={pageSize}&search={search}&tipo={tipo}";
+                if (idAlmacen.HasValue && idAlmacen.Value > 0)
+                    url += $"&idAlmacen={idAlmacen.Value}";
+
+                var response = await _httpClient.GetAsync(url);
+                var jsonResponse = await response.Content.ReadAsStringAsync();
+                //Console.WriteLine($"🔹 JSON recibido en GetGuiasList(): {jsonResponse}");
 
                 if (!response.IsSuccessStatusCode)
                 {
                     Console.WriteLine($"❌ Error en la API: Código {response.StatusCode}");
-                    return new MovimientoGuiaResponse
-                    {
-                        TotalItems = 0,
-                        TotalPages = 0,
-                        Data = new List<MovimientoGuiaDTO>()
-                    };
+                    return new MovimientoGuiaResponse();
                 }
 
-                var result = await response.Content.ReadFromJsonAsync<MovimientoGuiaResponse>();
-                return result ?? new MovimientoGuiaResponse
-                {
-                    TotalItems = 0,
-                    TotalPages = 0,
-                    Data = new List<MovimientoGuiaDTO>()
-                };
+                return await response.Content.ReadFromJsonAsync<MovimientoGuiaResponse>()
+                       ?? new MovimientoGuiaResponse();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ Excepción en GetGuiasList(): {ex.Message}");
-                return new MovimientoGuiaResponse
-                {
-                    TotalItems = 0,
-                    TotalPages = 0,
-                    Data = new List<MovimientoGuiaDTO>()
-                };
+                return new MovimientoGuiaResponse();
             }
         }
 
@@ -95,6 +85,7 @@ namespace GSCommerce.Client.Services
                 return null;
             }
         }
+
 
         // 🆕 Crear
         public async Task<bool> CreateMovimiento(MovimientoGuiaDTO movimiento)

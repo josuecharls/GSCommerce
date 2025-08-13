@@ -418,86 +418,93 @@ OnCancelado="CobroCancelado" />
         }
 
         var articulo = await articuloService.BuscarPorCodigoAsync(codigo);
-        double descPorc = 0;
-        decimal precioUnitario = 0;
-
-        if (articulo != null)
+        if (articulo == null)
         {
-            string descripcion = articulo.Descripcion;
-            if (idAlmacenActual != null)
+            await JS.InvokeVoidAsync("alert", "Artículo no encontrado.");
+            return;
+        }
+
+        string descripcion = articulo.Descripcion;
+        decimal precioUnitario;
+        bool esPromo = false;          // ← flag para evitar doble descuento
+
+        if (idAlmacenActual != null)
+        {
+            var desc = await DescuentoService.ObtenerDescuento(idAlmacenActual.Value, articulo.IdArticulo);
+            if (desc != null)
             {
-                var desc = await DescuentoService.ObtenerDescuento(idAlmacenActual.Value, articulo.IdArticulo);
-                if (desc != null)
-                {
-                    descPorc = desc.DescuentoPorc;
-                    precioUnitario = (decimal)(desc.PrecioFinal ?? (double)articulo.PrecioVenta);
-                }
-                else
-                {
-                    precioUnitario = articulo.PrecioVenta;
-                }
+                esPromo = true;
+
+                // Usa el PrecioFinal si viene desde la vista. Si no viene, lo calculamos.
+                precioUnitario = (decimal)(desc.PrecioFinal ??
+                                 (double)(articulo.PrecioVenta * (1 - (decimal)desc.DescuentoPorc / 100m)));
             }
             else
             {
                 precioUnitario = articulo.PrecioVenta;
             }
-            if (monedaAlmacen == "USD" && tipoCambioActual > 0)
-            {
-                var precioEnDolares = precioUnitario / tipoCambioActual;
-                var parteDecimal = precioEnDolares - Math.Truncate(precioEnDolares);
-                if (parteDecimal > 0m && parteDecimal <= 0.5m)
-                    precioEnDolares = Math.Truncate(precioEnDolares) + 0.5m;
-                else if (parteDecimal > 0.5m)
-                    precioEnDolares = Math.Truncate(precioEnDolares) + 1m;
-                precioUnitario = Math.Round(precioEnDolares, 2);
-            }
-
-            var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
-            if (variantes.Any())
-            {
-                var opciones = string.Join("\n", variantes.Select((v, i) => $"{i + 1}) {v.Color} {v.Talla}"));
-                var resp = await JS.InvokeAsync<string>("prompt", $"Seleccione variante:\n{opciones}", "1");
-                int idx = 0;
-                if (!string.IsNullOrWhiteSpace(resp) && int.TryParse(resp, out var sel) && sel > 0 && sel <= variantes.Count)
-                    idx = sel - 1;
-
-                var vsel = variantes[idx];
-                descripcion = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {vsel.Color} {vsel.Talla}";
-            }
-
-            var existente = venta.Detalles.FirstOrDefault(d => d.CodigoItem == codigo && d.DescripcionItem == descripcion);
-
-
-            if (existente != null)
-            {
-                if (existente.Cantidad + 1 > stockDisponible)
-                {
-                    await JS.InvokeVoidAsync("alert", "❌ Stock insuficiente para este artículo.");
-                    return;
-                }
-                existente.Cantidad += 1;
-                existente.PorcentajeDescuento = (decimal)descPorc;
-                existente.PrecioUnitario = precioUnitario;
-            }
-            else
-            {
-                venta.Detalles.Add(new VentaDetalleDTO
-                    {
-                        Item = venta.Detalles.Count + 1,
-                        CodigoItem = articulo.IdArticulo,
-                        DescripcionItem = descripcion,
-                        Cantidad = 1,
-                        PrecioUnitario = precioUnitario,
-                        PorcentajeDescuento = (decimal)descPorc
-                    });
-            }
-
-            RecalcularTotales();
         }
         else
         {
-            await JS.InvokeVoidAsync("alert", "Artículo no encontrado.");
+            precioUnitario = articulo.PrecioVenta;
         }
+
+        // Conversión si la tienda trabaja en USD (mantengo tu lógica)
+        if (monedaAlmacen == "USD" && tipoCambioActual > 0)
+        {
+            var precioEnDolares = precioUnitario / tipoCambioActual;
+            var parteDecimal = precioEnDolares - Math.Truncate(precioEnDolares);
+            if (parteDecimal > 0m && parteDecimal <= 0.5m)
+                precioEnDolares = Math.Truncate(precioEnDolares) + 0.5m;
+            else if (parteDecimal > 0.5m)
+                precioEnDolares = Math.Truncate(precioEnDolares) + 1m;
+            precioUnitario = Math.Round(precioEnDolares, 2);
+        }
+
+        // Variantes (igual que tenías)
+        var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
+        if (variantes.Any())
+        {
+            var opciones = string.Join("\n", variantes.Select((v, i) => $"{i + 1}) {v.Color} {v.Talla}"));
+            var resp = await JS.InvokeAsync<string>("prompt", $"Seleccione variante:\n{opciones}", "1");
+            int idx = 0;
+            if (!string.IsNullOrWhiteSpace(resp) && int.TryParse(resp, out var sel) && sel > 0 && sel <= variantes.Count)
+                idx = sel - 1;
+
+            var vsel = variantes[idx];
+            descripcion = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {vsel.Color} {vsel.Talla}";
+        }
+
+        var existente = venta.Detalles.FirstOrDefault(d => d.CodigoItem == codigo && d.DescripcionItem == descripcion);
+
+        if (existente != null)
+        {
+            if (existente.Cantidad + 1 > stockDisponible)
+            {
+                await JS.InvokeVoidAsync("alert", "❌ Stock insuficiente para este artículo.");
+                return;
+            }
+            existente.Cantidad += 1;
+            existente.PrecioUnitario = precioUnitario;
+
+            // 🔧 FIX: si el precio ya es promocional, no aplicar % otra vez
+            if (esPromo) existente.PorcentajeDescuento = 0m;
+        }
+        else
+        {
+            venta.Detalles.Add(new VentaDetalleDTO
+            {
+                Item = venta.Detalles.Count + 1,
+                CodigoItem = articulo.IdArticulo,
+                DescripcionItem = descripcion,
+                Cantidad = 1,
+                PrecioUnitario = precioUnitario,
+                // 🔧 FIX: no aplicar % adicional cuando viene precio promo
+                PorcentajeDescuento = esPromo ? 0m : 0m
+            });
+        }
+
+        RecalcularTotales();
     }
 
     private async Task AbrirCobrar(bool enDolares)

@@ -1,108 +1,189 @@
-﻿@page "/barcode-print"
-@page "/barcode-print/{codigo}/{descripcion}"
+﻿@page "/barcode-print/{codigo}/{descripcion}"
 @page "/barcode-print/{codigo}/{descripcion}/{precio}"
+@page "/barcode-print/{codigo}/{descripcion}/{precio}/{talla?}"
 
-@inject NavigationManager Navigation
 @inject IJSRuntime JS
 
 <style>
-  :root{
-    --page-w: 100mm;   /* Debe coincidir con el driver */
-    --page-h: 50mm;
-    --gap: 3mm;
-    --pad: 1.2mm;
-    --label-w: calc((var(--page-w) - var(--gap)) / 2);
-  }
-  .two-up{ width:var(--page-w); height:var(--page-h); display:flex; gap:var(--gap);}
-  .print-area{
-    width:var(--label-w); height:var(--page-h);
-    box-sizing:border-box; padding:var(--pad);
-    border:1px solid #000; border-radius:.8mm;
-    display:flex; flex-direction:column; gap:1mm;
-  }
-  .barcode-box{ border:1px solid #000; border-radius:.5mm; height:20mm; padding:.6mm;
-    display:flex; align-items:center; justify-content:center; }
-  .barcode{ width:100%; height:100%; object-fit:contain; display:block; }
-  .price-row{ display:flex; justify-content:flex-end; align-items:center; }
-  .price{ font-weight:700; font-size:10pt; }
-  .desc{ font-size:8pt; line-height:1.15; font-weight:700; }
-  .code{ font-size:7pt; }
+    :root {
+        /* Tamaño físico que QUIERES en el papel */
+        --page-w: 90mm; /* ancho total (dos etiquetas) */
+        --page-h: 36mm; /* alto de una etiqueta        */
+        --gap: 8.5mm; /* canal central real          */
+        /* Seguridad para que no se corte el marco */
+        --safe: 1.0mm; /* súbelo a 1.2mm si roza      */
+        --hair: 0.2mm;
+        --label-w: calc((var(--page-w) - var(--gap)) / 2);
+    }
 
-  @@media print{
-    @@page{ size:var(--page-w) var(--page-h); margin:0; }
-    html, body{ margin:0; padding:0; }
-    body *{ visibility:hidden !important; }
-    .to-print, .to-print *{ visibility:visible !important; }
-    .to-print{ position:fixed; inset:0; }
-  }
+    .two-up {
+        width: var(--page-w);
+        height: var(--page-h);
+        display: flex;
+        gap: var(--gap);
+    }
+
+    .print-area {
+        width: calc(var(--label-w) - 2*var(--safe));
+        height: calc(var(--page-h) - 2*var(--safe));
+        margin: var(--safe);
+        box-sizing: border-box;
+        padding: 1.0mm;
+        outline: var(--hair) solid #000; /* marco fino */
+        border-radius: .8mm;
+        display: grid;
+        grid-template-rows: auto 1fr auto; /* barcode | desc | talla/precio */
+        row-gap: 1mm;
+        border: 2.5px solid #000; /* borde más grueso */
+    }
+
+    .top {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .barcode-box {
+        border: var(--hair) solid #000;
+        border-radius: .5mm;
+        height: 14mm; /* cabe perfecto en 36mm de alto */
+        padding: .6mm;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .barcode {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+    }
+
+    .desc {
+        font-size: 7.3pt;
+        font-weight: 700;
+        line-height: 1.15;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .bottom {
+        display: grid;
+        grid-template-columns: 1fr auto; /* talla a la izq | precio a la der */
+        align-items: end;
+    }
+
+    .talla {
+        font-size: 7.1pt;
+    }
+
+    .price {
+        font-weight: 700;
+        font-size: 10.8pt;
+        white-space: nowrap;
+    }
+
+    .code {
+        font-size: 6.9pt;
+        margin-top: .3mm;
+    }
+
+    @@media print {
+        @@page {
+            size: var(--page-w) var(--page-h);
+            margin: 0;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+
+            body * {
+                visibility: hidden !important;
+            }
+
+        .to-print, .to-print * {
+            visibility: visible !important;
+        }
+
+        .to-print {
+            position: fixed;
+            inset: 0;
+        }
+    }
 </style>
 
 @if (!string.IsNullOrWhiteSpace(Codigo))
 {
-  <div class="to-print">
-    <div class="two-up">
-      <div class="print-area">
-        <div class="barcode-box">
-          <img class="barcode" src="https://barcodeapi.org/api/128/@Codigo" />
-        </div>
-        <div class="price-row">
-          @if (PrecioDecimal.HasValue){ <div class="price">S/. @PrecioDecimal.Value.ToString("0.00")</div> }
-        </div>
-        <div class="desc">@Descripcion</div>
-        <div class="code">Código: @Codigo</div>
-      </div>
+    <div class="to-print">
+        <div class="two-up">
+            @for (int i = 0; i < 2; i++)
+            {
+                <div class="print-area">
+                    <div class="top">
+                        <div class="barcode-box">
+                            <img class="barcode" src="https://barcodeapi.org/api/128/@Codigo" alt="barcode" />
+                        </div>
+                    </div>
 
-      <div class="print-area">
-        <div class="barcode-box">
-          <img class="barcode" src="https://barcodeapi.org/api/128/@Codigo" />
+                    <div>
+                        <div class="desc">@Descripcion</div>
+                    </div>
+
+                    <div class="bottom">
+                        <div class="talla">
+                            @if (!string.IsNullOrWhiteSpace(Talla))
+                            {
+                                <span><strong>T/@Talla</strong> &nbsp;Talla</span>
+                                ;
+                            }
+                        </div>
+                        <div class="price">
+                            @if (PrecioDecimal.HasValue)
+                            {
+                                <span>S/. @PrecioDecimal.Value.ToString("0.00")</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
-        <div class="price-row">
-          @if (PrecioDecimal.HasValue){ <div class="price">S/. @PrecioDecimal.Value.ToString("0.00")</div> }
-        </div>
-        <div class="desc">@Descripcion</div>
-        <div class="code">Código: @Codigo</div>
-      </div>
     </div>
-  </div>
 }
 else
 {
-  <p>Cargando código de barras…</p>
+
+    <p>Cargando…</p>
 }
 
-@code{
-  [Parameter] public string? Codigo { get; set; }
-  [Parameter] public string? Descripcion { get; set; }
+@code {
+    [Parameter] public string? Codigo { get; set; }
+    [Parameter] public string? Descripcion { get; set; }
+    [Parameter] public string? Precio { get; set; }
+    [Parameter] public string? Talla { get; set; }
 
-  // 👇 Recíbelo como string para evitar el cast
-  [Parameter] public string? Precio { get; set; }
+    private decimal? PrecioDecimal;
 
-  private decimal? PrecioDecimal;
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(Precio))
+        {
+            if (decimal.TryParse(Precio, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var vInv))
+                PrecioDecimal = vInv;
+            else if (decimal.TryParse(Precio, out var vLoc))
+                PrecioDecimal = vLoc;
+            else
+                PrecioDecimal = null;
+        }
+        else PrecioDecimal = null;
+    }
 
-  protected override void OnParametersSet()
-  {
-      // Intenta primero con InvariantCulture (punto) y luego con cultura actual (coma)
-      if (!string.IsNullOrWhiteSpace(Precio))
-      {
-          if (decimal.TryParse(Precio, System.Globalization.NumberStyles.Any,
-              System.Globalization.CultureInfo.InvariantCulture, out var vInv))
-              PrecioDecimal = vInv;
-          else if (decimal.TryParse(Precio, out var vLoc))
-              PrecioDecimal = vLoc;
-          else
-              PrecioDecimal = null;
-      }
-      else
-      {
-          PrecioDecimal = null;
-      }
-  }
-
-  protected override async Task OnAfterRenderAsync(bool firstRender)
-  {
-      if (firstRender)
-          await JS.InvokeVoidAsync("window.print");
-  }
-
-  private void Volver() => Navigation.NavigateTo("/articulos");
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await JS.InvokeVoidAsync("window.print");
+    }
 }

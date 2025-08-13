@@ -259,16 +259,13 @@ else
         // Asigna el tipo real (I, E, T) antes de enviar
         guia.Tipo = tipoMovimiento;
 
-        var ok = await MovimientoGuiaService.CreateMovimientoConSP(guia);
+        // 🔹 Si es transferencia, SIEMPRE egreso en el emisor:
+        if (tipo == "Transferencia")
+            guia.Motivo = "TRANSFERENCIA EGRESO";
 
-        if (ok)
-        {
-            Navigation.NavigateTo("/guias?tipo=" + tipo); // Redirige con filtro
-        }
-        else
-        {
-            await MostrarAlerta("❌ Ocurrió un error al guardar la guía.");
-        }
+        var ok = await MovimientoGuiaService.CreateMovimientoConSP(guia);
+        if (ok) Navigation.NavigateTo("/guias?tipo=" + tipo);
+        else await MostrarAlerta("❌ Ocurrió un error al guardar la guía.");
     }
 
     private async Task MostrarAlerta(string mensaje)

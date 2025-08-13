@@ -26,7 +26,8 @@ namespace GSCommerceAPI.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string tipo = "",
-            [FromQuery] string search = "")
+            [FromQuery] string search = "",
+            [FromQuery] int? idAlmacen = null) // ⬅️ nuevo
         {
             if (string.IsNullOrWhiteSpace(tipo))
                 return BadRequest(new { message = "El campo 'tipo' es obligatorio." });
@@ -43,12 +44,11 @@ namespace GSCommerceAPI.Controllers
                 .Include(m => m.IdAlmacenNavigation)
                 .Where(m => m.Tipo == tipoMap);
 
+            if (idAlmacen.HasValue && idAlmacen.Value > 0)
+                query = query.Where(m => m.IdAlmacen == idAlmacen.Value); // ⬅️ filtra por almacén
+
             if (!string.IsNullOrWhiteSpace(search))
-            {
-                query = query.Where(m =>
-                    m.Motivo.Contains(search) ||
-                    m.Descripcion.Contains(search));
-            }
+                query = query.Where(m => m.Motivo.Contains(search) || m.Descripcion.Contains(search));
 
             var totalItems = await query.CountAsync();
             var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
@@ -85,52 +85,104 @@ namespace GSCommerceAPI.Controllers
         [HttpPut("{id}/confirmar")]
         public async Task<IActionResult> ConfirmarTransferencia(int id)
         {
-            var movimiento = await _context.MovimientosCabeceras
+            using var tx = await _context.Database.BeginTransactionAsync();
+
+            // 1) Trae el INGRESO (destino) que se está confirmando
+            var ingreso = await _context.MovimientosCabeceras
                 .Include(m => m.MovimientosDetalles)
                 .FirstOrDefaultAsync(m => m.IdMovimiento == id);
 
-            if (movimiento == null)
+            if (ingreso == null)
                 return NotFound(new { mensaje = "Movimiento no encontrado" });
 
-            if (movimiento.Motivo != "TRANSFERENCIA INGRESO")
-                return BadRequest(new { mensaje = "Solo se pueden confirmar transferencias por ingreso" });
+            if (!string.Equals(ingreso.Motivo?.Trim(), "TRANSFERENCIA INGRESO", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { mensaje = "Solo se confirman transferencias de ingreso" });
 
-            if (movimiento.Estado != "E")
+            if (!string.Equals(ingreso.Estado?.Trim(), "E", StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { mensaje = "El movimiento debe estar en estado 'Emitido'" });
 
-            if (movimiento.IdUsuarioConfirma != null)
-                return BadRequest(new { mensaje = "El movimiento ya fue confirmado" });
+            // 2) Ubica la guía espejo de EGRESO (origen) pendiente
+            var egreso = await _context.MovimientosCabeceras
+                .Include(m => m.MovimientosDetalles)
+                .Where(m =>
+                    m.Tipo == "T" &&
+                    m.Motivo.Trim() == "TRANSFERENCIA EGRESO" &&
+                    m.Estado.Trim() == "E" &&
+                    m.IdAlmacen == ingreso.IdAlmacenDestinoOrigen && // ORIGEN
+                    m.IdAlmacenDestinoOrigen == ingreso.IdAlmacen    // DESTINO
+                )
+                .OrderByDescending(m => m.IdMovimiento)
+                .FirstOrDefaultAsync();
 
-            movimiento.IdUsuarioConfirma = 1; // ← Cambiar por el usuario autenticado
-            movimiento.FechaHoraConfirma = DateTime.Now;
+            if (egreso == null)
+                return BadRequest(new { mensaje = "No se encontró la guía de TRANSFERENCIA EGRESO asociada y pendiente." });
+
+            // 🔒 (opcional) valida que el usuario logueado pertenezca al almacén destino (ingreso.IdAlmacen)
+
+            // 3) Marcar ambas como confirmadas (no se persiste si el SP falla porque hay tx)
+            var userId = 1; // TODO: obtener desde el token
+            var fechaConf = DateTime.Now;
+
+            ingreso.IdUsuarioConfirma = userId;
+            ingreso.FechaHoraConfirma = fechaConf;
+            ingreso.Estado = "C";
+
+            egreso.IdUsuarioConfirma = userId;
+            egreso.FechaHoraConfirma = fechaConf;
+            egreso.Estado = "C";
 
             await _context.SaveChangesAsync();
 
-            // Actualiza stock mediante el procedimiento almacenado
-            var cabecera = new MovimientoCabeceraOnlyDTO
-            {
-                IdMovimiento = movimiento.IdMovimiento,
-                IdAlmacen = movimiento.IdAlmacen,
-                Tipo = movimiento.Tipo,
-                Motivo = movimiento.Motivo,
-                Fecha = movimiento.Fecha?.ToDateTime(TimeOnly.MinValue) ?? DateTime.Now,
-                Descripcion = movimiento.Descripcion,
-                IdProveedor = movimiento.IdProveedor,
-                IdAlmacenDestinoOrigen = movimiento.IdAlmacenDestinoOrigen,
-                IdOc = movimiento.IdOc,
-                IdUsuario = movimiento.IdUsuario,
-                FechaHoraRegistro = movimiento.FechaHoraRegistro,
-                IdGuiaRemision = movimiento.IdGuiaRemision,
-                IdUsuarioConfirma = movimiento.IdUsuarioConfirma,
-                FechaHoraConfirma = movimiento.FechaHoraConfirma,
-                Estado = movimiento.Estado
-            };
+            // 4) Construir TVPs para el SP: una fila E (origen) + una fila I (destino)
+            var cabeceras = new List<MovimientoCabeceraOnlyDTO>
+    {
+        // EGRESO (origen) → resta stock
+        new MovimientoCabeceraOnlyDTO
+        {
+            IdMovimiento = egreso.IdMovimiento,
+            IdAlmacen = egreso.IdAlmacen, // ORIGEN
+            Tipo = "E",
+            Motivo = "TRANSFERENCIA EGRESO",
+            Fecha = egreso.Fecha?.ToDateTime(TimeOnly.MinValue) ?? egreso.FechaHoraRegistro,
+            Descripcion = egreso.Descripcion,
+            IdProveedor = egreso.IdProveedor,
+            IdAlmacenDestinoOrigen = egreso.IdAlmacenDestinoOrigen, // DESTINO
+            IdOc = egreso.IdOc,
+            IdUsuario = egreso.IdUsuario,
+            FechaHoraRegistro = egreso.FechaHoraRegistro,
+            IdGuiaRemision = egreso.IdGuiaRemision,
+            IdUsuarioConfirma = egreso.IdUsuarioConfirma,
+            FechaHoraConfirma = egreso.FechaHoraConfirma,
+            Estado = "C"
+        },
 
-            var dtCabecera = DataTableHelper.ToDataTable(
-                new List<MovimientoCabeceraOnlyDTO> { cabecera },
-                "Almacen.MovimientosCabeceraType");
+        // INGRESO (destino) → suma stock
+        new MovimientoCabeceraOnlyDTO
+        {
+            IdMovimiento = ingreso.IdMovimiento,
+            IdAlmacen = ingreso.IdAlmacen, // DESTINO
+            Tipo = "I",
+            Motivo = "TRANSFERENCIA INGRESO",
+            Fecha = ingreso.Fecha?.ToDateTime(TimeOnly.MinValue) ?? ingreso.FechaHoraRegistro,
+            Descripcion = ingreso.Descripcion,
+            IdProveedor = ingreso.IdProveedor,
+            IdAlmacenDestinoOrigen = ingreso.IdAlmacenDestinoOrigen, // ORIGEN
+            IdOc = ingreso.IdOc,
+            IdUsuario = ingreso.IdUsuario,
+            FechaHoraRegistro = ingreso.FechaHoraRegistro,
+            IdGuiaRemision = ingreso.IdGuiaRemision,
+            IdUsuarioConfirma = ingreso.IdUsuarioConfirma,
+            FechaHoraConfirma = ingreso.FechaHoraConfirma,
+            Estado = "C"
+        }
+    };
 
-            var detallesDto = movimiento.MovimientosDetalles.Select(d => new MovimientoDetalleDTO
+            var dtCabecera = DataTableHelper.ToDataTable(cabeceras, "Almacen.MovimientosCabeceraType");
+
+            // Detalles para ambas guías
+            var detTodo = new List<MovimientoDetalleDTO>();
+
+            detTodo.AddRange(egreso.MovimientosDetalles.Select(d => new MovimientoDetalleDTO
             {
                 IdMovimiento = d.IdMovimiento,
                 Item = d.Item,
@@ -138,30 +190,39 @@ namespace GSCommerceAPI.Controllers
                 DescripcionArticulo = d.DescripcionArticulo,
                 Cantidad = d.Cantidad,
                 Valor = d.Valor
-            }).ToList();
+            }));
 
-            var dtDetalle = DataTableHelper.ToDataTable(
-                detallesDto,
-                "Almacen.MovimientosDetalleType");
+            detTodo.AddRange(ingreso.MovimientosDetalles.Select(d => new MovimientoDetalleDTO
+            {
+                IdMovimiento = d.IdMovimiento,
+                Item = d.Item,
+                IdArticulo = d.IdArticulo,
+                DescripcionArticulo = d.DescripcionArticulo,
+                Cantidad = d.Cantidad,
+                Valor = d.Valor
+            }));
 
+            var dtDetalle = DataTableHelper.ToDataTable(detTodo, "Almacen.MovimientosDetalleType");
+
+            // 5) Ejecutar SP en una sola llamada
             using var conn = new SqlConnection(_context.Database.GetConnectionString());
             using var cmd = new SqlCommand("Almacen.usp_InsUpd_MovimientoAlmacen", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
+            { CommandType = CommandType.StoredProcedure };
 
-            var paramCab = cmd.Parameters.AddWithValue("@tblCabecera", dtCabecera);
-            paramCab.SqlDbType = SqlDbType.Structured;
-            paramCab.TypeName = "Almacen.MovimientosCabeceraType";
+            var pCab = cmd.Parameters.AddWithValue("@tblCabecera", dtCabecera);
+            pCab.SqlDbType = SqlDbType.Structured;
+            pCab.TypeName = "Almacen.MovimientosCabeceraType";
 
-            var paramDet = cmd.Parameters.AddWithValue("@tblDetalle", dtDetalle);
-            paramDet.SqlDbType = SqlDbType.Structured;
-            paramDet.TypeName = "Almacen.MovimientosDetalleType";
+            var pDet = cmd.Parameters.AddWithValue("@tblDetalle", dtDetalle);
+            pDet.SqlDbType = SqlDbType.Structured;
+            pDet.TypeName = "Almacen.MovimientosDetalleType";
 
             await conn.OpenAsync();
             await cmd.ExecuteNonQueryAsync();
 
-            return Ok(new { mensaje = "✅ Transferencia confirmada" });
+            await tx.CommitAsync();
+
+            return Ok(new { mensaje = "✅ Transferencia confirmada: se descontó en ORIGEN y se ingresó en DESTINO." });
         }
 
         // ✅ GET: api/movimientosguias/{id}
@@ -242,6 +303,45 @@ namespace GSCommerceAPI.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                // Si es una transferencia, registrar también el ingreso en el almacén destino
+                if (dto.Motivo == "TRANSFERENCIA EGRESO" && dto.IdAlmacenDestinoOrigen.HasValue)
+                {
+                    var ingreso = new MovimientosCabecera
+                    {
+                        IdAlmacen = dto.IdAlmacenDestinoOrigen.Value,
+                        Tipo = dto.Tipo,
+                        Motivo = "TRANSFERENCIA INGRESO",
+                        Fecha = DateOnly.FromDateTime(dto.Fecha == default ? DateTime.Now : dto.Fecha),
+                        Descripcion = dto.Descripcion,
+                        IdProveedor = dto.IdProveedor,
+                        IdAlmacenDestinoOrigen = dto.IdAlmacen,
+                        IdOc = dto.IdOc,
+                        IdUsuario = dto.IdUsuario,
+                        FechaHoraRegistro = DateTime.Now,
+                        Estado = dto.Estado
+                    };
+
+                    _context.MovimientosCabeceras.Add(ingreso);
+                    await _context.SaveChangesAsync();
+
+                    int itemIn = 1;
+                    foreach (var d in dto.Detalles)
+                    {
+                        _context.MovimientosDetalles.Add(new MovimientosDetalle
+                        {
+                            IdMovimiento = ingreso.IdMovimiento,
+                            Item = itemIn++,
+                            IdArticulo = d.IdArticulo,
+                            DescripcionArticulo = d.DescripcionArticulo,
+                            Cantidad = d.Cantidad,
+                            Valor = d.Valor
+                        });
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
+
                 await transaction.CommitAsync();
 
                 return Ok(new { mensaje = "Movimiento registrado", id = movimiento.IdMovimiento });
