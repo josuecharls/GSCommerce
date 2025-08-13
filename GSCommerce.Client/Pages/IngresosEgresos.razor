@@ -32,12 +32,8 @@
         </select>
     </div>
     <div class="col-md-2">
-        <label>Desde</label>
-        <InputDate @bind-Value="fechaInicio" class="form-control" />
-    </div>
-    <div class="col-md-2">
-        <label>Hasta</label>
-        <InputDate @bind-Value="fechaFin" class="form-control" />
+        <label>Fecha</label>
+        <InputDate @bind-Value="fecha" class="form-control" />
     </div>
     <div class="col-md-2 d-flex align-items-end">
         <button class="btn btn-primary me-2" @onclick="Buscar">Buscar</button>
@@ -80,8 +76,7 @@
     private List<IngresoEgresoDTO> lista = new();
     private string naturaleza = "EGRESO";
     private List<AlmacenDTO> almacenes = new();
-    private DateTime fechaInicio = DateTime.Today;
-    private DateTime fechaFin = DateTime.Today;
+    private DateTime fecha = DateTime.Today;
     private int idAlmacen;
     private int? idUsuario;
     private bool soloLecturaAlmacen = false;
@@ -108,8 +103,9 @@
 
     private async Task Buscar()
     {
-        lista = await IngresosEgresosService.Listar(idAlmacen == 0 ? null : idAlmacen, idUsuario, fechaInicio, fechaFin, naturaleza);
+        lista = await IngresosEgresosService.Listar(idAlmacen == 0 ? null : idAlmacen, idUsuario, fecha, fecha, naturaleza);
     }
+
     private void Nuevo()
     {
         Navigation.NavigateTo($"/ingreso-egreso-form?naturaleza={naturaleza}");
