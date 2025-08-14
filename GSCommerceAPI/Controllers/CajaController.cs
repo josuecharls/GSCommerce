@@ -423,7 +423,7 @@ public class CajaController : ControllerBase
                     Fecha = apertura.Fecha,
                     IdGrupo = 2,
                     Grupo = grupo,
-                    Detalle = $"DESDE {v.Min} - HASTA {v.Max}",
+                    Detalle = $"DEL {v.Min} - AL {v.Max}",
                     Monto = v.Total,
                     FechaRegistro = DateTime.Now
                 });

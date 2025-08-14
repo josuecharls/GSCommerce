@@ -1,5 +1,150 @@
-﻿<h3>ReporteTotalTiendas</h3>
+﻿@page "/reportes/total-tiendas"
+@using System.Text
+@using System.Linq
+@using GSCommerce.Client.Components
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@inject ReporteService ReporteService
+@inject AlmacenService AlmacenService
+@inject AuthService AuthService
+@inject IJSRuntime JS
+
+<ReportsBreadcrumb Title="Reporte Total Tiendas" />
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label>Desde:</label>
+        <InputDate @bind-Value="desde" class="form-control" />
+    </div>
+    <div class="col-md-4">
+        <label>Hasta:</label>
+        <InputDate @bind-Value="hasta" class="form-control" />
+    </div>
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col-md-4">
+            <label>Almacén:</label>
+            <select class="form-select" @bind="idAlmacenSeleccionado">
+                <option value="0">-- Todos --</option>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+    }
+    else if (cargo == "CAJERO")
+    {
+        <div class="col-md-4">
+            <label>Almacén:</label>
+            <select class="form-select" @bind="idAlmacenSeleccionado" disabled>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+    }
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
+    </div>
+    <div class="col-md-6 d-flex align-items-end">
+        <button class="btn btn-success w-100" @onclick="ExportarPDF">📄 Exportar a PDF</button>
+    </div>
+</div>
+
+@if (reporte.Any())
+{
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>TIENDA</th>
+                <th>VENTA</th>
+                <th>%</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in reporte)
+            {
+                <tr>
+                    <td>@r.Tienda</td>
+                    <td>S/ @r.Venta.ToString("N2")</td>
+                    <td>@r.Porcentaje.ToString("N2")%</td>
+                </tr>
+            }
+            <tr class="table-light fw-bold">
+                <td>TOTAL</td>
+                <td>S/ @totalVenta.ToString("N2")</td>
+                <td>100%</td>
+            </tr>
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="alert alert-info text-center">No se encontraron resultados.</div>
+}
 
 @code {
+    private DateTime desde = DateTime.Today.AddDays(-7);
+    private DateTime hasta = DateTime.Today;
+    private List<ReporteTotalTiendasDTO> reporte = new();
+    private List<AlmacenDTO> almacenes = new();
+    private int idAlmacenSeleccionado;
+    private string? cargo;
 
+    private decimal totalVenta => reporte.Sum(r => r.Venta);
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo();
+        var idAlmacenUsuario = await AuthService.GetUserAlmacenId();
+
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+
+        if (cargo == "CAJERO")
+        {
+            idAlmacenSeleccionado = idAlmacenUsuario ?? 0;
+            almacenes = almacenes.Where(a => a.IdAlmacen == idAlmacenSeleccionado).ToList();
+        }
+
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        int? idAlmacen = cargo == "ADMINISTRADOR"
+            ? (idAlmacenSeleccionado > 0 ? idAlmacenSeleccionado : (int?)null)
+            : idAlmacenSeleccionado;
+
+        reporte = await ReporteService.ObtenerTotalTiendas(desde, hasta, idAlmacen);
+    }
+
+    private async Task ExportarPDF()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<div style='font-family:Arial;font-size:12px;'>");
+        sb.AppendLine("<h2 style='text-align:center;'>REPORTE TOTAL TIENDAS</h2>");
+        sb.AppendLine($"<p><strong>Desde:</strong> {desde:dd/MM/yyyy} <strong>Hasta:</strong> {hasta:dd/MM/yyyy}</p>");
+        sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
+        sb.AppendLine("<thead><tr><th>Tienda</th><th>Venta</th><th>%</th></tr></thead>");
+        sb.AppendLine("<tbody>");
+        foreach (var r in reporte)
+        {
+            sb.AppendLine("<tr>");
+            sb.AppendLine($"<td>{r.Tienda}</td>");
+            sb.AppendLine($"<td>S/ {r.Venta:N2}</td>");
+            sb.AppendLine($"<td>{r.Porcentaje:N2}%</td>");
+            sb.AppendLine("</tr>");
+        }
+        sb.AppendLine($"<tr><td><strong>TOTAL</strong></td><td><strong>S/ {totalVenta:N2}</strong></td><td><strong>100%</strong></td></tr>");
+        sb.AppendLine("</tbody></table>");
+        sb.AppendLine("</div>");
+
+        await JS.InvokeVoidAsync("generarPDFDesdeHTML", sb.ToString(), $"Reporte_Total_Tiendas_{DateTime.Now:yyyyMMdd_HHmmss}");
+    }
 }

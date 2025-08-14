@@ -249,7 +249,7 @@
                 <!-- Código de barras -->
                 <div class="mb-3 text-center">
                     <label class="form-label">Código de Barras</label><br />
-                    <img src="https://barcodeapi.org/api/128/@(articulo.IdArticulo)" class="img-thumbnail" width="150" />
+                    <img src="https://barcode.tec-it.com/barcode.ashx?data=@(articulo.IdArticulo)&code=Code93" class="img-thumbnail" width="150" />
                     <div><strong>@articulo.IdArticulo</strong></div>
                     <button class="btn btn-success mt-2 me-2" @onclick="PrintBarcode">🖨️ Imprimir</button>
                     <button class="btn btn-info mt-2" @onclick="() => mostrarModalQR = true">📱 QR</button>

@@ -14,7 +14,7 @@ namespace GSCommerce.Client.Services
 
         public async Task<NotaCreditoResponseDTO?> EmitirNotaCreditoAsync(string tipo, NotaCreditoRegistroDTO dto)
         {
-            var response = await _http.PostAsJsonAsync($"/api/notascredito/emitir/{tipo.ToLower()}", dto);
+            var response = await _http.PostAsJsonAsync($"api/notascredito/emitir/{tipo.ToLower()}", dto);
             if (response.IsSuccessStatusCode)
             {
                 return await response.Content.ReadFromJsonAsync<NotaCreditoResponseDTO>();
