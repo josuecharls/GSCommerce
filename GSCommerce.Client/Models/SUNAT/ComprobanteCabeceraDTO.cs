@@ -29,5 +29,7 @@
 
         public List<ComprobanteDetalleDTO> Detalles { get; set; } = new();
         public string TipoNotaCredito { get; set; } = string.Empty;
+        public string TipoDocumentoReferencia { get; set; } = string.Empty;
+
     }
 }

@@ -687,7 +687,7 @@ namespace GSCommerceAPI.Controllers
                                       join c in _context.ComprobanteDeVentaCabeceras on d.IdComprobante equals c.IdComprobante
                                       where c.Fecha.Date >= inicio.Date && c.Fecha.Date <= fin.Date && c.Estado == "E"
                                       group d by new { d.IdArticulo, d.Descripcion } into g
-                                      orderby g.Sum(x => x.Cantidad) descending
+                                      orderby g.Sum(x => x.Total) descending
                                       select new TopArticuloDTO
                                       {
                                           Codigo = g.Key.IdArticulo,

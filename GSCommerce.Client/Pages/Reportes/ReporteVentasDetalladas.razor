@@ -117,29 +117,49 @@ else
         sb.AppendLine("<div style='font-family:Arial; font-size:12px;'>");
         sb.AppendLine("<h2 style='text-align:center;'>Ventas Detalladas</h2>");
         sb.AppendLine($"<p><strong>Desde:</strong> {desde:dd/MM/yyyy} <strong>Hasta:</strong> {hasta:dd/MM/yyyy}</p>");
+
+        var almacenesPdf = new List<AlmacenDTO>();
         if (cargo == "ADMINISTRADOR")
         {
-            var nombre = selectedAlmacen > 0
-                ? almacenes.FirstOrDefault(a => a.IdAlmacen == selectedAlmacen)?.Nombre ?? "N/A"
-                : "General";
-            sb.AppendLine($"<p><strong>Almacén:</strong> {nombre}</p>");
+            almacenesPdf = selectedAlmacen > 0
+                ? almacenes.Where(a => a.IdAlmacen == selectedAlmacen).ToList()
+                : almacenes;
         }
-        sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
-        sb.AppendLine("<thead><tr><th>Fecha</th><th>Tipo Doc</th><th>Serie</th><th>Número</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead>");
-        sb.AppendLine("<tbody>");
-        foreach (var v in ventas)
+        else
         {
-            sb.AppendLine("<tr>");
-            sb.AppendLine($"<td>{v.Fecha:dd/MM/yyyy}</td>");
-            sb.AppendLine($"<td>{v.TipoDocumento}</td>");
-            sb.AppendLine($"<td>{v.Serie}</td>");
-            sb.AppendLine($"<td>{v.Numero:D8}</td>");
-            sb.AppendLine($"<td>{v.NombreCliente}</td>");
-            sb.AppendLine($"<td>S/ {v.Total:N2}</td>");
-            sb.AppendLine($"<td>{v.Estado}</td>");
-            sb.AppendLine("</tr>");
+            var alm = await AlmacenService.GetAlmacenById(selectedAlmacen);
+            if (alm != null) almacenesPdf.Add(alm);
         }
-        sb.AppendLine("</tbody></table>");
+
+        foreach (var alm in almacenesPdf)
+        {
+            sb.AppendLine($"<h3>{alm.Nombre}:</h3>");
+            var datos = await VentaService.ObtenerVentasAsync(desde, hasta, alm.IdAlmacen);
+
+            if (datos.Any())
+            {
+                sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
+                sb.AppendLine("<thead><tr><th>Fecha</th><th>Tipo Doc</th><th>Serie</th><th>Número</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead>");
+                sb.AppendLine("<tbody>");
+                foreach (var v in datos)
+                {
+                    sb.AppendLine("<tr>");
+                    sb.AppendLine($"<td>{v.Fecha:dd/MM/yyyy}</td>");
+                    sb.AppendLine($"<td>{v.TipoDocumento}</td>");
+                    sb.AppendLine($"<td>{v.Serie}</td>");
+                    sb.AppendLine($"<td>{v.Numero:D8}</td>");
+                    sb.AppendLine($"<td>{v.NombreCliente}</td>");
+                    sb.AppendLine($"<td>S/ {v.Total:N2}</td>");
+                    sb.AppendLine($"<td>{v.Estado}</td>");
+                    sb.AppendLine("</tr>");
+                }
+                sb.AppendLine("</tbody></table>");
+            }
+            else
+            {
+                sb.AppendLine("<p>No se encontraron ventas.</p>");
+            }
+        }
         sb.AppendLine("</div>");
 
         await JS.InvokeVoidAsync("generarPDFDesdeHTML", sb.ToString(), $"VentasDetalladas_{DateTime.Now:yyyyMMdd_HHmmss}");

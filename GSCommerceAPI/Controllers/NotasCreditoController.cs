@@ -76,6 +76,21 @@ namespace GSCommerceAPI.Controllers
                     if (det.Cantidad > vendido)
                         return BadRequest($"Cantidad devuelta de {det.Descripcion} supera la vendida.");
                 }
+
+                string tipoDocumentoReferenciaSunat = string.Empty;
+                if (comprobante.IdTipoDocumento == 2 || comprobante.IdTipoDocumento == 6)
+                {
+                    tipoDocumentoReferenciaSunat = "01";
+                    if (!string.IsNullOrEmpty(dto.Cabecera.Serie) && !char.IsLetter(dto.Cabecera.Serie[0]))
+                        dto.Cabecera.Serie = "F" + dto.Cabecera.Serie;
+                }
+                else if (comprobante.IdTipoDocumento == 1 || comprobante.IdTipoDocumento == 5)
+                {
+                    tipoDocumentoReferenciaSunat = "03";
+                    if (!string.IsNullOrEmpty(dto.Cabecera.Serie) && !char.IsLetter(dto.Cabecera.Serie[0]))
+                        dto.Cabecera.Serie = "B" + dto.Cabecera.Serie;
+                }
+
                 // Asignar número de serie y correlativo si corresponde
                 var correlativo = await _context.SerieCorrelativos
                     .Where(s => s.Serie == dto.Cabecera.Serie &&
@@ -175,6 +190,7 @@ namespace GSCommerceAPI.Controllers
                             IdComprobante = cabecera.IdNc,
                             TipoDocumento = "07",
                             TipoNotaCredito = cabecera.IdMotivo ?? "01", // SUNAT motivo
+                            TipoDocumentoReferencia = tipoDocumentoReferenciaSunat,
                             Serie = cabecera.Serie,
                             Numero = cabecera.Numero,
                             FechaEmision = cabecera.Fecha,

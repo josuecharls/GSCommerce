@@ -224,7 +224,7 @@ namespace GSCommerceAPI.Services.SUNAT
         {
             try
             {
-                comprobante.Serie = AsegurarSerieConPrefijo(comprobante.Serie, comprobante.TipoDocumento);
+                comprobante.Serie = AsegurarSerieConPrefijo(comprobante.Serie, comprobante.TipoDocumento, comprobante.TipoDocumentoReferencia);
                 var codigoTipoDoc = ObtenerCodigoTipoDocumentoSUNAT(comprobante.TipoDocumento);
                 var nombreXml = $"{comprobante.RucEmisor}-{codigoTipoDoc}-{comprobante.Serie}-{comprobante.Numero:D8}.xml";
                 var rutaXml = Path.Combine(_env.ContentRootPath, "Facturacion", nombreXml);
@@ -269,7 +269,7 @@ namespace GSCommerceAPI.Services.SUNAT
         {
             try
             {
-                comprobante.Serie = AsegurarSerieConPrefijo(comprobante.Serie, comprobante.TipoDocumento);
+                comprobante.Serie = AsegurarSerieConPrefijo(comprobante.Serie, comprobante.TipoDocumento, comprobante.TipoDocumentoReferencia);
                 // 1. Generar el XML como string (etiquetas UBL completas)
                 var xml = GenerarXmlFactura(comprobante);
                 // TEMPORAL: Guardar XML generado antes de firmar para revisión
@@ -313,7 +313,7 @@ namespace GSCommerceAPI.Services.SUNAT
             };
         }
 
-        private string AsegurarSerieConPrefijo(string serie, string tipoDocumento)
+        private string AsegurarSerieConPrefijo(string serie, string tipoDocumento, string? tipoDocumentoReferencia = null)
         {
             if (string.IsNullOrWhiteSpace(serie))
                 return serie;
@@ -321,7 +321,14 @@ namespace GSCommerceAPI.Services.SUNAT
             if (char.IsLetter(serie[0]))
                 return serie; // Ya tiene prefijo
 
-            var prefijo = tipoDocumento.ToUpper() switch
+            var tipoBase = tipoDocumento.ToUpper();
+            if ((tipoBase == "07" || tipoBase == "08" || tipoBase == "NOTA CREDITO" || tipoBase == "NOTA DEBITO")
+                && !string.IsNullOrWhiteSpace(tipoDocumentoReferencia))
+            {
+                tipoBase = tipoDocumentoReferencia.ToUpper();
+            }
+
+            var prefijo = tipoBase switch
             {
                 "01" or "FACTURA" or "FACTURA M" => "F",
                 "03" or "BOLETA" or "BOLETA M" => "B",
@@ -649,7 +656,7 @@ namespace GSCommerceAPI.Services.SUNAT
 
                 sb.AppendLine("<sac:SummaryDocumentsLine>");
                 var codigoTipoDoc = ObtenerCodigoTipoDocumentoSUNAT(comp.TipoDocumento);
-                var serie = AsegurarSerieConPrefijo(comp.Serie, comp.TipoDocumento);
+                var serie = AsegurarSerieConPrefijo(comp.Serie, comp.TipoDocumento, comp.TipoDocumentoReferencia);
                 sb.AppendLine($"<cbc:LineID>{lineId++}</cbc:LineID>");
                 sb.AppendLine($"<cbc:DocumentTypeCode>{codigoTipoDoc}</cbc:DocumentTypeCode>");
                 sb.AppendLine($"<cbc:ID>{serie}-{comp.Numero:D8}</cbc:ID>");

@@ -10,13 +10,16 @@
 @inject IJSRuntime JS
 
 <ReportsBreadcrumb Title="Ventas por Artículo" />
-
 <div class="row mb-4">
-    <div class="col-md-4">
-        <label>Mes:</label>
-        <InputDate @bind-Value="fechaSeleccionada" class="form-control" />
+    <div class="col-md-3">
+        <label>Desde:</label>
+        <InputDate @bind-Value="fechaDesde" class="form-control" />
     </div>
-    <div class="col-md-4 position-relative">
+    <div class="col-md-3">
+        <label>Hasta:</label>
+        <InputDate @bind-Value="fechaHasta" class="form-control" />
+    </div>
+    <div class="col-md-3 position-relative">
         <label>Artículo:</label>
         <div class="input-group">
             <input type="text" class="form-control" placeholder="Buscar por nombre o código..." @bind="searchTerm" />
@@ -33,15 +36,27 @@
                 }
             </ul>
         }
-        @if (articuloSeleccionado != null)
-        {
-            <div class="mt-2"><strong>Seleccionado:</strong> @articuloSeleccionado.Descripcion</div>
-        }
     </div>
-    <div class="col-md-4 d-flex align-items-end">
+    <div class="col-md-3 d-flex align-items-end">
         <button class="btn btn-success w-100" @onclick="ExportarReportePDF">📄 Generar PDF</button>
     </div>
 </div>
+
+@if (articulosSeleccionados.Any())
+{
+    <div class="mb-3">
+        <strong>Seleccionados:</strong>
+        <ul class="list-group">
+            @foreach (var art in articulosSeleccionados)
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    @art.IdArticulo - @art.Descripcion
+                    <button class="btn btn-sm btn-danger" @onclick="() => RemoverArticulo(art)">✖</button>
+                </li>
+            }
+        </ul>
+    </div>
+}
 
 @if (!string.IsNullOrEmpty(mensaje))
 {
@@ -49,42 +64,54 @@
 }
 
 @code {
-    private DateTime fechaSeleccionada = DateTime.Today;
-    private string? idArticuloSeleccionado;
+    private DateTime fechaDesde = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime fechaHasta = DateTime.Today;
     private string searchTerm = string.Empty;
     private List<ArticuloDTO> resultadosBusqueda = new();
-    private ArticuloDTO? articuloSeleccionado;
+    private List<ArticuloDTO> articulosSeleccionados = new();
     private string mensaje = string.Empty;
 
     private async Task ExportarReportePDF()
     {
         mensaje = string.Empty;
 
-        if (idArticuloSeleccionado == null)
+        if (!articulosSeleccionados.Any())
         {
-            mensaje = "⚠️ Debes seleccionar un artículo.";
+            mensaje = "⚠️ Debes seleccionar al menos un artículo.";
             return;
         }
 
-        var mes = fechaSeleccionada.Month;
-        var anio = fechaSeleccionada.Year;
-
-        var reporte = await ReporteService.ObtenerReportePorArticulo(idArticuloSeleccionado, mes, anio);
-
-        if (reporte == null)
+        if (fechaHasta < fechaDesde)
         {
-            mensaje = "❌ No se encontró información para ese artículo.";
+            mensaje = "⚠️ La fecha hasta debe ser posterior a la fecha desde.";
             return;
         }
 
-        var html = GenerarHtmlPDF_Articulo(reporte);
-        await JS.InvokeVoidAsync("generarPDFDesdeHTML", html, "Reporte_Ventas_Articulo.pdf");
+        var sb = new StringBuilder();
+        foreach (var art in articulosSeleccionados)
+        {
+            for (var dt = new DateTime(fechaDesde.Year, fechaDesde.Month, 1); dt <= new DateTime(fechaHasta.Year, fechaHasta.Month, 1); dt = dt.AddMonths(1))
+            {
+                var reporte = await ReporteService.ObtenerReportePorArticulo(art.IdArticulo, dt.Month, dt.Year);
+                if (reporte != null)
+                {
+                    sb.AppendLine(GenerarHtmlPDF_Articulo(reporte, dt.Month, dt.Year));
+                }
+            }
+        }
+
+        if (sb.Length == 0)
+        {
+            mensaje = "❌ No se encontró información para los parámetros seleccionados.";
+            return;
+        }
+
+        await JS.InvokeVoidAsync("generarPDFDesdeHTML", sb.ToString(), "Reporte_Ventas_Articulo.pdf");
     }
 
     private async Task BuscarArticulo()
     {
         resultadosBusqueda.Clear();
-        articuloSeleccionado = null;
 
         if (string.IsNullOrWhiteSpace(searchTerm))
             return;
@@ -102,34 +129,26 @@
 
     private void SeleccionarArticulo(ArticuloDTO art)
     {
-        idArticuloSeleccionado = art.IdArticulo;
-        articuloSeleccionado = art;
-        searchTerm = $"{art.IdArticulo} - {art.Descripcion}";
+        if (!articulosSeleccionados.Any(a => a.IdArticulo == art.IdArticulo))
+        {
+            articulosSeleccionados.Add(art);
+        }
+        searchTerm = string.Empty;
         resultadosBusqueda.Clear();
     }
 
-    private string GenerarHtmlPDF_Articulo(ReporteArticuloDTO articulo)
+    private void RemoverArticulo(ArticuloDTO art)
+    {
+        articulosSeleccionados.Remove(art);
+    }
+
+    private string GenerarHtmlPDF_Articulo(ReporteArticuloDTO articulo, int mes, int anio)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<div style='font-family:Arial; font-size:12px;'>");
         sb.AppendLine("<h2 style='text-align:center;'>REPORTE POR ARTÍCULO</h2>");
         sb.AppendLine($"<p><strong>Artículo:</strong> {articulo.Descripcion}</p>");
-
-        sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
-        sb.AppendLine("<thead><tr><th>Almacén</th><th>Ingreso</th><th>Venta</th><th>Stock</th><th>% Venta</th></tr></thead>");
-        sb.AppendLine("<tbody>");
-        foreach (var d in articulo.DetallePorAlmacen)
-        {
-            sb.AppendLine("<tr>");
-            sb.AppendLine($"<td>{d.NombreAlmacen}</td>");
-            sb.AppendLine($"<td>{d.Ingreso}</td>");
-            sb.AppendLine($"<td>{d.Venta}</td>");
-            sb.AppendLine($"<td>{d.Stock}</td>");
-            sb.AppendLine($"<td>{d.PorcentajeVenta:N2}%</td>");
-            sb.AppendLine("</tr>");
-        }
-        sb.AppendLine("</tbody></table>");
-        sb.AppendLine("<br/>");
+        sb.AppendLine($"<p><strong>Mes:</strong> {mes}/{anio}</p>");
 
         sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:60%;'>");
         sb.AppendLine("<thead><tr><th>Almacén</th><th>Total Ventas por Mes</th></tr></thead>");
