@@ -98,7 +98,7 @@
 
     private async Task GenerarIngreso(int id)
     {
-        var ok = await ocService.GenerarIngresoAsync(id, 1);
+        var ok = await ocService.GenerarIngresoAsync(id, 1009);
         await JS.InvokeVoidAsync("alert", ok ? "Ingreso generado" : "No se pudo generar ingreso");
     }
 

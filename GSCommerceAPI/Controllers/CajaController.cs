@@ -754,7 +754,7 @@ public class CajaController : ControllerBase
         if (apertura == null)
             return NotFound("No se encontró la apertura.");
 
-        if (apertura.Estado != "L")
+        if (apertura.Estado != "L" && apertura.Estado != "C")
             return BadRequest("La caja no está liquidada.");
 
         var resumenes = await _context.ResumenCierreDeCajas
@@ -768,6 +768,10 @@ public class CajaController : ControllerBase
 
         apertura.Estado = "A";
         apertura.VentaDia = 0;
+        apertura.Ingresos = 0;
+        apertura.Egresos = 0;
+        apertura.SaldoFinal = apertura.SaldoInicial;
+        apertura.ObservacionCierre = null;
 
         await _context.SaveChangesAsync();
         return Ok();

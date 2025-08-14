@@ -53,7 +53,7 @@ namespace GSCommerce.Client.Services
             return null;
         }
 
-        public async Task<bool> GenerarIngresoAsync(int idOc, int idAlmacen)
+        public async Task<bool> GenerarIngresoAsync(int idOc, int idAlmacen = 1009)
         {
             var resp = await _httpClient.PostAsync($"api/ordenes-compra/{idOc}/generar-ingreso?idAlmacen={idAlmacen}", null);
             return resp.IsSuccessStatusCode;

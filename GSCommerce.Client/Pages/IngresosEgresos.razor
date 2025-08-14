@@ -11,7 +11,7 @@
 <h3 class="mb-3">Ingresos y Egresos</h3>
 
 <div class="row mb-3">
-    <div class="col-md-3">
+    <div class="col-md-2">
         <label>Almacén</label>
         <select class="form-select" @bind="idAlmacen" disabled="@soloLecturaAlmacen">
             @if (!soloLecturaAlmacen)
@@ -24,16 +24,33 @@
             }
         </select>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <label>Naturaleza</label>
-        <select class="form-select" @bind="naturaleza">
+        <select class="form-select" @bind="naturaleza" @bind:after="OnNaturalezaChange">
             <option value="Ingreso">Ingreso</option>
             <option value="Egreso">Egreso</option>
         </select>
     </div>
+    @if (naturaleza.StartsWith("E", StringComparison.OrdinalIgnoreCase))
+    {
+        <div class="col-md-2">
+            <label>Tipo</label>
+            <select class="form-select" @bind="tipo">
+                <option value="">Todos</option>
+                @foreach (var t in tiposEgreso)
+                {
+                    <option value="@t">@t</option>
+                }
+            </select>
+        </div>
+    }
     <div class="col-md-2">
-        <label>Fecha</label>
-        <InputDate @bind-Value="fecha" class="form-control" />
+        <label>Desde</label>
+        <InputDate @bind-Value="fechaInicio" class="form-control" />
+    </div>
+    <div class="col-md-2">
+        <label>Hasta</label>
+        <InputDate @bind-Value="fechaFin" class="form-control" />
     </div>
     <div class="col-md-2 d-flex align-items-end">
         <button class="btn btn-primary me-2" @onclick="Buscar">Buscar</button>
@@ -49,6 +66,8 @@
             <th>Tipo</th>
             <th>Glosa</th>
             <th>Monto</th>
+            <th>Estado</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
@@ -62,12 +81,23 @@
                     <td>@item.Tipo</td>
                     <td>@item.Glosa</td>
                     <td>@item.Monto.ToString("N2")</td>
+                    <td>@(item.Estado == "E" ? "Emitido" : "Anulado")</td>
+                    <td>
+                        @if (esAdmin && item.Estado == "E")
+                        {
+                            <button class="btn btn-danger btn-sm" @onclick="() => Anular(item.IdIngresoEgreso)">Anular</button>
+                        }
+                        else if (item.Estado == "A")
+                        {
+                            <span class="badge bg-secondary">Anulado</span>
+                        }
+                    </td>
                 </tr>
-            }
+                }
         }
         else
         {
-            <tr><td colspan="5" class="text-center">Sin registros</td></tr>
+            <tr><td colspan="7" class="text-center">Sin registros</td></tr>
         }
     </tbody>
 </table>
@@ -76,10 +106,30 @@
     private List<IngresoEgresoDTO> lista = new();
     private string naturaleza = "EGRESO";
     private List<AlmacenDTO> almacenes = new();
-    private DateTime fecha = DateTime.Today;
+    private DateTime fechaInicio = DateTime.Today;
+    private DateTime fechaFin = DateTime.Today;
     private int idAlmacen;
     private int? idUsuario;
     private bool soloLecturaAlmacen = false;
+    private bool esAdmin = false;
+    private string? tipo;
+    private readonly List<string> tiposEgreso = new()
+    {
+        "PAGO PROVEEDORES",
+        "TRANSFERENCIA",
+        "PRESTAMOS",
+        "VARIOS",
+        "PAGO CELULAR",
+        "PAGO ALQUILER",
+        "PAGO PLANILLAS",
+        "PAGO ADELANTOS",
+        "SUNAT",
+        "FLETE",
+        "AFP",
+        "AFP-REPORTE",
+        "SUNAT-REPORTE",
+        "ALQUILER-REPORTE"
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -87,8 +137,9 @@
         idUsuario = await AuthService.GetUserId();
         idAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
         var cargo = await AuthService.GetUserCargo();
+        esAdmin = string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
 
-        if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+        if (!esAdmin)
         {
             almacenes = almacenes.Where(a => a.IdAlmacen == idAlmacen).ToList();
             soloLecturaAlmacen = true;
@@ -103,11 +154,26 @@
 
     private async Task Buscar()
     {
-        lista = await IngresosEgresosService.Listar(idAlmacen == 0 ? null : idAlmacen, idUsuario, fecha, fecha, naturaleza);
+        lista = await IngresosEgresosService.Listar(idAlmacen == 0 ? null : idAlmacen, idUsuario, fechaInicio, fechaFin, naturaleza, tipo);
     }
 
     private void Nuevo()
     {
         Navigation.NavigateTo($"/ingreso-egreso-form?naturaleza={naturaleza}");
+    }
+
+    private async Task Anular(int id)
+    {
+        var ok = await IngresosEgresosService.Anular(id);
+        if (ok)
+        {
+            await Buscar();
+        }
+    }
+
+    private async Task OnNaturalezaChange()
+    {
+        tipo = string.Empty;
+        await Buscar(); 
     }
 }

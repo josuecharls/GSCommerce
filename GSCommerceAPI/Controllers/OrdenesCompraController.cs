@@ -143,6 +143,9 @@ namespace GSCommerceAPI.Controllers
         [HttpPost("{id}/generar-ingreso")]
         public async Task<IActionResult> GenerarIngreso(int id, int idAlmacen)
         {
+            if (idAlmacen != 1009)
+                return BadRequest("El ingreso por orden de compra debe registrarse en el Almacen Principal.");
+
             var orden = await _context.OrdenDeCompraCabeceras
                 .Include(o => o.OrdenDeCompraDetalles)
                 .FirstOrDefaultAsync(o => o.IdOc == id);

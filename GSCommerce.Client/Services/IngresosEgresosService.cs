@@ -12,7 +12,7 @@ public class IngresosEgresosService
         _httpClient = httpClient;
     }
 
-    public async Task<List<IngresoEgresoDTO>> Listar(int? idAlmacen, int? idUsuario, DateTime? fechaInicio, DateTime? fechaFin, string? naturaleza)
+    public async Task<List<IngresoEgresoDTO>> Listar(int? idAlmacen, int? idUsuario, DateTime? fechaInicio, DateTime? fechaFin, string? naturaleza, string? tipo)
     {
         var query = new List<string>();
         if (idAlmacen.HasValue) query.Add($"idAlmacen={idAlmacen}");
@@ -24,6 +24,10 @@ public class IngresosEgresosService
             var nat = naturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase) ? "I" : "E";
             query.Add($"naturaleza={nat}");
         }
+        if (!string.IsNullOrWhiteSpace(tipo))
+        {
+            query.Add($"tipo={Uri.EscapeDataString(tipo)}");
+        }
         var url = "api/IngresosEgresos";
         if (query.Count > 0) url += "?" + string.Join("&", query);
         var data = await _httpClient.GetFromJsonAsync<List<IngresoEgresoDTO>>(url);
@@ -34,6 +38,12 @@ public class IngresosEgresosService
     {
         dto.Naturaleza = dto.Naturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase) ? "I" : "E";
         var response = await _httpClient.PostAsJsonAsync("api/IngresosEgresos", dto);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> Anular(int id)
+    {
+        var response = await _httpClient.PutAsync($"api/IngresosEgresos/{id}/anular", null);
         return response.IsSuccessStatusCode;
     }
 }

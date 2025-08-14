@@ -23,10 +23,11 @@ namespace GSCommerceAPI.Controllers
             _context = context;
         }
 
-        // GET: api/IngresosEgresos?idAlmacen=1&fechaInicio=2024-01-01&fechaFin=2024-01-31&naturaleza=Egreso
+        // GET: api/IngresosEgresos?idAlmacen=1&fechaInicio=2024-01-01&fechaFin=2024-01-31&naturaleza=Egreso&tipo=PAGO%20PROVEEDORES
         [HttpGet]
         public async Task<IActionResult> Listar([FromQuery] int? idAlmacen, [FromQuery] int? idUsuario,
-            [FromQuery] DateTime? fechaInicio, [FromQuery] DateTime? fechaFin, [FromQuery] string? naturaleza)
+            [FromQuery] DateTime? fechaInicio, [FromQuery] DateTime? fechaFin, [FromQuery] string? naturaleza,
+            [FromQuery] string? tipo)
         {
             var query = _context.VListadoIngresosEgresos1s.AsQueryable();
 
@@ -48,6 +49,11 @@ namespace GSCommerceAPI.Controllers
             {
                 var nat = naturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase) ? "I" : "E";
                 query = query.Where(q => q.Naturaleza == nat);
+            }
+
+            if (!string.IsNullOrEmpty(tipo))
+            {
+                query = query.Where(q => q.Tipo == tipo);
             }
 
             var result = await query
@@ -148,6 +154,54 @@ namespace GSCommerceAPI.Controllers
             }
 
             return Ok(new { cabecera.IdIngresoEgreso });
+        }
+
+        // PUT: api/IngresosEgresos/{id}/anular
+        [HttpPut("{id}/anular")]
+        public async Task<IActionResult> Anular(int id)
+        {
+            var registro = await _context.IngresosEgresosCabeceras.FindAsync(id);
+            if (registro == null)
+                return NotFound();
+
+            if (registro.Estado == "A")
+                return BadRequest("Registro ya anulado");
+
+            registro.Estado = "A";
+            await _context.SaveChangesAsync();
+
+            var fecha = DateOnly.FromDateTime(registro.Fecha);
+
+            var apertura = await _context.AperturaCierreCajas
+                .FirstOrDefaultAsync(a => a.IdUsuario == registro.IdUsuario &&
+                                          a.IdAlmacen == registro.IdAlmacen &&
+                                          a.Fecha == fecha);
+
+            if (apertura != null)
+            {
+                var ingresos = await _context.IngresosEgresosCabeceras
+                    .Where(i => i.IdUsuario == registro.IdUsuario &&
+                                i.IdAlmacen == registro.IdAlmacen &&
+                                DateOnly.FromDateTime(i.Fecha) == fecha &&
+                                i.Naturaleza == "I" &&
+                                i.Estado == "E")
+                    .SumAsync(i => (decimal?)i.Monto) ?? 0;
+
+                var egresos = await _context.IngresosEgresosCabeceras
+                    .Where(i => i.IdUsuario == registro.IdUsuario &&
+                                i.IdAlmacen == registro.IdAlmacen &&
+                                DateOnly.FromDateTime(i.Fecha) == fecha &&
+                                i.Naturaleza == "E" &&
+                                i.Estado == "E")
+                    .SumAsync(i => (decimal?)i.Monto) ?? 0;
+
+                apertura.Ingresos = ingresos;
+                apertura.Egresos = egresos;
+                apertura.SaldoFinal = apertura.SaldoInicial + apertura.VentaDia + ingresos - egresos;
+                await _context.SaveChangesAsync();
+            }
+
+            return NoContent();
         }
     }
 }
