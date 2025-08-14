@@ -610,6 +610,7 @@ OnCancelado="CobroCancelado" />
     private async Task CobroConfirmado(List<DetallePagoDTO> pagos)
     {
         pagosRealizados = pagos;
+        venta.Pagos = pagosRealizados;
         // Calcular y registrar el vuelto entregado
         var pagoEfectivo = pagosRealizados.FirstOrDefault(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3); venta.Vuelto = pagoEfectivo?.Vuelto ?? 0;
         ventaCobrada = true;
