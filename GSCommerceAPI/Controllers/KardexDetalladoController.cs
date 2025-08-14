@@ -106,40 +106,88 @@ namespace GSCommerceAPI.Controllers
             if (hasta.HasValue)
                 ventasQuery = ventasQuery.Where(v => v.Fecha <= hasta.Value);
 
-            var ventas = await ventasQuery
+            var ventasComprobantes = await ventasQuery
+                .Join(_context.ComprobanteDeVentaCabeceras,
+                    v => v.IdComprobante,
+                    c => c.IdComprobante,
+                    (v, c) => new { v, c })
                 .Join(_context.Articulos,
-                    v => v.IdArticulo,
+                    vc => vc.v.IdArticulo,
                     a => a.IdArticulo,
-                    (v, a) => new { v, a })
+                    (vc, a) => new { vc.v, vc.c, a })
                 .Where(va => string.IsNullOrWhiteSpace(familia) || va.a.Familia.Contains(familia))
                 .Where(va => string.IsNullOrWhiteSpace(linea) || va.a.Linea.Contains(linea))
-                .Select(va => new VKardex3
-                {
-                    IdKardex = 0,
-                    IdAlmacen = va.v.IdAlmacen,
-                    Almacen = va.v.Almacen,
-                    Familia = va.a.Familia,
-                    Linea = va.a.Linea,
-                    Codigo = va.v.IdArticulo,
-                    Articulo = va.v.Descripcion,
-                    PrecioCompra = va.v.PrecioCompra,
-                    PrecioVenta = va.v.Precio,
-                    Fecha = DateOnly.FromDateTime(va.v.Fecha),
-                    Operacion = $"Venta {va.v.IdComprobante}",
-                    SaldoInicial = 0,
-                    ValorizadoInicial = 0,
-                    Entrada = 0,
-                    ValorizadoEntrada = 0,
-                    Salida = va.v.Cantidad ?? 0,
-                    ValorizadoSalida = va.v.Costo,
-                    SaldoFinal = 0,
-                    ValorizadoFinal = 0,
-                    ValorizadoFinalPc = 0,
-                    ValorizadoFinalPv = 0
-                })
+                .Join(_context.TipoDocumentoVenta,
+                    va => va.c.IdTipoDocumento,
+                    td => td.IdTipoDocumentoVenta,
+                    (va, td) => new VKardex3
+                    {
+                        IdKardex = 0,
+                        IdAlmacen = va.v.IdAlmacen,
+                        Almacen = va.v.Almacen,
+                        Familia = va.a.Familia,
+                        Linea = va.a.Linea,
+                        Codigo = va.v.IdArticulo,
+                        Articulo = va.v.Descripcion,
+                        PrecioCompra = va.v.PrecioCompra,
+                        PrecioVenta = va.v.Precio,
+                        Fecha = DateOnly.FromDateTime(va.v.Fecha),
+                        Operacion = $"{td.Descripcion} {va.c.Serie}-{va.c.Numero}",
+                        SaldoInicial = 0,
+                        ValorizadoInicial = 0,
+                        Entrada = 0,
+                        ValorizadoEntrada = 0,
+                        Salida = va.v.Cantidad ?? 0,
+                        ValorizadoSalida = va.v.Costo,
+                        SaldoFinal = 0,
+                        ValorizadoFinal = 0,
+                        ValorizadoFinalPc = 0,
+                        ValorizadoFinalPv = 0
+                    })
                 .ToListAsync();
 
-            resultado.AddRange(ventas);
+            var notasCredito = await ventasQuery
+                .Join(_context.NotaDeCreditoCabeceras,
+                    v => v.IdComprobante,
+                    nc => nc.IdNc,
+                    (v, nc) => new { v, nc })
+                .Join(_context.Articulos,
+                    vnc => vnc.v.IdArticulo,
+                    a => a.IdArticulo,
+                    (vnc, a) => new { vnc.v, vnc.nc, a })
+                .Where(va => string.IsNullOrWhiteSpace(familia) || va.a.Familia.Contains(familia))
+                .Where(va => string.IsNullOrWhiteSpace(linea) || va.a.Linea.Contains(linea))
+                .Join(_context.TipoDocumentoVenta,
+                    va => va.nc.IdTipoDocumento,
+                    td => td.IdTipoDocumentoVenta,
+                    (va, td) => new VKardex3
+                    {
+                        IdKardex = 0,
+                        IdAlmacen = va.v.IdAlmacen,
+                        Almacen = va.v.Almacen,
+                        Familia = va.a.Familia,
+                        Linea = va.a.Linea,
+                        Codigo = va.v.IdArticulo,
+                        Articulo = va.v.Descripcion,
+                        PrecioCompra = va.v.PrecioCompra,
+                        PrecioVenta = va.v.Precio,
+                        Fecha = DateOnly.FromDateTime(va.v.Fecha),
+                        Operacion = $"{td.Descripcion} {va.nc.Serie}-{va.nc.Numero}",
+                        SaldoInicial = 0,
+                        ValorizadoInicial = 0,
+                        Entrada = 0,
+                        ValorizadoEntrada = 0,
+                        Salida = va.v.Cantidad ?? 0,
+                        ValorizadoSalida = va.v.Costo,
+                        SaldoFinal = 0,
+                        ValorizadoFinal = 0,
+                        ValorizadoFinalPc = 0,
+                        ValorizadoFinalPv = 0
+                    })
+                .ToListAsync();
+
+            resultado.AddRange(ventasComprobantes);
+            resultado.AddRange(notasCredito);
 
             return Ok(resultado.OrderByDescending(k => k.Fecha));
         }

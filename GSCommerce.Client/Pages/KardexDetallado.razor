@@ -69,6 +69,8 @@
                         <th>Almacén</th>
                         <th>Código</th>
                         <th>Artículo</th>
+                        <th>Precio Compra</th>
+                        <th>Precio Venta</th>
                         <th>Operación</th>
                         <th>Entrada</th>
                         <th>Salida</th>
@@ -88,6 +90,8 @@
                             <td>@item.Almacen</td>
                             <td>@item.Codigo</td>
                             <td>@item.Articulo</td>
+                            <td>@item.PrecioCompra.ToString("0.00")</td>
+                            <td>@item.PrecioVenta?.ToString("0.00")</td>
                             <td>@item.Operacion</td>
                             <td>@item.Entrada</td>
                             <td>@item.Salida</td>
@@ -153,9 +157,9 @@
     {
         var headers = new[]
         {
-        "Almacén", "Familia", "Línea", "Código", "Artículo", "Operación", "Entrada", "Salida",
-        "Saldo Final", "Valor Entrada", "Valor Salida", "Valor Final"
-    };
+            "Almacén", "Familia", "Línea", "Código", "Artículo", "Precio Compra", "Precio Venta",
+            "Operación", "Entrada", "Salida", "Saldo Final", "Valor Entrada", "Valor Salida", "Valor Final"
+        };
 
         var datos = kardexData.Select(k => new object[]
         {
