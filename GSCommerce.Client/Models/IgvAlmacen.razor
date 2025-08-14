@@ -1,0 +1,68 @@
+﻿@page "/igv-almacen"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject AlmacenService AlmacenService
+@inject IgvAlmacenService IgvService
+@inject IJSRuntime JS
+
+<h3>Configuración de IGV por Tienda</h3>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Tienda</th>
+            <th>Aplica IGV</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var a in almacenes)
+        {
+            <tr>
+                <td>@a.Nombre</td>
+                <td>
+                    <input type="checkbox" @bind="a.AplicaIgv" />
+                </td>
+                <td>
+                    <button class="btn btn-primary btn-sm" @onclick="() => Guardar(a)">Guardar</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<AlmacenIgvVM> almacenes = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var listado = await AlmacenService.GetAlmacenes() ?? new List<AlmacenDTO>();
+        foreach (var alm in listado)
+        {
+            var igvDto = await IgvService.ObtenerAsync(alm.IdAlmacen);
+            almacenes.Add(new AlmacenIgvVM
+            {
+                IdAlmacen = alm.IdAlmacen,
+                Nombre = alm.Nombre,
+                AplicaIgv = (igvDto?.Igv ?? 18m) > 0
+            });
+        }
+    }
+
+    private async Task Guardar(AlmacenIgvVM a)
+    {
+        decimal valor = a.AplicaIgv ? 18m : 0m;
+        bool ok = await IgvService.ActualizarAsync(a.IdAlmacen, valor);
+        if (ok)
+            await JS.InvokeVoidAsync("alert", "✅ IGV actualizado.");
+        else
+            await JS.InvokeVoidAsync("alert", "❌ Error al actualizar.");
+    }
+
+    private class AlmacenIgvVM
+    {
+        public int IdAlmacen { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public bool AplicaIgv { get; set; }
+    }
+}

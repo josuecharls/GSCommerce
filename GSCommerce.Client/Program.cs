@@ -31,6 +31,7 @@ builder.Services.AddScoped<TipoDocumentoVentaService>();
 builder.Services.AddScoped<TomaInventariosService>();
 builder.Services.AddScoped<AlmacenCuentaService>();
 builder.Services.AddScoped<ReniecService>();
+builder.Services.AddScoped<IgvAlmacenService>();
 builder.Services.AddScoped<CajaService>();
 builder.Services.AddScoped<AuxiliaresVariosService>();
 builder.Services.AddScoped<UsuarioService>();

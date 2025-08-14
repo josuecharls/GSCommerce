@@ -603,14 +603,20 @@ namespace GSCommerceAPI.Controllers
                 d.PorcentajeVenta = totalVentas == 0 ? 0 : (d.Venta / totalVentas) * 100;
             }
 
-            var totalVentasMensual = await _context.ComprobanteDeVentaCabeceras
-                .Where(c => c.Fecha.Month == mes && c.Fecha.Year == anio)
-                .GroupBy(c => c.IdAlmacen)
+            var totalVentasMensual = await _context.ComprobanteDeVentaDetalles
+                .Where(d => d.IdArticulo == idArticulo &&
+                            d.IdComprobanteNavigation.Fecha.Month == mes &&
+                            d.IdComprobanteNavigation.Fecha.Year == anio)
+                .GroupBy(d => d.IdComprobanteNavigation.IdAlmacen)
                 .Select(g => new ResumenVentasMensualDTO
                 {
-                    NombreAlmacen = _context.Almacens.Where(a => a.IdAlmacen == g.Key).Select(a => a.Nombre).FirstOrDefault(),
+                    NombreAlmacen = _context.Almacens
+                        .Where(a => a.IdAlmacen == g.Key)
+                        .Select(a => a.Nombre)
+                        .FirstOrDefault(),
                     MontoTotal = g.Sum(x => x.Total)
                 }).ToListAsync();
+
 
             var reporte = new ReporteArticuloDTO
             {

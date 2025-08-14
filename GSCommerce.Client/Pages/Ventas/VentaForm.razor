@@ -13,6 +13,7 @@
 @inject AsignacionSerieCajeroService AsignacionSerieCajeroService
 @inject PersonalService PersonalService
 @inject StockService StockService
+@inject IgvAlmacenService IgvAlmacenService
 @inject DescuentoService DescuentoService
 @inject NavigationManager Navigation
 @inject TipoDocumentoVentaService TipoDocumentoVentaService
@@ -121,7 +122,7 @@
 
 <div class="text-end">
         <h5>Subtotal: @SimboloMoneda@venta.SubTotal.ToString("N2")@EquivalenteSoles(venta.SubTotal)</h5>
-        <h5>IGV: @SimboloMoneda@venta.Igv.ToString("N2")@EquivalenteSoles(venta.Igv)</h5>
+        <h5>IGV (@porcentajeIgv%): @SimboloMoneda@venta.Igv.ToString("N2")@EquivalenteSoles(venta.Igv)</h5>
         <h5><strong>Total: @SimboloMoneda@venta.Total.ToString("N2")@EquivalenteSoles(venta.Total)</strong></h5>
     </div>
 </fieldset>
@@ -178,6 +179,7 @@ OnCancelado="CobroCancelado" />
     private int? idVendedorSeleccionado;
     private int? idSerieSeleccionada;
     private string monedaAlmacen = "PEN";
+    private decimal porcentajeIgv = 18m;
     private decimal tipoCambioActual = 1m;
     private string SimboloMoneda => monedaAlmacen == "USD" ? "$ " : "S/ ";
     private decimal montoCobrar;
@@ -198,6 +200,8 @@ OnCancelado="CobroCancelado" />
                 {
                     var monedaDto = await MonedaAlmacenService.ObtenerAsync(idAlmacenActual.Value);
                     monedaAlmacen = monedaDto?.Moneda ?? "PEN";
+                    var igvDto = await IgvAlmacenService.ObtenerAsync(idAlmacenActual.Value);
+                    porcentajeIgv = igvDto?.Igv ?? 18m;
 
                     if (monedaAlmacen == "USD")
                     {
@@ -233,6 +237,8 @@ OnCancelado="CobroCancelado" />
                         venta.NombreVendedor = ($"{v.Nombres} {v.Apellidos}").Trim();
                     }
                     await CargarSeriePorTipoYAlmacen();
+                    RecalcularTotales();
+
                 }
             }
             catch (Exception ex)
@@ -363,7 +369,8 @@ OnCancelado="CobroCancelado" />
 
         // Calcular los totales generales redondeando a 2 decimales
         venta.Total = Math.Round(venta.Detalles.Sum(d => d.Total), 2);
-        venta.SubTotal = Math.Round(venta.Total / 1.18m, 2);
+        var factor = 1 + (porcentajeIgv / 100m);
+        venta.SubTotal = Math.Round(venta.Total / factor, 2);
         venta.Igv = Math.Round(venta.Total - venta.SubTotal, 2);
         venta.APagar = venta.Total;
     }
