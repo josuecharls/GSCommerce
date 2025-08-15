@@ -218,14 +218,14 @@ else
         foreach (var d in detalles)
         {
             d.Item = item++;
-            d.Total = d.Cantidad * d.Precio * (1 - d.PorcentajeDescuento);
+            d.Total = Math.Round(d.Cantidad * d.Precio * (1 - d.PorcentajeDescuento), 2);
             total += d.Total;
         }
 
-        cabecera!.Total = total;
+        cabecera!.Total = Math.Round(total, 2);
         cabecera.Redondeo = 0;
-        cabecera.SubTotal = total / 1.18m;
-        cabecera.Igv = cabecera.Total - cabecera.SubTotal;
+        cabecera.SubTotal = Math.Round(cabecera.Total / 1.18m, 2);
+        cabecera.Igv = Math.Round(cabecera.Total - cabecera.SubTotal, 2);
         cabecera.AFavor = cabecera.Total;
     }
 
@@ -238,29 +238,21 @@ else
         if (tipos == null)
             return;
 
-        TipoDocumentoVentaDTO? tipoSeleccionado = null;
-        foreach (var t in tipos)
+        var mapaTipos = new Dictionary<int, int>
         {
-            var desc = t.Descripcion.ToUpper();
-            if (!(desc.Contains("NOTA") && desc.Contains("CREDITO")))
-                continue;
+            { 1, 8 },
+            { 2, 9 },
+            { 3, 10 },
+            { 4, 11 },
+            { 5, 12 },
+            { 6, 13 },
+            { 7, 14 }
+        };
 
-            if (tipo.Equals("electronica", StringComparison.OrdinalIgnoreCase) && !t.Manual && !desc.Contains("INTERNA"))
-            {
-                tipoSeleccionado = t;
-                break;
-            }
-            if (tipo.Equals("manual", StringComparison.OrdinalIgnoreCase) && t.Manual)
-            {
-                tipoSeleccionado = t;
-                break;
-            }
-            if (tipo.Equals("interna", StringComparison.OrdinalIgnoreCase) && desc.Contains("INTERNA"))
-            {
-                tipoSeleccionado = t;
-                break;
-            }
-        }
+        if (!mapaTipos.TryGetValue(idTipoDocumentoOriginal, out var idTipoNota))
+            return;
+
+        var tipoSeleccionado = tipos.FirstOrDefault(t => t.IdTipoDocumentoVenta == idTipoNota);
 
         if (tipoSeleccionado == null)
             return;

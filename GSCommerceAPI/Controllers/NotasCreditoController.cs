@@ -202,12 +202,34 @@ namespace GSCommerceAPI.Controllers
                             Cantidad = d.Cantidad,
                             Valor = d.Precio
                         });
+
+                        var stock = await _context.StockAlmacens
+                            .FirstOrDefaultAsync(s => s.IdAlmacen == mov.IdAlmacen && s.IdArticulo == d.IdArticulo.ToString());
+                        if (stock == null)
+                        {
+                            _context.StockAlmacens.Add(new StockAlmacen
+                            {
+                                IdAlmacen = mov.IdAlmacen,
+                                IdArticulo = d.IdArticulo.ToString(),
+                                Stock = d.Cantidad,
+                                StockMinimo = 0
+                            });
+                        }
+                        else
+                        {
+                            stock.Stock += d.Cantidad;
+                        }
                     }
                 }
 
                 // Marcar en el comprobante original que ya tiene NC
                 comprobante.GeneroNc = $"{cabecera.Serie}-{cabecera.Numero.ToString("D8")}";
-
+                if (dto.Cabecera.IdMotivo == "01")
+                {
+                    comprobante.Estado = "ANULADO";
+                    comprobante.IdUsuarioAnula = cabecera.IdUsuario;
+                    comprobante.FechaHoraUsuarioAnula = DateTime.Now;
+                }
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 

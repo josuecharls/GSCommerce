@@ -90,7 +90,20 @@
                     <td>@v.NombreCliente</td>
                     <td>@v.Total.ToString("C", new System.Globalization.CultureInfo("es-PE"))</td>
                     <td>@v.FormaPago</td>
-                    <td>@v.Estado</td>
+                    <td>
+                        @if (v.Estado == "AN" || v.Estado == "ANULADO" || v.Estado == "A")
+                        {
+                            <span class="badge bg-danger">Anulado</span>
+                        }
+                        else if (v.Estado == "D")
+                        {
+                            <span class="badge bg-warning text-dark">Declarado</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success">Emitido</span>
+                        }
+                    </td>
                     <td><div class="btn-group btn-group-sm flex-wrap" role="group">
                         <button class="btn btn-outline-info"
                                 title="Reimprimir boleta"
@@ -187,30 +200,32 @@
 
     private void CalcularResumen()
     {
-        efectivoSoles = ventas
+        var activas = ventas.Where(v => !(v.Estado == "AN" || v.Estado == "ANULADO" || v.Estado == "A"));
+
+        efectivoSoles = activas
             .Where(v => v.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase)
                         && !v.FormaPago.Contains("DOL", StringComparison.OrdinalIgnoreCase)
                         && !v.FormaPago.Contains("USD", StringComparison.OrdinalIgnoreCase))
             .Sum(v => v.Total);
 
-        efectivoDolares = ventas
+        efectivoDolares = activas
             .Where(v => v.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase)
                         && (v.FormaPago.Contains("DOL", StringComparison.OrdinalIgnoreCase)
                             || v.FormaPago.Contains("USD", StringComparison.OrdinalIgnoreCase)))
             .Sum(v => v.Total);
 
-        tarjetaOnline = ventas
+        tarjetaOnline = activas
             .Where(v => v.FormaPago.Contains("TARJETA", StringComparison.OrdinalIgnoreCase)
                         || v.FormaPago.Contains("ONLINE", StringComparison.OrdinalIgnoreCase))
             .Sum(v => v.Total);
 
-        notaCredito = ventas
+        notaCredito = activas
             .Where(v => v.FormaPago.Contains("NOTA", StringComparison.OrdinalIgnoreCase))
             .Sum(v => v.Total);
 
-        totalGeneral = ventas.Sum(v => v.Total);
+        totalGeneral = activas.Sum(v => v.Total);
 
-        cantidadBoletas = ventas.Count(v => v.TipoDocumento.Contains("BOLETA", StringComparison.OrdinalIgnoreCase)
+        cantidadBoletas = activas.Count(v => v.TipoDocumento.Contains("BOLETA", StringComparison.OrdinalIgnoreCase)
                                             || v.TipoDocumento.Contains("TICKET", StringComparison.OrdinalIgnoreCase));
     }
 

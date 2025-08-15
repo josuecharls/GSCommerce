@@ -417,6 +417,11 @@ namespace GSCommerceAPI.Controllers
                 }
             }
 
+            var notasEmitidas = await _context.NotaDeCreditoCabeceras
+                .Where(n => DateOnly.FromDateTime(n.Fecha) == fechaHoy && n.IdAlmacen == idAlmacen && n.IdUsuario == idUsuario)
+                .ToListAsync();
+            resumen.NotaCredito -= notasEmitidas.Sum(n => n.Total);
+
             var cierres = await _context.VCierreEnLinea1s
                 .Where(c => c.Fecha == fechaHoy && c.IdAlmacen == idAlmacen && c.IdUsuario == idUsuario)
                 .ToListAsync();
