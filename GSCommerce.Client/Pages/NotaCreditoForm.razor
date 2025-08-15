@@ -314,6 +314,13 @@ else
             }
         }
 
+        await CargarSeriePorTipoYAlmacen();
+        if (cabecera.IdTipoDocumento <= 0 || string.IsNullOrWhiteSpace(cabecera.Serie))
+        {
+            await JS.InvokeVoidAsync("alert", "Debe seleccionar un tipo de documento y una serie válidos.");
+            return;
+        }
+
         RecalcularTotales();
         var seleccionados = detalles.Where(d => d.Cantidad > 0).ToList();
         if (seleccionados.Count == 0)

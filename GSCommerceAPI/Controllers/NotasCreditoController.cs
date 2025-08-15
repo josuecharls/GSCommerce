@@ -96,6 +96,9 @@ namespace GSCommerceAPI.Controllers
                         dto.Cabecera.Serie = "B" + dto.Cabecera.Serie;
                 }
 
+                if (dto.Cabecera.IdTipoDocumento <= 0 || string.IsNullOrWhiteSpace(dto.Cabecera.Serie))
+                    return BadRequest("Tipo de documento o serie no válidos");
+
                 // Asignar número de serie y correlativo si corresponde
                 var correlativo = await _context.SerieCorrelativos
                     .Where(s => s.Serie == dto.Cabecera.Serie &&
