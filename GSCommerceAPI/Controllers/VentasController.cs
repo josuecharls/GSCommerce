@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using GSCommerce.Client.Models; // For VentaDiariaAlmacenDTO
+using GSCommerceAPI.Models.Reportes; // For VentaDiariaAlmacenDTO
 
 
 namespace GSCommerceAPI.Controllers
@@ -121,6 +121,176 @@ namespace GSCommerceAPI.Controllers
                 .ToList();
 
             return resultado;
+        }
+
+
+        [HttpPost("reporte-articulos-rango")]
+        public async Task<IActionResult> ObtenerReporteArticulosRango([FromBody] ReporteArticulosRangoRequest req)
+        {
+            if (req.Ids == null || req.Ids.Count == 0)
+                return BadRequest("Debe enviar al menos un código de artículo.");
+            var desde = req.Desde.Date;
+            var hasta = req.Hasta.Date;
+
+            // Meses del rango
+            var meses = new List<Models.Reportes.MesColDTO>();
+            var cursor = new DateTime(desde.Year, desde.Month, 1);
+            var fin = new DateTime(hasta.Year, hasta.Month, 1);
+            while (cursor <= fin)
+            {
+                meses.Add(new Models.Reportes.MesColDTO
+                {
+                    Year = cursor.Year,
+                    Month = cursor.Month,
+                    Label = System.Globalization.CultureInfo
+                                .GetCultureInfo("es-PE")
+                                .DateTimeFormat
+                                .GetAbbreviatedMonthName(cursor.Month)
+                                .ToUpperInvariant().Replace(".", "")
+                });
+                cursor = cursor.AddMonths(1);
+            }
+
+            // Catálogos
+            var almacenesDic = await _context.Almacens
+                .AsNoTracking()
+                .ToDictionaryAsync(a => a.IdAlmacen, a => a.Nombre);
+
+            var arts = await _context.Articulos
+                .AsNoTracking()
+                .Where(a => req.Ids.Contains(a.IdArticulo))
+                .Select(a => new { a.IdArticulo, a.Descripcion, a.PrecioCompra, a.PrecioVenta })
+                .ToListAsync();
+
+            // Ventas por mes x almacén
+            var ventas = await _context.ComprobanteDeVentaDetalles
+                .AsNoTracking()
+                .Where(d => req.Ids.Contains(d.IdArticulo)
+                         && d.IdComprobanteNavigation.Fecha >= desde
+                         && d.IdComprobanteNavigation.Fecha < hasta.AddDays(1))
+                .Select(d => new {
+                    d.IdArticulo,
+                    d.IdComprobanteNavigation.IdAlmacen,
+                    Mes = new DateTime(d.IdComprobanteNavigation.Fecha.Year, d.IdComprobanteNavigation.Fecha.Month, 1),
+                    Cant = d.Cantidad
+                })
+                .GroupBy(x => new { x.IdArticulo, x.IdAlmacen, x.Mes })
+                .Select(g => new {
+                    g.Key.IdArticulo,
+                    g.Key.IdAlmacen,
+                    g.Key.Mes,
+                    Cant = g.Sum(x => x.Cant)
+                })
+                .ToListAsync();
+
+            // Ingresos (solo movimientos tipo INGRESO)
+            var ingresos = await _context.MovimientosDetalles
+                .AsNoTracking()
+                .Where(m => req.Ids.Contains(m.IdArticulo)
+                         && m.IdMovimientoNavigation.Tipo == "I"
+                         && m.IdMovimientoNavigation.Fecha.HasValue
+                         && m.IdMovimientoNavigation.Fecha.Value >= DateOnly.FromDateTime(desde)
+                         && m.IdMovimientoNavigation.Fecha.Value < DateOnly.FromDateTime(hasta.AddDays(1)))
+                .Select(m => new {
+                    m.IdArticulo,
+                    m.IdMovimientoNavigation.IdAlmacen,
+                    m.Cantidad,
+                    m.IdMovimientoNavigation.Fecha
+                })
+                .ToListAsync();
+
+            var ingresosAgg = ingresos
+                .GroupBy(x => new { x.IdArticulo, x.IdAlmacen })
+                .Select(g => new {
+                    g.Key.IdArticulo,
+                    g.Key.IdAlmacen,
+                    Cant = g.Sum(x => x.Cantidad),
+                    Fch = g.Min(x => x.Fecha)
+                })
+                .ToList();
+
+            // Stock actual
+            var stock = await _context.StockAlmacens
+                .AsNoTracking()
+                .Where(s => req.Ids.Contains(s.IdArticulo))
+                .Select(s => new { s.IdArticulo, s.IdAlmacen, s.Stock })
+                .ToListAsync();
+
+            var respuesta = new List<Models.Reportes.ReporteArticuloRangoDTO>();
+
+            foreach (var art in arts)
+            {
+                // almacenes involucrados (por ventas, ingresos o stock)
+                var almacenesArt = ventas.Where(v => v.IdArticulo == art.IdArticulo).Select(v => v.IdAlmacen)
+                    .Concat(ingresosAgg.Where(i => i.IdArticulo == art.IdArticulo).Select(i => i.IdAlmacen))
+                    .Concat(stock.Where(s => s.IdArticulo == art.IdArticulo).Select(s => s.IdAlmacen))
+                    .Distinct()
+                    .ToList();
+
+                var filas = new List<Models.Reportes.FilaAlmacenDTO>();
+
+                foreach (var idAlm in almacenesArt)
+                {
+                    var nombre = almacenesDic.TryGetValue(idAlm, out var nm) ? nm : idAlm.ToString();
+
+                    var ing = ingresosAgg.FirstOrDefault(i => i.IdArticulo == art.IdArticulo && i.IdAlmacen == idAlm);
+                    var st = stock.FirstOrDefault(s => s.IdArticulo == art.IdArticulo && s.IdAlmacen == idAlm);
+
+                    var ventasAlm = ventas
+                        .Where(v => v.IdArticulo == art.IdArticulo && v.IdAlmacen == idAlm)
+                        .ToDictionary(v => $"{v.Mes:yyyyMM}", v => v.Cant);
+
+                    var fila = new Models.Reportes.FilaAlmacenDTO
+                    {
+                        NombreAlmacen = nombre,
+                        Codigo = art.IdArticulo,
+                        Ingreso = ing?.Cant ?? 0,
+                        FechaPrimerIngreso = ing?.Fch != null ? ing.Fch.Value.ToDateTime(new TimeOnly(0, 0)) : null,
+                        Stock = st?.Stock ?? 0,
+                        PC = art.PrecioCompra,
+                        PV = art.PrecioVenta
+                    };
+
+                    // completar todos los meses
+                    foreach (var m in meses)
+                    {
+                        var key = $"{m.Year:D4}{m.Month:D2}";
+                        fila.VentasPorMes[key] = ventasAlm.TryGetValue(key, out var cant) ? cant : 0;
+                    }
+
+                    fila.TotalVentas = fila.VentasPorMes.Values.Sum();
+                    fila.PorcentajeVendida = fila.Ingreso > 0 ? Math.Round((decimal)fila.TotalVentas / fila.Ingreso * 100m, 2) : 0m;
+
+                    filas.Add(fila);
+                }
+
+                // Totales
+                var tot = new Models.Reportes.TotalesFilaDTO
+                {
+                    Ingreso = filas.Sum(f => f.Ingreso),
+                    Stock = filas.Sum(f => f.Stock)
+                };
+                foreach (var m in meses)
+                {
+                    var key = $"{m.Year:D4}{m.Month:D2}";
+                    tot.VentasPorMes[key] = filas.Sum(f => f.VentasPorMes[key]);
+                }
+                tot.TotalVentas = tot.VentasPorMes.Values.Sum();
+                tot.PorcentajeVendida = tot.Ingreso > 0 ? Math.Round((decimal)tot.TotalVentas / tot.Ingreso * 100m, 2) : 0m;
+
+                respuesta.Add(new Models.Reportes.ReporteArticuloRangoDTO
+                {
+                    IdArticulo = art.IdArticulo,
+                    Descripcion = art.Descripcion,
+                    PrecioCompra = art.PrecioCompra,
+                    PrecioVenta = art.PrecioVenta,
+                    Meses = meses,
+                    Filas = filas.OrderBy(f => f.NombreAlmacen).ToList(),
+                    Totales = tot
+                });
+            }
+
+            return Ok(respuesta);
         }
 
         [HttpGet("list")]
@@ -683,26 +853,53 @@ namespace GSCommerceAPI.Controllers
             return Ok(ranking);
         }
 
+        [Authorize]
         [HttpGet("reporte-top10-articulos")]
-        public async Task<IActionResult> ReporteTop10Articulos([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
+        public async Task<IActionResult> ReporteTop10Articulos(
+            [FromQuery] DateTime? desde,
+            [FromQuery] DateTime? hasta,
+            [FromQuery] int? idAlmacen,
+            [FromQuery] int top = 10)
         {
-            var inicio = desde ?? DateTime.Today;
-            var fin = hasta ?? DateTime.Today;
+            var start = (desde ?? DateTime.Today).Date;
+            var end = (hasta ?? DateTime.Today).Date.AddDays(1);
+            top = top <= 0 ? 10 : top;
 
-            var topArticulos = await (from d in _context.ComprobanteDeVentaDetalles
-                                      join c in _context.ComprobanteDeVentaCabeceras on d.IdComprobante equals c.IdComprobante
-                                      where c.Fecha.Date >= inicio.Date && c.Fecha.Date <= fin.Date && c.Estado == "E"
-                                      group d by new { d.IdArticulo, d.Descripcion } into g
-                                      orderby g.Sum(x => x.Total) descending
-                                      select new TopArticuloDTO
-                                      {
-                                          Codigo = g.Key.IdArticulo,
-                                          Descripcion = g.Key.Descripcion,
-                                          TotalUnidadesVendidas = g.Sum(x => x.Cantidad),
-                                          TotalImporte = g.Sum(x => x.Total)
-                                      }).Take(10).ToListAsync();
+            var cargo = User.FindFirst("Cargo")?.Value;
+            var idAlmClaim = User.FindFirst("IdAlmacen")?.Value;
 
-            return Ok(topArticulos);
+            // Si es CAJERO, se fuerza su almacén del token.
+            int? idAlmacenForzado = null;
+            if (string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(idAlmClaim, out var alm))
+            {
+                idAlmacenForzado = alm;
+            }
+
+            var q = from d in _context.ComprobanteDeVentaDetalles
+                    join c in _context.ComprobanteDeVentaCabeceras on d.IdComprobante equals c.IdComprobante
+                    where c.Fecha >= start && c.Fecha < end && c.Estado == "E"
+                    select new { d, c };
+
+            if (idAlmacenForzado.HasValue)
+                q = q.Where(x => x.c.IdAlmacen == idAlmacenForzado.Value);
+            else if (idAlmacen.HasValue && idAlmacen.Value > 0)
+                q = q.Where(x => x.c.IdAlmacen == idAlmacen.Value);
+
+            var resultado = await q
+                .GroupBy(x => new { x.d.IdArticulo, x.d.Descripcion })
+                .Select(g => new TopArticuloDTO
+                {
+                    Codigo = g.Key.IdArticulo,
+                    Descripcion = g.Key.Descripcion,
+                    TotalUnidadesVendidas = g.Sum(x => x.d.Cantidad),
+                    TotalImporte = g.Sum(x => x.d.Total)
+                })
+                .OrderByDescending(x => x.TotalImporte)
+                .Take(top)
+                .ToListAsync();
+
+            return Ok(resultado);
         }
 
         [Authorize]

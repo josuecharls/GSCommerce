@@ -220,6 +220,7 @@ OnCancelado="CobroCancelado" />
                     if (datos != null)
                     {
                         venta.RucEmisor = datos.Ruc;
+                        venta.RazonSocialEmisor = datos.RazonSocial;
                         venta.DireccionEmisor = datos.Direccion;
                     }
 
@@ -815,8 +816,15 @@ OnCancelado="CobroCancelado" />
 
         var sb = new StringBuilder();
 
+        var tipoDocTitulo = venta.TipoDocumento switch
+        {
+            "BOLETA" or "BOLETA M" or "TICKET" => "BOLETA",
+            "FACTURA" or "FACTURA M" => "FACTURA",
+            _ => venta.TipoDocumento
+        };
+
         sb.AppendLine("<pre style='font-family: monospace; font-size:12px;'>");
-        sb.AppendLine(Center($"{venta.TipoDocumento} DE VENTA ELECTRONICA"));
+        sb.AppendLine(Center($"{tipoDocTitulo} DE VENTA ELECTRONICA"));
         sb.AppendLine(Center("================================"));
         sb.AppendLine(Center($"{venta.RazonSocialEmisor?.ToUpper()}"));
         sb.AppendLine(Center($"RUC: {venta.RucEmisor}"));
@@ -863,59 +871,6 @@ OnCancelado="CobroCancelado" />
         sb.AppendLine("Gracias por su compra!");
         sb.AppendLine("</pre>");
         sb.AppendLine($"<div style='text-align:center;'><img src='{urlQR}' width='100' height='100'/></div>");
-
-        return sb.ToString();
-    }
-
-    private string GenerarTextoDelTicket()
-    {
-        if (venta == null)
-        return "🛑 No se pudo generar el ticket. Venta nula.";
-
-        const int width = 40;
-        string Center(string text)
-        {
-            text = text.Trim();
-            if (text.Length >= width) return text;
-            int pad = (width - text.Length) / 2;
-            return new string(' ', pad) + text;
-        }
-
-        var sb = new StringBuilder();
-
-        sb.AppendLine(Center($"{venta.TipoDocumento} DE VENTA ELECTRONICA"));
-        sb.AppendLine();
-        sb.AppendLine(Center(venta.RucEmisor));
-        sb.AppendLine(Center(venta.DireccionEmisor));
-        sb.AppendLine();
-
-        if (!string.IsNullOrWhiteSpace(venta.DocumentoCliente))
-        {
-            sb.AppendLine($"DOCUMENTO: {venta.DocumentoCliente}");
-            sb.AppendLine($"CLIENTE: {venta.NombreCliente}");
-        }
-
-        sb.AppendLine($"FECHA EMISION: {venta.FechaEmision:dd/MM/yyyy} HORA: {venta.FechaEmision:HH:mm}");
-        if (!string.IsNullOrWhiteSpace(venta.NombreCajero))
-            sb.AppendLine($"CAJERO(A): {venta.NombreCajero}");
-        sb.AppendLine($"VENDEDOR(A): {venta.NombreVendedor}");
-        sb.AppendLine($"DOCUMENTO: {venta.Serie}-{venta.Numero:D4}   MONEDA: {(monedaAlmacen == "USD" ? "DOLARES" : "SOLES")}");
-        sb.AppendLine("FORMA DE PAGO: CONTADO");
-        sb.AppendLine();
-
-        sb.AppendLine("Cant Producto                       PU  Total");
-        sb.AppendLine(new string('-', width));
-        foreach (var d in venta.Detalles)
-        {
-            var linea = $"{d.Cantidad,3} {d.DescripcionItem,-25}{d.PrecioUnitario,6:N2}{d.Total,7:N2}";
-            sb.AppendLine(linea);
-        }
-        sb.AppendLine(new string('-', width));
-        sb.AppendLine($"TOTAL: {SimboloMoneda}{venta.Total:N2}");
-        sb.AppendLine($"IMPORTE TOTAL: {SimboloMoneda}{venta.APagar:N2}");
-        sb.AppendLine($"VUELTO: {SimboloMoneda}{venta.Vuelto:N2}");
-        sb.AppendLine();
-        sb.AppendLine(Center("Gracias por su compra"));
 
         return sb.ToString();
     }

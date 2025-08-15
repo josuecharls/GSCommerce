@@ -80,31 +80,24 @@
             mensaje = "⚠️ Debes seleccionar al menos un artículo.";
             return;
         }
-
         if (fechaHasta < fechaDesde)
         {
             mensaje = "⚠️ La fecha hasta debe ser posterior a la fecha desde.";
             return;
         }
 
-        var sb = new StringBuilder();
-        foreach (var art in articulosSeleccionados)
-        {
-            for (var dt = new DateTime(fechaDesde.Year, fechaDesde.Month, 1); dt <= new DateTime(fechaHasta.Year, fechaHasta.Month, 1); dt = dt.AddMonths(1))
-            {
-                var reporte = await ReporteService.ObtenerReportePorArticulo(art.IdArticulo, dt.Month, dt.Year);
-                if (reporte != null)
-                {
-                    sb.AppendLine(GenerarHtmlPDF_Articulo(reporte, dt.Month, dt.Year));
-                }
-            }
-        }
+        var ids = articulosSeleccionados.Select(a => a.IdArticulo).ToList();
+        var reportes = await ReporteService.ObtenerReporteArticulosRango(ids, fechaDesde, fechaHasta);
 
-        if (sb.Length == 0)
+        if (reportes.Count == 0)
         {
             mensaje = "❌ No se encontró información para los parámetros seleccionados.";
             return;
         }
+
+        var sb = new StringBuilder();
+        foreach (var rep in reportes)
+            sb.AppendLine(GenerarHtmlTablaArticulo(rep));
 
         await JS.InvokeVoidAsync("generarPDFDesdeHTML", sb.ToString(), "Reporte_Ventas_Articulo.pdf");
     }
@@ -142,27 +135,87 @@
         articulosSeleccionados.Remove(art);
     }
 
-    private string GenerarHtmlPDF_Articulo(ReporteArticuloDTO articulo, int mes, int anio)
+    private string GenerarHtmlTablaArticulo(ReporteArticuloRangoDTO r)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine("<div style='font-family:Arial; font-size:12px;'>");
-        sb.AppendLine("<h2 style='text-align:center;'>REPORTE POR ARTÍCULO</h2>");
-        sb.AppendLine($"<p><strong>Artículo:</strong> {articulo.Descripcion}</p>");
-        sb.AppendLine($"<p><strong>Mes:</strong> {mes}/{anio}</p>");
+        string css = @"
+    <style>
+      .tbl{width:100%; border-collapse:collapse; font-family:Arial; font-size:12px;}
+      .tbl th, .tbl td{border:1px solid #ccc; padding:6px; text-align:center; }
+      .th1{background:#d9e6f2; font-weight:bold;}
+      .th-sep{background:#7ff0ff; font-weight:bold; text-align:left;}
+      .total{background:#ff0; font-weight:bold;}
+      .left{text-align:left;}
+      .muted{color:#666;}
+    </style>";
 
-        sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:60%;'>");
-        sb.AppendLine("<thead><tr><th>Almacén</th><th>Total Ventas por Mes</th></tr></thead>");
-        sb.AppendLine("<tbody>");
-        foreach (var t in articulo.TotalVentasMensual)
+        var header = $@"
+    {css}
+    <div style='margin-bottom:14px'>
+      <h2 style='text-align:center;margin:0'>VENTAS POR ARTÍCULO</h2>
+      <div style='text-align:center' class='muted'>{r.IdArticulo} - {System.Net.WebUtility.HtmlEncode(r.Descripcion)}</div>
+    </div>";
+
+        var thMeses = string.Join("", r.Meses.Select(m => $"<th class='th1'>{m.Label}</th>"));
+
+        var sb = new StringBuilder();
+        sb.AppendLine(header);
+        sb.AppendLine("<table class='tbl'>");
+        sb.AppendLine("<tr>");
+        sb.AppendLine("<th class='th1'>ALMACEN</th><th class='th1'>COD</th><th class='th1'>INGRESO</th><th class='th1 left'>Descripción</th>");
+        sb.AppendLine(thMeses);
+        sb.AppendLine("<th class='th1'>TOTAL</th><th class='th1'>Fch Ing</th><th class='th1'>Stock</th><th class='th1'>% Mercadería vendida</th><th class='th1'>PC</th><th class='th1'>PV</th>");
+        sb.AppendLine("</tr>");
+
+        foreach (var f in r.Filas)
         {
+            int maxFila = Math.Max(1, f.VentasPorMes.Values.Max());
+            string tdMeses = string.Join("", r.Meses.Select(m =>
+            {
+                var key = $"{m.Year:D4}{m.Month:D2}";
+                var val = f.VentasPorMes[key];
+                var ratio = (double)val / maxFila;
+                int rC = (int)(255 * (1 - ratio));
+                int gC = (int)(255 * ratio);
+                string bg = val == 0 ? "#f6f6f6" : $"rgb({rC},{gC},120)";
+                return $"<td style='background:{bg}'>{val}</td>";
+            }));
+
             sb.AppendLine("<tr>");
-            sb.AppendLine($"<td>{t.NombreAlmacen}</td>");
-            sb.AppendLine($"<td>S/ {t.MontoTotal:N2}</td>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.NombreAlmacen)}</td>");
+            sb.AppendLine($"<td>{f.Codigo}</td>");
+            sb.AppendLine($"<td>{f.Ingreso}</td>");
+            sb.AppendLine($"<td class='left'>{System.Net.WebUtility.HtmlEncode(r.Descripcion)}</td>");
+            sb.AppendLine(tdMeses);
+            sb.AppendLine($"<td>{f.TotalVentas}</td>");
+            sb.AppendLine($"<td>{(f.FechaPrimerIngreso.HasValue ? f.FechaPrimerIngreso.Value.ToString("dd/MM/yyyy") : "")}</td>");
+            sb.AppendLine($"<td>{f.Stock}</td>");
+            sb.AppendLine($"<td>{f.PorcentajeVendida:N2}</td>");
+            sb.AppendLine($"<td>{f.PC:N2}</td>");
+            sb.AppendLine($"<td>{f.PV:N2}</td>");
             sb.AppendLine("</tr>");
         }
-        sb.AppendLine("</tbody></table>");
-        sb.AppendLine("</div>");
 
+        string tdm = string.Join("", r.Meses.Select(m =>
+        {
+            var key = $"{m.Year:D4}{m.Month:D2}";
+            var val = r.Totales.VentasPorMes[key];
+            return $"<td class='total'>{val}</td>";
+        }));
+
+        sb.AppendLine("<tr class='total'>");
+        sb.AppendLine("<td>Total</td><td></td>");
+        sb.AppendLine($"<td>{r.Totales.Ingreso}</td>");
+        sb.AppendLine("<td class='left'></td>");
+        sb.AppendLine(tdm);
+        sb.AppendLine($"<td>{r.Totales.TotalVentas}</td>");
+        sb.AppendLine("<td></td>");
+        sb.AppendLine($"<td>{r.Totales.Stock}</td>");
+        sb.AppendLine($"<td>{r.Totales.PorcentajeVendida:N2}</td>");
+        sb.AppendLine("<td></td><td></td>");
+        sb.AppendLine("</tr>");
+
+        sb.AppendLine("</table>");
+        sb.AppendLine("<div style='height:18px'></div>");
         return sb.ToString();
     }
 }

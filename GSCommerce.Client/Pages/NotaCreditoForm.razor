@@ -27,7 +27,9 @@ else if (cabecera != null)
 
     <div class="mb-3">
         <label>Motivo:</label>
-        <select class="form-select" @bind="cabecera.IdMotivo">
+        <select class="form-select"
+                @bind="cabecera.IdMotivo"
+                @bind:after="OnMotivoChanged">
             <option value="">-- Seleccione --</option>
             <option value="01">DEVOLUCIÓN TOTAL</option>
             <option value="07">DEVOLUCIÓN POR ITEM</option>
@@ -56,7 +58,14 @@ else if (cabecera != null)
                     <td>
                         @if (editable)
                         {
-                            <input type="number" min="1" class="form-control" @bind="d.Cantidad" />
+                            <input type="number"
+                                   min="0"
+                                   step="1"
+                                   max="@d.CantidadOriginal"
+                                   class="form-control"
+                                   @bind-value="d.Cantidad"
+                                   @bind-value:event="oninput"
+                                   @bind-value:after="@(() => ActualizarCantidad(d))" />
                         }
                         else
                         {
@@ -174,6 +183,33 @@ else
         RecalcularTotales();
     }
 
+    private void OnMotivoChanged()
+    {
+        if (cabecera == null) return;
+
+        editable = cabecera.IdMotivo == "07";
+
+        if (cabecera.IdMotivo == "01")
+        {
+            foreach (var d in detalles)
+                d.Cantidad = d.CantidadOriginal;
+        }
+        else if (cabecera.IdMotivo == "07")
+        {
+            foreach (var d in detalles)
+                d.Cantidad = 0;
+        }
+
+        RecalcularTotales();
+    }
+
+    private void ActualizarCantidad(NotaCreditoDetalleDTO det)
+    {
+        if (det.Cantidad < 0) det.Cantidad = 0;
+        if (det.Cantidad > det.CantidadOriginal) det.Cantidad = det.CantidadOriginal;
+        RecalcularTotales();
+    }
+
     private void RecalcularTotales()
     {
         decimal total = 0;
@@ -233,7 +269,9 @@ else
 
         var series = await SerieCorrelativoService.ObtenerPorAlmacenAsync(idAlmacenActual.Value);
 
-        if (idUsuarioActual != null)
+        var cargo = await AuthService.GetUserCargo();
+        bool esAdmin = string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
+        if (!esAdmin && idUsuarioActual != null)
         {
             var asignadas = await AsignacionSerieCajeroService.ObtenerSeriesAsignadas(idUsuarioActual.Value, idAlmacenActual.Value);
             var idsAsignadas = asignadas.Select(a => a.IdSerieCorrelativo).ToHashSet();
@@ -276,10 +314,18 @@ else
             }
         }
 
+        RecalcularTotales();
+        var seleccionados = detalles.Where(d => d.Cantidad > 0).ToList();
+        if (seleccionados.Count == 0)
+        {
+            await JS.InvokeVoidAsync("alert", "Debe seleccionar al menos un ítem.");
+            return;
+        }
+
         var result = await ncService.EmitirNotaCreditoAsync(tipo, new NotaCreditoRegistroDTO
         {
             Cabecera = cabecera,
-            Detalles = detalles,
+            Detalles = seleccionados,
             IdComprobanteOriginal = idComprobante
         });
 

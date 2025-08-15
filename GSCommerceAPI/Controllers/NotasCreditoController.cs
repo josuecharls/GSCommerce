@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using GSCommerceAPI.Services.SUNAT;
 using QuestPDF.Fluent;
 using System.Linq;
+using System;
 
 namespace GSCommerceAPI.Controllers
 {
@@ -25,8 +26,12 @@ namespace GSCommerceAPI.Controllers
         [HttpPost("emitir/{tipo}")]
         public async Task<IActionResult> EmitirNotaCredito(string tipo, [FromBody] NotaCreditoRegistroDTO dto)
         {
-            if (dto == null || dto.Cabecera == null || dto.Detalles == null || !dto.Detalles.Any())
+            if (dto == null || dto.Cabecera == null || dto.Detalles == null)
                 return BadRequest("Datos incompletos.");
+
+            dto.Detalles = dto.Detalles.Where(d => d.Cantidad > 0).ToList();
+            if (!dto.Detalles.Any())
+                return BadRequest("Debe seleccionar al menos un ítem.");
 
             var comprobante = await _context.ComprobanteDeVentaCabeceras
                 .FirstOrDefaultAsync(c => c.IdComprobante == dto.IdComprobanteOriginal);
@@ -162,6 +167,39 @@ namespace GSCommerceAPI.Controllers
                     };
 
                     _context.NotaDeCreditoDetalles.Add(detalle);
+                }
+
+                // Registrar ingreso a almacén si corresponde
+                if ((tipoLower == "electronica" || tipoLower == "interna") &&
+                    (dto.Cabecera.IdMotivo == "01" || dto.Cabecera.IdMotivo == "07"))
+                {
+                    var mov = new MovimientosCabecera
+                    {
+                        IdAlmacen = cabecera.IdAlmacen,
+                        Tipo = "I",
+                        Motivo = "NC",
+                        Fecha = DateOnly.FromDateTime(cabecera.Fecha),
+                        Descripcion = $"Ingreso por NC {cabecera.Serie}-{cabecera.Numero:D8}",
+                        IdUsuario = cabecera.IdUsuario,
+                        FechaHoraRegistro = DateTime.Now,
+                        Estado = "A"
+                    };
+                    _context.MovimientosCabeceras.Add(mov);
+                    await _context.SaveChangesAsync();
+
+                    int itemMov = 1;
+                    foreach (var d in dto.Detalles)
+                    {
+                        _context.MovimientosDetalles.Add(new MovimientosDetalle
+                        {
+                            IdMovimiento = mov.IdMovimiento,
+                            Item = itemMov++,
+                            IdArticulo = d.IdArticulo.ToString(),
+                            DescripcionArticulo = d.Descripcion,
+                            Cantidad = d.Cantidad,
+                            Valor = d.Precio
+                        });
+                    }
                 }
 
                 // Marcar en el comprobante original que ya tiene NC

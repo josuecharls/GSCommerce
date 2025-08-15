@@ -1,26 +1,53 @@
 ﻿@page "/reportes/top10-articulos"
 @using GSCommerce.Client.Components
 @using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Models
+@using System.Globalization
+@using GSCommerce.Client.Services
 @inject ReporteService ReporteService
+@inject AlmacenService AlmacenService
+@inject AuthService AuthService
+@inject IJSRuntime JS
 
 <ReportsBreadcrumb Title="Top 10 Artículos" />
 
 <div class="row mb-3">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label>Desde:</label>
         <InputDate @bind-Value="desde" class="form-control" />
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label>Hasta:</label>
         <InputDate @bind-Value="hasta" class="form-control" />
     </div>
-    <div class="col-md-4 d-flex align-items-end">
-        <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
+
+    @if (esAdmin)
+    {
+        <div class="col-md-3">
+            <label>Almacén:</label>
+            <select class="form-select" @bind="idAlmacenSel">
+                <option value="0">General (todos)</option>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+    }
+
+    <div class="col-md-3 d-flex align-items-end gap-2">
+        <button class="btn btn-primary w-100" @onclick="Buscar" disabled="@loading">
+            @(loading ? "Buscando..." : "Buscar")
+        </button>
+        <button class="btn btn-success" @onclick="ExportarExcel" disabled="@(!top10.Any())">
+            Exportar Excel
+        </button>
     </div>
 </div>
 
 @if (top10.Any())
 {
+    var pe = CultureInfo.GetCultureInfo("es-PE");
     <table class="table table-hover table-bordered">
         <thead class="table-dark">
             <tr>
@@ -39,7 +66,7 @@
                     <td>@item.r.Codigo</td>
                     <td>@item.r.Descripcion</td>
                     <td>@item.r.TotalUnidadesVendidas</td>
-                    <td>S/ @(item.r.TotalImporte.ToString("N2"))</td>
+                    <td>@item.r.TotalImporte.ToString("C", pe)</td>
                 </tr>
             }
         </tbody>
@@ -55,13 +82,62 @@ else
     private DateTime desde = DateTime.Today.AddDays(-30);
     private DateTime hasta = DateTime.Today;
 
+    // filtros de admin
+    private bool esAdmin = false;
+    private List<AlmacenDTO> almacenes = new();
+    private int idAlmacenSel = 0;
+
+    private bool loading = false;
+
     protected override async Task OnInitializedAsync()
     {
+        esAdmin = (await AuthService.GetUserCargo() ?? string.Empty).ToUpperInvariant() == "ADMINISTRADOR";
+        if (esAdmin)
+        {
+            almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        }
         await Buscar();
     }
 
     private async Task Buscar()
     {
-        top10 = await ReporteService.ObtenerTop10Articulos(desde, hasta);
+        loading = true;
+        try
+        {
+            int? idAlmacenParam = esAdmin && idAlmacenSel > 0 ? idAlmacenSel : (int?)null;
+            top10 = await ReporteService.ObtenerTop10Articulos(desde, hasta, idAlmacenParam);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ExportarExcel()
+    {
+        var filas = top10.Select((r, i) => new ExportRow
+        {
+            Nro = i + 1,
+            Codigo = r.Codigo,
+            Descripcion = r.Descripcion,
+            Cantidad = r.TotalUnidadesVendidas,
+            Importe = r.TotalImporte
+        }).ToList();
+
+        var nombreAlmacen = "General (todos)";
+        if (esAdmin && idAlmacenSel > 0)
+            nombreAlmacen = almacenes.FirstOrDefault(a => a.IdAlmacen == idAlmacenSel)?.Nombre ?? $"Almacén {idAlmacenSel}";
+
+        await JS.InvokeVoidAsync("exportTop10Excel",
+            filas, desde.ToString("yyyy-MM-dd"), hasta.ToString("yyyy-MM-dd"), nombreAlmacen);
+    }
+
+    private class ExportRow
+    {
+        public int Nro { get; set; }
+        public string Codigo { get; set; } = "";
+        public string Descripcion { get; set; } = "";
+        public decimal Cantidad { get; set; }
+        public decimal Importe { get; set; }
     }
 }
