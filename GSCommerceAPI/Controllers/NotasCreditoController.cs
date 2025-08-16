@@ -87,13 +87,13 @@ namespace GSCommerceAPI.Controllers
                 {
                     tipoDocumentoReferenciaSunat = "01";
                     if (!string.IsNullOrEmpty(dto.Cabecera.Serie) && !char.IsLetter(dto.Cabecera.Serie[0]))
-                        dto.Cabecera.Serie = "F" + dto.Cabecera.Serie;
+                        dto.Cabecera.Serie = dto.Cabecera.Serie;
                 }
                 else if (comprobante.IdTipoDocumento == 1 || comprobante.IdTipoDocumento == 5)
                 {
                     tipoDocumentoReferenciaSunat = "03";
                     if (!string.IsNullOrEmpty(dto.Cabecera.Serie) && !char.IsLetter(dto.Cabecera.Serie[0]))
-                        dto.Cabecera.Serie = "B" + dto.Cabecera.Serie;
+                        dto.Cabecera.Serie = dto.Cabecera.Serie;
                 }
 
                 if (dto.Cabecera.IdTipoDocumento <= 0 || string.IsNullOrWhiteSpace(dto.Cabecera.Serie))
@@ -226,7 +226,7 @@ namespace GSCommerceAPI.Controllers
                 comprobante.GeneroNc = $"{cabecera.Serie}-{cabecera.Numero.ToString("D8")}";
                 if (dto.Cabecera.IdMotivo == "01")
                 {
-                    comprobante.Estado = "ANULADO";
+                    comprobante.Estado = "A";   
                     comprobante.IdUsuarioAnula = cabecera.IdUsuario;
                     comprobante.FechaHoraUsuarioAnula = DateTime.Now;
                 }

@@ -85,7 +85,7 @@ namespace GSCommerceAPI.Controllers
             var query =
                 from c in _context.ComprobanteDeVentaCabeceras
                 where c.Fecha >= desde.Date && c.Fecha < hastaExcl
-                      && (c.Estado != "ANULADO") // ajusta a tu esquema real
+                      && (c.Estado != "A") 
                       && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen.Value) // ← aplica filtro si viene
                 group c by c.IdAlmacen into g
                 select new

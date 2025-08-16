@@ -41,9 +41,9 @@
         }
         else if (EsCajaManual)
         {
+            <option>TICKET</option>
             <option>BOLETA M</option>
             <option>FACTURA M</option>
-            <option>TICKET</option>
         }
     </select>
 </div>
@@ -194,6 +194,8 @@ OnCancelado="CobroCancelado" />
                 // 🔹 Ya puedes usar idAlmacenActual para buscar la serie:
                 idAlmacenActual = await AuthService.GetUserAlmacenId();
                 idUsuarioActual = await AuthService.GetUserId();
+
+                // Inicializar la venta
                 venta.TipoDocumento = EsCajaManual ? "BOLETA M" : "BOLETA";
 
                 if (idAlmacenActual != null && idUsuarioActual != null)
