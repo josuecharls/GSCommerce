@@ -247,7 +247,16 @@ else
 
     private async Task ExportarAExcel()
     {
-        var headers = new[] { "Almacén", "Familia", "Línea", "Código", "Descripción", "Stock" };
+        var incluirValorizado = valorizado && cargo != "CAJERO";
+
+        var headers = new List<string> { "Almacén", "Familia", "Línea", "Código", "Descripción", "Stock" };
+        if (incluirValorizado)
+        {
+            headers.Add("Precio Compra");
+            headers.Add("Valor Compra");
+            headers.Add("Precio Venta");
+            headers.Add("Valor Venta");
+        }
 
         var todosLosArticulos = new List<StockDTO>();
         int pagina = 1;
@@ -277,17 +286,30 @@ else
 
         var datosExportar = todosLosArticulos
             .Where(s => !soloStockBajo || s.EstaBajoMinimo == true)
-            .Select(s => new object[]
+            .Select(s =>
             {
-                s.Almacen,
-                s.Familia,
-                s.Linea,
-                s.IdArticulo,
-                s.Descripcion,
-                s.Stock
+                var row = new List<object>
+                {
+                    s.Almacen,
+                    s.Familia,
+                    s.Linea,
+                    s.IdArticulo,
+                    s.Descripcion,
+                    s.Stock
+                };
+
+                if (incluirValorizado)
+                {
+                    row.Add(s.PrecioCompra);
+                    row.Add(s.ValorCompra);
+                    row.Add(s.PrecioVenta);
+                    row.Add(s.ValorVenta);
+                }
+
+                return row.ToArray();
             }).ToArray();
 
-        await JS.InvokeVoidAsync("exportToExcel", headers, datosExportar, "StockArticulos");
+        await JS.InvokeVoidAsync("exportToExcel", headers.ToArray(), datosExportar, incluirValorizado ? "StockArticulosValorizado" : "StockArticulos");
     }
 
     private async Task Actualizar()

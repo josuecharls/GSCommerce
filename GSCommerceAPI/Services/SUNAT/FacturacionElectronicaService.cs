@@ -587,8 +587,26 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("</cac:PartyLegalEntity>");
             sb.AppendLine("</cac:Party>");
             sb.AppendLine("</cac:AccountingCustomerParty>");
-            sb.AppendLine("<cac:PaymentTerms><cbc:ID>FormaPago</cbc:ID><cbc:PaymentMeansID>Contado</cbc:PaymentMeansID></cac:PaymentTerms>");
-            // Totales globales
+            if (dto.FormaPago.Equals("Credito", StringComparison.OrdinalIgnoreCase))
+            {
+                sb.AppendLine("<cac:PaymentTerms>");
+                sb.AppendLine("<cbc:ID>FormaPago</cbc:ID>");
+                sb.AppendLine("<cbc:PaymentMeansID>Credito</cbc:PaymentMeansID>");
+                sb.AppendLine($"<cbc:Amount currencyID=\"{ dto.Moneda}\">{dto.Total:F2}</cbc:Amount>");
+                sb.AppendLine("</cac:PaymentTerms>");
+                foreach (var cuota in dto.Cuotas)
+                {
+                    sb.AppendLine("<cac:PaymentTerms>");
+                    sb.AppendLine($"<cbc:ID>{cuota.Id}</cbc:ID>");
+                    sb.AppendLine($"<cbc:Amount currencyID=\"{ dto.Moneda}\">{cuota.Monto:F2}</cbc:Amount>");
+                    sb.AppendLine($"<cbc:PaymentDueDate>{cuota.FechaPago:yyyy-MM-dd}</cbc:PaymentDueDate>");
+                    sb.AppendLine("</cac:PaymentTerms>");
+                }
+            }
+            else
+            {
+                sb.AppendLine("<cac:PaymentTerms><cbc:ID>FormaPago</cbc:ID><cbc:PaymentMeansID>Contado</cbc:PaymentMeansID></cac:PaymentTerms>");
+            }            // Totales globales
             sb.AppendLine("<cac:TaxTotal>");
             sb.AppendLine($"<cbc:TaxAmount currencyID=\"{dto.Moneda}\">{dto.Igv:F2}</cbc:TaxAmount>");
             sb.AppendLine("<cac:TaxSubtotal>");

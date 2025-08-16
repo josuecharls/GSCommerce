@@ -14,7 +14,8 @@
         public decimal Igv { get; set; }
         public decimal Total { get; set; }
         public string MontoLetras { get; set; } = string.Empty;
-
+        public string FormaPago { get; set; } = "Contado";
+        public List<CuotaDTO> Cuotas { get; set; } = new();
         public string RucEmisor { get; set; } = string.Empty;
         public string RazonSocialEmisor { get; set; } = string.Empty;
         public string DireccionEmisor { get; set; } = string.Empty;
