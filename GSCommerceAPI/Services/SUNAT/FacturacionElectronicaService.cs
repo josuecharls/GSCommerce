@@ -526,6 +526,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 sb.AppendLine("<cac:DiscrepancyResponse>");
                 sb.AppendLine($"<cbc:ReferenceID>{refId}</cbc:ReferenceID>");
                 sb.AppendLine($"<cbc:ResponseCode>{dto.TipoNotaCredito}</cbc:ResponseCode>");
+                sb.AppendLine($"<cbc:Description>{EscaparTextoXml(dto.DescripcionNotaCredito)}</cbc:Description>");
                 sb.AppendLine("</cac:DiscrepancyResponse>");
                 sb.AppendLine("<cac:BillingReference>");
                 sb.AppendLine("<cac:InvoiceDocumentReference>");

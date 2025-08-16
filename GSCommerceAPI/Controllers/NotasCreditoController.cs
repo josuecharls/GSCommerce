@@ -248,6 +248,13 @@ namespace GSCommerceAPI.Controllers
                         string provincia = dpdParts.Length > 1 ? dpdParts[1].Trim() : string.Empty;
                         string departamento = dpdParts.Length > 2 ? dpdParts[2].Trim() : string.Empty;
 
+                        var descripcionNota = cabecera.IdMotivo switch
+                        {
+                            "01" => "DEVOLUCIÓN TOTAL",
+                            "07" => "DEVOLUCIÓN POR ÍTEM",
+                            _ => "OTROS"
+                        };
+
                         var comprobanteSunat = new GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteCabeceraDTO
                         {
                             IdComprobante = cabecera.IdNc,
@@ -256,6 +263,7 @@ namespace GSCommerceAPI.Controllers
                             TipoDocumentoReferencia = tipoDocumentoReferenciaSunat,
                             SerieDocumentoReferencia = comprobante.Serie,
                             NumeroDocumentoReferencia = comprobante.Numero,
+                            DescripcionNotaCredito = descripcionNota,
                             Serie = cabecera.Serie,
                             Numero = cabecera.Numero,
                             FechaEmision = cabecera.Fecha,

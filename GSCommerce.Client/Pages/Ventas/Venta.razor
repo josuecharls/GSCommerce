@@ -1,6 +1,7 @@
 ﻿@page "/ventas"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@inject NavigationManager Nav
 @inject VentaService ventaService
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService
@@ -249,7 +250,7 @@
         };
 
         if (!string.IsNullOrEmpty(url))
-            await JS.InvokeVoidAsync("open", url, "_blank");
+            Nav.NavigateTo(url);
     }
 
     private async Task VerNCPdf(VentaConsultaDTO v)

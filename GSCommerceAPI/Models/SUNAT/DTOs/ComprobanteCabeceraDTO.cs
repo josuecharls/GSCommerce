@@ -32,5 +32,6 @@
         public string TipoDocumentoReferencia { get; set; } = string.Empty;
         public string SerieDocumentoReferencia { get; set; } = string.Empty;
         public int NumeroDocumentoReferencia { get; set; }
+        public string DescripcionNotaCredito { get; set; } = string.Empty;
     }
 }

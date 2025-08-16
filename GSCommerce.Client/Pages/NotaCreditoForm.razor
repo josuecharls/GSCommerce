@@ -84,7 +84,7 @@ else if (cabecera != null)
                         }
                     </td>
                     <td>@(d.PorcentajeDescuento * 100).ToString("N2")</td>
-                    <td>@d.Total.ToString("N2")</td>
+                    <td>@(d.Total.ToString("N2"))</td>
                     <td>
                         @if (editable)
                         {
@@ -355,7 +355,7 @@ else
         if (string.IsNullOrWhiteSpace(result.Error))
         {
             await JS.InvokeVoidAsync("alert", $"✅ Nota de Crédito generada: {result.Serie}-{result.Numero:D8}");
-            var pdfUrl = $"/api/notascredito/pdf/{result.IdNc}";
+            var pdfUrl = $"/api/api/notascredito/pdf/{result.IdNc}";
             await JS.InvokeVoidAsync("open", pdfUrl, "_blank");
             nav.NavigateTo("/ventas");
         }
