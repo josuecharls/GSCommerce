@@ -9,6 +9,7 @@
 @inject ProveedorService ProveedorService
 @inject OrdenCompraService OrdenCompraService
 @inject ArticuloService ArticuloService
+@using System.Linq
 
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
@@ -64,13 +65,18 @@ else
             <div class="row mt-3">
                 <div class="col-md-6">
                     <label class="form-label">🏢 Proveedor</label>
-                    <select class="form-control" @bind="guia.IdProveedor">
-                        <option disabled value="">-- Seleccionar --</option>
+                    <input class="form-control"
+                           list="proveedoresList"
+                           @bind="proveedorNombre"
+                           @bind:event="oninput"
+                           @bind:after="SincronizarProveedor"
+                           placeholder="Buscar proveedor..." />
+                    <datalist id="proveedoresList">
                         @foreach (var p in proveedores)
                         {
-                            <option value="@p.IdProveedor">@p.Nombre</option>
+                            <option value="@p.Nombre"></option>
                         }
-                    </select>
+                    </datalist>
                 </div>
             </div>
         }
@@ -135,6 +141,7 @@ else
     private string titulo = "";
     private int totalArticulos = 0;
     private string tipoMovimiento = ""; // I, E, T
+    private string proveedorNombre = string.Empty;
 
     private bool mostrarDestino => tipo == "Transferencia" || tipo == "IngresoXOC";
     private bool mostrarProveedor => tipo == "Ingreso" || tipo == "IngresoXOC" || guia.Motivo == "DEVOLUCION A PROVEEDOR";
@@ -210,6 +217,8 @@ else
         guia.Detalles.Add(new MovimientoDetalleDTO { Item = 1, Cantidad = 1, Valor = 0 });
         CalcularTotalArticulos();
 
+        proveedorNombre = proveedores.FirstOrDefault(p => p.IdProveedor == guia.IdProveedor)?.Nombre ?? string.Empty;
+
         isLoading = false;
 
 
@@ -268,6 +277,13 @@ else
         else await MostrarAlerta("❌ Ocurrió un error al guardar la guía.");
     }
 
+    private void OnProveedorChanged(ChangeEventArgs e)
+    {
+        proveedorNombre = e.Value?.ToString() ?? string.Empty;
+        var prov = proveedores.FirstOrDefault(p => p.Nombre.Equals(proveedorNombre, System.StringComparison.OrdinalIgnoreCase));
+        guia.IdProveedor = prov?.IdProveedor;
+    }
+
     private async Task MostrarAlerta(string mensaje)
     {
         await JS.InvokeVoidAsync("alert", mensaje);
@@ -291,6 +307,13 @@ else
         guia.Detalles.Remove(item);
         ReordenarItems();
         CalcularTotalArticulos();
+    }
+
+    private void SincronizarProveedor()
+    {
+        var prov = proveedores.FirstOrDefault(p =>
+            p.Nombre.Equals(proveedorNombre, StringComparison.OrdinalIgnoreCase));
+        guia.IdProveedor = prov?.IdProveedor;
     }
 
     private void ReordenarItems()

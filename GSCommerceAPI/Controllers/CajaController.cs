@@ -595,14 +595,14 @@ public class CajaController : ControllerBase
             var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC; // efectivo real en caja
             var ventaDia = ventaEfectivo + ventaTarjeta;
 
-            // --- Distribución de efectivo por grupo de venta (para mostrar solo EFECTIVO en la tabla Detalle) ---
+            // --- Distribución de totales ---
             string[] gruposVentaBase = { "VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2" };
 
             var totalesVentaPorGrupo = resumenVentas
                 .Where(r => gruposVentaBase.Any(g => r.Grupo.StartsWith(g, StringComparison.OrdinalIgnoreCase)))
                 .GroupBy(r => gruposVentaBase.First(g => r.Grupo.StartsWith(g, StringComparison.OrdinalIgnoreCase)))
                 .ToDictionary(g => g.Key, g => g.Sum(x => x.Monto));
-
+/*
             var ventasResumenTotal = totalesVentaPorGrupo.Values.Sum();
             var efectivoPorGrupo = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
 
@@ -627,7 +627,7 @@ public class CajaController : ControllerBase
             {
                 foreach (var g in gruposVentaBase) efectivoPorGrupo[g] = 0m;
             }
-
+*/
             // 7) INGRESOS / EGRESOS (solo del día) — para totales de tarjetas y egresos
             var categoriasExactas = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -663,7 +663,7 @@ public class CajaController : ControllerBase
             // 8) Construir DETALLE para el PDF
             var detalleHoy = new List<ResumenCierreDeCaja>();
 
-            // Ventas EFECTIVO por grupo (detalle = el primero encontrado del resumen)
+            // Ventas TOTALES por grupo (detalle = el primero encontrado del resumen)
             foreach (var g in gruposVentaBase)
             {
                 if (totalesVentaPorGrupo.ContainsKey(g))
@@ -674,7 +674,7 @@ public class CajaController : ControllerBase
                         IdGrupo = 1,
                         Grupo = g,
                         Detalle = primerDetalle,
-                        Monto = efectivoPorGrupo[g] // <-- solo EFECTIVO aquí
+                        Monto = totalesVentaPorGrupo[g] // <-- solo EFECTIVO aquí
                     });
                 }
             }

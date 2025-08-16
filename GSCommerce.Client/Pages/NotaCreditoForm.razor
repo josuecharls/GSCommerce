@@ -1,6 +1,7 @@
 ﻿@page "/nota-credito/{tipo}/{idComprobante:int}"
 @**@
 @using Microsoft.AspNetCore.Authorization
+@using System.Linq
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject NotaCreditoService ncService
@@ -33,6 +34,16 @@ else if (cabecera != null)
             <option value="">-- Seleccione --</option>
             <option value="01">DEVOLUCIÓN TOTAL</option>
             <option value="07">DEVOLUCIÓN POR ITEM</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label>Serie:</label>
+        <select class="form-select" @bind="cabecera.Serie" @bind:after="OnSerieChanged">
+            @foreach (var s in seriesDisponibles)
+            {
+                <option value="@s.Serie">@s.Serie</option>
+            }
         </select>
     </div>
 
@@ -281,13 +292,29 @@ else
 
         var primera = preferida ?? seriesDisponibles.FirstOrDefault(s => s.Estado) ?? seriesDisponibles.FirstOrDefault();
 
-        if (primera != null)
+        if (string.IsNullOrWhiteSpace(cabecera.Serie))
         {
-            cabecera.Serie = primera.Serie;
-            cabecera.Numero = primera.Correlativo + 1;
+            if (primera != null)
+            {
+                cabecera.Serie = primera.Serie;
+                cabecera.Numero = primera.Correlativo + 1;
+            }
+        }
+        else
+        {
+            var sel = seriesDisponibles.FirstOrDefault(s => s.Serie == cabecera.Serie);
+            if (sel != null)
+                cabecera.Numero = sel.Correlativo + 1;
         }
     }
 
+    private void OnSerieChanged()
+    {
+        if (cabecera == null) return;
+        var serieSel = seriesDisponibles.FirstOrDefault(s => s.Serie == cabecera.Serie);
+        if (serieSel != null)
+            cabecera.Numero = serieSel.Correlativo + 1;
+    }
 
     private async Task EmitirNotaCredito()
     {
@@ -328,7 +355,7 @@ else
             IdComprobanteOriginal = idComprobante
         });
 
-        if (result != null)
+        if (string.IsNullOrWhiteSpace(result.Error))
         {
             await JS.InvokeVoidAsync("alert", $"✅ Nota de Crédito generada: {result.Serie}-{result.Numero:D8}");
             var pdfUrl = $"/api/notascredito/pdf/{result.IdNc}";
@@ -337,7 +364,7 @@ else
         }
         else
         {
-            await JS.InvokeVoidAsync("alert", "❌ Error al emitir la nota de crédito.");
+            await JS.InvokeVoidAsync("alert", $"❌ {result.Error}");
         }
     }
 }

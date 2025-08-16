@@ -196,7 +196,7 @@ OnCancelado="CobroCancelado" />
                 idUsuarioActual = await AuthService.GetUserId();
 
                 // Inicializar la venta
-                venta.TipoDocumento = EsCajaManual ? "BOLETA M" : "BOLETA";
+                venta.TipoDocumento = EsCajaManual ? "TICKET" : "BOLETA";
 
                 if (idAlmacenActual != null && idUsuarioActual != null)
                 {

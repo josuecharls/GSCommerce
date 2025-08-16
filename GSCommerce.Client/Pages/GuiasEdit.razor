@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @inject AlmacenService AlmacenService
 @inject ProveedorService ProveedorService
+@using System.Linq
 
 <h3>✏️ Editar Guía</h3>
 
@@ -39,13 +40,18 @@ else
                 </select>
 
                 <label class="mt-3">Proveedor</label>
-                <select class="form-control" @bind="guia.IdProveedor">
-                    <option value="">-- Seleccionar --</option>
+                <input class="form-control"
+                       list="proveedoresList"
+                       @bind="proveedorNombre"
+                       @bind:event="oninput"
+                       @bind:after="SincronizarProveedorEdit"
+                       placeholder="Buscar proveedor..." />
+                <datalist id="proveedoresList">
                     @foreach (var p in proveedores)
                     {
-                        <option value="@p.IdProveedor">@p.Nombre</option>
+                        <option value="@p.Nombre"></option>
                     }
-                </select>
+                </datalist>
             </div>
         </div>
 
@@ -94,6 +100,7 @@ else
     private List<AlmacenDTO> almacenes = new();
     private List<ProveedorDTO> proveedores = new();
     private bool isLoading = true;
+    private string proveedorNombre = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -101,6 +108,7 @@ else
         guia = await MovimientoGuiaService.GetMovimientoById(id) ?? new();
         almacenes = await AlmacenService.GetAlmacenes() ?? new();
         proveedores = await ProveedorService.GetProveedores() ?? new();
+        proveedorNombre = proveedores.FirstOrDefault(p => p.IdProveedor == guia.IdProveedor)?.Nombre ?? string.Empty;
         isLoading = false;
     }
 
@@ -128,10 +136,24 @@ else
         }
     }
 
+    private void OnProveedorChanged(ChangeEventArgs e)
+    {
+        proveedorNombre = e.Value?.ToString() ?? string.Empty;
+        var prov = proveedores.FirstOrDefault(p => p.Nombre.Equals(proveedorNombre, System.StringComparison.OrdinalIgnoreCase));
+        guia.IdProveedor = prov?.IdProveedor;
+    }
+
     private async Task Guardar()
     {
         bool ok = await MovimientoGuiaService.UpdateMovimiento(guia.IdMovimiento, guia);
         if (ok) Navigation.NavigateTo("/guias");
+    }
+
+    private void SincronizarProveedorEdit()
+    {
+        var prov = proveedores.FirstOrDefault(p =>
+            p.Nombre.Equals(proveedorNombre, StringComparison.OrdinalIgnoreCase));
+        guia.IdProveedor = prov?.IdProveedor;
     }
 
     private void Cancelar()

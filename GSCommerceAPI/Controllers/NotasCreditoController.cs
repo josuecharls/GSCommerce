@@ -173,7 +173,7 @@ namespace GSCommerceAPI.Controllers
                 }
 
                 // Registrar ingreso a almacén si corresponde
-                if ((tipoLower == "electronica" || tipoLower == "interna") &&
+                if ((tipoLower == "electronica" || tipoLower == "interna" || tipoLower == "manual") &&
                     (dto.Cabecera.IdMotivo == "01" || dto.Cabecera.IdMotivo == "07"))
                 {
                     var mov = new MovimientosCabecera
