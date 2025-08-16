@@ -416,21 +416,23 @@
             : "-";
         sb.AppendLine($"FORMA DE PAGO: {formasPago}");
         sb.AppendLine(Center("================================"));
-        sb.AppendLine("Cant Producto            PU   TOTAL");
-        sb.AppendLine(Center("-----------------------------------"));
+        sb.AppendLine("Cant Código  Producto   PU   TOTAL");
+        sb.AppendLine(Center("----------------------------------------"));
 
         foreach (var item in detalles)
         {
             decimal cantidad = GetAny<decimal>(item, 0m, "Cantidad");
             decimal pu = GetAny<decimal>(item, 0m, "PrecioUnitario", "Precio");
             decimal totalLn = GetAny<decimal>(item, 0m, "Total");
+            string codigo = GetAny<string>(item, "", "CodigoItem", "Codigo");
+            if (codigo.Length > 8) codigo = codigo[..8];
             string desc = GetAny<string>(item, "", "DescripcionItem", "Descripcion");
-            if (desc.Length > 18) desc = desc[..18];
+            if (desc.Length > 12) desc = desc[..12];
 
-            sb.AppendLine($"{cantidad,3:0} {desc.PadRight(18)} {pu,6:0.00} {totalLn,7:0.00}");
+            sb.AppendLine($"{cantidad,3:0} {codigo.PadRight(8)} {desc.PadRight(12)} {pu,6:0.00} {totalLn,7:0.00}");
         }
 
-        sb.AppendLine(Center("-----------------------------------"));
+        sb.AppendLine(Center("----------------------------------------"));
         sb.AppendLine($"DESCUENTO                S/ {descuento,7:0.00}");
         sb.AppendLine($"TOTAL                    S/ {total,7:0.00}");
         sb.AppendLine(Center("***********************************"));

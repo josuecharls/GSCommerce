@@ -254,6 +254,8 @@ namespace GSCommerceAPI.Controllers
                             TipoDocumento = "07",
                             TipoNotaCredito = cabecera.IdMotivo ?? "01", // SUNAT motivo
                             TipoDocumentoReferencia = tipoDocumentoReferenciaSunat,
+                            SerieDocumentoReferencia = comprobante.Serie,
+                            NumeroDocumentoReferencia = comprobante.Numero,
                             Serie = cabecera.Serie,
                             Numero = cabecera.Numero,
                             FechaEmision = cabecera.Fecha,

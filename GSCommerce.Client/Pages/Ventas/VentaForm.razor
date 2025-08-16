@@ -841,16 +841,17 @@ OnCancelado="CobroCancelado" />
         sb.AppendLine($"VENDEDOR: {venta.NombreVendedor}");
         sb.AppendLine($"FORMA DE PAGO: {formasPago}");
         sb.AppendLine(Center("================================"));
-        sb.AppendLine("Cant Producto            PU   TOTAL");
-        sb.AppendLine(Center("-----------------------------------"));
+        sb.AppendLine("Cant Código  Producto   PU   TOTAL");
+        sb.AppendLine(Center("----------------------------------------"));
 
         foreach (var item in venta.Detalles)
         {
-            var desc = item.DescripcionItem.Length > 18 ? item.DescripcionItem[..18] : item.DescripcionItem;
-            sb.AppendLine($"{item.Cantidad,3} {desc.PadRight(18)} {item.PrecioUnitario,6:0.00} {item.Total,7:0.00}");
+            var codigo = item.CodigoItem.Length > 8 ? item.CodigoItem[..8] : item.CodigoItem;
+            var desc = item.DescripcionItem.Length > 12 ? item.DescripcionItem[..12] : item.DescripcionItem;
+            sb.AppendLine($"{item.Cantidad,3} {codigo.PadRight(8)} {desc.PadRight(12)} {item.PrecioUnitario,6:0.00} {item.Total,7:0.00}");
         }
 
-        sb.AppendLine(Center("-----------------------------------"));
+        sb.AppendLine(Center("----------------------------------------"));
         sb.AppendLine($"DESCUENTO                S/ {descuento,7:0.00}");
         sb.AppendLine($"TOTAL                    S/ {venta.Total,7:0.00}");
         sb.AppendLine(Center("***********************************"));

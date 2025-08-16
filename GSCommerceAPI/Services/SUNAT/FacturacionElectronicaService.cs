@@ -417,6 +417,28 @@ namespace GSCommerceAPI.Services.SUNAT
             string doc = $"{dto.Serie}-{dto.Numero:D8}";
             var sb = new StringBuilder();
 
+            // Determinar etiquetas según tipo de documento
+            string rootTag = "Invoice";
+            string rootNs = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2";
+            string typeCodeTag = "InvoiceTypeCode";
+            string lineTag = "InvoiceLine";
+            string quantityTag = "InvoicedQuantity";
+            if (dto.TipoDocumento == "07")
+            {
+                rootTag = "CreditNote";
+                rootNs = "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2";
+                typeCodeTag = "CreditNoteTypeCode";
+                lineTag = "CreditNoteLine";
+                quantityTag = "CreditedQuantity";
+            }
+            else if (dto.TipoDocumento == "08")
+            {
+                rootTag = "DebitNote";
+                rootNs = "urn:oasis:names:specification:ubl:schema:xsd:DebitNote-2";
+                typeCodeTag = "DebitNoteTypeCode";
+                lineTag = "DebitNoteLine";
+                quantityTag = "DebitedQuantity";
+            }
             // -- Manejo de descuentos globales --
             // Eliminamos las líneas de descuento y acumulamos su monto
             // para enviarlo como un descuento global (ID 2005).
@@ -468,7 +490,7 @@ namespace GSCommerceAPI.Services.SUNAT
             dto.Total = Math.Round(subtotalPositivo + igvPositivo - descuentoConIgv, 2);
 
             sb.AppendLine($"<?xml version={q}1.0{q} encoding={q}ISO-8859-1{q} standalone={q}no{q}?>");
-            sb.AppendLine($"<Invoice xmlns={q}urn:oasis:names:specification:ubl:schema:xsd:Invoice-2{q}" +
+            sb.AppendLine($"<{rootTag} xmlns={q}{rootNs}{q}" +
                           $" xmlns:cac={q}urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2{q}" +
                           $" xmlns:cbc={q}urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2{q}" +
                           $" xmlns:ds={q}http://www.w3.org/2000/09/xmldsig#{q}" +
@@ -491,10 +513,27 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine($"<cbc:ID>{doc}</cbc:ID>");
             sb.AppendLine($"<cbc:IssueDate>{dto.FechaEmision:yyyy-MM-dd}</cbc:IssueDate>");
             sb.AppendLine($"<cbc:IssueTime>{dto.HoraEmision.ToString(@"hh\:mm\:ss")}</cbc:IssueTime>");
-            sb.AppendLine($"<cbc:InvoiceTypeCode listID={q}0101{q}>{dto.TipoDocumento}</cbc:InvoiceTypeCode>");
+            if (dto.TipoDocumento == "07" || dto.TipoDocumento == "08")
+                sb.AppendLine($"<cbc:{typeCodeTag}>{dto.TipoNotaCredito}</cbc:{typeCodeTag}>");
+            else
+                sb.AppendLine($"<cbc:{typeCodeTag} listID={q}0101{q}>{dto.TipoDocumento}</cbc:{typeCodeTag}>");
             sb.AppendLine($"<cbc:Note languageLocaleID={q}1000{q}><![CDATA[{dto.MontoLetras}]]></cbc:Note>");
             sb.AppendLine($"<cbc:DocumentCurrencyCode>{dto.Moneda}</cbc:DocumentCurrencyCode>");
             sb.AppendLine($"<cbc:LineCountNumeric>{dto.Detalles.Count}</cbc:LineCountNumeric>");
+            if (dto.TipoDocumento == "07" || dto.TipoDocumento == "08")
+            {
+                string refId = $"{dto.SerieDocumentoReferencia}-{dto.NumeroDocumentoReferencia:D8}";
+                sb.AppendLine("<cac:DiscrepancyResponse>");
+                sb.AppendLine($"<cbc:ReferenceID>{refId}</cbc:ReferenceID>");
+                sb.AppendLine($"<cbc:ResponseCode>{dto.TipoNotaCredito}</cbc:ResponseCode>");
+                sb.AppendLine("</cac:DiscrepancyResponse>");
+                sb.AppendLine("<cac:BillingReference>");
+                sb.AppendLine("<cac:InvoiceDocumentReference>");
+                sb.AppendLine($"<cbc:ID>{refId}</cbc:ID>");
+                sb.AppendLine($"<cbc:DocumentTypeCode>{dto.TipoDocumentoReferencia}</cbc:DocumentTypeCode>");
+                sb.AppendLine("</cac:InvoiceDocumentReference>");
+                sb.AppendLine("</cac:BillingReference>");
+            }
             //EMISOR
             sb.AppendLine("<cac:AccountingSupplierParty>");
             sb.AppendLine($"<cbc:CustomerAssignedAccountID schemeID={q}6{q}>{dto.RucEmisor}</cbc:CustomerAssignedAccountID>");
@@ -568,13 +607,11 @@ namespace GSCommerceAPI.Services.SUNAT
             {
                 var baseImponible = Math.Round(item.Cantidad * item.PrecioUnitarioSinIGV, 2);
                 var igv = Math.Round(baseImponible * 0.18m, 2);
-                var total = baseImponible + igv;
 
-                sb.AppendLine("<cac:InvoiceLine>");
+                sb.AppendLine($"<cac:{lineTag}>");
                 sb.AppendLine($"<cbc:ID>{item.Item}</cbc:ID>");
-                sb.AppendLine($"<cbc:InvoicedQuantity unitCode=\"{item.UnidadMedida}\">{item.Cantidad:F2}</cbc:InvoicedQuantity>");
+                sb.AppendLine($"<cbc:{quantityTag} unitCode=\"{item.UnidadMedida}\">{item.Cantidad:F2}</cbc:{quantityTag}>");
                 sb.AppendLine($"<cbc:LineExtensionAmount currencyID=\"{dto.Moneda}\">{baseImponible:F2}</cbc:LineExtensionAmount>");
-
                 sb.AppendLine("<cac:PricingReference><cac:AlternativeConditionPrice>");
                 sb.AppendLine($"<cbc:PriceAmount currencyID=\"{dto.Moneda}\">{item.PrecioUnitarioConIGV:F2}</cbc:PriceAmount>");
                 sb.AppendLine("<cbc:PriceTypeCode>01</cbc:PriceTypeCode></cac:AlternativeConditionPrice></cac:PricingReference>");
@@ -591,11 +628,11 @@ namespace GSCommerceAPI.Services.SUNAT
                 sb.AppendLine("<cac:Item><cbc:Description>" + EscaparTextoXml(item.DescripcionItem) + "</cbc:Description><cac:SellersItemIdentification><cbc:ID>" + item.CodigoItem + "</cbc:ID></cac:SellersItemIdentification></cac:Item>");
                 sb.AppendLine("<cac:Price><cbc:PriceAmount currencyID=\"" + dto.Moneda + "\">" + item.PrecioUnitarioSinIGV.ToString("F2") + "</cbc:PriceAmount></cac:Price>");
 
-                sb.AppendLine("</cac:InvoiceLine>");
+                sb.AppendLine($"</cac:{lineTag}>");
 
             }
             //sb.AppendLine($"<cac:DeliveryLocation><cbc:ID>0000</cbc:ID></cac:DeliveryLocation>");
-            sb.AppendLine("</Invoice>");
+            sb.AppendLine($"</{rootTag}>");
             return sb.ToString();
         }
 

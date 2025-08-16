@@ -248,15 +248,44 @@ else
     private async Task ExportarAExcel()
     {
         var headers = new[] { "Almacén", "Familia", "Línea", "Código", "Descripción", "Stock" };
-        var datosExportar = listaStockFiltrada.Select(s => new object[]
+
+        var todosLosArticulos = new List<StockDTO>();
+        int pagina = 1;
+        while (true)
         {
-            s.Almacen,
-            s.Familia,
-            s.Linea,
-            s.IdArticulo,
-            s.Descripcion,
-            s.Stock
-        }).ToArray();
+            var resultado = await StockService.GetStock(
+                porAlmacen ? idAlmacenSeleccionado : (int?)null,
+                incluirStockCero,
+                search,
+                filtroBusqueda,
+                pagina,
+                pageSize
+            );
+
+            if (resultado?.Items != null)
+            {
+                todosLosArticulos.AddRange(resultado.Items);
+            }
+
+            if (todosLosArticulos.Count >= (resultado?.TotalCount ?? 0))
+            {
+                break;
+            }
+
+            pagina++;
+        }
+
+        var datosExportar = todosLosArticulos
+            .Where(s => !soloStockBajo || s.EstaBajoMinimo == true)
+            .Select(s => new object[]
+            {
+                s.Almacen,
+                s.Familia,
+                s.Linea,
+                s.IdArticulo,
+                s.Descripcion,
+                s.Stock
+            }).ToArray();
 
         await JS.InvokeVoidAsync("exportToExcel", headers, datosExportar, "StockArticulos");
     }

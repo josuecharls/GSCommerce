@@ -27,9 +27,10 @@
         public string TipoDocumentoCliente { get; set; } = string.Empty;
         public string NombreCliente { get; set; } = string.Empty;
         public string DireccionCliente { get; set; } = string.Empty;
-
         public List<ComprobanteDetalleDTO> Detalles { get; set; } = new();
         public string TipoNotaCredito { get; set; } = string.Empty;
         public string TipoDocumentoReferencia { get; set; } = string.Empty;
+        public string SerieDocumentoReferencia { get; set; } = string.Empty;
+        public int NumeroDocumentoReferencia { get; set; }
     }
 }
