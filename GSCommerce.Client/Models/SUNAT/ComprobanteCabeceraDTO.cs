@@ -8,8 +8,6 @@
         public int Numero { get; set; }
         public DateTime FechaEmision { get; set; }
         public TimeSpan HoraEmision { get; set; }
-        public string FormaPago { get; set; } = "Contado";
-        public List<CuotaDTO> Cuotas { get; set; } = new();
         public string Moneda { get; set; } = "PEN";
         public decimal SubTotal { get; set; }
         public decimal Igv { get; set; }
