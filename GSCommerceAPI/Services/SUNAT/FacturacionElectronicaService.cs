@@ -1,17 +1,18 @@
-﻿using GSCommerceAPI.Models.SUNAT.DTOs;
+﻿using GSCommerceAPI.Data;
+using GSCommerceAPI.Models;
+using GSCommerceAPI.Models.SUNAT.DTOs;
+using Microsoft.EntityFrameworkCore;
+using ServicioSunat;
+using System.Globalization;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
+using System.ServiceModel;
+using System.ServiceModel.Channels;
 using System.Text;
 using System.Xml;
-using System.IO;
-using System.Linq;
-using System.IO.Compression;
-using System.ServiceModel.Channels;
-using System.ServiceModel;
-using GSCommerceAPI.Models;
-using Microsoft.EntityFrameworkCore;
-using GSCommerceAPI.Data;
-using ServicioSunat;
 
 namespace GSCommerceAPI.Services.SUNAT
 {
@@ -417,13 +418,49 @@ namespace GSCommerceAPI.Services.SUNAT
             string doc = $"{dto.Serie}-{dto.Numero:D8}";
             var sb = new StringBuilder();
 
-            // Determinar etiquetas según tipo de documento
+            // ===== Normalizaciones previas =====
+            bool esNC = dto.TipoDocumento == "07";
+            bool esND = dto.TipoDocumento == "08";
+
+            // 1) Moneda en NC: misma moneda que el doc de referencia (tu operación usa PEN)
+            if (esNC && !string.IsNullOrWhiteSpace(dto.Moneda) && !dto.Moneda.Equals("PEN", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Notas de crédito deben emitirse en la misma moneda que el comprobante referenciado. Use PEN.");
+
+            // 2) Motivo: DEVOLUCIÓN TOTAL => 06 (Catálogo 09)
+            if (esNC && !string.IsNullOrWhiteSpace(dto.DescripcionNotaCredito) &&
+                dto.DescripcionNotaCredito.Trim().ToUpperInvariant().Contains("DEVOLUCIÓN TOTAL"))
+            {
+                dto.TipoNotaCredito = "06";
+            }
+
+            // 3) Serie de referencia: agrega prefijo B/F si falta (según tipo ref)
+            string NormalizarSerieRef(string tipoRef, string serie)
+            {
+                if (string.IsNullOrWhiteSpace(serie)) return serie;
+                string s = serie.Trim();
+                char first = s[0];
+                bool empiezaConLetra = char.IsLetter(first);
+
+                if (tipoRef == "03") // Boleta
+                {
+                    if (!s.StartsWith("B", StringComparison.OrdinalIgnoreCase))
+                        s = empiezaConLetra ? s : "B" + s;
+                }
+                else if (tipoRef == "01") // Factura
+                {
+                    if (!s.StartsWith("F", StringComparison.OrdinalIgnoreCase))
+                        s = empiezaConLetra ? s : "F" + s;
+                }
+                return s;
+            }
+
+            // Etiquetas según tipo
             string rootTag = "Invoice";
             string rootNs = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2";
             string typeCodeTag = "InvoiceTypeCode";
             string lineTag = "InvoiceLine";
             string quantityTag = "InvoicedQuantity";
-            if (dto.TipoDocumento == "07")
+            if (esNC)
             {
                 rootTag = "CreditNote";
                 rootNs = "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2";
@@ -431,7 +468,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 lineTag = "CreditNoteLine";
                 quantityTag = "CreditedQuantity";
             }
-            else if (dto.TipoDocumento == "08")
+            else if (esND)
             {
                 rootTag = "DebitNote";
                 rootNs = "urn:oasis:names:specification:ubl:schema:xsd:DebitNote-2";
@@ -439,17 +476,16 @@ namespace GSCommerceAPI.Services.SUNAT
                 lineTag = "DebitNoteLine";
                 quantityTag = "DebitedQuantity";
             }
-            // -- Manejo de descuentos globales --
-            // Eliminamos las líneas de descuento y acumulamos su monto
-            // para enviarlo como un descuento global (ID 2005).
-            decimal descuentoBase = 0m;      // Monto sin IGV
-            decimal descuentoIgv = 0m;       // IGV del descuento
+
+            // --- Descuento global detectado desde "líneas negativas" ---
+            decimal descuentoBase = 0m; // sin IGV
+            decimal descuentoIgv = 0m;
             var detallesValidos = new List<ComprobanteDetalleDTO>();
 
             foreach (var det in dto.Detalles)
             {
-                // Asegurar unidad de medida
-                if (string.IsNullOrWhiteSpace(det.UnidadMedida))
+                // Unidad de medida por defecto y normalización UND->NIU
+                if (string.IsNullOrWhiteSpace(det.UnidadMedida) || det.UnidadMedida.Trim().ToUpperInvariant() == "UND")
                     det.UnidadMedida = "NIU";
 
                 bool esDescuento =
@@ -457,7 +493,6 @@ namespace GSCommerceAPI.Services.SUNAT
                     det.PrecioUnitarioConIGV < 0 ||
                     det.TotalSinIGV < 0 ||
                     det.Total < 0 ||
-
                     det.DescripcionItem.StartsWith("DESC", StringComparison.OrdinalIgnoreCase);
 
                 if (esDescuento)
@@ -471,23 +506,25 @@ namespace GSCommerceAPI.Services.SUNAT
                 }
             }
 
-            // Renumerar items para evitar saltos
+            // Renumerar
             for (int i = 0; i < detallesValidos.Count; i++)
                 detallesValidos[i].Item = i + 1;
-
             dto.Detalles = detallesValidos;
 
             descuentoBase = Math.Round(descuentoBase, 2);
             descuentoIgv = Math.Round(descuentoIgv, 2);
-            decimal descuentoConIgv = Math.Round(descuentoBase + descuentoIgv, 2);
 
-            // Recalcular totales netos a partir de los detalles válidos
-            var subtotalPositivo = Math.Round(dto.Detalles.Sum(d => d.TotalSinIGV), 2);
-            var igvPositivo = Math.Round(dto.Detalles.Sum(d => d.IGV), 2);
+            // Subtotales antes de descuento (solo líneas válidas)
+            var subtotalBruto = Math.Round(dto.Detalles.Sum(d => d.TotalSinIGV), 2);
+            var igvBruto = Math.Round(dto.Detalles.Sum(d => d.IGV), 2);
 
-            dto.SubTotal = Math.Round(subtotalPositivo - descuentoBase, 2);
-            dto.Igv = Math.Round(igvPositivo - descuentoIgv, 2);
-            dto.Total = Math.Round(subtotalPositivo + igvPositivo - descuentoConIgv, 2);
+            // Totales netos
+            dto.SubTotal = Math.Round(subtotalBruto - descuentoBase, 2);
+            dto.Igv = Math.Round(igvBruto - descuentoIgv, 2);
+            dto.Total = Math.Round(dto.SubTotal + dto.Igv, 2);
+
+            // Helpers de formato numérico
+            string F2(decimal v) => v.ToString("F2", CultureInfo.InvariantCulture);
 
             sb.AppendLine($"<?xml version={q}1.0{q} encoding={q}ISO-8859-1{q} standalone={q}no{q}?>");
             sb.AppendLine($"<{rootTag} xmlns={q}{rootNs}{q}" +
@@ -501,33 +538,47 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<ext:UBLExtensions>");
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent/></ext:UBLExtension>");
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent><sac:AdditionalInformation>");
-            sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>1001</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">" + dto.SubTotal.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
-            if (descuentoConIgv > 0)
-                sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>2005</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">-" + descuentoConIgv.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>"); sb.AppendLine("<sac:AdditionalProperty><cbc:ID>1000</cbc:ID><cbc:Value>" + EscaparTextoXml(dto.MontoLetras) + "</cbc:Value></sac:AdditionalProperty>");
+
+            // 1001 = Operaciones gravadas (BASE imponible)
+            sb.AppendLine($"<sac:AdditionalMonetaryTotal><cbc:ID>1001</cbc:ID><cbc:PayableAmount currencyID=\"{dto.Moneda}\">{F2(dto.SubTotal)}</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
+
+            // 2005 = Descuento global (EN BASE) -> NEGATIVO
+            if (descuentoBase > 0)
+                sb.AppendLine($"<sac:AdditionalMonetaryTotal><cbc:ID>2005</cbc:ID><cbc:PayableAmount currencyID=\"{dto.Moneda}\">-{F2(descuentoBase)}</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
+
+            // Monto en letras
+            sb.AppendLine($"<sac:AdditionalProperty><cbc:ID>1000</cbc:ID><cbc:Value>{EscaparTextoXml(dto.MontoLetras)}</cbc:Value></sac:AdditionalProperty>");
+
             sb.AppendLine("</sac:AdditionalInformation></ext:ExtensionContent></ext:UBLExtension>");
             sb.AppendLine("</ext:UBLExtensions>");
 
             sb.AppendLine("<cbc:UBLVersionID>2.1</cbc:UBLVersionID>");
             sb.AppendLine("<cbc:CustomizationID>2.0</cbc:CustomizationID>");
-            sb.AppendLine("<cbc:ProfileID schemeURI=\"urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo17\" schemeAgencyName=\"PE: SUNAT\" schemeName=\"SUNAT: Identificador de Tipo de Operaci\u00f3n\">0101</cbc:ProfileID>");
+            sb.AppendLine("<cbc:ProfileID schemeURI=\"urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo17\" schemeAgencyName=\"PE: SUNAT\" schemeName=\"SUNAT: Identificador de Tipo de Operación\">0101</cbc:ProfileID>");
             sb.AppendLine($"<cbc:ID>{doc}</cbc:ID>");
             sb.AppendLine($"<cbc:IssueDate>{dto.FechaEmision:yyyy-MM-dd}</cbc:IssueDate>");
-            sb.AppendLine($"<cbc:IssueTime>{dto.HoraEmision.ToString(@"hh\:mm\:ss")}</cbc:IssueTime>");
-            if (dto.TipoDocumento == "07" || dto.TipoDocumento == "08")
+            sb.AppendLine($"<cbc:IssueTime>{dto.HoraEmision:hh\\:mm\\:ss}</cbc:IssueTime>");
+            if (esNC || esND)
                 sb.AppendLine($"<cbc:{typeCodeTag}>{dto.TipoNotaCredito}</cbc:{typeCodeTag}>");
             else
                 sb.AppendLine($"<cbc:{typeCodeTag} listID={q}0101{q}>{dto.TipoDocumento}</cbc:{typeCodeTag}>");
+
             sb.AppendLine($"<cbc:Note languageLocaleID={q}1000{q}><![CDATA[{dto.MontoLetras}]]></cbc:Note>");
             sb.AppendLine($"<cbc:DocumentCurrencyCode>{dto.Moneda}</cbc:DocumentCurrencyCode>");
             sb.AppendLine($"<cbc:LineCountNumeric>{dto.Detalles.Count}</cbc:LineCountNumeric>");
-            if (dto.TipoDocumento == "07" || dto.TipoDocumento == "08")
+
+            // Referencias para 07/08
+            if (esNC || esND)
             {
-                string refId = $"{dto.SerieDocumentoReferencia}-{dto.NumeroDocumentoReferencia:D8}";
+                string serieRefNorm = NormalizarSerieRef(dto.TipoDocumentoReferencia, dto.SerieDocumentoReferencia);
+                string refId = $"{serieRefNorm}-{dto.NumeroDocumentoReferencia:D8}";
+
                 sb.AppendLine("<cac:DiscrepancyResponse>");
                 sb.AppendLine($"<cbc:ReferenceID>{refId}</cbc:ReferenceID>");
                 sb.AppendLine($"<cbc:ResponseCode>{dto.TipoNotaCredito}</cbc:ResponseCode>");
                 sb.AppendLine($"<cbc:Description>{EscaparTextoXml(dto.DescripcionNotaCredito)}</cbc:Description>");
                 sb.AppendLine("</cac:DiscrepancyResponse>");
+
                 sb.AppendLine("<cac:BillingReference>");
                 sb.AppendLine("<cac:InvoiceDocumentReference>");
                 sb.AppendLine($"<cbc:ID>{refId}</cbc:ID>");
@@ -535,12 +586,13 @@ namespace GSCommerceAPI.Services.SUNAT
                 sb.AppendLine("</cac:InvoiceDocumentReference>");
                 sb.AppendLine("</cac:BillingReference>");
             }
-            //EMISOR
+
+            // EMISOR
             sb.AppendLine("<cac:AccountingSupplierParty>");
             sb.AppendLine($"<cbc:CustomerAssignedAccountID schemeID={q}6{q}>{dto.RucEmisor}</cbc:CustomerAssignedAccountID>");
-            sb.AppendLine($"<cbc:AdditionalAccountID>6</cbc:AdditionalAccountID>"); // Corregido: sin comillas
+            sb.AppendLine("<cbc:AdditionalAccountID>6</cbc:AdditionalAccountID>");
             sb.AppendLine("<cac:Party>");
-            sb.AppendLine("<cac:PartyIdentification>"); // Nodo crítico que faltaba
+            sb.AppendLine("<cac:PartyIdentification>");
             sb.AppendLine($"<cbc:ID schemeID={q}6{q}>{dto.RucEmisor}</cbc:ID>");
             sb.AppendLine("</cac:PartyIdentification>");
             sb.AppendLine("<cac:PartyName>");
@@ -559,27 +611,19 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<cac:AddressLine>");
             sb.AppendLine($"<cbc:Line>{dto.DireccionEmisor}</cbc:Line>");
             sb.AppendLine("</cac:AddressLine>");
-            sb.AppendLine("<cac:Country>");
-            sb.AppendLine("<cbc:IdentificationCode>PE</cbc:IdentificationCode>");
-            sb.AppendLine("</cac:Country>");
+            sb.AppendLine("<cac:Country><cbc:IdentificationCode>PE</cbc:IdentificationCode></cac:Country>");
             sb.AppendLine("</cac:RegistrationAddress>");
             sb.AppendLine("</cac:PartyLegalEntity>");
             sb.AppendLine("</cac:Party>");
             sb.AppendLine("</cac:AccountingSupplierParty>");
-            //CLIENTE
+
+            // CLIENTE
             sb.AppendLine("<cac:AccountingCustomerParty>");
             sb.AppendLine($"<cbc:CustomerAssignedAccountID>{dto.DocumentoCliente}</cbc:CustomerAssignedAccountID>");
             sb.AppendLine($"<cbc:AdditionalAccountID>{dto.TipoDocumentoCliente}</cbc:AdditionalAccountID>");
             sb.AppendLine("<cac:Party>");
             sb.AppendLine("<cac:PartyIdentification>");
-
-            string schemeIdCliente = dto.TipoDocumentoCliente switch
-            {
-                "0" => "0",  // Sin documento
-                "1" => "1",  // DNI
-                "6" => "6",  // RUC
-                _ => "0"
-            };
+            string schemeIdCliente = dto.TipoDocumentoCliente switch { "0" => "0", "1" => "1", "6" => "6", _ => "0" };
             sb.AppendLine($"<cbc:ID schemeID={q}{schemeIdCliente}{q}>{dto.DocumentoCliente}</cbc:ID>");
             sb.AppendLine("</cac:PartyIdentification>");
             sb.AppendLine("<cac:PartyLegalEntity>");
@@ -587,23 +631,43 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("</cac:PartyLegalEntity>");
             sb.AppendLine("</cac:Party>");
             sb.AppendLine("</cac:AccountingCustomerParty>");
-            sb.AppendLine("<cac:PaymentTerms><cbc:ID>FormaPago</cbc:ID><cbc:PaymentMeansID>Contado</cbc:PaymentMeansID></cac:PaymentTerms>");
-            // Totales globales
+
+            // Forma de pago solo 01/03
+            if (dto.TipoDocumento == "01" || dto.TipoDocumento == "03")
+                sb.AppendLine("<cac:PaymentTerms><cbc:ID>FormaPago</cbc:ID><cbc:PaymentMeansID>Contado</cbc:PaymentMeansID></cac:PaymentTerms>");
+
+            // ===== Descuento global UBL a nivel de documento (AllowanceCharge) =====
+            if (descuentoBase > 0)
+            {
+                sb.AppendLine("<cac:AllowanceCharge>");
+                sb.AppendLine("<cbc:ChargeIndicator>false</cbc:ChargeIndicator>");
+                sb.AppendLine("<cbc:AllowanceChargeReasonCode>00</cbc:AllowanceChargeReasonCode>");
+                sb.AppendLine($"<cbc:Amount currencyID=\"{dto.Moneda}\">{F2(descuentoBase)}</cbc:Amount>");
+                sb.AppendLine($"<cbc:BaseAmount currencyID=\"{dto.Moneda}\">{F2(subtotalBruto)}</cbc:BaseAmount>");
+                sb.AppendLine("<cac:TaxCategory>");
+                sb.AppendLine("<cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme>");
+                sb.AppendLine("</cac:TaxCategory>");
+                sb.AppendLine("</cac:AllowanceCharge>");
+            }
+
+            // ===== Totales de impuestos =====
             sb.AppendLine("<cac:TaxTotal>");
-            sb.AppendLine($"<cbc:TaxAmount currencyID=\"{dto.Moneda}\">{dto.Igv:F2}</cbc:TaxAmount>");
+            sb.AppendLine($"<cbc:TaxAmount currencyID=\"{dto.Moneda}\">{F2(dto.Igv)}</cbc:TaxAmount>");
             sb.AppendLine("<cac:TaxSubtotal>");
-            sb.AppendLine($"<cbc:TaxableAmount currencyID=\"{dto.Moneda}\">{dto.SubTotal:F2}</cbc:TaxableAmount>");
-            sb.AppendLine($"<cbc:TaxAmount currencyID=\"{dto.Moneda}\">{dto.Igv:F2}</cbc:TaxAmount>");
+            sb.AppendLine($"<cbc:TaxableAmount currencyID=\"{dto.Moneda}\">{F2(dto.SubTotal)}</cbc:TaxableAmount>");
+            sb.AppendLine($"<cbc:TaxAmount currencyID=\"{dto.Moneda}\">{F2(dto.Igv)}</cbc:TaxAmount>");
             sb.AppendLine("<cac:TaxCategory><cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme></cac:TaxCategory>");
             sb.AppendLine("</cac:TaxSubtotal>");
             sb.AppendLine("</cac:TaxTotal>");
 
+            // ===== Totales monetarios =====
             sb.AppendLine("<cac:LegalMonetaryTotal>");
-            sb.AppendLine($"<cbc:LineExtensionAmount currencyID=\"{dto.Moneda}\">{dto.SubTotal:F2}</cbc:LineExtensionAmount>");
-            sb.AppendLine($"<cbc:TaxInclusiveAmount currencyID=\"{dto.Moneda}\">{dto.Total:F2}</cbc:TaxInclusiveAmount>");
-            sb.AppendLine($"<cbc:PayableAmount currencyID=\"{dto.Moneda}\">{dto.Total:F2}</cbc:PayableAmount>");
+            sb.AppendLine($"<cbc:LineExtensionAmount currencyID=\"{dto.Moneda}\">{F2(dto.SubTotal)}</cbc:LineExtensionAmount>");
+            sb.AppendLine($"<cbc:TaxInclusiveAmount currencyID=\"{dto.Moneda}\">{F2(dto.Total)}</cbc:TaxInclusiveAmount>");
+            sb.AppendLine($"<cbc:PayableAmount currencyID=\"{dto.Moneda}\">{F2(dto.Total)}</cbc:PayableAmount>");
             sb.AppendLine("</cac:LegalMonetaryTotal>");
 
+            // ===== Líneas =====
             foreach (var item in dto.Detalles)
             {
                 var baseImponible = Math.Round(item.Cantidad * item.PrecioUnitarioSinIGV, 2);
@@ -611,15 +675,16 @@ namespace GSCommerceAPI.Services.SUNAT
 
                 sb.AppendLine($"<cac:{lineTag}>");
                 sb.AppendLine($"<cbc:ID>{item.Item}</cbc:ID>");
-                sb.AppendLine($"<cbc:{quantityTag} unitCode=\"{item.UnidadMedida}\">{item.Cantidad:F2}</cbc:{quantityTag}>");
-                sb.AppendLine($"<cbc:LineExtensionAmount currencyID=\"{dto.Moneda}\">{baseImponible:F2}</cbc:LineExtensionAmount>");
+                sb.AppendLine($"<cbc:{quantityTag} unitCode=\"{item.UnidadMedida}\">{item.Cantidad.ToString("F2", CultureInfo.InvariantCulture)}</cbc:{quantityTag}>");
+                sb.AppendLine($"<cbc:LineExtensionAmount currencyID=\"{dto.Moneda}\">{F2(baseImponible)}</cbc:LineExtensionAmount>");
+
                 sb.AppendLine("<cac:PricingReference><cac:AlternativeConditionPrice>");
-                sb.AppendLine($"<cbc:PriceAmount currencyID=\"{dto.Moneda}\">{item.PrecioUnitarioConIGV:F2}</cbc:PriceAmount>");
+                sb.AppendLine($"<cbc:PriceAmount currencyID=\"{dto.Moneda}\">{F2(item.PrecioUnitarioConIGV)}</cbc:PriceAmount>");
                 sb.AppendLine("<cbc:PriceTypeCode>01</cbc:PriceTypeCode></cac:AlternativeConditionPrice></cac:PricingReference>");
 
-                sb.AppendLine("<cac:TaxTotal><cbc:TaxAmount currencyID=\"" + dto.Moneda + "\">" + igv.ToString("F2") + "</cbc:TaxAmount>");
-                sb.AppendLine("<cac:TaxSubtotal><cbc:TaxableAmount currencyID=\"" + dto.Moneda + "\">" + baseImponible.ToString("F2") + "</cbc:TaxableAmount>");
-                sb.AppendLine("<cbc:TaxAmount currencyID=\"" + dto.Moneda + "\">" + igv.ToString("F2") + "</cbc:TaxAmount>");
+                sb.AppendLine($"<cac:TaxTotal><cbc:TaxAmount currencyID=\"{dto.Moneda}\">{F2(igv)}</cbc:TaxAmount>");
+                sb.AppendLine($"<cac:TaxSubtotal><cbc:TaxableAmount currencyID=\"{dto.Moneda}\">{F2(baseImponible)}</cbc:TaxableAmount>");
+                sb.AppendLine($"<cbc:TaxAmount currencyID=\"{dto.Moneda}\">{F2(igv)}</cbc:TaxAmount>");
                 sb.AppendLine("<cac:TaxCategory>");
                 sb.AppendLine("<cbc:Percent>18</cbc:Percent>");
                 sb.AppendLine("<cbc:TaxExemptionReasonCode>10</cbc:TaxExemptionReasonCode>");
@@ -627,12 +692,11 @@ namespace GSCommerceAPI.Services.SUNAT
                 sb.AppendLine("</cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>");
 
                 sb.AppendLine("<cac:Item><cbc:Description>" + EscaparTextoXml(item.DescripcionItem) + "</cbc:Description><cac:SellersItemIdentification><cbc:ID>" + item.CodigoItem + "</cbc:ID></cac:SellersItemIdentification></cac:Item>");
-                sb.AppendLine("<cac:Price><cbc:PriceAmount currencyID=\"" + dto.Moneda + "\">" + item.PrecioUnitarioSinIGV.ToString("F2") + "</cbc:PriceAmount></cac:Price>");
+                sb.AppendLine($"<cac:Price><cbc:PriceAmount currencyID=\"{dto.Moneda}\">{F2(item.PrecioUnitarioSinIGV)}</cbc:PriceAmount></cac:Price>");
 
                 sb.AppendLine($"</cac:{lineTag}>");
-
             }
-            //sb.AppendLine($"<cac:DeliveryLocation><cbc:ID>0000</cbc:ID></cac:DeliveryLocation>");
+
             sb.AppendLine($"</{rootTag}>");
             return sb.ToString();
         }
