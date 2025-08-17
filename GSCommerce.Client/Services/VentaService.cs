@@ -185,6 +185,11 @@ namespace GSCommerce.Client.Services
                 return null;
             }
         }
+        public async Task<int> ObtenerNuevoCorrelativoAsync(int idComprobante)
+        {
+            return await _httpClient.GetFromJsonAsync<int>($"api/ventas/nuevo-correlativo/{idComprobante}");
+        }
+
         public async Task<(bool Success, string? Message)> ReenviarSunatAsync(int idComprobante)
         {
             var response = await _httpClient.PostAsync($"api/ventas/reenviar-sunat/{idComprobante}", null);

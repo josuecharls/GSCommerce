@@ -12,6 +12,7 @@
         public string FormaPago { get; set; } = string.Empty;
         public string Estado { get; set; } = string.Empty;
         public string EstadoSunat { get; set; } = string.Empty;
+        public string? DescripcionSunat { get; set; }
         public string? GeneroNC { get; set; }
         public string NumeroNotaCredito => string.IsNullOrWhiteSpace(GeneroNC) ? "" : GeneroNC;
     }

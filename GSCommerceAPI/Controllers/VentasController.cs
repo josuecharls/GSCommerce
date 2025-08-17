@@ -393,6 +393,7 @@ namespace GSCommerceAPI.Controllers
                 {
                     if (estadosSunat.TryGetValue(v.IdComprobante, out var est))
                     {
+                        v.DescripcionSunat = est.RespuestaSunat;
                         if (est.EnviadoSunat.HasValue && est.EnviadoSunat.Value)
                             v.EstadoSunat = est.Estado ? "ACEPTADO" : "RECHAZADO";
                         else if (!string.IsNullOrWhiteSpace(est.RespuestaSunat))
@@ -403,11 +404,30 @@ namespace GSCommerceAPI.Controllers
                     else
                     {
                         v.EstadoSunat = "PENDIENTE";
+                        v.DescripcionSunat = null;
                     }
                 }
             }
 
             return Ok(ventas);
+        }
+
+        [HttpGet("nuevo-correlativo/{idComprobante:int}")]
+        [Authorize]
+        public async Task<IActionResult> ObtenerNuevoCorrelativo(int idComprobante)
+        {
+            var cabecera = await _context.ComprobanteDeVentaCabeceras
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+            if (cabecera == null)
+                return NotFound();
+
+            var serieCorr = await _context.SerieCorrelativos
+                .FirstOrDefaultAsync(s => s.IdAlmacen == cabecera.IdAlmacen &&
+                                          s.IdTipoDocumentoVenta == cabecera.IdTipoDocumento &&
+                                          s.Serie == cabecera.Serie);
+
+            int nuevoNumero = serieCorr != null ? serieCorr.Correlativo + 1 : cabecera.Numero + 1;
+            return Ok(nuevoNumero);
         }
 
         [HttpGet("resumen")]
@@ -1409,15 +1429,16 @@ namespace GSCommerceAPI.Controllers
             if (comp == null || string.IsNullOrWhiteSpace(comp.RespuestaSunat))
                 return BadRequest("El comprobante no ha sido rechazado por SUNAT.");
 
-            // Incrementar correlativo
-            cab.Numero += 1;
-
+            // Obtener correlativo actual y asignar nuevo número
             var serieCorr = await _context.SerieCorrelativos
                 .FirstOrDefaultAsync(s => s.IdAlmacen == cab.IdAlmacen &&
                                           s.IdTipoDocumentoVenta == cab.IdTipoDocumento &&
                                           s.Serie == cab.Serie);
-            if (serieCorr != null && serieCorr.Correlativo < cab.Numero)
-                serieCorr.Correlativo = cab.Numero;
+
+            int nuevoNumero = serieCorr != null ? serieCorr.Correlativo + 1 : cab.Numero + 1;
+            cab.Numero = nuevoNumero;
+            if (serieCorr != null)
+                serieCorr.Correlativo = nuevoNumero;
 
             // Reiniciar estado SUNAT
             comp.EnviadoSunat = false;

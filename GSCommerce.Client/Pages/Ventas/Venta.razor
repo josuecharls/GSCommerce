@@ -118,15 +118,15 @@
                             }
                             else if (v.EstadoSunat == "ACEPTADO")
                             {
-                                <span class="badge bg-success">Aceptado</span>
+                                <span class="badge bg-success" title="@v.DescripcionSunat">Aceptado</span>
                             }
                             else if (v.EstadoSunat == "RECHAZADO")
                             {
-                                <span class="badge bg-danger">Rechazado</span>
+                                <span class="badge bg-danger" title="@v.DescripcionSunat">Rechazado</span>
                             }
                             else
                             {
-                                <span class="badge bg-warning text-dark">Pendiente</span>
+                                <span class="badge bg-warning text-dark" title="@v.DescripcionSunat">Pendiente</span>
                             }
                         </td>
                     }
@@ -190,6 +190,45 @@
         }
     </tbody>
 </table>
+@if (mostrarModalReenvio && ventaReenvio != null && ventaSeleccionada != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.3)">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reenviar SUNAT</h5>
+                    <button type="button" class="btn-close" @onclick="CancelarReenvio"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Cliente:</strong> @ventaReenvio.Nombre (@ventaReenvio.Dniruc)</p>
+                    <p><strong>Nuevo Correlativo:</strong> @ventaSeleccionada.Serie-@nuevoNumeroReenvio.ToString("D8")</p>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var det in ventaReenvio.Detalles)
+                            {
+                                <tr>
+                                    <td>@det.DescripcionItem</td>
+                                    <td>@det.Cantidad</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-info" @onclick="ImprimirBoletaReenvio">Imprimir</button>
+                    <button class="btn btn-primary" @onclick="ConfirmarReenvio">Emitir</button>
+                    <button class="btn btn-secondary" @onclick="CancelarReenvio">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private List<VentaConsultaDTO> ventas = new();
@@ -205,6 +244,11 @@
     private decimal notaCredito;
     private decimal totalGeneral;
     private int cantidadBoletas;
+
+    private VentaDTO? ventaReenvio;
+    private VentaConsultaDTO? ventaSeleccionada;
+    private bool mostrarModalReenvio;
+    private int nuevoNumeroReenvio;
 
     protected override async Task OnInitializedAsync()
     {
@@ -303,11 +347,76 @@
 
     private async Task ReenviarSunat(VentaConsultaDTO v)
     {
-        bool confirmar = await JS.InvokeAsync<bool>("confirm", $"¿Reenviar {v.TipoDocumento} {v.Serie}-{v.Numero:D8} a SUNAT?");
-        if (!confirmar) return;
-        var (ok, msg) = await ventaService.ReenviarSunatAsync(v.IdComprobante);
-        await JS.InvokeVoidAsync("alert", msg);
+        ventaReenvio = await ventaService.ObtenerVentaPorId(v.IdComprobante);
+        if (ventaReenvio == null)
+        {
+            await JS.InvokeVoidAsync("alert", "No se pudo obtener la venta.");
+            return;
+        }
+        nuevoNumeroReenvio = await ventaService.ObtenerNuevoCorrelativoAsync(v.IdComprobante);
+        ventaSeleccionada = v;
+        mostrarModalReenvio = true;
+    }
+
+    private async Task ConfirmarReenvio()
+    {
+        if (ventaSeleccionada == null) return;
+        var (ok, msg) = await ventaService.ReenviarSunatAsync(ventaSeleccionada.IdComprobante);
+        if (ok)
+            await JS.InvokeVoidAsync("alert", "Comprobante Emitido a SUNAT");
+        else
+            await JS.InvokeVoidAsync("alert", $"No emitido por {msg}");
+        mostrarModalReenvio = false;
+        ventaReenvio = null;
+        ventaSeleccionada = null;
         await BuscarVentas();
+    }
+
+    private void CancelarReenvio()
+    {
+        mostrarModalReenvio = false;
+        ventaReenvio = null;
+        ventaSeleccionada = null;
+    }
+
+    private async Task ImprimirBoletaReenvio()
+    {
+        if (ventaReenvio == null) return;
+        try
+        {
+            var ventaImpresion = new VentaDTO
+            {
+                IdTipoDocumento = ventaReenvio.IdTipoDocumento,
+                Serie = ventaReenvio.Serie,
+                Numero = nuevoNumeroReenvio,
+                Fecha = ventaReenvio.Fecha,
+                IdCliente = ventaReenvio.IdCliente,
+                Dniruc = ventaReenvio.Dniruc,
+                Nombre = ventaReenvio.Nombre,
+                Direccion = ventaReenvio.Direccion,
+                TipoCambio = ventaReenvio.TipoCambio,
+                SubTotal = ventaReenvio.SubTotal,
+                Igv = ventaReenvio.Igv,
+                Total = ventaReenvio.Total,
+                Redondeo = ventaReenvio.Redondeo,
+                Apagar = ventaReenvio.Apagar,
+                AFavor = ventaReenvio.AFavor,
+                IdVendedor = ventaReenvio.IdVendedor,
+                IdCajero = ventaReenvio.IdCajero,
+                IdAlmacen = ventaReenvio.IdAlmacen,
+                IdArticulo = ventaReenvio.IdArticulo,
+                Descripcion = ventaReenvio.Descripcion,
+                Detalles = ventaReenvio.Detalles
+            };
+
+            var html = GenerarHtmlTicketDesdeVenta((object)ventaImpresion);
+            await JS.InvokeVoidAsync("imprimirTicket", html);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            await JS.InvokeVoidAsync("alert", "Error al imprimir la boleta.");
+        }
     }
 
     private async Task ReimprimirBoleta(VentaConsultaDTO ventaRow)
