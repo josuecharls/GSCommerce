@@ -75,7 +75,10 @@
             <th>Total</th>
             <th>Forma Pago</th>
             <th>Estado</th>
-            <th>SUNAT</th>
+            @if (cargo == "ADMINISTRADOR")
+            {
+                <th>SUNAT</th>
+            }
             <th style="min-width:420px;">Acciones</th>
         </tr>
     </thead>
@@ -106,20 +109,27 @@
                             <span class="badge bg-success">Emitido</span>
                         }
                     </td>
-                    <td>
-                        @if (v.EstadoSunat == "ACEPTADO")
-                        {
-                            <span class="badge bg-success">Aceptado</span>
-                        }
-                        else if (v.EstadoSunat == "RECHAZADO")
-                        {
-                            <span class="badge bg-danger">Rechazado</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-warning text-dark">Pendiente</span>
-                        }
-                    </td>
+                    @if (cargo == "ADMINISTRADOR")
+                    {
+                        <td>
+                            @if (v.TipoDocumento == "TICKET")
+                            {
+                                @* No mostrar estado SUNAT *@
+                            }
+                            else if (v.EstadoSunat == "ACEPTADO")
+                            {
+                                <span class="badge bg-success">Aceptado</span>
+                            }
+                            else if (v.EstadoSunat == "RECHAZADO")
+                            {
+                                <span class="badge bg-danger">Rechazado</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark">Pendiente</span>
+                            }
+                        </td>
+                    }
                     <td><div class="btn-group btn-group-sm flex-wrap" role="group">
                         <button class="btn btn-outline-info"
                                 title="Reimprimir boleta"
@@ -175,7 +185,7 @@
         else
         {
             <tr>
-                <td colspan="10" class="text-center">No se encontraron ventas.</td>
+                <td colspan="@(cargo == "ADMINISTRADOR" ? 10 : 9)" class="text-center">No se encontraron ventas.</td>
             </tr>
         }
     </tbody>
