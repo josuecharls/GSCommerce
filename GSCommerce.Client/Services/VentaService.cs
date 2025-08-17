@@ -185,8 +185,13 @@ namespace GSCommerce.Client.Services
                 return null;
             }
         }
+        public async Task<(bool Success, string? Message)> ReenviarSunatAsync(int idComprobante)
+        {
+            var response = await _httpClient.PostAsync($"api/ventas/reenviar-sunat/{idComprobante}", null);
+            var msg = await response.Content.ReadAsStringAsync();
+            return (response.IsSuccessStatusCode, msg);
+        }
 
-        
         public static string ConvertirMontoALetras(decimal monto, string moneda)
         {
             var enteros = (long)Math.Floor(monto);

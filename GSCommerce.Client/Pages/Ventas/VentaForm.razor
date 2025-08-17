@@ -749,7 +749,7 @@ OnCancelado="CobroCancelado" />
             if (exitoSunat)
                 await JS.InvokeVoidAsync("alert", "✅ Venta registrada y declarada a SUNAT.");
             else
-                await JS.InvokeVoidAsync("alert", "❌ Venta registrada, pero falló el envío a SUNAT.");
+                await JS.InvokeVoidAsync("alert", "❌ Falló el envío a SUNAT.");
         }
 
         // 🔁 Limpiar manteniendo valores clave

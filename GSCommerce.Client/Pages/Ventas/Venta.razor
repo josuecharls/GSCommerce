@@ -75,6 +75,7 @@
             <th>Total</th>
             <th>Forma Pago</th>
             <th>Estado</th>
+            <th>SUNAT</th>
             <th style="min-width:420px;">Acciones</th>
         </tr>
     </thead>
@@ -103,6 +104,20 @@
                         else
                         {
                             <span class="badge bg-success">Emitido</span>
+                        }
+                    </td>
+                    <td>
+                        @if (v.EstadoSunat == "ACEPTADO")
+                        {
+                            <span class="badge bg-success">Aceptado</span>
+                        }
+                        else if (v.EstadoSunat == "RECHAZADO")
+                        {
+                            <span class="badge bg-danger">Rechazado</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning text-dark">Pendiente</span>
                         }
                     </td>
                     <td><div class="btn-group btn-group-sm flex-wrap" role="group">
@@ -145,6 +160,14 @@
                                 <div class="text-muted small mt-1">NC: @v.NumeroNotaCredito</div>
                             }
                         }
+                        @if (cargo == "ADMINISTRADOR" && v.EstadoSunat == "RECHAZADO" && (v.TipoDocumento == "BOLETA" || v.TipoDocumento == "BOLETA M" || v.TipoDocumento == "FACTURA"))
+                        {
+                            <div class="btn-group btn-group-sm flex-wrap mt-1" role="group">
+                                <button class="btn btn-outline-warning" title="Reenviar a SUNAT" @onclick="@(() => ReenviarSunat(v))">
+                                    Reenviar SUNAT
+                                </button>
+                            </div>
+                        }
                     </td>
                 </tr>
             }
@@ -152,7 +175,7 @@
         else
         {
             <tr>
-                <td colspan="9" class="text-center">No se encontraron ventas.</td>
+                <td colspan="10" class="text-center">No se encontraron ventas.</td>
             </tr>
         }
     </tbody>
@@ -266,6 +289,15 @@
         }
 
         await JS.InvokeVoidAsync("open", $"/api/notascredito/pdf-por-numero/{partes[0]}/{numero}", "_blank");
+    }
+
+    private async Task ReenviarSunat(VentaConsultaDTO v)
+    {
+        bool confirmar = await JS.InvokeAsync<bool>("confirm", $"¿Reenviar {v.TipoDocumento} {v.Serie}-{v.Numero:D8} a SUNAT?");
+        if (!confirmar) return;
+        var (ok, msg) = await ventaService.ReenviarSunatAsync(v.IdComprobante);
+        await JS.InvokeVoidAsync("alert", msg);
+        await BuscarVentas();
     }
 
     private async Task ReimprimirBoleta(VentaConsultaDTO ventaRow)

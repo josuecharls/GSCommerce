@@ -381,6 +381,32 @@ namespace GSCommerceAPI.Controllers
                         v.FormaPago = forma;
             }
 
+            // Estado SUNAT de los comprobantes
+            if (ids.Count > 0)
+            {
+                var estadosSunat = await _context.Comprobantes
+                    .Where(c => ids.Contains(c.IdComprobante))
+                    .Select(c => new { c.IdComprobante, c.EnviadoSunat, c.Estado, c.RespuestaSunat })
+                    .ToDictionaryAsync(c => c.IdComprobante, c => c);
+
+                foreach (var v in ventas)
+                {
+                    if (estadosSunat.TryGetValue(v.IdComprobante, out var est))
+                    {
+                        if (est.EnviadoSunat.HasValue && est.EnviadoSunat.Value)
+                            v.EstadoSunat = est.Estado ? "ACEPTADO" : "RECHAZADO";
+                        else if (!string.IsNullOrWhiteSpace(est.RespuestaSunat))
+                            v.EstadoSunat = "RECHAZADO";
+                        else
+                            v.EstadoSunat = "PENDIENTE";
+                    }
+                    else
+                    {
+                        v.EstadoSunat = "PENDIENTE";
+                    }
+                }
+            }
+
             return Ok(ventas);
         }
 
@@ -955,7 +981,7 @@ namespace GSCommerceAPI.Controllers
                     join t in _context.TipoDocumentoVenta.AsNoTracking() on c.IdTipoDocumento equals t.IdTipoDocumentoVenta
                     where c.Fecha >= start && c.Fecha < end
                           && c.IdTipoDocumento != 4 // excluir TICKET
-                          && (f == null || f.EnviadoSunat == false || f.EnviadoSunat == null || f.Estado == false)
+                          && (f == null || f.EnviadoSunat == false || f.EnviadoSunat == null)
                     select new
                     {
                         c.IdComprobante,
@@ -1360,6 +1386,171 @@ namespace GSCommerceAPI.Controllers
                 .ToList();
 
             return Ok(fechas);
+        }
+
+        [HttpPost("reenviar-sunat/{idComprobante:int}")]
+        [Authorize]
+        public async Task<IActionResult> ReenviarSunat(int idComprobante)
+        {
+            var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+                return Forbid();
+
+            var cab = await _context.ComprobanteDeVentaCabeceras
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+            if (cab == null)
+                return NotFound("Comprobante no encontrado.");
+
+            if (cab.IdTipoDocumento == 4 || cab.IdTipoDocumento == 6)
+                return BadRequest("El tipo de documento no permite reenvío a SUNAT.");
+
+            var comp = await _context.Comprobantes
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+            if (comp == null || string.IsNullOrWhiteSpace(comp.RespuestaSunat))
+                return BadRequest("El comprobante no ha sido rechazado por SUNAT.");
+
+            // Incrementar correlativo
+            cab.Numero += 1;
+
+            var serieCorr = await _context.SerieCorrelativos
+                .FirstOrDefaultAsync(s => s.IdAlmacen == cab.IdAlmacen &&
+                                          s.IdTipoDocumentoVenta == cab.IdTipoDocumento &&
+                                          s.Serie == cab.Serie);
+            if (serieCorr != null && serieCorr.Correlativo < cab.Numero)
+                serieCorr.Correlativo = cab.Numero;
+
+            // Reiniciar estado SUNAT
+            comp.EnviadoSunat = false;
+            comp.Estado = false;
+            comp.RespuestaSunat = null;
+            comp.TicketSunat = null;
+            comp.FechaEnvio = null;
+            comp.FechaRespuestaSunat = null;
+            comp.Hash = null;
+            comp.Xml = null;
+
+            await _context.SaveChangesAsync();
+
+            var almacen = await _context.Almacens.FirstOrDefaultAsync(a => a.IdAlmacen == cab.IdAlmacen);
+            if (almacen == null)
+                return BadRequest("Almacén no encontrado.");
+
+            var dpdParts = (almacen.Dpd ?? string.Empty).Split(new[] { '-', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            string distrito = dpdParts.Length > 0 ? dpdParts[0].Trim() : string.Empty;
+            string provincia = dpdParts.Length > 1 ? dpdParts[1].Trim() : string.Empty;
+            string departamento = dpdParts.Length > 2 ? dpdParts[2].Trim() : string.Empty;
+
+            var detalles = await _context.ComprobanteDeVentaDetalles
+                .Where(d => d.IdComprobante == cab.IdComprobante)
+                .Select(d => new Models.SUNAT.DTOs.ComprobanteDetalleDTO
+                {
+                    Item = d.Item,
+                    CodigoItem = d.IdArticulo,
+                    DescripcionItem = d.Descripcion,
+                    Cantidad = d.Cantidad,
+                    PrecioUnitarioConIGV = d.Precio,
+                    PrecioUnitarioSinIGV = Math.Round(d.Precio / 1.18m, 2),
+                    IGV = Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
+                })
+                .ToListAsync();
+
+            var comprobante = new Models.SUNAT.DTOs.ComprobanteCabeceraDTO
+            {
+                IdComprobante = cab.IdComprobante,
+                TipoDocumento = cab.IdTipoDocumento == 1 || cab.IdTipoDocumento == 5 ? "BOLETA" : "FACTURA",
+                Serie = cab.Serie,
+                Numero = cab.Numero,
+                FechaEmision = cab.Fecha,
+                HoraEmision = cab.Fecha.TimeOfDay,
+                Moneda = "PEN",
+                SubTotal = cab.SubTotal,
+                Igv = cab.Igv,
+                Total = cab.Total,
+                MontoLetras = ConvertirMontoALetras(cab.Total, "PEN"),
+                RucEmisor = almacen.Ruc ?? string.Empty,
+                RazonSocialEmisor = almacen.RazonSocial ?? string.Empty,
+                DireccionEmisor = almacen.Direccion ?? string.Empty,
+                UbigeoEmisor = almacen.Ubigeo ?? string.Empty,
+                DepartamentoEmisor = departamento,
+                ProvinciaEmisor = provincia,
+                DistritoEmisor = distrito,
+                DocumentoCliente = cab.Dniruc ?? string.Empty,
+                TipoDocumentoCliente = (cab.Dniruc != null && cab.Dniruc.Length == 11) ? "6" : "1",
+                NombreCliente = cab.Nombre,
+                DireccionCliente = cab.Direccion ?? string.Empty,
+                Detalles = detalles
+            };
+
+            var resp = await _facturacionService.EnviarComprobante(comprobante);
+
+            return resp.exito
+                ? Ok(new { mensaje = resp.mensaje, numero = cab.Numero })
+                : BadRequest(resp.mensaje);
+        }
+
+        private static string ConvertirMontoALetras(decimal monto, string moneda)
+        {
+            var enteros = (long)Math.Floor(monto);
+            var decimales = (int)Math.Round((monto - enteros) * 100);
+
+            string letras = NumeroALetras(enteros).ToUpper();
+            var sufijo = moneda == "USD" ? "DOLARES" : "SOLES";
+
+            return $"{letras} Y {decimales:D2}/100 {sufijo}";
+        }
+
+        private static string NumeroALetras(long numero)
+        {
+            if (numero == 0) return "cero";
+            if (numero < 0) return "menos " + NumeroALetras(Math.Abs(numero));
+
+            string[] unidades = { "", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve" };
+            string[] decenas = { "", "diez", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa" };
+            string[] centenas = { "", "ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos" };
+
+            if (numero == 100) return "cien";
+
+            string letras = "";
+
+            if ((numero / 1000000) > 0)
+            {
+                letras += NumeroALetras(numero / 1000000) + ((numero / 1000000) == 1 ? " millón " : " millones ");
+                numero %= 1000000;
+            }
+
+            if ((numero / 1000) > 0)
+            {
+                if ((numero / 1000) == 1)
+                    letras += "mil ";
+                else
+                    letras += NumeroALetras(numero / 1000) + " mil ";
+                numero %= 1000;
+            }
+
+            if ((numero / 100) > 0)
+            {
+                letras += centenas[numero / 100] + " ";
+                numero %= 100;
+            }
+
+            if (numero > 0)
+            {
+                if (numero < 10)
+                    letras += unidades[numero];
+                else if (numero < 20)
+                {
+                    string[] especiales = { "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve" };
+                    letras += especiales[numero - 10];
+                }
+                else
+                {
+                    letras += decenas[numero / 10];
+                    if ((numero % 10) > 0)
+                        letras += " y " + unidades[numero % 10];
+                }
+            }
+
+            return letras.Trim();
         }
     }
 }
