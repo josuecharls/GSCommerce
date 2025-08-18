@@ -1426,8 +1426,8 @@ namespace GSCommerceAPI.Controllers
 
             var comp = await _context.Comprobantes
                 .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
-            if (comp == null || string.IsNullOrWhiteSpace(comp.RespuestaSunat))
-                return BadRequest("El comprobante no ha sido rechazado por SUNAT.");
+           // if (comp == null || string.IsNullOrWhiteSpace(comp.RespuestaSunat))
+             //   return BadRequest("El comprobante no ha sido rechazado por SUNAT.");
 
             // Obtener correlativo actual y asignar nuevo número
             var serieCorr = await _context.SerieCorrelativos
