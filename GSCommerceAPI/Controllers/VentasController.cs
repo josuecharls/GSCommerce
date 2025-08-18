@@ -1447,7 +1447,7 @@ namespace GSCommerceAPI.Controllers
             comp.TicketSunat = null;
             comp.FechaEnvio = null;
             comp.FechaRespuestaSunat = null;
-            comp.Hash = null;
+            comp.Hash = string.Empty;
             comp.Xml = null;
 
             await _context.SaveChangesAsync();
@@ -1478,7 +1478,7 @@ namespace GSCommerceAPI.Controllers
             var comprobante = new Models.SUNAT.DTOs.ComprobanteCabeceraDTO
             {
                 IdComprobante = cab.IdComprobante,
-                TipoDocumento = cab.IdTipoDocumento == 1 || cab.IdTipoDocumento == 5 ? "BOLETA" : "FACTURA",
+                TipoDocumento = cab.IdTipoDocumento == 1 || cab.IdTipoDocumento == 5 ? "03" : "01",
                 Serie = cab.Serie,
                 Numero = cab.Numero,
                 FechaEmision = cab.Fecha,

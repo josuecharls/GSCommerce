@@ -389,7 +389,9 @@
                 IdTipoDocumento = ventaReenvio.IdTipoDocumento,
                 Serie = ventaReenvio.Serie,
                 Numero = nuevoNumeroReenvio,
-                Fecha = ventaReenvio.Fecha,
+                // Usa la fecha y hora actual para diferenciar la impresión del reenvío
+                // respecto a la reimpresión normal dentro de /ventas.
+                Fecha = DateTime.Now,
                 IdCliente = ventaReenvio.IdCliente,
                 Dniruc = ventaReenvio.Dniruc,
                 Nombre = ventaReenvio.Nombre,
@@ -444,7 +446,7 @@
     // === Helper: genera el mismo ticket en texto monoespaciado ===
     private static string GenerarHtmlTicketDesdeVenta(object vObj)
     {
-        // Helpers seguros con nombres alternativos
+        // ==== Helpers ====
         T GetAny<T>(object o, T def, params string[] names)
         {
             if (o == null) return def;
@@ -452,33 +454,36 @@
             foreach (var n in names)
             {
                 var p = t.GetProperty(n);
-                if (p != null)
-                {
-                    var val = p.GetValue(o);
-                    if (val == null) continue;
+                if (p == null) continue;
+                var val = p.GetValue(o);
+                if (val == null) continue;
 
-                    try
-                    {
-                        // Conversión robusta
-                        if (typeof(T) == typeof(string)) return (T)(object)Convert.ToString(val)!;
-                        if (typeof(T) == typeof(int)) return (T)(object)Convert.ToInt32(val);
-                        if (typeof(T) == typeof(decimal)) return (T)(object)Convert.ToDecimal(val);
-                        if (typeof(T) == typeof(DateTime)) return (T)(object)Convert.ToDateTime(val);
-                        if (typeof(T).IsAssignableFrom(val.GetType())) return (T)val;
-                    }
-                    catch { /* ignora y sigue con el siguiente nombre */ }
+                try
+                {
+                    if (typeof(T) == typeof(string)) return (T)(object)Convert.ToString(val)!;
+                    if (typeof(T) == typeof(int)) return (T)(object)Convert.ToInt32(val);
+                    if (typeof(T) == typeof(decimal)) return (T)(object)Convert.ToDecimal(val);
+                    if (typeof(T) == typeof(DateTime)) return (T)(object)Convert.ToDateTime(val);
+                    if (typeof(T).IsAssignableFrom(val.GetType())) return (T)val;
                 }
+                catch { /* seguir probando otros nombres */ }
             }
             return def;
         }
 
         IEnumerable<object> GetList(object o, params string[] names)
         {
-            var listObj = (object?)null;
+            if (o == null) return Enumerable.Empty<object>();
+            object? listObj = null;
+            var t = o.GetType();
             foreach (var n in names)
             {
-                var p = o.GetType().GetProperty(n);
-                if (p != null) { listObj = p.GetValue(o); if (listObj != null) break; }
+                var p = t.GetProperty(n);
+                if (p != null)
+                {
+                    listObj = p.GetValue(o);
+                    if (listObj != null) break;
+                }
             }
             if (listObj is System.Collections.IEnumerable ie)
                 return ie.Cast<object>();
@@ -488,84 +493,125 @@
         const int width = 40;
         string Center(string text)
         {
-            text = (text ?? "").Trim();
+            text = (text ?? string.Empty).Trim();
             if (text.Length >= width) return text;
             int pad = (width - text.Length) / 2;
             return new string(' ', pad) + text;
         }
 
-        // === Cabecera emisor (opcionales) ===
+        // ==== Datos emisor ====
         string rucEmisor = GetAny<string>(vObj, "", "RucEmisor", "Ruc");
         string razonEmisor = GetAny<string>(vObj, "", "RazonSocialEmisor", "RazonSocial");
         string dirEmisor = GetAny<string>(vObj, "", "DireccionEmisor", "DireccionLocal", "Direccion");
 
-        // === Documento / serie ===
-        string tipoCpeTexto = GetAny<string>(vObj, "BOLETA", "TipoDocumento", "TipoDoc");
-        string tipoDocCpe = tipoCpeTexto.ToUpper() == "FACTURA" ? "01" : "03";
+        // ==== Documento / Serie ====
+        string tipoDocTexto = (GetAny<string>(vObj, "BOLETA", "TipoDocumento", "TipoDoc") ?? "").ToUpper();
+        string tipoDocCodigoSunat = tipoDocTexto == "FACTURA" ? "01" : "03";
+
         string serie = GetAny<string>(vObj, "", "Serie");
         int numero = GetAny<int>(vObj, 0, "Numero");
 
-        // === Cliente ===
+        // Prefijo igual que en ObtenerSerieConPrefijo()
+        string prefijo = (tipoDocTexto == "BOLETA" || tipoDocTexto == "BOLETA M" || tipoDocTexto == "TICKET") ? "B"
+                       : (tipoDocTexto == "FACTURA" || tipoDocTexto == "FACTURA M") ? "F"
+                       : "";
+        string serieConPrefijo = $"{prefijo}{serie}";
+
+        // Título igual al de GenerarHtmlDelTicket()
+        string tipoDocTitulo = tipoDocTexto switch
+        {
+            "BOLETA" or "BOLETA M" or "TICKET" => "BOLETA",
+            "FACTURA" or "FACTURA M" => "FACTURA",
+            _ => tipoDocTexto
+        };
+
+        // ==== Cliente ====
         string cliente = GetAny<string>(vObj, "", "NombreCliente", "Nombre");
         string docCliente = GetAny<string>(vObj, "", "DocumentoCliente", "Dniruc");
-        string tipoDocCli = docCliente.Length == 11 ? "6" : (docCliente.Length == 8 ? "1" : "0");
+        string tipoDocClienteSunat = docCliente?.Length == 11 ? "6" : "1"; // mismo default "1" que tu método
 
-        // === Totales ===
+        // ==== Totales ====
         decimal subTotal = GetAny<decimal>(vObj, 0m, "SubTotal", "Subtotal");
         decimal igv = GetAny<decimal>(vObj, 0m, "Igv", "IGV");
         decimal total = GetAny<decimal>(vObj, 0m, "Total");
         decimal vuelto = GetAny<decimal>(vObj, 0m, "Vuelto");
+        decimal descuento = (subTotal + igv) - total;
 
-        // === Fecha ===
+        // ==== Fecha ====
         DateTime fechaEmision = GetAny<DateTime>(vObj, DateTime.Now, "FechaEmision", "Fecha");
 
-        // === Cajero/Vendedor (opcionales) ===
+        // ==== Cajero / Vendedor ====
         string cajero = GetAny<string>(vObj, "", "NombreCajero", "Cajero");
         string vendedor = GetAny<string>(vObj, "", "NombreVendedor", "Vendedor");
 
-        // === Pagos (si existen) ===
+        // ==== Pagos ====
         var pagos = GetList(vObj, "Pagos", "PagosRealizados");
-        decimal efectivo = pagos.Where(p =>
-        {
-            int id = GetAny<int>(p, 0, "IdTipoPagoVenta", "IdTipoPago");
-            return id == 2 || id == 3; // efectivo soles/dólares
-        }).Sum(p => GetAny<decimal>(p, 0m, "Monto", "Soles"));
-        decimal tarjeta = pagos.Where(p =>
-        {
-            int id = GetAny<int>(p, 0, "IdTipoPagoVenta", "IdTipoPago");
-            return id != 2 && id != 3 && id != 8;
-        }).Sum(p => GetAny<decimal>(p, 0m, "Monto", "Soles"));
-        decimal notaCredito = pagos.Where(p => GetAny<int>(p, 0, "IdTipoPagoVenta", "IdTipoPago") == 8)
-                                   .Sum(p => GetAny<decimal>(p, 0m, "Monto", "Soles"));
 
-        // === Detalles ===
+        string FormaPagoFromId(int id) => id switch
+        {
+            2 => "Efectivo Soles",
+            3 => "Efectivo Dólares",
+            4 => "Tarjeta Visa",
+            5 => "Tarjeta MasterCard",
+            6 => "Tarjeta American Express",
+            7 => "Tarjeta Dinners Club",
+            8 => "Nota de Crédito",
+            9 => "Online Yape",
+            10 => "Online Transferencia",
+            _ => "Pago"
+        };
+
+        bool EsEfectivo(object p)
+        {
+            int id = GetAny<int>(p, 0, "IdTipoPagoVenta", "IdTipoPago");
+            string forma = (GetAny<string>(p, "", "FormaPago") ?? "");
+            return id == 2 || id == 3 || forma.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase);
+        }
+
+        bool EsNota(object p)
+        {
+            int id = GetAny<int>(p, 0, "IdTipoPagoVenta", "IdTipoPago");
+            string forma = (GetAny<string>(p, "", "FormaPago") ?? "");
+            return id == 8 || forma.Contains("NOTA", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var formasPago = pagos.Any()
+            ? string.Join(" / ", pagos.Select(p =>
+            {
+                var fp = GetAny<string>(p, "", "FormaPago");
+                if (!string.IsNullOrWhiteSpace(fp)) return fp;
+                var id = GetAny<int>(p, 0, "IdTipoPagoVenta", "IdTipoPago");
+                return FormaPagoFromId(id);
+            }))
+            : "-";
+
+        decimal totalPagos = pagos.Sum(p => GetAny<decimal>(p, 0m, "Monto", "Soles"));
+        decimal efectivo = pagos.Where(EsEfectivo).Sum(p => GetAny<decimal>(p, 0m, "Monto", "Soles"));
+        decimal notaCredito = pagos.Where(EsNota).Sum(p => GetAny<decimal>(p, 0m, "Monto", "Soles"));
+        decimal tarjeta = totalPagos - efectivo - notaCredito;
+
+        // ==== Detalles ====
         var detalles = GetList(vObj, "Detalles");
-        // Cálculo de descuento “global” mostrado en ticket
-        decimal descuento = (subTotal + igv) - total;
 
-        // === QR ===
-        string textoQR = $"{rucEmisor}|{tipoDocCpe}|{serie}|{numero}|{igv:0.00}|{total:0.00}|{fechaEmision:dd/MM/yyyy}|{tipoDocCli}|{docCliente}";
+        // ==== QR (idéntico) ====
+        string textoQR = $"{rucEmisor}|{tipoDocCodigoSunat}|{serie}|{numero}|{igv:0.00}|{total:0.00}|{fechaEmision:dd/MM/yyyy}|{tipoDocClienteSunat}|{docCliente}";
         string urlQR = $"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={Uri.EscapeDataString(textoQR)}";
 
+        // ==== Render ====
         var sb = new System.Text.StringBuilder();
-
         sb.AppendLine("<pre style='font-family: monospace; font-size:12px;'>");
-        sb.AppendLine(Center(tipoDocCpe == "01" ? "FACTURA ELECTRONICA" : "BOLETA DE VENTA ELECTRONICA"));
+        sb.AppendLine(Center($"{tipoDocTitulo} DE VENTA ELECTRONICA"));
         sb.AppendLine(Center("================================"));
         if (!string.IsNullOrWhiteSpace(razonEmisor)) sb.AppendLine(Center(razonEmisor.ToUpper()));
         if (!string.IsNullOrWhiteSpace(rucEmisor)) sb.AppendLine(Center($"RUC: {rucEmisor}"));
         if (!string.IsNullOrWhiteSpace(dirEmisor)) sb.AppendLine(Center(dirEmisor));
         sb.AppendLine(Center("================================"));
         if (!string.IsNullOrWhiteSpace(cajero)) sb.AppendLine($"CAJERO: {cajero}");
-        if (!string.IsNullOrWhiteSpace(vendedor)) sb.AppendLine($"VENDEDOR: {vendedor}");
-        sb.AppendLine($"SERIE: {serie}-{numero:D4}");
+        sb.AppendLine($"SERIE: {serieConPrefijo}-{numero:D4}");
         sb.AppendLine($"FECHA EMISION: {fechaEmision:dd/MM/yyyy} HORA: {fechaEmision:HH:mm}");
         if (!string.IsNullOrWhiteSpace(cliente)) sb.AppendLine($"CLIENTE: {cliente}");
         if (!string.IsNullOrWhiteSpace(docCliente)) sb.AppendLine($"DOC: {docCliente}");
-
-        var formasPago = pagos.Any()
-            ? string.Join(" / ", pagos.Select(p => GetAny<string>(p, "-", "FormaPago", "Descripcion")))
-            : "-";
+        if (!string.IsNullOrWhiteSpace(vendedor)) sb.AppendLine($"VENDEDOR: {vendedor}");
         sb.AppendLine($"FORMA DE PAGO: {formasPago}");
         sb.AppendLine(Center("================================"));
         sb.AppendLine("Cant Código  Producto   PU   TOTAL");
@@ -576,9 +622,11 @@
             decimal cantidad = GetAny<decimal>(item, 0m, "Cantidad");
             decimal pu = GetAny<decimal>(item, 0m, "PrecioUnitario", "Precio");
             decimal totalLn = GetAny<decimal>(item, 0m, "Total");
-            string codigo = GetAny<string>(item, "", "CodigoItem", "Codigo");
+
+            string codigo = GetAny<string>(item, "", "CodigoItem", "Codigo") ?? "";
             if (codigo.Length > 8) codigo = codigo[..8];
-            string desc = GetAny<string>(item, "", "DescripcionItem", "Descripcion");
+
+            string desc = GetAny<string>(item, "", "DescripcionItem", "Descripcion") ?? "";
             if (desc.Length > 12) desc = desc[..12];
 
             sb.AppendLine($"{cantidad,3:0} {codigo.PadRight(8)} {desc.PadRight(12)} {pu,6:0.00} {totalLn,7:0.00}");
@@ -602,9 +650,9 @@
         sb.AppendLine("PRESENTACIÓN DEL COMPROBANTE Y");
         sb.AppendLine("VERIFICACIÓN DE LA MERCADERÍA.");
         sb.AppendLine(Center("-----------------------------------"));
-        // Si tu DTO trae hash:
+
         string hash = GetAny<string>(vObj, "", "CodigoVerificacion", "Hash");
-        if (!string.IsNullOrWhiteSpace(hash)) sb.AppendLine($"Hash: {hash}");
+        sb.AppendLine($"Hash: {hash}");
         sb.AppendLine("Representación Impresa del Documento");
         sb.AppendLine("Gracias por su compra!");
         sb.AppendLine("</pre>");

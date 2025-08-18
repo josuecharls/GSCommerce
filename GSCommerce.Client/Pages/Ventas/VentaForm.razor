@@ -694,32 +694,13 @@ OnCancelado="CobroCancelado" />
             RecalcularTotales();
         }
 
-        // Antes de registrar, intenta enviar a SUNAT si corresponde
-        if (tipoDoc.Abreviatura != "TK")
-        {
-            await JS.InvokeVoidAsync("console.log", "Enviando a SUNAT...", new
-            {
-                venta.RucEmisor,
-                venta.Serie,
-                venta.Numero,
-                venta.DocumentoCliente
-            });
-
-            var exitoSunat = await ventaService.EnviarASUNATAsync(venta, venta.Detalles, tipoDoc);
-            if (!exitoSunat)
-            {
-                await JS.InvokeVoidAsync("alert", "REPORTAR A SISTEMAS EL FALLO");
-                return;
-            }
-        }
-
         var resultadoRegistro = await ventaService.RegistrarVentaAsync(new VentaRegistroDTO
-        {
-            Cabecera = venta,
-            Detalles = venta.Detalles,
-            Pagos = pagosRealizados,
-            TipoDocumento = tipoDoc!
-        });
+            {
+                Cabecera = venta,
+                Detalles = venta.Detalles,
+                Pagos = pagosRealizados,
+                TipoDocumento = tipoDoc!
+            });
 
         if (!resultadoRegistro.Success)
         {
@@ -741,11 +722,35 @@ OnCancelado="CobroCancelado" />
         // ✅ Imprimir ticket en formato texto
         var textoTicket = GenerarHtmlDelTicket();
         await JS.InvokeVoidAsync("imprimirTicket", textoTicket);
-
-        if (tipoDoc.Abreviatura != "TK")
-            await JS.InvokeVoidAsync("alert", "✅ Venta registrada y declarada a SUNAT.");
+        //await JS.InvokeVoidAsync("alert", "✅ Venta registrada. Pendiente de envío a SUNAT.");
+        if (EsFactura)
+        {
+            // SUNAT solo acepta RUC (6) en facturas
+            venta.TipoDocumento = "6";
+        }
         else
-            await JS.InvokeVoidAsync("alert", "✅ Venta registrada Correctamente.");
+        {
+            // En boletas, puede ser DNI o sin documento
+            venta.TipoDocumento = venta.DocumentoCliente.Length == 8 ? "1" : "0";
+        }
+        // Luego de registrar correctamente, envía a SUNAT (si no es TICKET)
+        if (tipoDoc.Abreviatura != "TK")
+        {
+            await JS.InvokeVoidAsync("console.log", "Enviando a SUNAT...", new
+            {
+                venta.RucEmisor,
+                venta.TipoDocumento,
+                venta.Serie,
+                venta.Numero,
+                venta.DocumentoCliente
+            });
+
+            var exitoSunat = await ventaService.EnviarASUNATAsync(venta, venta.Detalles, tipoDoc);
+            if (exitoSunat)
+                await JS.InvokeVoidAsync("alert", "✅ Venta registrada y declarada a SUNAT.");
+            else
+                await JS.InvokeVoidAsync("alert", "❌ Falló el envío a SUNAT.");
+        }
 
         // 🔁 Limpiar manteniendo valores clave
         string? tipoAnterior = venta.TipoDocumento;
