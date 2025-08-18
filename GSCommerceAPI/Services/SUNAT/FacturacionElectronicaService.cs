@@ -492,14 +492,14 @@ namespace GSCommerceAPI.Services.SUNAT
 
                 if (esDescuento)
                 {
-                    // >>> Calcular DESDE EL TOTAL CON IGV de la línea (cantidad * precio con IGV)
-                    var totalDescConIgvLinea = Math.Round(det.Cantidad * det.PrecioUnitarioConIGV, 2, MidpointRounding.AwayFromZero); // ej: -10.00
-                    var baseDescLinea = Math.Round(totalDescConIgvLinea / 1.18m, 2, MidpointRounding.AwayFromZero); // ej: -8.47
-                    var igvDescLinea = Math.Round(totalDescConIgvLinea - baseDescLinea, 2, MidpointRounding.AwayFromZero); // ej: -1.53
+                    // Para líneas “descuento” (precio con IGV negativo, o Total<0, o descripción inicia con "DESC")
+                    var totalDescConIgvLinea = Math.Round(det.Cantidad * det.PrecioUnitarioConIGV, 2, MidpointRounding.AwayFromZero); // ej. -10.00
+                    var baseDescLinea = Math.Round(totalDescConIgvLinea / 1.18m, 2, MidpointRounding.AwayFromZero);            // -8.47
+                    var igvDescLinea = Math.Round(totalDescConIgvLinea - baseDescLinea, 2, MidpointRounding.AwayFromZero);    // -1.53
 
-                    descuentoBase += Math.Abs(baseDescLinea);       // 8.47
-                    descuentoIgv += Math.Abs(igvDescLinea);        // 1.53
-                    descuentoConIgv += Math.Abs(totalDescConIgvLinea);// 10.00
+                    descuentoBase += Math.Abs(baseDescLinea);     // 8.47  (BASE)
+                    descuentoIgv += Math.Abs(igvDescLinea);      // 1.53  (IGV)
+                    descuentoConIgv += Math.Abs(totalDescConIgvLinea); // 10.00 (CON IGV)
                 }
                 else
                 {
@@ -516,10 +516,10 @@ namespace GSCommerceAPI.Services.SUNAT
             decimal subtotalBruto = Math.Round(dto.Detalles.Sum(d => d.TotalSinIGV), 2, MidpointRounding.AwayFromZero);
             decimal igvBruto = Math.Round(dto.Detalles.Sum(d => d.IGV), 2, MidpointRounding.AwayFromZero);
 
-            // Totales NETOS (post descuento)
-            dto.SubTotal = Math.Round(subtotalBruto - descuentoBase, 2, MidpointRounding.AwayFromZero);
-            dto.Igv = Math.Round(igvBruto - descuentoIgv, 2, MidpointRounding.AwayFromZero);
-            dto.Total = Math.Round(dto.SubTotal + dto.Igv, 2, MidpointRounding.AwayFromZero);
+            // NETO tras descuento global:
+            decimal subtotalNeto = Math.Round(subtotalBruto - descuentoBase, 2, MidpointRounding.AwayFromZero);
+            decimal igvNeto = Math.Round(igvBruto - descuentoIgv, 2, MidpointRounding.AwayFromZero);
+            decimal totalNeto = Math.Round(subtotalNeto + igvNeto, 2, MidpointRounding.AwayFromZero);
 
             // Auxiliares
             var taxInclBruto = Math.Round(subtotalBruto + igvBruto, 2, MidpointRounding.AwayFromZero);
@@ -541,10 +541,10 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent><sac:AdditionalInformation>");
 
             // 1001 = suma de bases de líneas (BRUTO)
-            sb.AppendLine($"<sac:AdditionalMonetaryTotal><cbc:ID>1001</cbc:ID><cbc:PayableAmount currencyID=\"{dto.Moneda}\">{F2(subtotalBruto)}</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
+            sb.AppendLine($"<sac:AdditionalMonetaryTotal><cbc:ID>1001</cbc:ID><cbc:PayableAmount currencyID=\"{dto.Moneda}\">{F2(subtotalNeto)}</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
             // 2005 = descuento global en BASE (NEGATIVO) – ahora -8.48
-            if (descuentoBase > 0)
-                sb.AppendLine($"<sac:AdditionalMonetaryTotal><cbc:ID>2005</cbc:ID><cbc:PayableAmount currencyID=\"{dto.Moneda}\">-{F2(descuentoBase)}</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
+            if (descuentoConIgv > 0)
+                sb.AppendLine($"<sac:AdditionalMonetaryTotal><cbc:ID>2005</cbc:ID><cbc:PayableAmount currencyID=\"{dto.Moneda}\">{F2(descuentoConIgv)}</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
             // Monto en letras
             sb.AppendLine($"<sac:AdditionalProperty><cbc:ID>1000</cbc:ID><cbc:Value>{EscaparTextoXml(dto.MontoLetras)}</cbc:Value></sac:AdditionalProperty>");
             sb.AppendLine("</sac:AdditionalInformation></ext:ExtensionContent></ext:UBLExtension>");
@@ -631,18 +631,20 @@ namespace GSCommerceAPI.Services.SUNAT
                 sb.AppendLine("<cac:PaymentTerms><cbc:ID>FormaPago</cbc:ID><cbc:PaymentMeansID>Contado</cbc:PaymentMeansID></cac:PaymentTerms>");
 
             // ===== Descuento global UBL (AllowanceCharge) =====
-            if (descuentoBase > 0)
+            if (descuentoConIgv > 0)
             {
                 sb.AppendLine("<cac:AllowanceCharge>");
                 sb.AppendLine("<cbc:ChargeIndicator>false</cbc:ChargeIndicator>");
                 sb.AppendLine("<cbc:AllowanceChargeReasonCode>00</cbc:AllowanceChargeReasonCode>");
-                // Monto con IGV del descuento (10.00)
-                sb.AppendLine($"<cbc:Amount currencyID=\"{dto.Moneda}\">{F2(descuentoConIgv)}</cbc:Amount>");
-                // Base con IGV del cálculo (298.00)
-                sb.AppendLine($"<cbc:BaseAmount currencyID=\"{dto.Moneda}\">{F2(taxInclBruto)}</cbc:BaseAmount>");
+                sb.AppendLine($"<cbc:Amount currencyID=\"{dto.Moneda}\">{F2(descuentoConIgv)}</cbc:Amount>"); // CON IGV
+                sb.AppendLine($"<cbc:BaseAmount currencyID=\"{dto.Moneda}\">{F2(taxInclBruto)}</cbc:BaseAmount>"); // total bruto con IGV
+                                                                                                                   // (TaxCategory opcional; muchos OSE lo aceptan sin TaxCategory a nivel cabecera)
                 sb.AppendLine("<cac:TaxCategory>");
+                sb.AppendLine("<cbc:Percent>18</cbc:Percent>");
+                sb.AppendLine("<cbc:TaxExemptionReasonCode>10</cbc:TaxExemptionReasonCode>");
                 sb.AppendLine("<cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme>");
                 sb.AppendLine("</cac:TaxCategory>");
+
                 sb.AppendLine("</cac:AllowanceCharge>");
             }
 
@@ -659,10 +661,10 @@ namespace GSCommerceAPI.Services.SUNAT
             // ===== Totales monetarios =====
             sb.AppendLine("<cac:LegalMonetaryTotal>");
             sb.AppendLine($"<cbc:LineExtensionAmount currencyID=\"{dto.Moneda}\">{F2(subtotalBruto)}</cbc:LineExtensionAmount>");
-            sb.AppendLine($"<cbc:TaxInclusiveAmount  currencyID=\"{dto.Moneda}\">{F2(taxInclBruto)}</cbc:TaxInclusiveAmount>");
+            sb.AppendLine($"<cbc:TaxInclusiveAmount currencyID=\"{dto.Moneda}\">{F2(taxInclBruto)}</cbc:TaxInclusiveAmount>");
             if (descuentoConIgv > 0)
                 sb.AppendLine($"<cbc:AllowanceTotalAmount currencyID=\"{dto.Moneda}\">{F2(descuentoConIgv)}</cbc:AllowanceTotalAmount>");
-            sb.AppendLine($"<cbc:PayableAmount        currencyID=\"{dto.Moneda}\">{F2(dto.Total)}</cbc:PayableAmount>");
+            sb.AppendLine($"<cbc:PayableAmount currencyID=\"{dto.Moneda}\">{F2(totalNeto)}</cbc:PayableAmount>");
             sb.AppendLine("</cac:LegalMonetaryTotal>");
 
             // ===== Líneas =====
