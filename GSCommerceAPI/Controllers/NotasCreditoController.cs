@@ -239,9 +239,11 @@ namespace GSCommerceAPI.Controllers
                     var almacen = await _context.Almacens.FirstOrDefaultAsync(a => a.IdAlmacen == cabecera.IdAlmacen);
                     if (almacen != null)
                     {
-                        var keyMoneda = $"MonedaAlmacen_{almacen.IdAlmacen}";
-                        var configMoneda = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == keyMoneda);
-                        var moneda = configMoneda?.Valor ?? "PEN";
+                        // Las notas de crédito siempre deben emitirse en soles, incluso
+                        // cuando el almacén esté configurado para trabajar con dólares.
+                        // Esto mantiene la coherencia con las boletas generadas en dichos
+                        // almacenes, que también se emiten en moneda nacional.
+                        var moneda = "PEN";
 
                         var dpdParts = (almacen.Dpd ?? "").Split(new[] { '-', ',' }, StringSplitOptions.RemoveEmptyEntries);
                         string distrito = dpdParts.Length > 0 ? dpdParts[0].Trim() : string.Empty;

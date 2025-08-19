@@ -170,7 +170,7 @@
                                 <div class="text-muted small mt-1">NC: @v.NumeroNotaCredito</div>
                             }
                         }
-                        @if (cargo == "ADMINISTRADOR" && v.EstadoSunat == "PENDIENTE" || v.EstadoSunat == "RECHAZADO" && (v.TipoDocumento == "BOLETA" || v.TipoDocumento == "BOLETA M" || v.TipoDocumento == "FACTURA"))
+                        @if (cargo == "ADMINISTRADOR" && v.EstadoSunat == "RECHAZADO" && (v.TipoDocumento == "BOLETA" || v.TipoDocumento == "BOLETA M" || v.TipoDocumento == "FACTURA"))
                         {
                             <div class="btn-group btn-group-sm flex-wrap mt-1" role="group">
                                 <button class="btn btn-outline-warning" title="Reenviar a SUNAT" @onclick="@(() => ReenviarSunat(v))">
