@@ -419,7 +419,14 @@
                 IdAlmacen = ventaReenvio.IdAlmacen,
                 IdArticulo = ventaReenvio.IdArticulo,
                 Descripcion = ventaReenvio.Descripcion,
-                Detalles = ventaReenvio.Detalles
+                Detalles = ventaReenvio.Detalles,
+                RucEmisor = ventaReenvio.RucEmisor,
+                RazonSocialEmisor = ventaReenvio.RazonSocialEmisor,
+                DireccionEmisor = ventaReenvio.DireccionEmisor,
+                NombreCajero = ventaReenvio.NombreCajero,
+                NombreVendedor = ventaReenvio.NombreVendedor,
+                Pagos = ventaReenvio.Pagos,
+                Vuelto = ventaReenvio.Vuelto
             };
 
             var html = GenerarHtmlTicketDesdeVenta((object)ventaImpresion);

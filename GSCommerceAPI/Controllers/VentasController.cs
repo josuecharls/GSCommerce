@@ -37,6 +37,39 @@ namespace GSCommerceAPI.Controllers
             if (cabecera == null)
                 return NotFound();
 
+            var almacen = await _context.Almacens
+                .Where(a => a.IdAlmacen == cabecera.IdAlmacen)
+                .Select(a => new { a.Nombre, a.Ruc, a.RazonSocial, a.Direccion })
+                .FirstOrDefaultAsync();
+
+            var nombreCajero = await _context.Usuarios
+                .Where(u => u.IdUsuario == cabecera.IdCajero)
+                .Select(u => u.Nombre)
+                .FirstOrDefaultAsync();
+
+            var nombreVendedor = await _context.Personals
+                .Where(p => p.IdPersonal == cabecera.IdVendedor)
+                .Select(p => p.Nombres + " " + p.Apellidos)
+                .FirstOrDefaultAsync();
+
+            var pagos = await _context.VDetallePagoVenta1s
+                .Where(p => p.IdComprobante == id)
+                .Select(p => new DetallePagoDTO
+                {
+                    IdDetallePagoVenta = p.IdDetallePagoVenta,
+                    IdComprobante = p.IdComprobante,
+                    IdTipoPagoVenta = p.IdTipoPagoVenta,
+                    Soles = p.Soles,
+                    Dolares = p.Dolares,
+                    Datos = p.Datos,
+                    Vuelto = p.Vuelto,
+                    PorcentajeTarjetaSoles = p.PorcentajeTarjetaSoles,
+                    PorcentajeTarjetaDolares = p.PorcentajeTarjetaDolares,
+                    FormaPago = p.Descripcion,
+                    Monto = p.Soles
+                })
+                .ToListAsync();
+
             var venta = new VentaDTO
             {
                 IdTipoDocumento = cabecera.IdTipoDocumento,
@@ -67,7 +100,14 @@ namespace GSCommerceAPI.Controllers
                     PrecioUnitario = d.Precio,
                     PorcentajeDescuento = d.PorcentajeDescuento,
                     Total = d.Total
-                }).ToList()
+                }).ToList(),
+                RucEmisor = almacen?.Ruc,
+                RazonSocialEmisor = almacen?.RazonSocial ?? almacen?.Nombre,
+                DireccionEmisor = almacen?.Direccion,
+                NombreCajero = nombreCajero,
+                NombreVendedor = nombreVendedor,
+                Pagos = pagos,
+                Vuelto = pagos.FirstOrDefault(p => p.Vuelto.HasValue)?.Vuelto ?? 0m
             };
 
             return Ok(venta);

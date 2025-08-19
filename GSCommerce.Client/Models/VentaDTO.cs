@@ -24,5 +24,12 @@
         public int IdArticulo { get; set; }
         public string? Descripcion { get; set; }
         public List<VentaDetalleDTO> Detalles { get; set; } = new();
+        public string? RucEmisor { get; set; }
+        public string? RazonSocialEmisor { get; set; }
+        public string? DireccionEmisor { get; set; }
+        public string? NombreCajero { get; set; }
+        public string? NombreVendedor { get; set; }
+        public decimal Vuelto { get; set; }
+        public List<DetallePagoDTO> Pagos { get; set; } = new();
     }
 }
