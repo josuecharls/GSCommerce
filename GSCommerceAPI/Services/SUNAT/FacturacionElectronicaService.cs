@@ -476,19 +476,34 @@ namespace GSCommerceAPI.Services.SUNAT
             for (int i = 0; i < detallesValidos.Count; i++)
                 detallesValidos[i].Item = i + 1;
 
+            // Calcular total antes de aplicar el descuento
+            decimal totalAntesDescuento = Math.Round(detallesValidos.Sum(d => d.Total), 2);
+
+            // Distribuir proporcionalmente el descuento en los precios unitarios
+            var descuentoConIgvOriginal = Math.Round(descuentoBase + descuentoIgv, 2);
+            if (descuentoConIgvOriginal > 0 && totalAntesDescuento > 0)
+            {
+                foreach (var det in detallesValidos)
+                {
+                    decimal proporcion = det.Total / totalAntesDescuento;
+                    decimal dsctoItem = proporcion * descuentoConIgvOriginal;
+                    decimal dsctoUnitario = dsctoItem / det.Cantidad;
+                    decimal nuevoPUConIgv = det.PrecioUnitarioConIGV - dsctoUnitario;
+                    decimal nuevoPUSinIgv = dto.Igv > 0 ? nuevoPUConIgv / 1.18m : nuevoPUConIgv;
+
+                    det.PrecioUnitarioConIGV = Math.Round(nuevoPUConIgv, 5);
+                    det.PrecioUnitarioSinIGV = Math.Round(nuevoPUSinIgv, 5);
+                    det.IGV = dto.Igv > 0 ? Math.Round(det.PrecioUnitarioSinIGV * 0.18m * det.Cantidad, 2) : 0m;
+                }
+            }
+
             dto.Detalles = detallesValidos;
 
-            descuentoBase = Math.Round(descuentoBase, 2);
-            descuentoIgv = Math.Round(descuentoIgv, 2);
-            decimal descuentoConIgv = Math.Round(descuentoBase + descuentoIgv, 2);
-
-            // Recalcular totales netos a partir de los detalles válidos
-            var subtotalPositivo = Math.Round(dto.Detalles.Sum(d => d.TotalSinIGV), 2);
-            var igvPositivo = Math.Round(dto.Detalles.Sum(d => d.IGV), 2);
-
-            dto.SubTotal = Math.Round(subtotalPositivo - descuentoBase, 2);
-            dto.Igv = Math.Round(igvPositivo - descuentoIgv, 2);
-            dto.Total = Math.Round(subtotalPositivo + igvPositivo - descuentoConIgv, 2);
+            // Recalcular totales con los precios ya ajustados
+            dto.SubTotal = Math.Round(dto.Detalles.Sum(d => d.TotalSinIGV), 2);
+            dto.Igv = Math.Round(dto.Detalles.Sum(d => d.IGV), 2);
+            dto.Total = Math.Round(dto.SubTotal + dto.Igv, 2);
+            decimal descuentoConIgv = Math.Round(totalAntesDescuento - dto.Total, 2);
 
             sb.AppendLine($"<?xml version={q}1.0{q} encoding={q}ISO-8859-1{q} standalone={q}no{q}?>");
             sb.AppendLine($"<{rootTag} xmlns={q}{rootNs}{q}" +
@@ -504,7 +519,8 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent><sac:AdditionalInformation>");
             sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>1001</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">" + dto.SubTotal.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
             if (descuentoConIgv > 0)
-                sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>2005</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">-" + descuentoConIgv.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>"); sb.AppendLine("<sac:AdditionalProperty><cbc:ID>1000</cbc:ID><cbc:Value>" + EscaparTextoXml(dto.MontoLetras) + "</cbc:Value></sac:AdditionalProperty>");
+                sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>2005</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">" + descuentoConIgv.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
+            sb.AppendLine("<sac:AdditionalProperty><cbc:ID>1000</cbc:ID><cbc:Value>" + EscaparTextoXml(dto.MontoLetras) + "</cbc:Value></sac:AdditionalProperty>");
             sb.AppendLine("</sac:AdditionalInformation></ext:ExtensionContent></ext:UBLExtension>");
             sb.AppendLine("</ext:UBLExtensions>");
 
@@ -610,8 +626,8 @@ namespace GSCommerceAPI.Services.SUNAT
 
             foreach (var item in dto.Detalles)
             {
-                var baseImponible = Math.Round(item.Cantidad * item.PrecioUnitarioSinIGV, 2);
-                var igv = Math.Round(baseImponible * 0.18m, 2);
+                var baseImponible = Math.Round(item.TotalSinIGV, 2);
+                var igv = Math.Round(item.IGV, 2);
 
                 sb.AppendLine($"<cac:{lineTag}>");
                 sb.AppendLine($"<cbc:ID>{item.Item}</cbc:ID>");
