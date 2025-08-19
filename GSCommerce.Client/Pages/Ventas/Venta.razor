@@ -219,6 +219,17 @@
                             }
                         </tbody>
                     </table>
+                    <div class="mt-3">
+                        <p><strong>Subtotal:</strong> @ventaReenvio.SubTotal.ToString("C", new System.Globalization.CultureInfo("es-PE"))</p>
+                        <p>
+                            <strong>IGV:</strong> @ventaReenvio.Igv.ToString("C", new System.Globalization.CultureInfo("es-PE"))
+                            @if (ventaReenvio.IdAlmacen == 1024)
+                            {
+                                <span class="text-muted">(Exonerado - Amazonas)</span>
+                            }
+                        </p>
+                        <p><strong>Total:</strong> @ventaReenvio.Total.ToString("C", new System.Globalization.CultureInfo("es-PE"))</p>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-info" @onclick="ImprimirBoletaReenvio">Imprimir</button>

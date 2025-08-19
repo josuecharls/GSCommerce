@@ -1227,11 +1227,17 @@ namespace GSCommerceAPI.Controllers
                     UnidadMedida = d.UnidadMedida,
                     Cantidad = d.Cantidad,
                     PrecioUnitarioConIGV = d.Precio,
-                    PrecioUnitarioSinIGV = Math.Round(d.Precio / 1.18m, 2),
-                    IGV = Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
+                    PrecioUnitarioSinIGV = cab.IdAlmacen == 1024 ? d.Precio : Math.Round(d.Precio / 1.18m, 2),
+                    IGV = cab.IdAlmacen == 1024 ? 0m : Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
                 }).ToList()
             };
 
+            if (cab.IdAlmacen == 1024)
+            {
+                dto.Igv = 0m;
+                dto.SubTotal = Math.Round(dto.Detalles.Sum(d => d.TotalSinIGV), 2);
+                dto.Total = dto.SubTotal;
+            }
             // 4) Rutas y nombre SUNAT
             var tipo = MapTipoSunat(cab.IdTipoDocumento);
             var baseName = $"{alm.Ruc}-{tipo}-{cab.Serie}-{cab.Numero:D8}";
@@ -1361,10 +1367,17 @@ namespace GSCommerceAPI.Controllers
                         UnidadMedida = d.UnidadMedida,
                         Cantidad = d.Cantidad,
                         PrecioUnitarioConIGV = d.Precio,
-                        PrecioUnitarioSinIGV = Math.Round(d.Precio / 1.18m, 2),
-                        IGV = Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
+                        PrecioUnitarioSinIGV = cab.IdAlmacen == 1024 ? d.Precio : Math.Round(d.Precio / 1.18m, 2),
+                        IGV = cab.IdAlmacen == 1024 ? 0m : Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
                     }).ToList()
                 };
+
+                if (cab.IdAlmacen == 1024)
+                {
+                    dto.Igv = 0m;
+                    dto.SubTotal = Math.Round(dto.Detalles.Sum(d => d.TotalSinIGV), 2);
+                    dto.Total = dto.SubTotal;
+                }
 
                 lista.Add(dto);
             }
@@ -1470,8 +1483,8 @@ namespace GSCommerceAPI.Controllers
                     DescripcionItem = d.Descripcion,
                     Cantidad = d.Cantidad,
                     PrecioUnitarioConIGV = d.Precio,
-                    PrecioUnitarioSinIGV = Math.Round(d.Precio / 1.18m, 2),
-                    IGV = Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
+                    PrecioUnitarioSinIGV = cab.IdAlmacen == 1024 ? d.Precio : Math.Round(d.Precio / 1.18m, 2),
+                    IGV = cab.IdAlmacen == 1024 ? 0m : Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
                 })
                 .ToListAsync();
 
@@ -1501,6 +1514,13 @@ namespace GSCommerceAPI.Controllers
                 DireccionCliente = cab.Direccion ?? string.Empty,
                 Detalles = detalles
             };
+
+            if (cab.IdAlmacen == 1024)
+            {
+                comprobante.Igv = 0m;
+                comprobante.SubTotal = Math.Round(comprobante.Detalles.Sum(d => d.TotalSinIGV), 2);
+                comprobante.Total = comprobante.SubTotal;
+            }
 
             var resp = await _facturacionService.EnviarComprobante(comprobante);
 

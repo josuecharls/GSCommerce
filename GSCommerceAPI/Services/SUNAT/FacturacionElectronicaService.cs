@@ -517,7 +517,8 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<ext:UBLExtensions>");
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent/></ext:UBLExtension>");
             sb.AppendLine("<ext:UBLExtension><ext:ExtensionContent><sac:AdditionalInformation>");
-            sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>1001</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">" + dto.SubTotal.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
+            var codigoOperacion = dto.Igv > 0m ? "1001" : "1003";
+            sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>" + codigoOperacion + "</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">" + dto.SubTotal.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
             if (descuentoConIgv > 0)
                 sb.AppendLine("<sac:AdditionalMonetaryTotal><cbc:ID>2005</cbc:ID><cbc:PayableAmount currencyID=\"" + dto.Moneda + "\">" + descuentoConIgv.ToString("F2") + "</cbc:PayableAmount></sac:AdditionalMonetaryTotal>");
             sb.AppendLine("<sac:AdditionalProperty><cbc:ID>1000</cbc:ID><cbc:Value>" + EscaparTextoXml(dto.MontoLetras) + "</cbc:Value></sac:AdditionalProperty>");
@@ -614,8 +615,10 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine("<cac:TaxSubtotal>");
             sb.AppendLine($"<cbc:TaxableAmount currencyID=\"{dto.Moneda}\">{dto.SubTotal:F2}</cbc:TaxableAmount>");
             sb.AppendLine($"<cbc:TaxAmount currencyID=\"{dto.Moneda}\">{dto.Igv:F2}</cbc:TaxAmount>");
-            sb.AppendLine("<cac:TaxCategory><cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme></cac:TaxCategory>");
-            sb.AppendLine("</cac:TaxSubtotal>");
+            if (dto.Igv > 0m)
+                sb.AppendLine("<cac:TaxCategory><cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme></cac:TaxCategory>");
+            else
+                sb.AppendLine("<cac:TaxCategory><cbc:Percent>0</cbc:Percent><cbc:TaxExemptionReasonCode>20</cbc:TaxExemptionReasonCode><cac:TaxScheme><cbc:ID>9997</cbc:ID><cbc:Name>EXO</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme></cac:TaxCategory>"); sb.AppendLine("</cac:TaxSubtotal>");
             sb.AppendLine("</cac:TaxTotal>");
 
             sb.AppendLine("<cac:LegalMonetaryTotal>");

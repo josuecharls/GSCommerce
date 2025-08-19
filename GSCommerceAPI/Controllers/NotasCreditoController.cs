@@ -293,11 +293,17 @@ namespace GSCommerceAPI.Controllers
                                 DescripcionItem = d.Descripcion,
                                 UnidadMedida = d.UnidadMedida,
                                 Cantidad = d.Cantidad,
-                                PrecioUnitarioConIGV = d.Precio,
-                                PrecioUnitarioSinIGV = Math.Round(d.Precio / 1.18m, 2),
-                                IGV = Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
+                                PrecioUnitarioSinIGV = cabecera.IdAlmacen == 1024 ? d.Precio : Math.Round(d.Precio / 1.18m, 2),
+                                IGV = cabecera.IdAlmacen == 1024 ? 0m : Math.Round((d.Precio * d.Cantidad) - (d.Precio * d.Cantidad / 1.18m), 2)
                             }).ToList()
                         };
+
+                        if (cabecera.IdAlmacen == 1024)
+                        {
+                            comprobanteSunat.Igv = 0m;
+                            comprobanteSunat.SubTotal = Math.Round(comprobanteSunat.Detalles.Sum(d => d.TotalSinIGV), 2);
+                            comprobanteSunat.Total = comprobanteSunat.SubTotal;
+                        }
 
                         var (exito, mensajeSunat) = await _facturacion.EnviarComprobante(comprobanteSunat);
                         if (!exito)
