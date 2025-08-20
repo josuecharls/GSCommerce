@@ -1,6 +1,7 @@
-﻿using GSCommerce.Client.Models;
-using System.Net.Http.Json;
+﻿using System;
 using System.Collections.Generic;
+using System.Net.Http.Json;
+using GSCommerce.Client.Models;
 
 namespace GSCommerce.Client.Services
 {
@@ -19,9 +20,13 @@ namespace GSCommerce.Client.Services
             return lista != null && lista.Any(a => a.Estado == "A");
         }
 
-        public async Task<ResumenDiarioDTO> ObtenerResumenAsync(int idAlmacen, int idUsuario)
+        public async Task<ResumenDiarioDTO> ObtenerResumenAsync(int idAlmacen, int idUsuario, DateOnly? fecha = null)
         {
-            var response = await _http.GetFromJsonAsync<ResumenDiarioDTO>($"api/ventas/resumen?idAlmacen={idAlmacen}&idUsuario={idUsuario}");
+            var url = $"api/ventas/resumen?idAlmacen={idAlmacen}&idUsuario={idUsuario}";
+            if (fecha.HasValue)
+                url += $"&fecha={fecha:yyyy-MM-dd}";
+
+            var response = await _http.GetFromJsonAsync<ResumenDiarioDTO>(url);
             return response ?? new ResumenDiarioDTO();
         }
     }

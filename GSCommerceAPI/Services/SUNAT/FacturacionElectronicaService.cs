@@ -618,7 +618,8 @@ namespace GSCommerceAPI.Services.SUNAT
             if (dto.Igv > 0m)
                 sb.AppendLine("<cac:TaxCategory><cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme></cac:TaxCategory>");
             else
-                sb.AppendLine("<cac:TaxCategory><cbc:Percent>0</cbc:Percent><cbc:TaxExemptionReasonCode>20</cbc:TaxExemptionReasonCode><cac:TaxScheme><cbc:ID>9997</cbc:ID><cbc:Name>EXO</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme></cac:TaxCategory>"); sb.AppendLine("</cac:TaxSubtotal>");
+                sb.AppendLine("<cac:TaxCategory><cac:TaxScheme><cbc:ID>9998</cbc:ID><cbc:Name>INA</cbc:Name><cbc:TaxTypeCode>FRE</cbc:TaxTypeCode></cac:TaxScheme></cac:TaxCategory>");
+            sb.AppendLine("</cac:TaxSubtotal>");
             sb.AppendLine("</cac:TaxTotal>");
 
             sb.AppendLine("<cac:LegalMonetaryTotal>");
@@ -639,16 +640,22 @@ namespace GSCommerceAPI.Services.SUNAT
                 sb.AppendLine("<cac:PricingReference><cac:AlternativeConditionPrice>");
                 sb.AppendLine($"<cbc:PriceAmount currencyID=\"{dto.Moneda}\">{item.PrecioUnitarioConIGV:F2}</cbc:PriceAmount>");
                 sb.AppendLine("<cbc:PriceTypeCode>01</cbc:PriceTypeCode></cac:AlternativeConditionPrice></cac:PricingReference>");
-
                 sb.AppendLine("<cac:TaxTotal><cbc:TaxAmount currencyID=\"" + dto.Moneda + "\">" + igv.ToString("F2") + "</cbc:TaxAmount>");
                 sb.AppendLine("<cac:TaxSubtotal><cbc:TaxableAmount currencyID=\"" + dto.Moneda + "\">" + baseImponible.ToString("F2") + "</cbc:TaxableAmount>");
                 sb.AppendLine("<cbc:TaxAmount currencyID=\"" + dto.Moneda + "\">" + igv.ToString("F2") + "</cbc:TaxAmount>");
                 sb.AppendLine("<cac:TaxCategory>");
-                sb.AppendLine("<cbc:Percent>18</cbc:Percent>");
-                sb.AppendLine("<cbc:TaxExemptionReasonCode>10</cbc:TaxExemptionReasonCode>");
-                sb.AppendLine("<cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme>");
+                if (dto.Igv > 0m)
+                {
+                    sb.AppendLine("<cbc:Percent>18</cbc:Percent>");
+                    sb.AppendLine("<cbc:TaxExemptionReasonCode>10</cbc:TaxExemptionReasonCode>");
+                    sb.AppendLine("<cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme>");
+                } else
+                {
+                    sb.AppendLine("<cbc:Percent>0</cbc:Percent>");
+                    sb.AppendLine("<cbc:TaxExemptionReasonCode>30</cbc:TaxExemptionReasonCode>");
+                    sb.AppendLine("<cac:TaxScheme><cbc:ID>9998</cbc:ID><cbc:Name>INA</cbc:Name><cbc:TaxTypeCode>FRE</cbc:TaxTypeCode></cac:TaxScheme>");
+                }
                 sb.AppendLine("</cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>");
-
                 sb.AppendLine("<cac:Item><cbc:Description>" + EscaparTextoXml(item.DescripcionItem) + "</cbc:Description><cac:SellersItemIdentification><cbc:ID>" + item.CodigoItem + "</cbc:ID></cac:SellersItemIdentification></cac:Item>");
                 sb.AppendLine("<cac:Price><cbc:PriceAmount currencyID=\"" + dto.Moneda + "\">" + item.PrecioUnitarioSinIGV.ToString("F2") + "</cbc:PriceAmount></cac:Price>");
 
