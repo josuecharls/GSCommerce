@@ -20,13 +20,9 @@ namespace GSCommerce.Client.Services
             return lista != null && lista.Any(a => a.Estado == "A");
         }
 
-        public async Task<ResumenDiarioDTO> ObtenerResumenAsync(int idAlmacen, int idUsuario, DateOnly? fecha = null)
+        public async Task<ResumenDiarioDTO> ObtenerResumenAsync(int idAlmacen, int idUsuario)
         {
-            var url = $"api/ventas/resumen?idAlmacen={idAlmacen}&idUsuario={idUsuario}";
-            if (fecha.HasValue)
-                url += $"&fecha={fecha:yyyy-MM-dd}";
-
-            var response = await _http.GetFromJsonAsync<ResumenDiarioDTO>(url);
+            var response = await _http.GetFromJsonAsync<ResumenDiarioDTO>($"api/ventas/resumen?idAlmacen={idAlmacen}&idUsuario={idUsuario}");
             return response ?? new ResumenDiarioDTO();
         }
     }

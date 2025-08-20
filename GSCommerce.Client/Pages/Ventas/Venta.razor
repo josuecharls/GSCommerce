@@ -1,12 +1,10 @@
 ﻿@page "/ventas"
-@using System
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject NavigationManager Nav
 @inject VentaService ventaService
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService
-@inject ResumenService ResumenService
 @inject IJSRuntime JS
 
 <h3>Ventas Registradas</h3>
@@ -287,18 +285,6 @@
 
         ventas = await ventaService.ObtenerVentasAsync(desde, hasta, filtroAlmacen, filtroTipoDoc);
         CalcularResumen();
-
-        var idAlmacenUsuario = await AuthService.GetUserAlmacenId();
-        var idUsuario = await AuthService.GetUserId();
-        if (idAlmacenUsuario.HasValue && idUsuario.HasValue)
-        {
-            var resumenDia = await ResumenService.ObtenerResumenAsync(idAlmacenUsuario.Value, idUsuario.Value, DateOnly.FromDateTime(hasta));
-            efectivoSoles = resumenDia.Efectivo;
-            efectivoDolares = 0;
-            tarjetaOnline = resumenDia.Tarjeta;
-            notaCredito = resumenDia.NotaCredito;
-            totalGeneral = resumenDia.Total;
-        }
     }
 
     private void CalcularResumen()

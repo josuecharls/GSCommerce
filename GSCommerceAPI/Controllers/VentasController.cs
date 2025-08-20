@@ -471,17 +471,14 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("resumen")]
-        public async Task<IActionResult> ObtenerResumen(
-            [FromQuery] int idAlmacen,
-            [FromQuery] int idUsuario,
-            [FromQuery] DateOnly? fecha)
+        public async Task<IActionResult> ObtenerResumen([FromQuery] int idAlmacen, [FromQuery] int idUsuario)
         {
-            var fechaDia = fecha ?? DateOnly.FromDateTime(DateTime.Today);
+            var fechaHoy = DateOnly.FromDateTime(DateTime.Today);
 
             var resumen = new ResumenDiarioDTO();
 
             var ventas = await _context.VRecaudacion3s
-                .Where(v => v.Fecha == fechaDia && v.IdAlmacen == idAlmacen && v.IdCajero == idUsuario)
+                .Where(v => v.Fecha == fechaHoy && v.IdAlmacen == idAlmacen && v.IdCajero == idUsuario)
                 .ToListAsync();
 
             foreach (var v in ventas)
@@ -507,51 +504,11 @@ namespace GSCommerceAPI.Controllers
             }
 
             var notasEmitidas = await _context.NotaDeCreditoCabeceras
-                .Where(n => DateOnly.FromDateTime(n.FechaHoraRegistro) == fechaDia && n.IdAlmacen == idAlmacen && n.IdUsuario == idUsuario)
-                .ToListAsync();
+                .Where(n => DateOnly.FromDateTime(n.FechaHoraRegistro) == fechaHoy && n.IdAlmacen == idAlmacen && n.IdUsuario == idUsuario).ToListAsync();
             resumen.NotaCredito -= notasEmitidas.Sum(n => n.Total);
 
-            // Restar ventas anuladas en el día
-            var anuladasIds = await _context.ComprobanteDeVentaCabeceras
-                .Where(c => c.IdAlmacen == idAlmacen
-                            && c.IdUsuarioAnula == idUsuario
-                            && c.FechaHoraUsuarioAnula.HasValue
-                            && DateOnly.FromDateTime(c.FechaHoraUsuarioAnula.Value) == fechaDia)
-                .Select(c => c.IdComprobante)
-                .ToListAsync();
-
-            if (anuladasIds.Count > 0)
-            {
-                var pagosAnulados = await _context.VDetallePagoVenta1s
-                    .Where(p => anuladasIds.Contains(p.IdComprobante))
-                    .ToListAsync();
-
-                foreach (var p in pagosAnulados)
-                {
-                    var descripcion = (p.Descripcion ?? string.Empty)
-                        .Split(' ')[0]
-                        .ToLowerInvariant();
-                    var monto = p.Soles != 0 ? p.Soles : p.Dolares;
-
-                    switch (descripcion)
-                    {
-                        case "efectivo":
-                            resumen.Efectivo -= monto;
-                            break;
-                        case "tarjeta":
-                        case "online":
-                            resumen.Tarjeta -= monto;
-                            break;
-                        case "n.c":
-                        case "n.c.":
-                            resumen.NotaCredito -= monto;
-                            break;
-                    }
-                }
-            }
-
             var cierres = await _context.VCierreEnLinea1s
-                .Where(c => c.Fecha == fechaDia && c.IdAlmacen == idAlmacen && c.IdUsuario == idUsuario)
+                .Where(c => c.Fecha == fechaHoy && c.IdAlmacen == idAlmacen && c.IdUsuario == idUsuario)
                 .ToListAsync();
 
             foreach (var c in cierres)
