@@ -146,39 +146,63 @@ namespace GSCommerceAPI.Controllers
                     })
                 .ToListAsync();
 
-            var notasCredito = await ventasQuery
+            var notasCreditoQuery = _context.NotaDeCreditoDetalles
                 .Join(_context.NotaDeCreditoCabeceras,
-                    v => v.IdComprobante,
+                    d => d.IdNc,
                     nc => nc.IdNc,
-                    (v, nc) => new { v, nc })
+                    (d, nc) => new { d, nc })
                 .Join(_context.Articulos,
-                    vnc => vnc.v.IdArticulo,
+                    dn => dn.d.IdArticulo,
                     a => a.IdArticulo,
-                    (vnc, a) => new { vnc.v, vnc.nc, a })
-                .Where(va => string.IsNullOrWhiteSpace(familia) || va.a.Familia.Contains(familia))
-                .Where(va => string.IsNullOrWhiteSpace(linea) || va.a.Linea.Contains(linea))
+                    (dn, a) => new { dn.d, dn.nc, art = a })
+                .Join(_context.Almacens,
+                    dna => dna.nc.IdAlmacen,
+                    al => al.IdAlmacen,
+                    (dna, al) => new { dna.d, dna.nc, dna.art, al });
+
+            if (!string.IsNullOrWhiteSpace(articulo))
+                notasCreditoQuery = notasCreditoQuery.Where(n =>
+                    (n.d.IdArticulo != null && n.d.IdArticulo.Contains(articulo)) ||
+                    n.d.Descripcion.Contains(articulo));
+
+            if (idAlmacen.HasValue)
+                notasCreditoQuery = notasCreditoQuery.Where(n => n.nc.IdAlmacen == idAlmacen.Value);
+
+            if (desde.HasValue)
+                notasCreditoQuery = notasCreditoQuery.Where(n => n.nc.Fecha >= desde.Value);
+
+            if (hasta.HasValue)
+                notasCreditoQuery = notasCreditoQuery.Where(n => n.nc.Fecha <= hasta.Value);
+
+            if (!string.IsNullOrWhiteSpace(familia))
+                notasCreditoQuery = notasCreditoQuery.Where(n => n.art.Familia.Contains(familia));
+
+            if (!string.IsNullOrWhiteSpace(linea))
+                notasCreditoQuery = notasCreditoQuery.Where(n => n.art.Linea.Contains(linea));
+
+            var notasCredito = await notasCreditoQuery
                 .Join(_context.TipoDocumentoVenta,
-                    va => va.nc.IdTipoDocumento,
+                    n => n.nc.IdTipoDocumento,
                     td => td.IdTipoDocumentoVenta,
-                    (va, td) => new VKardex3
+                    (n, td) => new VKardex3
                     {
                         IdKardex = 0,
-                        IdAlmacen = va.v.IdAlmacen,
-                        Almacen = va.v.Almacen,
-                        Familia = va.a.Familia,
-                        Linea = va.a.Linea,
-                        Codigo = va.v.IdArticulo,
-                        Articulo = va.v.Descripcion,
-                        PrecioCompra = va.v.PrecioCompra,
-                        PrecioVenta = va.v.Precio,
-                        Fecha = DateOnly.FromDateTime(va.v.Fecha),
-                        Operacion = $"{td.Descripcion} {va.nc.Serie}-{va.nc.Numero}",
+                        IdAlmacen = n.nc.IdAlmacen,
+                        Almacen = n.al.Nombre,
+                        Familia = n.art.Familia,
+                        Linea = n.art.Linea,
+                        Codigo = n.d.IdArticulo ?? string.Empty,
+                        Articulo = n.d.Descripcion,
+                        PrecioCompra = n.art.PrecioCompra,
+                        PrecioVenta = n.art.PrecioVenta,
+                        Fecha = DateOnly.FromDateTime(n.nc.Fecha),
+                        Operacion = $"{td.Descripcion} {n.nc.Serie}-{n.nc.Numero}",
                         SaldoInicial = 0,
                         ValorizadoInicial = 0,
-                        Entrada = 0,
-                        ValorizadoEntrada = 0,
-                        Salida = va.v.Cantidad ?? 0,
-                        ValorizadoSalida = va.v.Costo,
+                        Entrada = n.d.Cantidad ?? 0,
+                        ValorizadoEntrada = n.d.Total,
+                        Salida = 0,
+                        ValorizadoSalida = 0,
                         SaldoFinal = 0,
                         ValorizadoFinal = 0,
                         ValorizadoFinalPc = 0,
