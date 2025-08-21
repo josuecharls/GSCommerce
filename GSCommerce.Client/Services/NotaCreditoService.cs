@@ -46,5 +46,16 @@ namespace GSCommerce.Client.Services
                 return new();
             }
         }
+        public async Task<NotaCreditoConsultaDTO?> BuscarPorDocumentoAsync(string serie, int numero)
+        {
+            try
+            {
+                return await _http.GetFromJsonAsync<NotaCreditoConsultaDTO>($"api/notascredito/buscar?serie={serie}&numero={numero}");
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }

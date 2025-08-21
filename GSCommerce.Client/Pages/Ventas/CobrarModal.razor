@@ -1,5 +1,8 @@
 ﻿@using GSCommerce.Client.Models
-@inject GSCommerce.Client.Services.TipoPagoVentaService TipoPagoVentaService
+@using GSCommerce.Client.Services
+@inject TipoPagoVentaService TipoPagoVentaService
+@inject NotaCreditoService NotaCreditoService
+
 
 <div class="modal fade @(Mostrar ? "show d-block" : "")" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -26,6 +29,20 @@
                     <label>Monto (@Simbolo.Trim()):</label>
                     <input type="number" class="form-control" @bind="montoPago" min="0" step="0.01" @onkeydown="HandleMontoKeyDown" />
                 </div>
+                @if (idTipoPagoSeleccionado == 8)
+                {
+                    <div class="mb-3">
+                        <label>Documento de Referencia (Serie-Número):</label>
+                        <div class="input-group">
+                            <input class="form-control" @bind="documentoReferencia" />
+                            <button class="btn btn-outline-secondary" @onclick="BuscarNotaCredito">Buscar</button>
+                        </div>
+                        @if (notaCreditoSeleccionada != null)
+                        {
+                            <div class="form-text">Monto disponible: @notaCreditoSeleccionada.Total.ToString("N2")</div>
+                        }
+                    </div>
+                }
                 @if (TipoPagoSeleccionado?.Tipo == "Efectivo")
                 {
                     <div class="mb-3">
@@ -106,6 +123,8 @@
     private decimal montoPago;
     private string? codigoVerificacion;
     private List<DetallePagoDTO> pagos = new();
+    private string? documentoReferencia;
+    private NotaCreditoConsultaDTO? notaCreditoSeleccionada;
 
     private string Simbolo => MonedaAlmacen == "USD" ? "$ " : "S/ ";
 
@@ -148,6 +167,11 @@
     {
         if (montoPago > 0)
         {
+            if (idTipoPagoSeleccionado == 8 && notaCreditoSeleccionada == null)
+            {
+                return;
+            }
+
             var nuevoPago = new DetallePagoDTO
             {
                 FormaPago = TipoPagoSeleccionado?.Descripcion ?? string.Empty,
@@ -185,6 +209,29 @@
     private void EliminarPago(DetallePagoDTO pago)
     {
         pagos.Remove(pago);
+    }
+
+    private async Task BuscarNotaCredito()
+    {
+        notaCreditoSeleccionada = null;
+        codigoVerificacion = null;
+        if (string.IsNullOrWhiteSpace(documentoReferencia)) return;
+        var partes = documentoReferencia.Split('-');
+        if (partes.Length != 2) return;
+        if (!int.TryParse(partes[1], out var numero)) return;
+
+        try
+        {
+            var nota = await NotaCreditoService.BuscarPorDocumentoAsync(partes[0], numero);
+            if (nota != null)
+            {
+                notaCreditoSeleccionada = nota;
+                var restante = MontoTotal - TotalPagado;
+                montoPago = Math.Min(nota.Total, restante > 0 ? restante : 0);
+                codigoVerificacion = documentoReferencia;
+            }
+        }
+        catch { }
     }
 
     private async Task ConfirmarPago()

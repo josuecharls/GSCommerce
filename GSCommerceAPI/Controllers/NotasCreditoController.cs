@@ -337,6 +337,34 @@ namespace GSCommerceAPI.Controllers
             }
         }
 
+        [HttpGet("buscar")]
+        public async Task<IActionResult> BuscarNotaCredito([FromQuery] string serie, [FromQuery] int numero)
+        {
+            if (string.IsNullOrWhiteSpace(serie))
+                return BadRequest("Serie requerida");
+
+            var nota = await _context.NotaDeCreditoCabeceras.FirstOrDefaultAsync(n => n.Serie == serie && n.Numero == numero);
+
+            if (nota == null)
+                return NotFound("Nota de crédito no encontrada.");
+
+            if (nota.Empleada == true)
+                return BadRequest("Nota de crédito ya utilizada.");
+
+            var dto = new NotaCreditoConsultaDTO
+            {
+                IdNc = nota.IdNc,
+                Serie = nota.Serie,
+                Numero = nota.Numero,
+                Fecha = nota.Fecha,
+                Nombre = nota.Nombre,
+                Dniruc = nota.Dniruc,
+                Total = nota.Total,
+                Estado = nota.Estado
+            };
+
+            return Ok(dto);
+        }
 
         [HttpGet("pdf/{id}")]
         public async Task<IActionResult> ObtenerPdf(int id)

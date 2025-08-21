@@ -62,6 +62,7 @@ namespace GSCommerceAPI.Controllers
                     Soles = p.Soles,
                     Dolares = p.Dolares,
                     Datos = p.Datos,
+                    CodigoVerificacion = p.Datos,
                     Vuelto = p.Vuelto,
                     PorcentajeTarjetaSoles = p.PorcentajeTarjetaSoles,
                     PorcentajeTarjetaDolares = p.PorcentajeTarjetaDolares,
@@ -748,10 +749,22 @@ namespace GSCommerceAPI.Controllers
                         Soles = pago.Soles,
                         Dolares = pago.Dolares, // De momento
                         Vuelto = pago.Vuelto,
-                        Datos = null
+                        Datos = pago.Datos
                     };
 
                     _context.DetallePagoVenta.Add(nuevoPago);
+
+                    if (pago.IdTipoPagoVenta == 8 && !string.IsNullOrWhiteSpace(pago.Datos))
+                    {
+                        var partes = pago.Datos.Split('-', StringSplitOptions.RemoveEmptyEntries);
+                        if (partes.Length == 2 && int.TryParse(partes[1], out var numNc))
+                        {
+                            var serieNc = partes[0];
+                            var nota = await _context.NotaDeCreditoCabeceras.FirstOrDefaultAsync(n => n.Serie == serieNc && n.Numero == numNc);
+                            if (nota != null)
+                                nota.Empleada = true;
+                        }
+                    }
                 }
 
                 // Registrar como pendiente de envío a SUNAT

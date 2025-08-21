@@ -54,8 +54,11 @@
                     <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Notas de Crédito
                 </NavLink>
             </div>
-            <div class="nav-item px-3">
-                <a class="nav-link" href="#" @onclick="IrAVentas">
+        }
+        @if (cargo == "CAJERO")
+        {
+                <div class="nav-item px-3">
+                    <a class="nav-link" href="#" @onclick="IrAVentas">
                     <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Ventas
                 </a>
             </div>
@@ -65,11 +68,6 @@
                 </a>
             </div>
             <div class="nav-item px-3">
-                <NavLink class="nav-link" href="ventas">
-                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Consultar Ventas
-                </NavLink>
-            </div>
-            <div class="nav-item px-3">
                 <NavLink class="nav-link" href="cajita">
                     <i class="bi bi-cash-coin"></i><span aria-hidden="true"></span> Apertura/Cierre Caja
                 </NavLink>
@@ -77,6 +75,14 @@
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="caja/liquidacion">
                     <span class="bi bi-file-text" aria-hidden="true"></span> Liquidación Caja
+                </NavLink>
+            </div>
+        }
+        @if (cargo == "ADMINISTRADOR" || cargo == "CAJERO")
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="ventas">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Consultar Ventas
                 </NavLink>
             </div>
         }
