@@ -128,8 +128,7 @@ namespace GSCommerceAPI.Controllers
                 // Guardamos el usuario actual (quien emite la NC) para registrar
                 // quién realizó la operación, pero asignamos como usuario de la
                 // nota al cajero del comprobante original.
-                correlativo.Correlativo += 1;
-                dto.Cabecera.Numero = correlativo.Correlativo;
+                var usuarioEmisorNc = dto.Cabecera.IdUsuario;
 
                 // Crear entidad cabecera
                 var cabecera = new NotaDeCreditoCabecera
@@ -149,11 +148,14 @@ namespace GSCommerceAPI.Controllers
                     Total = dto.Cabecera.Total,
                     Redondeo = dto.Cabecera.Redondeo,
                     Afavor = dto.Cabecera.AFavor,
-                    IdUsuario = dto.Cabecera.IdUsuario,
+                    // Se registra el cajero original para que el monto se reste en su caja
+                    IdUsuario = comprobante.IdCajero,
                     IdAlmacen = dto.Cabecera.IdAlmacen,
                     Estado = "E",
                     FechaHoraRegistro = DateTime.Now,
-                    Empleada = false
+                    Empleada = false,
+                    IdUsuarioAnula = usuarioEmisorNc,
+                    FechaHoraUsuarioAnula = DateTime.Now
                 };
 
                 _context.NotaDeCreditoCabeceras.Add(cabecera);
@@ -234,7 +236,8 @@ namespace GSCommerceAPI.Controllers
                 if (dto.Cabecera.IdMotivo == "01")
                 {
                     comprobante.Estado = "A";
-                    comprobante.IdUsuarioAnula = cabecera.IdUsuario;
+                    // El usuario que emite la NC es quien anula el comprobante
+                    comprobante.IdUsuarioAnula = usuarioEmisorNc;
                     comprobante.FechaHoraUsuarioAnula = DateTime.Now;
                 }
                 await _context.SaveChangesAsync();

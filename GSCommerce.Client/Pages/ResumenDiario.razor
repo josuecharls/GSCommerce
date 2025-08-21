@@ -8,7 +8,67 @@
 
 <h3>Resumen Diario</h3>
 
-@if (!cajaAbierta)
+@if (cargo == "ADMINISTRADOR")
+{
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label>Almacén:</label>
+            <select class="form-select"
+                    @bind="idAlmacenSeleccionado"
+                    @bind:after="OnAlmacenChangeAsync">
+                <option value="0">-- Todos --</option>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label>Cajero:</label>
+            <select class="form-select"
+                    @bind="idCajeroSeleccionado"
+                    disabled="@(idAlmacenSeleccionado == 0 || cajeros.Count == 0)">
+                <option value="0">-- Todos --</option>
+                @foreach (var c in cajeros)
+                {
+                    <option value="@c.IdUsuario">@c.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+            <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
+        </div>
+    </div>
+
+    @if (mostrarResumen)
+    {
+        <div class="row">
+            <div class="col-md-6">
+                <h5>📊 Venta Diaria</h5>
+                <ul>
+                    <li><strong>Efectivo:</strong> @resumen.Efectivo.ToString("N2")</li>
+                    <li><strong>Tarjeta:</strong> @resumen.Tarjeta.ToString("N2")</li>
+                    <li><strong>Nota de Crédito:</strong> @resumen.NotaCredito.ToString("N2")</li>
+                    <li><strong>Total:</strong> <span class="text-danger">@resumen.Total.ToString("N2")</span></li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h5>💰 Cierre Diario</h5>
+                <ul>
+                    <li><strong>Saldo Inicial:</strong> @resumen.SaldoInicial.ToString("N2")</li>
+                    <li><strong>Ingresos:</strong> @resumen.Ingresos.ToString("N2")</li>
+                    <li><strong>Egresos:</strong> @resumen.Egresos.ToString("N2")</li>
+                    <li><strong>Saldo Actual:</strong> <span class="text-danger">@resumen.SaldoActual.ToString("N2")</span></li>
+                </ul>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">Selecciona filtros y presiona Buscar.</div>
+    }
+}
+else if (!cajaAbierta)
 {
     <div class="alert alert-warning">⚠️ Debes aperturar caja para ver el resumen.</div>
 }
@@ -45,31 +105,74 @@ else
     private ResumenDiarioDTO resumen = new();
     private string nombreAlmacen = string.Empty;
     private string? personalName;
-
+    private string? cargo;
+    private List<AlmacenDTO> almacenes = new();
+    private List<UsuarioDTO> cajeros = new();
+    private int idAlmacenSeleccionado;
+    private int idCajeroSeleccionado;
+    private bool mostrarResumen = false;
 
     protected override async Task OnInitializedAsync()
     {
-        var idAlmacen = await AuthService.GetUserAlmacenId();
-        var idUsuario = await AuthService.GetUserId();
-        personalName = await AuthService.GetNombrePersonal();
-
-        // Obtener nombre del almacén
-        if (idAlmacen.HasValue)
+        cargo = await AuthService.GetUserCargo();
+        if (cargo == "ADMINISTRADOR")
         {
-            var almacen = await AlmacenService.GetAlmacenById(idAlmacen.Value);
-            nombreAlmacen = almacen?.Nombre ?? "N/A";
+            almacenes = await AlmacenService.GetAlmacenes() ?? new();
         }
         else
         {
-            nombreAlmacen = "N/A";
-        }
+            var idAlmacen = await AuthService.GetUserAlmacenId();
+            var idUsuario = await AuthService.GetUserId();
+            personalName = await AuthService.GetNombrePersonal();
 
-        var apertura = await ResumenService.VerificarAperturaAsync(idAlmacen.Value, idUsuario.Value);
-        cajaAbierta = apertura;
+            if (idAlmacen.HasValue)
+            {
+                var almacen = await AlmacenService.GetAlmacenById(idAlmacen.Value);
+                nombreAlmacen = almacen?.Nombre ?? "N/A";
+            }
+            else
+            {
+                nombreAlmacen = "N/A";
+            }
 
-        if (cajaAbierta)
-        {
-            resumen = await ResumenService.ObtenerResumenAsync(idAlmacen.Value, idUsuario.Value);
+            var apertura = await ResumenService.VerificarAperturaAsync(idAlmacen.Value, idUsuario.Value);
+            cajaAbierta = apertura;
+
+            if (cajaAbierta)
+            {
+                resumen = await ResumenService.ObtenerResumenAsync(idAlmacen.Value, idUsuario.Value);
+            }
         }
     }
+
+    private async Task OnAlmacenChange(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            idAlmacenSeleccionado = id;
+            cajeros = idAlmacenSeleccionado > 0
+                ? await UsuarioService.ObtenerCajerosAsync(idAlmacenSeleccionado)
+                : new List<UsuarioDTO>();
+            idCajeroSeleccionado = 0;
+        }
+    }
+
+    private async Task Buscar()
+    {
+        int? idAlmacen = idAlmacenSeleccionado > 0 ? idAlmacenSeleccionado : (int?)null;
+        int? idUsuario = idCajeroSeleccionado > 0 ? idCajeroSeleccionado : (int?)null;
+        resumen = await ResumenService.ObtenerResumenAdminAsync(idAlmacen, idUsuario);
+        mostrarResumen = true;
+    }
+
+    private async Task OnAlmacenChangeAsync()
+    {
+        cajeros = idAlmacenSeleccionado > 0
+            ? await UsuarioService.ObtenerCajerosAsync(idAlmacenSeleccionado)
+            : new List<UsuarioDTO>();
+
+        idCajeroSeleccionado = 0;
+        StateHasChanged();
+    }
+
 }

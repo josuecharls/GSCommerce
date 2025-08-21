@@ -113,6 +113,72 @@ namespace GSCommerceAPI.Controllers
             return Ok(venta);
         }
 
+        [HttpGet("resumen-admin")]
+        public async Task<IActionResult> ObtenerResumenAdmin([FromQuery] int? idAlmacen, [FromQuery] int? idUsuario)
+        {
+            var fechaHoy = DateOnly.FromDateTime(DateTime.Today);
+
+            var resumen = new ResumenDiarioDTO();
+
+            var ventasQuery = _context.VRecaudacion3s.Where(v => v.Fecha == fechaHoy);
+            if (idAlmacen.HasValue && idAlmacen > 0)
+                ventasQuery = ventasQuery.Where(v => v.IdAlmacen == idAlmacen);
+            if (idUsuario.HasValue && idUsuario > 0)
+                ventasQuery = ventasQuery.Where(v => v.IdCajero == idUsuario);
+            var ventas = await ventasQuery.ToListAsync();
+
+            foreach (var v in ventas)
+            {
+                var descripcion = (v.Descripcion ?? string.Empty)
+                    .Split(' ')[0]
+                    .ToLowerInvariant();
+
+                switch (descripcion)
+                {
+                    case "efectivo":
+                        resumen.Efectivo += v.Monto ?? 0;
+                        break;
+                    case "tarjeta":
+                    case "online":
+                        resumen.Tarjeta += v.Monto ?? 0;
+                        break;
+                    case "n.c":
+                    case "n.c.":
+                        resumen.NotaCredito += v.Monto ?? 0;
+                        break;
+                }
+            }
+
+            var notasQuery = _context.NotaDeCreditoCabeceras
+                .Where(n => DateOnly.FromDateTime(n.FechaHoraRegistro) == fechaHoy);
+            if (idAlmacen.HasValue && idAlmacen > 0)
+                notasQuery = notasQuery.Where(n => n.IdAlmacen == idAlmacen);
+            if (idUsuario.HasValue && idUsuario > 0)
+                notasQuery = notasQuery.Where(n => n.IdUsuario == idUsuario);
+            var notasEmitidas = await notasQuery.ToListAsync();
+            resumen.NotaCredito -= notasEmitidas.Sum(n => n.Total);
+
+            var cierresQuery = _context.VCierreEnLinea1s
+                .Where(c => c.Fecha == fechaHoy);
+            if (idAlmacen.HasValue && idAlmacen > 0)
+                cierresQuery = cierresQuery.Where(c => c.IdAlmacen == idAlmacen);
+            if (idUsuario.HasValue && idUsuario > 0)
+                cierresQuery = cierresQuery.Where(c => c.IdUsuario == idUsuario);
+            var cierres = await cierresQuery.ToListAsync();
+
+            foreach (var c in cierres)
+            {
+                switch (c.Categoria)
+                {
+                    case "Saldo Inicial": resumen.SaldoInicial += c.Monto ?? 0; break;
+                    case "I": resumen.Ingresos += c.Monto ?? 0; break;
+                    case "E": resumen.Egresos += c.Monto ?? 0; break;
+                }
+            }
+
+            return Ok(resumen);
+        }
+
         [HttpGet("reporte-total-tiendas")]
         public async Task<ActionResult<List<ReporteTotalTiendasDTO>>> GetReporteTotalTiendas(
             [FromQuery] DateTime desde,
