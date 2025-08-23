@@ -10,6 +10,7 @@
         public string Dniruc { get; set; } = string.Empty;
         public decimal Total { get; set; }
         public string Estado { get; set; } = string.Empty;
+        public bool? Empleada { get; set; }
         public string? Comprobante { get; set; }
     }
 }

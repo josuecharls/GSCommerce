@@ -31,6 +31,7 @@
             <th>Cliente</th>
             <th>Total</th>
             <th>Estado</th>
+            <th>Canjeada</th>
         </tr>
     </thead>
     <tbody>
@@ -45,12 +46,13 @@
                     <td>@n.Nombre</td>
                     <td>@n.Total.ToString("C")</td>
                     <td>@n.Estado</td>
+                    <td>@(n.Empleada == true ? "✔" : "✖")</td>
                 </tr>
             }
         }
         else
         {
-            <tr><td colspan="6" class="text-center">No se encontraron notas de crédito.</td></tr>
+            <tr><td colspan="7" class="text-center">No se encontraron notas de crédito.</td></tr>
         }
         @if (mostrarMenu && notaSeleccionada != null)
         {

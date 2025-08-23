@@ -53,6 +53,16 @@ public class ReporteService
         var resp = await _http.GetFromJsonAsync<List<ReporteTotalTiendasDTO>>(url);
         return resp ?? new();
     }
+    public async Task<List<ReporteUtilidadTiendasDTO>> ObtenerUtilidadTiendas(DateTime desde, DateTime hasta, int? idAlmacen = null)
+    {
+        var url = $"api/ventas/reporte-utilidad-tiendas?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+        if (idAlmacen.HasValue && idAlmacen.Value > 0)
+            url += $"&idAlmacen={idAlmacen.Value}";
+
+        var resp = await _http.GetFromJsonAsync<List<ReporteUtilidadTiendasDTO>>(url);
+        return resp ?? new();
+    }
+
     public async Task<List<ReporteArticuloRangoDTO>> ObtenerReporteArticulosRango(
     List<string> ids, DateTime desde, DateTime hasta)
     {

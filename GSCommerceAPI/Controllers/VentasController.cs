@@ -230,6 +230,71 @@ namespace GSCommerceAPI.Controllers
             return resultado;
         }
 
+        [HttpGet("reporte-utilidad-tiendas")]
+        public async Task<ActionResult<List<ReporteUtilidadTiendasDTO>>> GetReporteUtilidadTiendas(
+            [FromQuery] DateTime desde,
+            [FromQuery] DateTime hasta,
+            [FromQuery] int? idAlmacen
+        )
+        {
+            var hastaExcl = hasta.Date.AddDays(1);
+
+            // 1) Trae líneas con total y costo de línea correcto
+            var lineas =
+                from d in _context.VDetallesVentas
+                where d.Fecha >= desde.Date && d.Fecha < hastaExcl
+                      && (!idAlmacen.HasValue || d.IdAlmacen == idAlmacen.Value)
+                select new
+                {
+                    d.IdAlmacen,
+                    d.Almacen,
+                    Total = d.Total ?? 0m,
+
+                    // Si Costo ya viene por línea, úsalo; si fuera unitario, multiplicamos.
+                    // Nota: Convertimos Cantidad a decimal de forma segura.
+                    CostoLineaBruto = (d.Costo ?? 0m) != 0m
+                        ? (d.Costo ?? 0m)
+                        : (d.PrecioCompra * (decimal)(d.Cantidad ?? 0))
+                };
+
+            // 2) Alinea el signo del costo con el signo del total de la línea
+            var montos = await
+                (from x in lineas
+                 let costoAjustado = x.Total >= 0m ? x.CostoLineaBruto : -x.CostoLineaBruto
+                 group new { x.Total, costoAjustado } by new { x.IdAlmacen, x.Almacen } into g
+                 select new
+                 {
+                     g.Key.IdAlmacen,
+                     Tienda = g.Key.Almacen,
+                     Venta = g.Sum(s => s.Total),
+                     Costo = g.Sum(s => s.costoAjustado)
+                 })
+                .ToListAsync();
+
+            var totalVenta = montos.Sum(x => x.Venta);
+
+            var resultado = montos
+                .Select(x =>
+                {
+                    var utilidadMonto = x.Venta - x.Costo; // Utilidad Monto = SUM(Total) - SUM(Costo)
+                    var pUtil = x.Venta != 0m ? Math.Round((double)(utilidadMonto / x.Venta) * 100, 2) : 0;
+                    var pVenta = totalVenta > 0m ? Math.Round((double)(x.Venta / totalVenta) * 100, 2) : 0;
+
+                    return new ReporteUtilidadTiendasDTO
+                    {
+                        IdAlmacen = x.IdAlmacen,
+                        Tienda = x.Tienda,
+                        Utilidad = Math.Round(utilidadMonto, 2),
+                        PorcentajeUtilidad = pUtil,
+                        Venta = Math.Round(x.Venta, 2),
+                        PorcentajeVenta = pVenta
+                    };
+                })
+                .OrderByDescending(r => r.Venta)
+                .ToList();
+
+            return resultado;
+        }
 
         [HttpPost("reporte-articulos-rango")]
         public async Task<IActionResult> ObtenerReporteArticulosRango([FromBody] ReporteArticulosRangoRequest req)

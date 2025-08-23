@@ -153,6 +153,44 @@ namespace GSCommerceAPI.Controllers
                 await _context.SaveChangesAsync();
             }
 
+            // Registrar también como Orden de Compra si es un egreso de pago a proveedores
+            if (cabecera.Naturaleza == "E" &&
+                cabecera.Tipo.Equals("PAGO PROVEEDORES", StringComparison.OrdinalIgnoreCase) &&
+                cabecera.IdProveedor.HasValue)
+            {
+                var proveedor = await _context.Proveedors
+                    .FirstOrDefaultAsync(p => p.IdProveedor == cabecera.IdProveedor.Value);
+                if (proveedor != null)
+                {
+                    var formaPago = dto.Detalles.FirstOrDefault()?.Forma ?? "EFECTIVO";
+                    var oc = new OrdenDeCompraCabecera
+                    {
+                        IdProveedor = proveedor.IdProveedor,
+                        NumeroOc = $"PP-{cabecera.IdIngresoEgreso}",
+                        FechaOc = cabecera.Fecha,
+                        Rucproveedor = proveedor.Ruc ?? string.Empty,
+                        NombreProveedor = proveedor.Nombre,
+                        DireccionProveedor = proveedor.Direccion ?? string.Empty,
+                        Moneda = "PEN",
+                        TipoCambio = 1m,
+                        FormaPago = formaPago,
+                        SinIgv = false,
+                        FechaEntrega = cabecera.Fecha,
+                        Atencion = proveedor.Nombre,
+                        Glosa = cabecera.Glosa,
+                        ImporteSubTotal = cabecera.Monto,
+                        ImporteIgv = 0m,
+                        ImporteTotal = cabecera.Monto,
+                        EstadoEmision = false,
+                        EstadoAtencion = "PE",
+                        IdUsuarioRegistra = cabecera.IdUsuario,
+                        FechaRegistra = DateTime.Now
+                    };
+                    _context.OrdenDeCompraCabeceras.Add(oc);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             return Ok(new { cabecera.IdIngresoEgreso });
         }
 

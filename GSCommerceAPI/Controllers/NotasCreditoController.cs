@@ -360,7 +360,8 @@ namespace GSCommerceAPI.Controllers
                 Nombre = nota.Nombre,
                 Dniruc = nota.Dniruc,
                 Total = nota.Total,
-                Estado = nota.Estado
+                Estado = nota.Estado,
+                Empleada = nota.Empleada
             };
 
             return Ok(dto);
@@ -448,6 +449,7 @@ namespace GSCommerceAPI.Controllers
                     Dniruc = n.Dniruc,
                     Total = n.Total,
                     Estado = n.Estado,
+                    Empleada = n.Empleada,
                     Comprobante = n.Comprobante
                 })
                 .ToListAsync();

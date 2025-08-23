@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @inject MovimientoGuiaService MovimientoGuiaService
 @inject AlmacenService AlmacenService
+@inject StockService StockService
 @inject IJSRuntime JS
 @inject ProveedorService ProveedorService
 @inject OrdenCompraService OrdenCompraService
@@ -270,7 +271,20 @@ else
 
         // 🔹 Si es transferencia, SIEMPRE egreso en el emisor:
         if (tipo == "Transferencia")
+        {
             guia.Motivo = "TRANSFERENCIA EGRESO";
+
+            // 🔸 Validar stock disponible en el almacén de origen
+            foreach (var d in guia.Detalles)
+            {
+                var stockDisponible = await StockService.GetStockDisponible(d.IdArticulo, guia.IdAlmacen);
+                if (stockDisponible < d.Cantidad)
+                {
+                    await MostrarAlerta($"❌ Stock insuficiente para el artículo '{d.IdArticulo}'. Disponible: {stockDisponible}, requerido: {d.Cantidad}.");
+                    return;
+                }
+            }
+        }
 
         var ok = await MovimientoGuiaService.CreateMovimientoConSP(guia);
         if (ok) Navigation.NavigateTo("/guias?tipo=" + tipo);
