@@ -26,7 +26,10 @@ namespace GSCommerceAPI.Controllers
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null)
         {
-            var query = _context.Personals.Include(p => p.IdAlmacenNavigation).AsQueryable();
+            var query = _context.Personals
+                .Include(p => p.IdAlmacenNavigation)
+                .Where(p => p.Estado)
+                .AsQueryable();
 
             if (!string.IsNullOrEmpty(search))
             {
@@ -246,7 +249,8 @@ namespace GSCommerceAPI.Controllers
                 return NotFound();
             }
 
-            _context.Personals.Remove(personal);
+            personal.Estado = false;
+            _context.Entry(personal).State = EntityState.Modified;
             await _context.SaveChangesAsync();
 
             return NoContent();
