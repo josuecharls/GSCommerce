@@ -99,7 +99,7 @@ else
 
 @code {
     [Parameter] public int Id { get; set; }
-    private ProveedorDTO proveedor = new();
+    private ProveedorDTO proveedor = new() { Estado = true };
     private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()

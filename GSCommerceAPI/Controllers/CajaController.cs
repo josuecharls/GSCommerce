@@ -461,11 +461,12 @@ public class CajaController : ControllerBase
             });
         }
 
-        // 3. Resumen adicional (tarjeta, NC) recibido desde la petición
+        // 3. Resumen adicional
+        //    a) Ventas con tarjeta/online recibidas desde la petición
         if (liquidacion.Resumenes != null)
         {
-            var adicionales = liquidacion.Resumenes
-                .Where(r => r.IdGrupo == 6 || r.IdGrupo == 7)
+            var tarjetas = liquidacion.Resumenes
+                .Where(r => r.IdGrupo == 6)
                 .Select(r => new ResumenCierreDeCaja
                 {
                     IdUsuario = apertura.IdUsuario,
@@ -477,7 +478,34 @@ public class CajaController : ControllerBase
                     Monto = r.Monto,
                     FechaRegistro = DateTime.Now
                 });
-            resumenes.AddRange(adicionales);
+            resumenes.AddRange(tarjetas);
+        }
+
+        //    b) Notas de crédito emitidas en la fecha de la apertura
+        var dayStartNc = apertura.Fecha.ToDateTime(TimeOnly.MinValue);
+        var dayEndNc = apertura.Fecha.ToDateTime(new TimeOnly(23, 59, 59));
+
+        var notasCreditoDia = await _context.NotaDeCreditoCabeceras
+            .Where(n => n.IdUsuario == apertura.IdUsuario &&
+                        n.IdAlmacen == apertura.IdAlmacen &&
+                        n.Fecha >= dayStartNc && n.Fecha <= dayEndNc &&
+                        n.Estado == "E")
+            .Select(n => new { n.Serie, n.Numero, n.Total })
+            .ToListAsync();
+
+        foreach (var nc in notasCreditoDia)
+        {
+            resumenes.Add(new ResumenCierreDeCaja
+            {
+                IdUsuario = apertura.IdUsuario,
+                IdAlmacen = apertura.IdAlmacen,
+                Fecha = apertura.Fecha,
+                IdGrupo = 7,
+                Grupo = "VENTA POR N.C.",
+                Detalle = $"N.C. N° {nc.Serie}-{nc.Numero:D8}",
+                Monto = nc.Total,
+                FechaRegistro = DateTime.Now
+            });
         }
 
         // Consolidar por grupo y detalle

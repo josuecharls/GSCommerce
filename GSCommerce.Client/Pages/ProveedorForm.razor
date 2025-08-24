@@ -98,7 +98,7 @@ else
 }
 
 @code {
-    private ProveedorDTO proveedor = new();
+    private ProveedorDTO proveedor = new() { Estado = true };
     private bool isLoading = false;
 
     private async Task SaveProveedor()

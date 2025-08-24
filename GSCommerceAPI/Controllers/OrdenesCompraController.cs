@@ -66,42 +66,21 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("list")]
         public async Task<IActionResult> List(DateTime desde, DateTime hasta, int? idProveedor = null)
         {
+            var inicio = desde.Date;
+            var finExclusivo = hasta.Date.AddDays(1);
+
             var query = _context.VListadoOc1s
-                .Where(o => o.FechaOc >= desde && o.FechaOc <= hasta);
+                .Where(o => o.FechaOc >= inicio && o.FechaOc < finExclusivo);
             if (idProveedor.HasValue && idProveedor.Value > 0)
                 query = query.Where(o => o.IdProveedor == idProveedor.Value);
 
-            var lista = await query.ToListAsync();
-
-            var pagosQuery = _context.OrdenDeCompraCabeceras
-                .Where(o => o.NumeroOc.StartsWith("PP-") &&
-                            o.FechaOc >= desde && o.FechaOc <= hasta);
-            if (idProveedor.HasValue && idProveedor.Value > 0)
-                pagosQuery = pagosQuery.Where(o => o.IdProveedor == idProveedor.Value);
-
-            var pagos = await pagosQuery
-                .Select(o => new VListadoOc1
-                {
-                    IdOc = o.IdOc,
-                    IdProveedor = o.IdProveedor,
-                    Nombre = o.NombreProveedor,
-                    NumeroOc = o.NumeroOc,
-                    FechaOc = o.FechaOc,
-                    FechaEntrega = o.FechaEntrega,
-                    ImporteSubTotal = o.ImporteSubTotal,
-                    ImporteIgv = o.ImporteIgv,
-                    ImporteTotal = o.ImporteTotal,
-                    Estado = o.EstadoAtencion,
-                    FechaAtencionTotal = o.FechaAtencionTotal,
-                    FechaAnulado = o.FechaAnulado,
-                    Glosa = o.Glosa
-                })
+            var lista = await query
+                .OrderByDescending(o => o.FechaOc)
                 .ToListAsync();
 
-            lista.AddRange(pagos);
-
-            return Ok(lista.OrderByDescending(o => o.FechaOc));
+            return Ok(lista);
         }
+
 
         [HttpPost]
         public async Task<IActionResult> Crear([FromBody] OrdenCompraDTO dto)
@@ -193,7 +172,7 @@ namespace GSCommerceAPI.Controllers
                     IdOc = orden.IdOc,
                     IdUsuario = orden.IdUsuarioRegistra ?? 0,
                     FechaHoraRegistro = DateTime.Now,
-                    Estado = "A"
+                    Estado = "E"
                 };
                 _context.MovimientosCabeceras.Add(mov);
                 await _context.SaveChangesAsync();

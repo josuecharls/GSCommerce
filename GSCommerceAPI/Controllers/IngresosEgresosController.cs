@@ -181,8 +181,9 @@ namespace GSCommerceAPI.Controllers
                         ImporteSubTotal = cabecera.Monto,
                         ImporteIgv = 0m,
                         ImporteTotal = cabecera.Monto,
-                        EstadoEmision = false,
-                        EstadoAtencion = "PE",
+                        EstadoEmision = true,
+                        EstadoAtencion = "TO",
+                        FechaAtencionTotal = cabecera.Fecha,
                         IdUsuarioRegistra = cabecera.IdUsuario,
                         FechaRegistra = DateTime.Now
                     };

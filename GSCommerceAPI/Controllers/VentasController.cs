@@ -121,31 +121,40 @@ namespace GSCommerceAPI.Controllers
 
             var resumen = new ResumenDiarioDTO();
 
+            // 1. Proyecta los datos a memoria
             var ventasQuery = _context.VRecaudacion3s.Where(v => v.Fecha == fechaHoy);
             if (idAlmacen.HasValue && idAlmacen > 0)
                 ventasQuery = ventasQuery.Where(v => v.IdAlmacen == idAlmacen);
             if (idUsuario.HasValue && idUsuario > 0)
                 ventasQuery = ventasQuery.Where(v => v.IdCajero == idUsuario);
-            var ventas = await ventasQuery.ToListAsync();
+
+            var ventasRaw = await ventasQuery
+                .Select(v => new {
+                    Descripcion = v.Descripcion ?? string.Empty,
+                    Monto = v.Monto ?? 0
+                })
+                .ToListAsync();
+
+            // 2. Agrupa y procesa en memoria
+            var ventas = ventasRaw
+                .GroupBy(v => v.Descripcion.Split(' ')[0].ToLowerInvariant())
+                .Select(g => new { Descripcion = g.Key, Total = g.Sum(v => v.Monto) })
+                .ToList();
 
             foreach (var v in ventas)
             {
-                var descripcion = (v.Descripcion ?? string.Empty)
-                    .Split(' ')[0]
-                    .ToLowerInvariant();
-
-                switch (descripcion)
+                switch (v.Descripcion)
                 {
                     case "efectivo":
-                        resumen.Efectivo += v.Monto ?? 0;
+                        resumen.Efectivo += v.Total;
                         break;
                     case "tarjeta":
                     case "online":
-                        resumen.Tarjeta += v.Monto ?? 0;
+                        resumen.Tarjeta += v.Total;
                         break;
                     case "n.c":
                     case "n.c.":
-                        resumen.NotaCredito += v.Monto ?? 0;
+                        resumen.NotaCredito += v.Total;
                         break;
                 }
             }
@@ -165,15 +174,18 @@ namespace GSCommerceAPI.Controllers
                 cierresQuery = cierresQuery.Where(c => c.IdAlmacen == idAlmacen);
             if (idUsuario.HasValue && idUsuario > 0)
                 cierresQuery = cierresQuery.Where(c => c.IdUsuario == idUsuario);
-            var cierres = await cierresQuery.ToListAsync();
+            var cierres = await cierresQuery
+                .GroupBy(c => c.Categoria)
+                .Select(g => new { Categoria = g.Key, Total = g.Sum(c => c.Monto ?? 0) })
+                .ToListAsync();
 
             foreach (var c in cierres)
             {
                 switch (c.Categoria)
                 {
-                    case "Saldo Inicial": resumen.SaldoInicial += c.Monto ?? 0; break;
-                    case "I": resumen.Ingresos += c.Monto ?? 0; break;
-                    case "E": resumen.Egresos += c.Monto ?? 0; break;
+                    case "Saldo Inicial": resumen.SaldoInicial += c.Total; break;
+                    case "I": resumen.Ingresos += c.Total; break;
+                    case "E": resumen.Egresos += c.Total; break;
                 }
             }
 
