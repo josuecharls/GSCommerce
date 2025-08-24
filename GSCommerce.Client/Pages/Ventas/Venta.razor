@@ -6,6 +6,7 @@
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService
 @inject IJSRuntime JS
+@inject TipoPagoVentaService TipoPagoVentaService
 
 <h3>Ventas Registradas</h3>
 @if (cargo == "ADMINISTRADOR")
@@ -136,6 +137,12 @@
                                 @onclick="@(() => ReimprimirBoleta(v))">
                             🖨️ Imprimir
                         </button>
+                            @if (cargo == "ADMINISTRADOR" && v.TipoDocumento == "TICKET")
+                            {
+                                <button class="btn btn-outline-danger" title="Anular Ticket" @onclick="@(() => AbrirAnulacion(v))">
+                                    Anular
+                                </button>
+                            }
                         </div>
                         @if (cargo == "ADMINISTRADOR")
                         {
@@ -237,6 +244,59 @@
                     <button class="btn btn-secondary" @onclick="CancelarReenvio">Cancelar</button>
                 </div>
             </div>
+    </div>
+    </div>
+}
+
+@if (mostrarModalAnulacion && ventaAnulacion != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.3)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Anular Ticket</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarAnulacion"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label>Subtotal:</label>
+                        <input type="number" class="form-control" @bind="ventaAnulacion.SubTotal" step="0.01" />
+                    </div>
+                    <div class="mb-2">
+                        <label>IGV:</label>
+                        <input type="number" class="form-control" @bind="ventaAnulacion.Igv" step="0.01" />
+                    </div>
+                    <div class="mb-3">
+                        <label>Total:</label>
+                        <input type="number" class="form-control" @bind="ventaAnulacion.Total" step="0.01" />
+                    </div>
+                    <h5>Pagos</h5>
+                    @for (int i = 0; i < pagosAnulacion.Count; i++)
+                    {
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <select class="form-select" @bind="pagosAnulacion[i].IdTipoPagoVenta">
+                                    @foreach (var tp in tiposPago)
+                                    {
+                                        <option value="@tp.IdTipoPagoVenta">@tp.Descripcion</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-4">
+                                <input type="number" class="form-control" @bind="pagosAnulacion[i].Monto" step="0.01" />
+                            </div>
+                            <div class="col-2 d-flex align-items-center">
+                                <button class="btn btn-danger btn-sm" @onclick="() => EliminarPago(pagosAnulacion[i])">X</button>
+                            </div>
+                        </div>
+                    }
+                    <button class="btn btn-secondary btn-sm" @onclick="AgregarPago">Agregar Pago</button>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger" @onclick="ConfirmarAnulacion">Anular</button>
+                    <button class="btn btn-secondary" @onclick="CerrarAnulacion">Cancelar</button>
+                </div>
+            </div>
         </div>
     </div>
 }
@@ -260,6 +320,11 @@
     private VentaConsultaDTO? ventaSeleccionada;
     private bool mostrarModalReenvio;
     private int nuevoNumeroReenvio;
+    private bool mostrarModalAnulacion;
+    private VentaDTO? ventaAnulacion;
+    private List<DetallePagoDTO> pagosAnulacion = new();
+    private List<TipoPagoVentaDTO> tiposPago = new();
+    private int idVentaAnulacion;
 
     protected override async Task OnInitializedAsync()
     {
@@ -388,6 +453,85 @@
         mostrarModalReenvio = false;
         ventaReenvio = null;
         ventaSeleccionada = null;
+    }
+    private async Task AbrirAnulacion(VentaConsultaDTO v)
+    {
+        ventaAnulacion = await ventaService.ObtenerVentaPorId(v.IdComprobante);
+        if (ventaAnulacion == null) return;
+        tiposPago = await TipoPagoVentaService.ObtenerTodosAsync();
+        pagosAnulacion = ventaAnulacion.Pagos.Select(p => new DetallePagoDTO
+        {
+            IdTipoPagoVenta = p.IdTipoPagoVenta,
+            Monto = p.Soles > 0 ? p.Soles : p.Dolares,
+            Soles = p.Soles,
+            Dolares = p.Dolares,
+            Datos = p.Datos,
+            Vuelto = p.Vuelto,
+            PorcentajeTarjetaSoles = p.PorcentajeTarjetaSoles,
+            PorcentajeTarjetaDolares = p.PorcentajeTarjetaDolares,
+            FormaPago = p.FormaPago,
+            CodigoVerificacion = p.CodigoVerificacion
+        }).ToList();
+        idVentaAnulacion = v.IdComprobante;
+        mostrarModalAnulacion = true;
+    }
+
+    private void CerrarAnulacion()
+    {
+        mostrarModalAnulacion = false;
+        ventaAnulacion = null;
+        pagosAnulacion.Clear();
+    }
+
+    private void AgregarPago()
+    {
+        pagosAnulacion.Add(new DetallePagoDTO
+        {
+            IdTipoPagoVenta = tiposPago.FirstOrDefault()?.IdTipoPagoVenta ?? 0,
+            Monto = 0
+        });
+    }
+
+    private void EliminarPago(DetallePagoDTO p)
+    {
+        pagosAnulacion.Remove(p);
+    }
+
+    private async Task ConfirmarAnulacion()
+    {
+        if (ventaAnulacion == null) return;
+        var userId = await AuthService.GetUserId();
+        if (userId == null) return;
+
+        foreach (var p in pagosAnulacion)
+        {
+            if (p.IdTipoPagoVenta == 3)
+            {
+                p.Dolares = p.Monto;
+                p.Soles = 0;
+            }
+            else
+            {
+                p.Soles = p.Monto;
+                p.Dolares = 0;
+            }
+        }
+
+        var dto = new AnulacionTicketDTO
+        {
+            SubTotal = ventaAnulacion.SubTotal,
+            Igv = ventaAnulacion.Igv,
+            Total = ventaAnulacion.Total,
+            Pagos = pagosAnulacion,
+            IdUsuario = userId.Value
+        };
+
+        var ok = await ventaService.AnularTicketAsync(idVentaAnulacion, dto);
+        if (ok)
+        {
+            mostrarModalAnulacion = false;
+            await BuscarVentas();
+        }
     }
 
     private async Task ImprimirBoletaReenvio()

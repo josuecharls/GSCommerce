@@ -197,6 +197,12 @@ namespace GSCommerce.Client.Services
             return (response.IsSuccessStatusCode, msg);
         }
 
+        public async Task<bool> AnularTicketAsync(int idComprobante, AnulacionTicketDTO dto)
+        {
+            var response = await _httpClient.PutAsJsonAsync($"api/ventas/anular-ticket/{idComprobante}", dto);
+            return response.IsSuccessStatusCode;
+        }
+
         public static string ConvertirMontoALetras(decimal monto, string moneda)
         {
             var enteros = (long)Math.Floor(monto);

@@ -7,6 +7,7 @@
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService
 @inject NavigationManager Navigation
+@inject HttpClient Http
 
 <h3 class="mb-3">Ingresos y Egresos</h3>
 
@@ -83,6 +84,9 @@
                     <td>@item.Monto.ToString("N2")</td>
                     <td>@(item.Estado == "E" ? "Emitido" : "Anulado")</td>
                     <td>
+                        <button class="btn btn-info btn-sm me-2" @onclick="() => VerFoto(item.IdIngresoEgreso)">
+                            <i class="bi bi-image"></i> Ver Foto
+                        </button>
                         @if (esAdmin && item.Estado == "E")
                         {
                             <button class="btn btn-danger btn-sm" @onclick="() => Anular(item.IdIngresoEgreso)">Anular</button>
@@ -101,7 +105,32 @@
         }
     </tbody>
 </table>
-
+@if (showPhotoModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Foto</h5>
+                    <button type="button" class="btn-close" @onclick="ClosePhotoModal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    @if (!string.IsNullOrEmpty(photoUrl))
+                    {
+                        <img src="@photoUrl" alt="Foto" class="img-fluid img-thumbnail" style="max-width:300px;max-height:300px;" />
+                    }
+                    else
+                    {
+                        <p>No hay foto disponible.</p>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="ClosePhotoModal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 @code {
     private List<IngresoEgresoDTO> lista = new();
     private string naturaleza = "EGRESO";
@@ -113,6 +142,8 @@
     private bool soloLecturaAlmacen = false;
     private bool esAdmin = false;
     private string? tipo;
+    private bool showPhotoModal = false;
+    private string? photoUrl;
     private readonly List<string> tiposEgreso = new()
     {
         "GASTOS DIVERSOS",
@@ -176,6 +207,18 @@
     private async Task OnNaturalezaChange()
     {
         tipo = string.Empty;
-        await Buscar(); 
+        await Buscar();
+    }
+
+    private void VerFoto(int id)
+    {
+        photoUrl = $"{Http.BaseAddress}api/IngresosEgresos/foto/{id}?t={DateTime.Now.Ticks}";
+        showPhotoModal = true;
+    }
+
+    private void ClosePhotoModal()
+    {
+        showPhotoModal = false;
+        photoUrl = null;
     }
 }

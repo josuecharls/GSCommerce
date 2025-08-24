@@ -8,6 +8,7 @@ namespace GSCommerce.Client.Models
         // Cabecera
         public int IdMovimiento { get; set; }
         public int IdAlmacen { get; set; }
+        public string NombreAlmacen { get; set; } = string.Empty;
         public string Tipo { get; set; } = string.Empty; // I, E o T
         public string Motivo { get; set; } = string.Empty;
         public DateTime Fecha { get; set; } = DateTime.Now;

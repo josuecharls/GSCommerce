@@ -192,6 +192,63 @@ namespace GSCommerceAPI.Controllers
             return Ok(resumen);
         }
 
+        [HttpPut("anular-ticket/{id:int}")]
+        [Authorize]
+        public async Task<IActionResult> AnularTicket(int id, [FromBody] AnulacionTicketDTO dto)
+        {
+            var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+                return Forbid();
+
+            var cabecera = await _context.ComprobanteDeVentaCabeceras
+                .Include(c => c.DetallePagoVenta)
+                .FirstOrDefaultAsync(c => c.IdComprobante == id);
+
+            if (cabecera == null)
+                return NotFound();
+
+            if (cabecera.IdTipoDocumento != 4)
+                return BadRequest("Solo se pueden anular tickets.");
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                cabecera.SubTotal = dto.SubTotal;
+                cabecera.Igv = dto.Igv;
+                cabecera.Total = dto.Total;
+                cabecera.Estado = "A";
+                cabecera.IdUsuarioAnula = dto.IdUsuario;
+                cabecera.FechaHoraUsuarioAnula = DateTime.Now;
+
+                _context.DetallePagoVenta.RemoveRange(cabecera.DetallePagoVenta);
+
+                foreach (var p in dto.Pagos)
+                {
+                    var nuevo = new DetallePagoVentum
+                    {
+                        IdComprobante = id,
+                        IdTipoPagoVenta = p.IdTipoPagoVenta,
+                        Soles = p.Soles,
+                        Dolares = p.Dolares,
+                        Datos = p.Datos,
+                        Vuelto = p.Vuelto,
+                        PorcentajeTarjetaSoles = p.PorcentajeTarjetaSoles,
+                        PorcentajeTarjetaDolares = p.PorcentajeTarjetaDolares
+                    };
+                    _context.DetallePagoVenta.Add(nuevo);
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, $"Error al anular ticket: {ex.Message}");
+            }
+        }
+
         [HttpGet("reporte-total-tiendas")]
         public async Task<ActionResult<List<ReporteTotalTiendasDTO>>> GetReporteTotalTiendas(
             [FromQuery] DateTime desde,

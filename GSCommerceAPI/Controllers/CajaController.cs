@@ -292,8 +292,17 @@ public class CajaController : ControllerBase
 
         bool SW(string s, params string[] pref) => !string.IsNullOrWhiteSpace(s) && pref.Any(p => s.StartsWith(p, StringComparison.OrdinalIgnoreCase));
 
-        decimal VRes(int u, int a) => ventasDia.Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA TICKET")).Sum(v => v.Monto); decimal VTar(int u, int a) => ventasDia.Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA TARJETA/ONLINE")).Sum(v => v.Monto);
-        decimal VNC(int u, int a) => ventasDia.Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA POR N.C.", "VENTA CON N.C.")).Sum(v => v.Monto);
+        decimal VRes(int u, int a) => ventasDia
+            .Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA TICKET"))
+            .Sum(v => v.Monto);
+
+        decimal VTar(int u, int a) => ventasDia
+            .Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA TARJETA/ONLINE"))
+            .Sum(v => v.Monto);
+
+        decimal VNC(int u, int a) => ventasDia
+            .Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA POR N.C."))
+            .Sum(v => v.Monto);
 
         decimal Ingresos(int u, int a) => movsDia.Where(m => m.IdUsuario == u && m.IdAlmacen == a && m.Naturaleza == "I").Sum(m => m.Monto);
         decimal Transf(int u, int a) => movsDia.Where(m => m.IdUsuario == u && m.IdAlmacen == a && m.Naturaleza == "E" && m.Grupo.StartsWith("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase)).Sum(m => m.Monto);
@@ -489,7 +498,8 @@ public class CajaController : ControllerBase
             .Where(n => n.IdUsuario == apertura.IdUsuario &&
                         n.IdAlmacen == apertura.IdAlmacen &&
                         n.Fecha >= dayStartNc && n.Fecha <= dayEndNc &&
-                        n.Estado == "E")
+                        n.Estado == "E" &&
+                        (n.Empleada == null || n.Empleada == false))
             .Select(n => new { n.Serie, n.Numero, n.Total })
             .ToListAsync();
 
@@ -618,7 +628,7 @@ public class CajaController : ControllerBase
 
             // 6) VENTAS (del día)
             var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
-            var ventaNC = MontoPorGrupo("VENTA POR N.C.", "VENTA CON N.C.");
+            var ventaNC = MontoPorGrupo("VENTA POR N.C.");
             var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2");
             var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC; // efectivo real en caja
             var ventaDia = ventaEfectivo + ventaTarjeta;

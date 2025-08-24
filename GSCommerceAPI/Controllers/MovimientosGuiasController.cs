@@ -87,6 +87,7 @@ namespace GSCommerceAPI.Controllers
                     Fecha = m.Fecha.HasValue ? m.Fecha.Value.ToDateTime(TimeOnly.MinValue) : m.FechaHoraRegistro,
                     Descripcion = m.Descripcion,
                     IdAlmacen = m.IdAlmacen,
+                    NombreAlmacen = m.IdAlmacenNavigation.Nombre,
                     IdProveedor = m.IdProveedor,
                     IdAlmacenDestinoOrigen = m.IdAlmacenDestinoOrigen,
                     IdUsuario = m.IdUsuario,
@@ -94,7 +95,7 @@ namespace GSCommerceAPI.Controllers
                     IdUsuarioConfirma = m.IdUsuarioConfirma,
                     FechaHoraConfirma = m.FechaHoraConfirma
                 })
-                .ToListAsync();
+            .ToListAsync();
 
             return Ok(new
             {
@@ -221,6 +222,7 @@ namespace GSCommerceAPI.Controllers
         {
             var cabecera = await _context.MovimientosCabeceras
                 .Include(m => m.MovimientosDetalles)
+                .Include(m => m.IdAlmacenNavigation)
                 .FirstOrDefaultAsync(m => m.IdMovimiento == id);
 
             if (cabecera == null) return NotFound();
@@ -233,6 +235,7 @@ namespace GSCommerceAPI.Controllers
                 Fecha = cabecera.Fecha.HasValue ? cabecera.Fecha.Value.ToDateTime(TimeOnly.MinValue) : cabecera.FechaHoraRegistro,
                 Descripcion = cabecera.Descripcion,
                 IdAlmacen = cabecera.IdAlmacen,
+                NombreAlmacen = cabecera.IdAlmacenNavigation?.Nombre ?? string.Empty,
                 IdProveedor = cabecera.IdProveedor,
                 IdAlmacenDestinoOrigen = cabecera.IdAlmacenDestinoOrigen,
                 IdOc = cabecera.IdOc,

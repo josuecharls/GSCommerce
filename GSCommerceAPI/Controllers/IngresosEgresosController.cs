@@ -195,6 +195,21 @@ namespace GSCommerceAPI.Controllers
             return Ok(new { cabecera.IdIngresoEgreso });
         }
 
+        // GET: api/IngresosEgresos/foto/5
+        [HttpGet("foto/{id}")]
+        public async Task<IActionResult> GetFoto(int id)
+        {
+            var imagen = await _context.IngresosEgresosDetalles
+                .Where(d => d.IdIngresoEgreso == id && d.Imagen != null)
+                .Select(d => d.Imagen)
+                .FirstOrDefaultAsync();
+
+            if (imagen == null)
+                return NotFound("No se encontró la foto");
+
+            return File(imagen, "image/jpeg");
+        }
+
         // PUT: api/IngresosEgresos/{id}/anular
         [HttpPut("{id}/anular")]
         public async Task<IActionResult> Anular(int id)
