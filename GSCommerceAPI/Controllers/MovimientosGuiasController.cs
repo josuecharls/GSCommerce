@@ -29,6 +29,7 @@ namespace GSCommerceAPI.Controllers
             [FromQuery] int pageSize = 10,
             [FromQuery] string tipo = "",
             [FromQuery] string search = "",
+            [FromQuery] string motivo = "",
             [FromQuery] int? idAlmacen = null) // ⬅️ nuevo
         {
             if (string.IsNullOrWhiteSpace(tipo))
@@ -71,6 +72,9 @@ namespace GSCommerceAPI.Controllers
 
             if (!string.IsNullOrWhiteSpace(search))
                 query = query.Where(m => m.Motivo.Contains(search) || m.Descripcion.Contains(search));
+
+            if (!string.IsNullOrWhiteSpace(motivo))
+                query = query.Where(m => m.Motivo == motivo);
 
             var totalItems = await query.CountAsync();
             var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);

@@ -213,7 +213,36 @@ namespace GSCommerceAPI.Controllers
             resultado.AddRange(ventasComprobantes);
             resultado.AddRange(notasCredito);
 
-            return Ok(resultado.OrderByDescending(k => k.Fecha));
+            var calculado = resultado
+                .GroupBy(k => new { k.IdAlmacen, k.Codigo })
+                .SelectMany(g =>
+                {
+                    var ordenados = g.OrderBy(k => k.Fecha).ToList();
+                    int saldo = 0;
+                    bool inicializado = false;
+
+                    foreach (var item in ordenados)
+                    {
+                        if (!inicializado)
+                        {
+                            saldo = item.SaldoInicial;
+                            inicializado = true;
+                        }
+                        else if (item.SaldoInicial != 0)
+                        {
+                            saldo = item.SaldoInicial;
+                        }
+
+                        saldo += item.Entrada;
+                        saldo -= item.Salida;
+                        item.SaldoFinal = saldo;
+                    }
+
+                    return ordenados;
+                })
+                .ToList();
+
+            return Ok(calculado.OrderByDescending(k => k.Fecha));
         }
     }
 }

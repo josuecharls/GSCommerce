@@ -4,6 +4,7 @@
 @inject PersonalService PersonalService
 @inject NavigationManager Navigation
 @inject HttpClient Http
+@inject AuthService AuthService
 
 <h3>Editar Personal</h3>
 
@@ -38,7 +39,7 @@
 
             <div class="mb-3">
                 <label class="form-label">Cargo</label>
-                <input type="text" class="form-control" @bind="personal.Cargo" />
+                <input type="text" class="form-control" @bind="personal.Cargo" disabled="@isCajero" />
             </div>
 
             <div class="mb-3">
@@ -63,11 +64,20 @@ else
     public int id { get; set; }  // Aquí nos aseguramos de que sea un entero
 
     private PersonalDTO? personal;
+    private bool isCajero = false;
+    private int? idAlmacenUsuario;
 
     protected override async Task OnInitializedAsync()
     {
+        var cargoUsuario = await AuthService.GetUserCargo();
+        isCajero = string.Equals(cargoUsuario, "CAJERO", StringComparison.OrdinalIgnoreCase);
+        if (isCajero)
+        {
+            idAlmacenUsuario = await AuthService.GetUserAlmacenId();
+        }
+
         personal = await PersonalService.GetPersonalById(id);
-        if (personal == null)
+        if (personal == null || (isCajero && (personal.Cargo != "VENDEDOR" || personal.IdAlmacen != idAlmacenUsuario)))
         {
             Navigation.NavigateTo("/personal");
         }
@@ -77,6 +87,11 @@ else
     {
         if (personal != null)
         {
+            if (isCajero)
+            {
+                personal.Cargo = "VENDEDOR";
+                personal.IdAlmacen = idAlmacenUsuario;
+            }
             await PersonalService.UpdatePersonal(id, personal);
             Navigation.NavigateTo("/personal");
         }

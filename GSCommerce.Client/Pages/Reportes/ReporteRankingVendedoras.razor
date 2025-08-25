@@ -72,6 +72,7 @@
             <tr>
                 <th>#</th>
                 <th>Vendedora</th>
+                <th>Estado</th>
                 <th>Ventas Realizadas</th>
                 <th>Monto Total</th>
             </tr>
@@ -82,6 +83,7 @@
                 <tr>
                     <td>@(item.i + 1)</td>
                     <td>@item.r.Vendedora</td>
+                    <td>@(item.r.Activo ? "Activo" : "Inactivo")</td>
                     <td>@item.r.VentasRealizadas</td>
                     <td>S/ @item.r.TotalVentas.ToString("N2")</td>
                 </tr>
@@ -133,11 +135,12 @@ else
 
     private async Task ExportarExcel()
     {
-        var headers = new[] { "Ranking", "Vendedor", "Cantidad", "Monto" };
+        var headers = new[] { "Ranking", "Vendedor", "Estado", "Cantidad", "Monto" };
         var rows = ranking.Select((r, i) => new object[]
         {
             i + 1,
             r.Vendedora,
+            r.Activo ? "Activo" : "Inactivo",
             r.VentasRealizadas,
             r.TotalVentas
         }).ToArray();
@@ -164,7 +167,7 @@ else
             if (datos.Any())
             {
                 sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
-                sb.AppendLine("<thead><tr><th>#</th><th>Vendedor</th><th>Cantidad</th><th>Monto</th></tr></thead>");
+                sb.AppendLine("<thead><tr><th>#</th><th>Vendedor</th><th>Estado</th><th>Cantidad</th><th>Monto</th></tr></thead>");
                 sb.AppendLine("<tbody>");
                 var index = 1;
                 foreach (var d in datos)
@@ -172,6 +175,7 @@ else
                     sb.AppendLine("<tr>");
                     sb.AppendLine($"<td>{index}</td>");
                     sb.AppendLine($"<td>{d.Vendedora}</td>");
+                    sb.AppendLine($"<td>{(d.Activo ? "Activo" : "Inactivo")}</td>");
                     sb.AppendLine($"<td>{d.VentasRealizadas}</td>");
                     sb.AppendLine($"<td>S/ {d.TotalVentas:N2}</td>");
                     sb.AppendLine("</tr>");

@@ -856,7 +856,7 @@ namespace GSCommerceAPI.Controllers
                         Item = detalle.Item,
                         IdArticulo = detalle.CodigoItem,
                         Descripcion = detalle.DescripcionItem,
-                        UnidadMedida = "UND", // Por ahora fijo
+                        UnidadMedida = "NIU", // Por ahora fijo
                         Cantidad = (int)detalle.Cantidad,
                         Precio = detalle.PrecioUnitario,
                         PorcentajeDescuento = detalle.PorcentajeDescuento,
@@ -1143,12 +1143,13 @@ namespace GSCommerceAPI.Controllers
             }
 
             var ranking = await query
-                .GroupBy(x => new { x.p.Nombres, x.p.Apellidos })
+                .GroupBy(x => new { x.p.IdPersonal, x.p.Nombres, x.p.Apellidos, x.p.Estado })
                 .OrderByDescending(g => g.Sum(x => x.c.Total))
                 .Select(g => new RankingVendedoraDTO
                 {
                     Vendedora = (g.Key.Nombres + " " + g.Key.Apellidos).Trim(),
                     TotalVentas = g.Sum(x => x.c.Total),
+                    Activo = g.Key.Estado,
                     TotalClientes = g.Select(x => x.c.Dniruc).Distinct().Count(),
                     VentasRealizadas = g.Count()
                 }).ToListAsync();

@@ -3,6 +3,8 @@ using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -10,6 +12,7 @@ namespace GSCommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "ADMINISTRADOR,CAJERO")]
     public class PersonalController : ControllerBase
     {
         private readonly SyscharlesContext _context;
@@ -34,6 +37,15 @@ namespace GSCommerceAPI.Controllers
             if (!string.IsNullOrEmpty(search))
             {
                 query = query.Where(p => p.Nombres.Contains(search) || p.Apellidos.Contains(search));
+            }
+
+            var cargo = User.FindFirst("Cargo")?.Value;
+            if (cargo == "CAJERO")
+            {
+                var idAlmacenUsuario = await ObtenerIdAlmacenUsuario();
+                if (idAlmacenUsuario == null)
+                    return Forbid();
+                query = query.Where(p => p.Cargo == "VENDEDOR" && p.IdAlmacen == idAlmacenUsuario);
             }
 
             var totalItems = await query.CountAsync();
@@ -73,6 +85,15 @@ namespace GSCommerceAPI.Controllers
             {
                 return NotFound();
             }
+
+            var cargo = User.FindFirst("Cargo")?.Value;
+            if (cargo == "CAJERO")
+            {
+                var idAlmacenUsuario = await ObtenerIdAlmacenUsuario();
+                if (idAlmacenUsuario == null || personal.Cargo != "VENDEDOR" || personal.IdAlmacen != idAlmacenUsuario)
+                    return Forbid();
+            }
+
             return personal;
         }
 
@@ -84,6 +105,14 @@ namespace GSCommerceAPI.Controllers
             if (personal == null || personal.Foto == null)
                 return NotFound("No se encontró la foto");
 
+            var cargo = User.FindFirst("Cargo")?.Value;
+            if (cargo == "CAJERO")
+            {
+                var idAlmacenUsuario = await ObtenerIdAlmacenUsuario();
+                if (idAlmacenUsuario == null || personal.Cargo != "VENDEDOR" || personal.IdAlmacen != idAlmacenUsuario)
+                    return Forbid();
+            }
+
             // Asegurar que se devuelva como imagen directamente
             return new FileContentResult(personal.Foto, "image/jpeg"); // O "image/png" según el tipo de imagen
         }
@@ -91,6 +120,15 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("vendedores-por-almacen/{idAlmacen}")]
         public async Task<IActionResult> ObtenerVendedoresPorAlmacen(int idAlmacen)
         {
+            var cargo = User.FindFirst("Cargo")?.Value;
+            if (cargo == "CAJERO")
+            {
+                var idAlmacenUsuario = await ObtenerIdAlmacenUsuario();
+                if (idAlmacenUsuario == null)
+                    return Forbid();
+                idAlmacen = idAlmacenUsuario.Value;
+            }
+
             var vendedores = await _context.Personals
                 .Where(p => p.Cargo == "VENDEDOR" && p.IdAlmacen == idAlmacen && p.Estado)
                 .Select(p => new PersonalDTO
@@ -99,17 +137,27 @@ namespace GSCommerceAPI.Controllers
                     Nombres = p.Nombres,
                     Apellidos = p.Apellidos,
                     Cargo = p.Cargo,
-                    IdAlmacen = p.IdAlmacen
+                    IdAlmacen = p.IdAlmacen,
+                    Estado = p.Estado
                 }).ToListAsync();
 
             return Ok(vendedores);
         }
 
-
         // POST: api/personal (Crear un nuevo registro)
         [HttpPost]
         public async Task<ActionResult<Personal>> CreatePersonal(Personal personal)
         {
+            var cargo = User.FindFirst("Cargo")?.Value;
+            if (cargo == "CAJERO")
+            {
+                var idAlmacenUsuario = await ObtenerIdAlmacenUsuario();
+                if (idAlmacenUsuario == null)
+                    return Forbid();
+                personal.IdAlmacen = idAlmacenUsuario;
+                personal.Cargo = "VENDEDOR";
+            }
+
             _context.Personals.Add(personal);
             await _context.SaveChangesAsync();
 
@@ -187,6 +235,14 @@ namespace GSCommerceAPI.Controllers
                 if (personal == null)
                     return NotFound("No se encontró el personal");
 
+                var cargo = User.FindFirst("Cargo")?.Value;
+                if (cargo == "CAJERO")
+                {
+                    var idAlmacenUsuario = await ObtenerIdAlmacenUsuario();
+                    if (idAlmacenUsuario == null || personal.Cargo != "VENDEDOR" || personal.IdAlmacen != idAlmacenUsuario)
+                        return Forbid();
+                }
+
                 personal.Foto = fotoBytes; // Guardamos la foto en la base de datos
                 await _context.SaveChangesAsync();
 
@@ -218,6 +274,23 @@ namespace GSCommerceAPI.Controllers
                 return BadRequest();
             }
 
+            var existing = await _context.Personals.AsNoTracking().FirstOrDefaultAsync(p => p.IdPersonal == id);
+            if (existing == null)
+            {
+                return NotFound();
+            }
+
+            var cargo = User.FindFirst("Cargo")?.Value;
+            if (cargo == "CAJERO")
+            {
+                var idAlmacenUsuario = await ObtenerIdAlmacenUsuario();
+                if (idAlmacenUsuario == null || existing.Cargo != "VENDEDOR" || existing.IdAlmacen != idAlmacenUsuario)
+                    return Forbid();
+
+                personal.Cargo = "VENDEDOR";
+                personal.IdAlmacen = idAlmacenUsuario;
+            }
+
             _context.Entry(personal).State = EntityState.Modified;
 
             try
@@ -243,6 +316,11 @@ namespace GSCommerceAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePersonal(int id)
         {
+            if (User.IsInRole("CAJERO"))
+            {
+                return Forbid();
+            }
+
             var personal = await _context.Personals.FindAsync(id);
             if (personal == null)
             {
@@ -259,6 +337,18 @@ namespace GSCommerceAPI.Controllers
         private bool PersonalExists(int id)
         {
             return _context.Personals.Any(e => e.IdPersonal == id);
+        }
+        private async Task<int?> ObtenerIdAlmacenUsuario()
+        {
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (!int.TryParse(userIdClaim, out var userId))
+                return null;
+
+            return await _context.Usuarios
+                .Include(u => u.IdPersonalNavigation)
+                .Where(u => u.IdUsuario == userId)
+                .Select(u => u.IdPersonalNavigation.IdAlmacen)
+                .FirstOrDefaultAsync();
         }
     }
 }

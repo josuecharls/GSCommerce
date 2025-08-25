@@ -5,7 +5,7 @@
         public int Item { get; set; }
         public string IdArticulo { get; set; } = string.Empty;
         public string Descripcion { get; set; } = string.Empty;
-        public string UnidadMedida { get; set; } = "UND";
+        public string UnidadMedida { get; set; } = "NIU";
         public int Cantidad { get; set; }
         public int CantidadOriginal { get; set; }
         public decimal Precio { get; set; }

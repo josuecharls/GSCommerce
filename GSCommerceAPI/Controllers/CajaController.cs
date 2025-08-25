@@ -236,9 +236,9 @@ public class CajaController : ControllerBase
                    .Sum(r => r.Monto);
 
         var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
-        var ventaNC = MontoPorGrupo("VENTA POR N.C.");
+        var ventaNC = MontoPorGrupo("VENTA POR N.C.", "VENTA CON N.C.");
         var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA TICKET");
-        var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC;
+        var ventaEfectivo = ventasResumen - ventaTarjeta;
         var ventaDia = ventaEfectivo + ventaTarjeta;
 
         actual.VentaDia = ventaDia;
@@ -301,7 +301,7 @@ public class CajaController : ControllerBase
             .Sum(v => v.Monto);
 
         decimal VNC(int u, int a) => ventasDia
-            .Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA POR N.C."))
+            .Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA POR N.C.", "VENTA CON N.C."))
             .Sum(v => v.Monto);
 
         decimal Ingresos(int u, int a) => movsDia.Where(m => m.IdUsuario == u && m.IdAlmacen == a && m.Naturaleza == "I").Sum(m => m.Monto);
@@ -329,8 +329,8 @@ public class CajaController : ControllerBase
             var vTarjeta = VTar(ap.IdUsuario, ap.IdAlmacen);
             var vNC = VNC(ap.IdUsuario, ap.IdAlmacen);
 
-            var vTotal = vResumen - vNC;            // Venta Día = efectivo + tarjeta
-            var vEfectivo = vResumen - vTarjeta - vNC; // solo efectivo (para saldo de caja)
+            var vTotal = vResumen;            // Venta Día = efectivo + tarjeta
+            var vEfectivo = vResumen - vTarjeta; // solo efectivo (para saldo de caja)
 
             var ingresos = Ingresos(ap.IdUsuario, ap.IdAlmacen);
             var egresos = Gastos(ap.IdUsuario, ap.IdAlmacen) + Transf(ap.IdUsuario, ap.IdAlmacen) + Prov(ap.IdUsuario, ap.IdAlmacen);
@@ -628,7 +628,7 @@ public class CajaController : ControllerBase
 
             // 6) VENTAS (del día)
             var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
-            var ventaNC = MontoPorGrupo("VENTA POR N.C.");
+            var ventaNC = MontoPorGrupo("VENTA POR N.C.", "VENTA CON N.C.");
             var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2");
             var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC; // efectivo real en caja
             var ventaDia = ventaEfectivo + ventaTarjeta;

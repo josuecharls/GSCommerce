@@ -1,25 +1,45 @@
 ﻿@page "/notass-credito"
-@**@
 @using Microsoft.AspNetCore.Authorization
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject NotaCreditoService ncService
 @inject IJSRuntime JS
+@inject AuthService AuthService
+@inject AlmacenService AlmacenService
 
 <h3>📄 Notas de Crédito</h3>
 
 <div class="row mb-3">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label>Desde:</label>
         <input type="date" class="form-control" @bind-value="desde" @bind-value:event="oninput" />
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label>Hasta:</label>
         <input type="date" class="form-control" @bind-value="hasta" @bind-value:event="oninput" />
     </div>
-    <div class="col-md-4 d-flex align-items-end">
-        <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
-    </div>
+    @if (esAdmin)
+    {
+        <div class="col-md-3">
+            <label>Almacén:</label>
+            <select class="form-select" @bind="idAlmacenSeleccionado">
+                <option value="0">Todos</option>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
+        </div>
+    }
+    else
+    {
+        <div class="col-md-6 d-flex align-items-end">
+            <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
+        </div>
+    }
 </div>
 
 <table class="table table-bordered">
@@ -70,15 +90,30 @@
     private NotaCreditoConsultaDTO? notaSeleccionada;
     private bool mostrarMenu = false;
     private string estiloMenu = string.Empty;
+    private List<AlmacenDTO> almacenes = new();
+    private int idAlmacenSeleccionado = 0;
+    private bool esAdmin = false;
 
     protected override async Task OnInitializedAsync()
     {
+        var cargo = await AuthService.GetUserCargo();
+        esAdmin = string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
+
+        if (esAdmin)
+        {
+            almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        }
+        else
+        {
+            idAlmacenSeleccionado = await AuthService.GetUserAlmacenId() ?? 0;
+        }
+
         await Buscar();
     }
 
     private async Task Buscar()
     {
-        notas = await ncService.ObtenerNotasAsync(desde, hasta);
+        notas = await ncService.ObtenerNotasAsync(desde, hasta, null, idAlmacenSeleccionado);
     }
 
     private void MostrarMenu(NotaCreditoConsultaDTO nota, MouseEventArgs e)

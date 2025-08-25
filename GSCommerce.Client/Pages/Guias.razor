@@ -7,14 +7,23 @@
 @using Microsoft.AspNetCore.WebUtilities
 @inject NavigationManager Navigation
 @inject MovimientoGuiaService MovimientoGuiaService
+@inject AuxiliaresVariosService AuxiliaresVariosService
 @inject IJSRuntime JS
 
 <h3>📋 Guías de Movimiento</h3>
 
-<select class="form-select mb-2" @bind="tipoFiltro">
+<select class="form-select mb-2" @bind="tipoFiltro" @onchange="async _ => await OnTipoChange()">
     <option value="Ingreso">Ingreso</option>
     <option value="Egreso">Egreso</option>
     <option value="Transferencia">Transferencia</option>
+</select>
+
+<select class="form-select mb-2" @bind="motivoFiltro" @onchange="async _ => await SearchGuias()">
+    <option value="">Todos los motivos</option>
+    @foreach (var mot in motivos)
+    {
+        <option value="@mot">@mot</option>
+    }
 </select>
 
 <button @onclick="CreateNewGuia" class="btn btn-success mb-3">+ Nueva Guía</button>
@@ -95,7 +104,8 @@
     private string searchTerm = "";
     private string tipoFiltro = "Ingreso";
     private int? idAlmacenUsuario;
-
+    private string motivoFiltro = "";
+    private List<string> motivos = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -106,16 +116,29 @@
         // 🔹 Obtén el almacén real del usuario (ajusta al método que uses)
         // idAlmacenUsuario = await AuthService.GetIdAlmacenAsync();
         idAlmacenUsuario = idAlmacenUsuario ?? 0; // <-- quítalo cuando uses AuthService
-
+        await CargarMotivos();
         await LoadGuias();
     }
 
     private async Task LoadGuias()
     {
         var result = await MovimientoGuiaService.GetGuiasList(
-            currentPage, pageSize, searchTerm, tipoFiltro, idAlmacenUsuario);
+            currentPage, pageSize, searchTerm, tipoFiltro, motivoFiltro, idAlmacenUsuario);
         guias = result.Data;
         totalPages = result.TotalPages;
+    }
+
+    private async Task CargarMotivos()
+    {
+        motivos = await AuxiliaresVariosService.ObtenerMotivosPorTipo(tipoFiltro);
+    }
+
+    private async Task OnTipoChange()
+    {
+        currentPage = 1;
+        motivoFiltro = "";
+        await CargarMotivos();
+        await LoadGuias();
     }
 
     private async Task Confirmar(int id)

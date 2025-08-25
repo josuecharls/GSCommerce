@@ -8,6 +8,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject HttpClient Http
+@inject AuthService AuthService
 
 <h3>Nuevo Empleado</h3>
 
@@ -110,7 +111,7 @@
     <div class="row mt-3">
         <div class="col-md-6">
             <label>Local (Almacén):</label>
-            <InputSelect @bind-Value="personal.IdAlmacen" class="form-control">
+            <InputSelect @bind-Value="personal.IdAlmacen" class="form-control" disabled="@isCajero">
                 <option value="" disabled>Seleccione un almacén</option>
                 @if (almacenes != null)
                 {
@@ -123,17 +124,26 @@
         </div>
         <div class="col-md-6">
             <label>Cargo:</label>
-            <InputSelect @bind-Value="personal.Cargo" class="form-control">
-                <option value="ADMINISTRADOR">ADMINISTRADOR</option>
-                <option value="CAJERO">CAJERO</option>
-                <option value="VENDEDOR">VENDEDOR</option>
-                <option value="PREVENCION">PREVENCION</option>
-                <option value="ENCARGADO">ENCARGADO</option>
-                <option value="APOYO ADMIN">APOYO ADMIN</option>
-                <option value="CONTADOR">CONTADOR</option>
-                <option value="TESORERO">TESORERO</option>
-                <option value="EMISOR NC">EMISOR NC</option>
-            </InputSelect>
+            @if (isCajero)
+            {
+                <InputSelect @bind-Value="personal.Cargo" class="form-control" disabled>
+                    <option value="VENDEDOR">VENDEDOR</option>
+                </InputSelect>
+            }
+            else
+            {
+                <InputSelect @bind-Value="personal.Cargo" class="form-control">
+                    <option value="ADMINISTRADOR">ADMINISTRADOR</option>
+                    <option value="CAJERO">CAJERO</option>
+                    <option value="VENDEDOR">VENDEDOR</option>
+                    <option value="PREVENCION">PREVENCION</option>
+                    <option value="ENCARGADO">ENCARGADO</option>
+                    <option value="APOYO ADMIN">APOYO ADMIN</option>
+                    <option value="CONTADOR">CONTADOR</option>
+                    <option value="TESORERO">TESORERO</option>
+                    <option value="EMISOR NC">EMISOR NC</option>
+                </InputSelect>
+            }
         </div>
     </div>
     <div class="row mt-3">
@@ -171,6 +181,8 @@
     private PersonalDTO personal = new();
     private List<AlmacenDTO>? almacenes;
     private string? resizedImage;
+    private bool isCajero = false;
+    private int? idAlmacenUsuario;
 
     protected override async Task OnInitializedAsync()
     {
@@ -182,18 +194,41 @@
         personal.Sexo ??= "MASCULINO"; // Predeterminado: MASCULINO
         personal.EstadoCivil ??= "SOLTERO"; // Predeterminado: SOLTERO
         personal.TipoEmpleado ??= "EMPLEADO"; // Predeterminado: EMPLEADO
-        personal.Cargo ??= "CAJERO"; //Predeterminado: CAJERO
-        if (almacenes != null && almacenes.Any())
+
+        var cargoUsuario = await AuthService.GetUserCargo();
+        isCajero = string.Equals(cargoUsuario, "CAJERO", StringComparison.OrdinalIgnoreCase);
+        if (isCajero)
         {
-            personal.IdAlmacen ??= almacenes.FirstOrDefault()?.IdAlmacen ?? 0; // Primer almacén disponible
+            idAlmacenUsuario = await AuthService.GetUserAlmacenId();
+            personal.Cargo = "VENDEDOR";
+            if (idAlmacenUsuario.HasValue)
+            {
+                personal.IdAlmacen = idAlmacenUsuario.Value;
+                if (almacenes != null)
+                    almacenes = almacenes.Where(a => a.IdAlmacen == idAlmacenUsuario.Value).ToList();
+            }
         }
-        
+        else
+        {
+            personal.Cargo ??= "CAJERO"; //Predeterminado: CAJERO
+            if (almacenes != null && almacenes.Any())
+            {
+                personal.IdAlmacen ??= almacenes.FirstOrDefault()?.IdAlmacen ?? 0; // Primer almacén disponible
+            }
+        }
+
     }
 
     private async Task SavePersonal()
     {
         try
         {
+            if (isCajero)
+            {
+                personal.Cargo = "VENDEDOR";
+                personal.IdAlmacen = idAlmacenUsuario;
+            }
+
             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(personal)); // Muestra los datos en la consola del navegador
 
             bool success = await PersonalService.CreatePersonal(personal);

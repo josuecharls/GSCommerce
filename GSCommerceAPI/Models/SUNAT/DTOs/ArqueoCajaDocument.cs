@@ -91,7 +91,7 @@ public class ArqueoCajaDocument : IDocument
                     {
                         col.Item().Text("Ingresos").Bold();
                         var ventaEfectivo = _dto.VentasDelDia;
-                        var ventaTotal = ventaEfectivo + _dto.VentaTarjeta + _dto.VentaNC;
+                        var ventaTotal = ventaEfectivo + _dto.VentaTarjeta;
                         col.Item().Row(r => { r.RelativeItem().Text("Saldo del día anterior (S/)"); r.ConstantItem(80).AlignRight().Text(_dto.SaldoInicial.ToString("N2")); });
                         col.Item().Row(r => { r.RelativeItem().Text("Venta en efectivo (S/)"); r.ConstantItem(80).AlignRight().Text(ventaEfectivo.ToString("N2")); });
                         col.Item().Row(r => { r.RelativeItem().Text("Venta con tarjeta (S/)"); r.ConstantItem(80).AlignRight().Text(_dto.VentaTarjeta.ToString("N2")); });

@@ -22,6 +22,7 @@
 @inject AuthService AuthService
 @inject IJSRuntime JS
 @using System.Text;
+@using System.Linq;
 
 <h3>Registrar Venta</h3>
 <button class="btn btn-outline-primary" @onclick="AbrirNuevaVenta">+ Nueva Venta</button>
@@ -29,6 +30,22 @@
 <div class="mb-3">
     <label>Escanear o Digitar Código:</label>
         <input value="@codigoBusqueda" @oninput="DetectarEntradaCodigo" @onkeypress="BuscarAlPresionarEnter" class="form-control" @ref="inputCodigoRef" />
+    </div>
+
+    <div class="mb-3">
+        <label>Buscar por Descripción:</label>
+        <input class="form-control" value="@descripcionBusqueda" @oninput="BuscarPorDescripcion" />
+        @if (articulosBusqueda.Any())
+        {
+            <ul class="list-group mt-2">
+                @foreach (var a in articulosBusqueda)
+                {
+                    <li class="list-group-item list-group-item-action" @onclick="() => SeleccionarArticuloBusqueda(a)">
+                        @a.Descripcion (@a.IdArticulo) - Stock: @a.Stock
+                    </li>
+                }
+            </ul>
+        }
     </div>
 
 <div class="mb-3">
@@ -164,6 +181,8 @@ OnCancelado="CobroCancelado" />
     private bool EsVentaNormal => modo.ToLower() == "b1";
     private VentaCabeceraDTO venta = new VentaCabeceraDTO();
     private string codigoBusqueda = string.Empty;
+    private string descripcionBusqueda = string.Empty;
+    private List<StockDTO> articulosBusqueda = new();
     private ElementReference inputCodigoRef;
     private CobrarModal? cobrarModalRef;
     private List<DetallePagoDTO> pagosRealizados = new();
@@ -231,7 +250,10 @@ OnCancelado="CobroCancelado" />
                     venta.IdAlmacen = idAlmacenActual.Value;
                     venta.IdCajero = idUsuarioActual;
 
-                    vendedores = await PersonalService.ObtenerVendedoresPorAlmacen(idAlmacenActual.Value);
+                    vendedores = (await PersonalService.ObtenerVendedoresPorAlmacen(idAlmacenActual.Value))
+                        .Where(v => v.Estado)
+                        .ToList();
+
                     if (vendedores.Any())
                     {
                         var v = vendedores.First();
@@ -404,6 +426,28 @@ OnCancelado="CobroCancelado" />
         {
             await BuscarCodigoAsync();
         }
+    }
+
+    private async Task BuscarPorDescripcion(ChangeEventArgs e)
+    {
+        descripcionBusqueda = e.Value?.ToString() ?? string.Empty;
+        if (descripcionBusqueda.Length >= 3 && idAlmacenActual != null)
+        {
+            var resultado = await StockService.GetStock(idAlmacenActual.Value, false, descripcionBusqueda, 2, 1, 5);
+            articulosBusqueda = resultado.Items;
+        }
+        else
+        {
+            articulosBusqueda.Clear();
+        }
+    }
+
+    private async Task SeleccionarArticuloBusqueda(StockDTO item)
+    {
+        codigoBusqueda = item.IdArticulo;
+        descripcionBusqueda = string.Empty;
+        articulosBusqueda.Clear();
+        await BuscarCodigoAsync();
     }
 
     private async Task BuscarCodigoAsync()

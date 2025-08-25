@@ -7,6 +7,7 @@
 @inject NavigationManager Navigation
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject AuthService AuthService
 @using Microsoft.AspNetCore.Components.Forms
 
 <h3>🧑‍🤝‍🧑 Gestión de Personal</h3>
@@ -50,9 +51,12 @@
                         <button @onclick="() => EditPersonal(p.IdPersonal)" class="btn btn-warning btn-sm me-1">
                             <i class="bi bi-pencil-square"></i>
                         </button>
-                        <button @onclick="() => ConfirmDeletePersonal(p.IdPersonal, p.Nombres)" class="btn btn-danger btn-sm">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                        @if (!isCajero)
+                        {
+                            <button @onclick="() => ConfirmDeletePersonal(p.IdPersonal, p.Nombres)" class="btn btn-danger btn-sm">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        }
                     </td>
                 </tr>
             }
@@ -145,6 +149,7 @@
     private string deletePersonalName = "";
     private string currentSortColumn = "Nombre";
     private bool sortAscending = true;
+    private bool isCajero = false;
 
     private void ShowPhoto(int id)
     {
@@ -218,6 +223,9 @@
 
     private async Task DeleteConfirmed()
     {
+        if (isCajero)
+            return;
+
         if (!isDeleting && deletePersonalId > 0)
         {
             isDeleting = true;
@@ -290,6 +298,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var cargo = await AuthService.GetUserCargo();
+        isCajero = string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase);
         await LoadPersonals();
     }
 

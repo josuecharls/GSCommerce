@@ -17,12 +17,11 @@ namespace GSCommerce.Client.Services
 
         // Obtener lista de guías con paginación y búsqueda
         public async Task<MovimientoGuiaResponse> GetGuiasList(
-            int page, int pageSize, string search = "", string tipo = "", int? idAlmacen = null)
+            int page, int pageSize, string search = "", string tipo = "", string motivo = "", int? idAlmacen = null)
         {
             try
             {
-                var url = $"api/movimientos-guias/list?page={page}&pageSize={pageSize}&search={search}&tipo={tipo}";
-                if (idAlmacen.HasValue && idAlmacen.Value > 0)
+                var url = $"api/movimientos-guias/list?page={page}&pageSize={pageSize}&search={search}&tipo={tipo}&motivo={motivo}"; if (idAlmacen.HasValue && idAlmacen.Value > 0)
                     url += $"&idAlmacen={idAlmacen.Value}";
 
                 var response = await _httpClient.GetAsync(url);

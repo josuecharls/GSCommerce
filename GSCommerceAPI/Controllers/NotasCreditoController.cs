@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using GSCommerceAPI.Services.SUNAT;
 using QuestPDF.Fluent;
 using System.Linq;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using System;
 
 namespace GSCommerceAPI.Controllers
@@ -419,6 +421,7 @@ namespace GSCommerceAPI.Controllers
 
 
         [HttpGet("list")]
+        [Authorize(Roles = "ADMINISTRADOR,CAJERO")]
         public async Task<IActionResult> ListarNotasCredito(
             [FromQuery] DateTime? desde,
             [FromQuery] DateTime? hasta,
@@ -434,8 +437,31 @@ namespace GSCommerceAPI.Controllers
             if (!string.IsNullOrWhiteSpace(dniruc))
                 query = query.Where(n => n.Dniruc.Contains(dniruc));
 
-            if (idAlmacen.HasValue && idAlmacen.Value != 0)
+            var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+            {
+                var userIdClaim = User.FindFirst("userId")?.Value;
+                if (int.TryParse(userIdClaim, out var userId))
+                {
+                    var userAlmacen = await _context.Usuarios
+                        .Where(u => u.IdUsuario == userId)
+                        .Select(u => u.IdPersonalNavigation != null ? (int?)u.IdPersonalNavigation.IdAlmacen : null)
+                        .FirstOrDefaultAsync();
+
+                    if (!userAlmacen.HasValue)
+                        return Ok(new List<GSCommerce.Client.Models.NotaCreditoConsultaDTO>());
+
+                    query = query.Where(n => n.IdAlmacen == userAlmacen.Value);
+                }
+                else
+                {
+                    return Ok(new List<GSCommerce.Client.Models.NotaCreditoConsultaDTO>());
+                }
+            }
+            else if (idAlmacen.HasValue && idAlmacen.Value != 0)
+            {
                 query = query.Where(n => n.IdAlmacen == idAlmacen.Value);
+            }
 
             var lista = await query
                 .OrderByDescending(n => n.IdNc)
@@ -456,7 +482,6 @@ namespace GSCommerceAPI.Controllers
 
             return Ok(lista);
         }
-
 
         private static string ConvertirMontoALetras(decimal monto, string moneda)
         {
