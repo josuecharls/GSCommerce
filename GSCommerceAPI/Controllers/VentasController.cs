@@ -610,16 +610,35 @@ namespace GSCommerceAPI.Controllers
             {
                 var pagosList = await _context.VDetallePagoVenta1s
                     .Where(p => ids.Contains(p.IdComprobante))
-                    .Select(p => new { p.IdComprobante, p.Descripcion })
+                    .Select(p => new DetallePagoDTO
+                    {
+                        IdDetallePagoVenta = p.IdDetallePagoVenta,
+                        IdComprobante = p.IdComprobante,
+                        IdTipoPagoVenta = p.IdTipoPagoVenta,
+                        Soles = p.Soles,
+                        Dolares = p.Dolares,
+                        Datos = p.Datos,
+                        Vuelto = p.Vuelto,
+                        PorcentajeTarjetaSoles = p.PorcentajeTarjetaSoles,
+                        PorcentajeTarjetaDolares = p.PorcentajeTarjetaDolares,
+                        FormaPago = p.Descripcion,
+                        Monto = p.Soles > 0 ? p.Soles : p.Dolares,
+                        CodigoVerificacion = p.Datos
+                    })
                     .ToListAsync();
 
-                var pagos = pagosList
+                var pagosAgrupados = pagosList
                     .GroupBy(p => p.IdComprobante)
-                    .ToDictionary(g => g.Key, g => string.Join(", ", g.Select(p => p.Descripcion)));
+                    .ToDictionary(g => g.Key, g => g.ToList());
 
                 foreach (var v in ventas)
-                    if (pagos.TryGetValue(v.IdComprobante, out var forma))
-                        v.FormaPago = forma;
+                {
+                    if (pagosAgrupados.TryGetValue(v.IdComprobante, out var pagos))
+                    {
+                        v.FormaPago = string.Join(", ", pagos.Select(p => p.FormaPago));
+                        v.Pagos = pagos;
+                    }
+                }
             }
 
             // Estado SUNAT de los comprobantes

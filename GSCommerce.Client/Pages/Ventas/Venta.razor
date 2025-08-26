@@ -355,27 +355,24 @@
     private void CalcularResumen()
     {
         var activas = ventas.Where(v => !(v.Estado == "AN" || v.Estado == "ANULADO" || v.Estado == "A"));
+        var pagosActivos = activas.SelectMany(v => v.Pagos);
 
-        efectivoSoles = activas
-            .Where(v => v.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase)
-                        && !v.FormaPago.Contains("DOL", StringComparison.OrdinalIgnoreCase)
-                        && !v.FormaPago.Contains("USD", StringComparison.OrdinalIgnoreCase))
-            .Sum(v => v.Total);
+        efectivoSoles = pagosActivos
+            .Where(p => p.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase) && p.Dolares == 0)
+            .Sum(p => p.Soles);
 
-        efectivoDolares = activas
-            .Where(v => v.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase)
-                        && (v.FormaPago.Contains("DOL", StringComparison.OrdinalIgnoreCase)
-                            || v.FormaPago.Contains("USD", StringComparison.OrdinalIgnoreCase)))
-            .Sum(v => v.Total);
+        efectivoDolares = pagosActivos
+            .Where(p => p.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase) && p.Dolares > 0)
+            .Sum(p => p.Dolares);
 
-        tarjetaOnline = activas
-            .Where(v => v.FormaPago.Contains("TARJETA", StringComparison.OrdinalIgnoreCase)
-                        || v.FormaPago.Contains("ONLINE", StringComparison.OrdinalIgnoreCase))
-            .Sum(v => v.Total);
+        tarjetaOnline = pagosActivos
+            .Where(p => p.FormaPago.Contains("TARJETA", StringComparison.OrdinalIgnoreCase)
+                        || p.FormaPago.Contains("ONLINE", StringComparison.OrdinalIgnoreCase))
+            .Sum(p => p.Soles + p.Dolares);
 
-        notaCredito = activas
-            .Where(v => v.FormaPago.Contains("NOTA", StringComparison.OrdinalIgnoreCase))
-            .Sum(v => v.Total);
+        notaCredito = pagosActivos
+            .Where(p => p.FormaPago.Contains("NOTA", StringComparison.OrdinalIgnoreCase))
+            .Sum(p => p.Soles + p.Dolares);
 
         totalGeneral = activas.Sum(v => v.Total);
 

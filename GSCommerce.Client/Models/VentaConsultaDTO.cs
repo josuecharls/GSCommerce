@@ -1,4 +1,7 @@
-﻿namespace GSCommerce.Client.Models
+﻿using System;
+using System.Collections.Generic;
+
+namespace GSCommerce.Client.Models
 {
     public class VentaConsultaDTO
     {
@@ -15,5 +18,7 @@
         public string? DescripcionSunat { get; set; }
         public string? GeneroNC { get; set; }
         public string NumeroNotaCredito => string.IsNullOrWhiteSpace(GeneroNC) ? "" : GeneroNC;
+        public List<DetallePagoDTO> Pagos { get; set; } = new();
+
     }
 }

@@ -193,6 +193,29 @@ namespace GSCommerceAPI.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                // Aumentar stock en el almacén principal por cada detalle
+                foreach (var d in orden.OrdenDeCompraDetalles)
+                {
+                    var stock = await _context.StockAlmacens
+                        .FirstOrDefaultAsync(s => s.IdAlmacen == idAlmacen && s.IdArticulo == d.IdArticulo);
+
+                    if (stock == null)
+                    {
+                        stock = new StockAlmacen
+                        {
+                            IdAlmacen = idAlmacen,
+                            IdArticulo = d.IdArticulo,
+                            Stock = 0,
+                            StockMinimo = 0
+                        };
+                        _context.StockAlmacens.Add(stock);
+                    }
+
+                    stock.Stock += d.Cantidad;
+                }
+
+                await _context.SaveChangesAsync();
                 await tx.CommitAsync();
 
                 return Ok(new { mov.IdMovimiento });

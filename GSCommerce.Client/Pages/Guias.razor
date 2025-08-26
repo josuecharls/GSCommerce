@@ -12,13 +12,13 @@
 
 <h3>📋 Guías de Movimiento</h3>
 
-<select class="form-select mb-2" @bind="tipoFiltro" @onchange="async _ => await OnTipoChange()">
+<select class="form-select mb-2" @bind="tipoFiltro" @bind:event="onchange">
     <option value="Ingreso">Ingreso</option>
     <option value="Egreso">Egreso</option>
     <option value="Transferencia">Transferencia</option>
 </select>
 
-<select class="form-select mb-2" @bind="motivoFiltro" @onchange="async _ => await SearchGuias()">
+<select class="form-select mb-2" @bind="motivoFiltro" @bind:event="onchange">
     <option value="">Todos los motivos</option>
     @foreach (var mot in motivos)
     {
@@ -102,9 +102,33 @@
     private int pageSize = 10;
     private int totalPages = 1;
     private string searchTerm = "";
-    private string tipoFiltro = "Ingreso";
+    private string _tipoFiltro = "Ingreso";
+    private string tipoFiltro
+    {
+        get => _tipoFiltro;
+        set
+        {
+            if (_tipoFiltro != value)
+            {
+                _tipoFiltro = value;
+                _ = OnTipoChange();
+            }
+        }
+    }
     private int? idAlmacenUsuario;
-    private string motivoFiltro = "";
+    private string _motivoFiltro = "";
+    private string motivoFiltro
+    {
+        get => _motivoFiltro;
+        set
+        {
+            if (_motivoFiltro != value)
+            {
+                _motivoFiltro = value;
+                _ = SearchGuias();
+            }
+        }
+    }
     private List<string> motivos = new();
 
     protected override async Task OnInitializedAsync()

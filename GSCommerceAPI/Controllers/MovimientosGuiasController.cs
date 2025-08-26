@@ -179,21 +179,13 @@ namespace GSCommerceAPI.Controllers
             {
                 var stockOrigen = await _context.StockAlmacens
                     .FirstOrDefaultAsync(s => s.IdAlmacen == egreso.IdAlmacen && s.IdArticulo == detalle.IdArticulo);
+                if (stockOrigen == null || stockOrigen.Stock < detalle.Cantidad)
+                {
+                    await tx.RollbackAsync();
+                    return BadRequest(new { mensaje = $"Stock insuficiente en almacén de origen para el artículo {detalle.IdArticulo}" });
+                }
 
-                if (stockOrigen == null)
-                {
-                    _context.StockAlmacens.Add(new StockAlmacen
-                    {
-                        IdAlmacen = egreso.IdAlmacen,
-                        IdArticulo = detalle.IdArticulo,
-                        Stock = -detalle.Cantidad,
-                        StockMinimo = 0
-                    });
-                }
-                else
-                {
-                    stockOrigen.Stock -= detalle.Cantidad;
-                }
+                stockOrigen.Stock -= detalle.Cantidad;
 
                 var stockDestino = await _context.StockAlmacens
                     .FirstOrDefaultAsync(s => s.IdAlmacen == ingreso.IdAlmacen && s.IdArticulo == detalle.IdArticulo);
@@ -334,6 +326,45 @@ namespace GSCommerceAPI.Controllers
                             Cantidad = d.Cantidad,
                             Valor = d.Valor
                         });
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
+
+                // Actualizar stock solo para ingresos o egresos directos
+                if (dto.Tipo == "I" || dto.Tipo == "E")
+                {
+                    foreach (var d in dto.Detalles)
+                    {
+                        var stock = await _context.StockAlmacens
+                            .FirstOrDefaultAsync(s => s.IdAlmacen == dto.IdAlmacen && s.IdArticulo == d.IdArticulo);
+
+                        if (dto.Tipo == "I")
+                        {
+                            if (stock == null)
+                            {
+                                stock = new StockAlmacen
+                                {
+                                    IdAlmacen = dto.IdAlmacen,
+                                    IdArticulo = d.IdArticulo,
+                                    Stock = 0,
+                                    StockMinimo = 0
+                                };
+                                _context.StockAlmacens.Add(stock);
+                            }
+
+                            stock.Stock += d.Cantidad;
+                        }
+                        else // Egreso
+                        {
+                            if (stock == null || stock.Stock < d.Cantidad)
+                            {
+                                await transaction.RollbackAsync();
+                                return BadRequest(new { mensaje = $"Stock insuficiente para el artículo {d.IdArticulo} en el almacén" });
+                            }
+
+                            stock.Stock -= d.Cantidad;
+                        }
                     }
 
                     await _context.SaveChangesAsync();
