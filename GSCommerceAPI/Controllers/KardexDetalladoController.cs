@@ -232,6 +232,10 @@ namespace GSCommerceAPI.Controllers
                         {
                             saldo = item.SaldoInicial;
                         }
+                        else
+                        {
+                            item.SaldoInicial = saldo;
+                        }
 
                         saldo += item.Entrada;
                         saldo -= item.Salida;
