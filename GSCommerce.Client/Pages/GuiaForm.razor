@@ -286,9 +286,24 @@ else
             }
         }
 
-        var ok = await MovimientoGuiaService.CreateMovimientoConSP(guia);
-        if (ok) Navigation.NavigateTo("/guias?tipo=" + tipo);
-        else await MostrarAlerta("❌ Ocurrió un error al guardar la guía.");
+        bool ok;
+        if (tipo == "Transferencia")
+        {
+            ok = await MovimientoGuiaService.CreateMovimiento(guia);
+        }
+        else
+        {
+            ok = await MovimientoGuiaService.CreateMovimientoConSP(guia);
+        }
+
+        if (ok)
+        {
+            Navigation.NavigateTo("/guias?tipo=" + tipo);
+        }
+        else
+        {
+            await MostrarAlerta("❌ Ocurrió un error al guardar la guía.");
+        }
     }
 
     private void OnProveedorChanged(ChangeEventArgs e)

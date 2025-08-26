@@ -44,18 +44,45 @@ namespace GSCommerce.Client.Services
             }
         }
 
-        public async Task<bool> ConfirmarTransferencia(int id)
+        public async Task<ApiResponse> ConfirmarTransferencia(int id)
         {
             try
             {
                 var response = await _httpClient.PutAsync($"api/movimientos-guias/{id}/confirmar", null);
-                return response.IsSuccessStatusCode;
+                var mensaje = await ObtenerMensaje(response);
+                return new ApiResponse
+                {
+                    Ok = response.IsSuccessStatusCode,
+                    Mensaje = mensaje
+                };
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ Error al confirmar transferencia: {ex.Message}");
-                return false;
+                return new ApiResponse { Ok = false, Mensaje = $"Error al confirmar transferencia: {ex.Message}" };
             }
+        }
+
+        private static async Task<string> ObtenerMensaje(HttpResponseMessage response)
+        {
+            try
+            {
+                var data = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                if (data != null)
+                {
+                    if (data.TryGetValue("mensaje", out var msg)) return msg;
+                    if (data.TryGetValue("message", out var msg2)) return msg2;
+                }
+            }
+            catch { }
+
+            return response.IsSuccessStatusCode ? "Operación realizada" : "Ocurrió un error";
+        }
+
+        public class ApiResponse
+        {
+            public bool Ok { get; set; }
+            public string Mensaje { get; set; } = string.Empty;
         }
 
         // 🔴 Anular guía

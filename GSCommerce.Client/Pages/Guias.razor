@@ -167,8 +167,9 @@
 
     private async Task Confirmar(int id)
     {
-        var ok = await MovimientoGuiaService.ConfirmarTransferencia(id);
-        if (ok)
+        var resp = await MovimientoGuiaService.ConfirmarTransferencia(id);
+        await JS.InvokeVoidAsync("alert", resp.Mensaje);
+        if (resp.Ok)
         {
             await LoadGuias(); // Refresca
         }
