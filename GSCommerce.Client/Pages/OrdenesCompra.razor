@@ -4,6 +4,8 @@
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using System.Linq
+@using System
+@inject IngresosEgresosService ieService
 @inject OrdenCompraService ocService
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -50,7 +52,7 @@
     <tbody>
         @if (ordenes.Any())
         {
-            foreach (var o in ordenes)
+            foreach (var o in OrdenesPagina)
             {
                 <tr>
                     <td>@o.FechaOc.ToString("dd/MM/yyyy")</td>
@@ -71,6 +73,47 @@
         }
     </tbody>
 </table>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <button class="btn btn-secondary" @onclick="() => CambiarPaginaOrdenes(-1)" disabled="@(paginaOrdenes <= 1)">Anterior</button>
+    <span>Página @paginaOrdenes de @TotalPaginasOrdenes</span>
+    <button class="btn btn-secondary" @onclick="() => CambiarPaginaOrdenes(1)" disabled="@(paginaOrdenes >= TotalPaginasOrdenes)">Siguiente</button>
+</div>
+
+<h4>Pagos a Proveedores</h4>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Glosa</th>
+            <th>Monto</th>
+            <th>Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (pagos.Any())
+        {
+            foreach (var p in PagosPagina)
+            {
+                <tr>
+                    <td>@p.Fecha.ToString("dd/MM/yyyy")</td>
+                    <td>@p.Glosa</td>
+                    <td>@p.Monto.ToString("C")</td>
+                    <td>@(p.Estado == "E" ? "Emitido" : "Anulado")</td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="4" class="text-center">Sin registros</td></tr>
+        }
+    </tbody>
+</table>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <button class="btn btn-secondary" @onclick="() => CambiarPaginaPagos(-1)" disabled="@(paginaPagos <= 1)">Anterior</button>
+    <span>Página @paginaPagos de @TotalPaginasPagos</span>
+    <button class="btn btn-secondary" @onclick="() => CambiarPaginaPagos(1)" disabled="@(paginaPagos >= TotalPaginasPagos)">Siguiente</button>
+</div>
 
 <ProveedorBuscarModal Mostrar="mostrarProveedorModal" MostrarChanged="(v) => mostrarProveedorModal = v" OnSeleccionado="SeleccionarProveedor" />
 
@@ -78,9 +121,19 @@
     private DateTime desde = DateTime.Today;
     private DateTime hasta = DateTime.Today;
     private List<OrdenCompraConsultaDTO> ordenes = new();
+    private List<IngresoEgresoDTO> pagos = new();
     private bool mostrarProveedorModal = false;
     private int? idProveedor;
     private string nombreProveedor = string.Empty;
+    private int paginaOrdenes = 1;
+    private int paginaPagos = 1;
+    private int pageSize = 10;
+
+    private IEnumerable<OrdenCompraConsultaDTO> OrdenesPagina => ordenes.Skip((paginaOrdenes - 1) * pageSize).Take(pageSize);
+    private IEnumerable<IngresoEgresoDTO> PagosPagina => pagos.Skip((paginaPagos - 1) * pageSize).Take(pageSize);
+    private int TotalPaginasOrdenes => Math.Max(1, (int)Math.Ceiling((double)ordenes.Count / pageSize));
+    private int TotalPaginasPagos => Math.Max(1, (int)Math.Ceiling((double)pagos.Count / pageSize));
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -90,6 +143,19 @@
     private async Task Buscar()
     {
         ordenes = await ocService.ListarAsync(desde, hasta, idProveedor);
+        paginaOrdenes = 1;
+        pagos = await ieService.Listar(null, null, desde, hasta, "E", "PAGO PROVEEDORES");
+        paginaPagos = 1;
+    }
+
+    private void CambiarPaginaOrdenes(int delta)
+    {
+        paginaOrdenes = Math.Max(1, Math.Min(paginaOrdenes + delta, TotalPaginasOrdenes));
+    }
+
+    private void CambiarPaginaPagos(int delta)
+    {
+        paginaPagos = Math.Max(1, Math.Min(paginaPagos + delta, TotalPaginasPagos));
     }
 
     private void Nuevo() => Nav.NavigateTo("/ordenes-compra/nuevo");
