@@ -10,7 +10,10 @@ namespace GSCommerce.Client.Models
         public string Serie { get; set; } = string.Empty;
         public int Numero { get; set; }
         public DateTime Fecha { get; set; }
+        public string DocumentoCliente { get; set; } = string.Empty;
         public string NombreCliente { get; set; } = string.Empty;
+        public decimal SubTotal { get; set; }
+        public decimal Igv { get; set; }
         public decimal Total { get; set; }
         public string FormaPago { get; set; } = string.Empty;
         public string Estado { get; set; } = string.Empty;

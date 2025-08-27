@@ -386,6 +386,8 @@ namespace GSCommerceAPI.Controllers
         [HttpPut("{id}/anular")]
         public async Task<IActionResult> AnularGuia(int id)
         {
+            using var tx = await _context.Database.BeginTransactionAsync();
+
             var movimiento = await _context.MovimientosCabeceras
                 .FirstOrDefaultAsync(m => m.IdMovimiento == id);
 
@@ -399,7 +401,42 @@ namespace GSCommerceAPI.Controllers
                 return BadRequest(new { mensaje = "Solo se pueden anular guías emitidas" });
 
             movimiento.Estado = "A";
+
+            bool esTransferencia = string.Equals(movimiento.Motivo?.Trim(), "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(movimiento.Motivo?.Trim(), "TRANSFERENCIA INGRESO", StringComparison.OrdinalIgnoreCase);
+
+            MovimientosCabecera? espejo = null;
+
+            if (esTransferencia)
+            {
+                var motivoEspejo = string.Equals(movimiento.Motivo?.Trim(), "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase)
+                    ? "TRANSFERENCIA INGRESO"
+                    : "TRANSFERENCIA EGRESO";
+
+                espejo = await _context.MovimientosCabeceras
+                    .Where(m =>
+                        m.Tipo == "T" &&
+                        m.Motivo.Trim() == motivoEspejo &&
+                        m.Estado.Trim() == "E" &&
+                        m.IdAlmacen == movimiento.IdAlmacenDestinoOrigen &&
+                        m.IdAlmacenDestinoOrigen == movimiento.IdAlmacen)
+                    .OrderByDescending(m => m.IdMovimiento)
+                    .FirstOrDefaultAsync();
+
+                if (espejo != null)
+                {
+                    espejo.Estado = "A";
+                }
+            }
+
             await _context.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            if (esTransferencia && espejo == null)
+                return Ok(new { mensaje = "⚠️ Guía anulada, pero no se encontró guía espejo." });
+
+            if (esTransferencia && espejo != null)
+                return Ok(new { mensaje = "✅ Guía y guía espejo anuladas correctamente" });
 
             return Ok(new { mensaje = "✅ Guía anulada correctamente" });
         }

@@ -177,7 +177,7 @@
                                 <div class="text-muted small mt-1">NC: @v.NumeroNotaCredito</div>
                             }
                         }
-                        @if (cargo == "ADMINISTRADOR" && v.EstadoSunat == "PENDIENTE" || v.EstadoSunat == "RECHAZADO" && (v.TipoDocumento == "BOLETA" || v.TipoDocumento == "BOLETA M" || v.TipoDocumento == "FACTURA"))
+                        @if (cargo == "ADMINISTRADOR" && v.TipoDocumento != "TICKET" && v.EstadoSunat == "PENDIENTE" || v.EstadoSunat == "RECHAZADO" && (v.TipoDocumento == "BOLETA" || v.TipoDocumento == "BOLETA M" || v.TipoDocumento == "FACTURA"))
                         {
                             <div class="btn-group btn-group-sm flex-wrap mt-1" role="group">
                                 <button class="btn btn-outline-warning" title="Reenviar a SUNAT" @onclick="@(() => ReenviarSunat(v))">
@@ -357,21 +357,29 @@
         var activas = ventas.Where(v => !(v.Estado == "AN" || v.Estado == "ANULADO" || v.Estado == "A"));
         var pagosActivos = activas.SelectMany(v => v.Pagos);
 
-        efectivoSoles = pagosActivos
-            .Where(p => p.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase) && p.Dolares == 0)
-            .Sum(p => p.Soles);
+        bool EsEfectivo(DetallePagoDTO p) =>
+            p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3 ||
+            (!string.IsNullOrWhiteSpace(p.FormaPago) &&
+             p.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase));
 
-        efectivoDolares = pagosActivos
-            .Where(p => p.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase) && p.Dolares > 0)
-            .Sum(p => p.Dolares);
+        bool EsNota(DetallePagoDTO p) =>
+            p.IdTipoPagoVenta == 8 ||
+            (!string.IsNullOrWhiteSpace(p.FormaPago) &&
+             p.FormaPago.Contains("NOTA", StringComparison.OrdinalIgnoreCase));
 
-        tarjetaOnline = pagosActivos
-            .Where(p => p.FormaPago.Contains("TARJETA", StringComparison.OrdinalIgnoreCase)
-                        || p.FormaPago.Contains("ONLINE", StringComparison.OrdinalIgnoreCase))
-            .Sum(p => p.Soles + p.Dolares);
+        var pagosEfectivo = pagosActivos.Where(EsEfectivo);
+
+        efectivoSoles = pagosEfectivo.Sum(p =>
+            p.Soles > 0 ? p.Soles - (p.Vuelto ?? 0) : 0);
+        efectivoDolares = pagosEfectivo.Sum(p =>
+            p.Dolares > 0 ? p.Dolares - (p.Vuelto ?? 0) : 0);
 
         notaCredito = pagosActivos
-            .Where(p => p.FormaPago.Contains("NOTA", StringComparison.OrdinalIgnoreCase))
+            .Where(p => EsNota(p) && (p.Soles > 0 || p.Dolares > 0))
+            .Sum(p => p.Soles + p.Dolares);
+
+        tarjetaOnline = pagosActivos
+            .Where(p => !EsEfectivo(p) && !EsNota(p))
             .Sum(p => p.Soles + p.Dolares);
 
         totalGeneral = activas.Sum(v => v.Total);

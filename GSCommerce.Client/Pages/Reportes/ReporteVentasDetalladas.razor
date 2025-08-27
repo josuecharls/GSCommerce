@@ -2,7 +2,6 @@
 @using GSCommerce.Client.Components
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Models.DTOs.Reportes
-@using System.Text
 @using GSCommerce.Client.Services
 @inject VentaService VentaService
 @inject AuthService AuthService
@@ -36,7 +35,7 @@
             <button class="btn btn-primary w-100" @onclick="Buscar">🔍 Buscar</button>
         </div>
         <div class="col-md-3 d-flex align-items-end">
-            <button class="btn btn-success w-100" @onclick="ExportarPDF">📄 Exportar a PDF</button>
+            <button class="btn btn-success w-100" @onclick="ExportarExcel">📥 Exportar a Excel</button>
         </div>
     }
     else
@@ -53,7 +52,7 @@
             <button class="btn btn-primary w-100" @onclick="Buscar">🔍 Buscar</button>
         </div>
         <div class="col-md-2 d-flex align-items-end">
-            <button class="btn btn-success w-100" @onclick="ExportarPDF">📄 Exportar a PDF</button>
+            <button class="btn btn-success w-100" @onclick="ExportarExcel">📥 Exportar a Excel</button>
         </div>
     }
 </div>
@@ -64,11 +63,13 @@
         <table class="table table-striped table-bordered">
             <thead class="table-light">
                 <tr>
-                    <th>Fecha</th>
                     <th>Tipo Doc</th>
-                    <th>Serie</th>
-                    <th>Número</th>
+                    <th>Comprobante</th>
+                    <th>Fecha</th>
+                    <th>ClienteDoc</th>
                     <th>Cliente</th>
+                    <th>SubTotal</th>
+                    <th>IGV</th>
                     <th>Total</th>
                     <th>Estado</th>
                 </tr>
@@ -76,12 +77,17 @@
             <tbody>
                 @foreach (var v in ventas)
                 {
+                    var prefijo = v.TipoDocumento.StartsWith("F") ? "F" :
+                    v.TipoDocumento.StartsWith("B") ? "B" : "";
+                    var comprobante = $"{prefijo}{v.Serie}-{v.Numero:D8}";
                     <tr>
-                        <td>@v.Fecha.ToString("dd/MM/yyyy")</td>
                         <td>@v.TipoDocumento</td>
-                        <td>@v.Serie</td>
-                        <td>@v.Numero.ToString("D8")</td>
+                        <td>@comprobante</td>
+                        <td>@v.Fecha.ToString("dd/MM/yyyy")</td>
+                        <td>@v.DocumentoCliente</td>
                         <td>@v.NombreCliente</td>
+                        <td>S/ @v.SubTotal.ToString("N2")</td>
+                        <td>S/ @v.Igv.ToString("N2")</td>
                         <td>S/ @v.Total.ToString("N2")</td>
                         <td>@v.Estado</td>
                     </tr>
@@ -111,58 +117,48 @@ else
         ventas = await VentaService.ObtenerVentasAsync(desde, hasta, filtroAlmacen);
     }
 
-    private async Task ExportarPDF()
+    private async Task ExportarExcel()
     {
-        var sb = new StringBuilder();
-        sb.AppendLine("<div style='font-family:Arial; font-size:12px;'>");
-        sb.AppendLine("<h2 style='text-align:center;'>Ventas Detalladas</h2>");
-        sb.AppendLine($"<p><strong>Desde:</strong> {desde:dd/MM/yyyy} <strong>Hasta:</strong> {hasta:dd/MM/yyyy}</p>");
+        var headers = new[] { "Tipo Doc", "Comprobante", "Fecha", "ClienteDoc", "Cliente", "SubTotal", "IGV", "Total", "Estado" };
+        var rows = new List<object[]>();
 
-        var almacenesPdf = new List<AlmacenDTO>();
+        var almacenesExcel = new List<AlmacenDTO>();
         if (cargo == "ADMINISTRADOR")
         {
-            almacenesPdf = selectedAlmacen > 0
+            almacenesExcel = selectedAlmacen > 0
                 ? almacenes.Where(a => a.IdAlmacen == selectedAlmacen).ToList()
                 : almacenes;
         }
         else
         {
             var alm = await AlmacenService.GetAlmacenById(selectedAlmacen);
-            if (alm != null) almacenesPdf.Add(alm);
+            if (alm != null) almacenesExcel.Add(alm);
         }
 
-        foreach (var alm in almacenesPdf)
+        foreach (var alm in almacenesExcel)
         {
-            sb.AppendLine($"<h3>{alm.Nombre}:</h3>");
             var datos = await VentaService.ObtenerVentasAsync(desde, hasta, alm.IdAlmacen);
-
-            if (datos.Any())
+            foreach (var v in datos)
             {
-                sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
-                sb.AppendLine("<thead><tr><th>Fecha</th><th>Tipo Doc</th><th>Serie</th><th>Número</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead>");
-                sb.AppendLine("<tbody>");
-                foreach (var v in datos)
+                var prefijo = v.TipoDocumento.StartsWith("F") ? "F" :
+                              v.TipoDocumento.StartsWith("B") ? "B" : "";
+                var comprobante = $"{prefijo}{v.Serie}-{v.Numero:D8}";
+                rows.Add(new object[]
                 {
-                    sb.AppendLine("<tr>");
-                    sb.AppendLine($"<td>{v.Fecha:dd/MM/yyyy}</td>");
-                    sb.AppendLine($"<td>{v.TipoDocumento}</td>");
-                    sb.AppendLine($"<td>{v.Serie}</td>");
-                    sb.AppendLine($"<td>{v.Numero:D8}</td>");
-                    sb.AppendLine($"<td>{v.NombreCliente}</td>");
-                    sb.AppendLine($"<td>S/ {v.Total:N2}</td>");
-                    sb.AppendLine($"<td>{v.Estado}</td>");
-                    sb.AppendLine("</tr>");
-                }
-                sb.AppendLine("</tbody></table>");
-            }
-            else
-            {
-                sb.AppendLine("<p>No se encontraron ventas.</p>");
+                    v.TipoDocumento,
+                    comprobante,
+                    v.Fecha.ToString("dd/MM/yyyy"),
+                    v.DocumentoCliente,
+                    v.NombreCliente,
+                    v.SubTotal,
+                    v.Igv,
+                    v.Total,
+                    v.Estado
+                });
             }
         }
-        sb.AppendLine("</div>");
 
-        await JS.InvokeVoidAsync("generarPDFDesdeHTML", sb.ToString(), $"VentasDetalladas_{DateTime.Now:yyyyMMdd_HHmmss}");
+        await JS.InvokeVoidAsync("exportToExcel", headers, rows.ToArray(), $"VentasDetalladas_{DateTime.Now:yyyyMMdd_HHmmss}");
     }
 
     protected override async Task OnInitializedAsync()

@@ -128,33 +128,26 @@ namespace GSCommerceAPI.Controllers
             if (idUsuario.HasValue && idUsuario > 0)
                 ventasQuery = ventasQuery.Where(v => v.IdCajero == idUsuario);
 
-            var ventasRaw = await ventasQuery
-                .Select(v => new {
-                    Descripcion = v.Descripcion ?? string.Empty,
-                    Monto = v.Monto ?? 0
-                })
-                .ToListAsync();
-
-            // 2. Agrupa y procesa en memoria
-            var ventas = ventasRaw
-                .GroupBy(v => v.Descripcion.Split(' ')[0].ToLowerInvariant())
-                .Select(g => new { Descripcion = g.Key, Total = g.Sum(v => v.Monto) })
-                .ToList();
+            var ventas = await ventasQuery.ToListAsync();
 
             foreach (var v in ventas)
             {
-                switch (v.Descripcion)
+                var descripcion = (v.Descripcion ?? string.Empty)
+                    .Split(' ')[0]
+                    .ToLowerInvariant();
+
+                switch (descripcion)
                 {
                     case "efectivo":
-                        resumen.Efectivo += v.Total;
+                        resumen.Efectivo += v.Monto ?? 0;
                         break;
                     case "tarjeta":
                     case "online":
-                        resumen.Tarjeta += v.Total;
+                        resumen.Tarjeta += v.Monto ?? 0;
                         break;
                     case "n.c":
                     case "n.c.":
-                        resumen.NotaCredito += v.Total;
+                        resumen.NotaCredito += v.Monto ?? 0;
                         break;
                 }
             }
@@ -174,18 +167,16 @@ namespace GSCommerceAPI.Controllers
                 cierresQuery = cierresQuery.Where(c => c.IdAlmacen == idAlmacen);
             if (idUsuario.HasValue && idUsuario > 0)
                 cierresQuery = cierresQuery.Where(c => c.IdUsuario == idUsuario);
-            var cierres = await cierresQuery
-                .GroupBy(c => c.Categoria)
-                .Select(g => new { Categoria = g.Key, Total = g.Sum(c => c.Monto ?? 0) })
-                .ToListAsync();
+            var cierres = await cierresQuery.ToListAsync();
+
 
             foreach (var c in cierres)
             {
                 switch (c.Categoria)
                 {
-                    case "Saldo Inicial": resumen.SaldoInicial += c.Total; break;
-                    case "I": resumen.Ingresos += c.Total; break;
-                    case "E": resumen.Egresos += c.Total; break;
+                    case "Saldo Inicial": resumen.SaldoInicial = c.Monto ?? 0; break;
+                    case "I": resumen.Ingresos = c.Monto ?? 0; break;
+                    case "E": resumen.Egresos = c.Monto ?? 0; break;
                 }
             }
 
@@ -598,14 +589,32 @@ namespace GSCommerceAPI.Controllers
                     Serie = v.Serie,
                     Numero = v.Numero,
                     Fecha = v.Fecha,
+                    DocumentoCliente = v.Dniruc ?? string.Empty,
                     NombreCliente = v.Nombre,
                     Total = v.Total,
                     Estado = v.Estado
                 })
                 .ToListAsync();
 
-            // Agrupar formas de pago
             var ids = ventas.Select(v => v.IdComprobante).ToList();
+            if (ids.Count > 0)
+            {
+                var montos = await _context.ComprobanteDeVentaCabeceras
+                    .Where(c => ids.Contains(c.IdComprobante))
+                    .Select(c => new { c.IdComprobante, c.SubTotal, c.Igv })
+                    .ToDictionaryAsync(c => c.IdComprobante);
+
+                foreach (var v in ventas)
+                {
+                    if (montos.TryGetValue(v.IdComprobante, out var m))
+                    {
+                        v.SubTotal = m.SubTotal;
+                        v.Igv = m.Igv;
+                    }
+                }
+            }
+
+            // Agrupar formas de pago
             if (ids.Count > 0)
             {
                 var pagosList = await _context.VDetallePagoVenta1s

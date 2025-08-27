@@ -212,8 +212,9 @@
         var confirmado = await JS.InvokeAsync<bool>("confirm", $"¿Estás seguro de anular la guía #{id}?");
         if (!confirmado) return;
 
-        var ok = await MovimientoGuiaService.AnularGuia(id);
-        if (ok)
+        var resp = await MovimientoGuiaService.AnularGuia(id);
+        await JS.InvokeVoidAsync("alert", resp.Mensaje);
+        if (resp.Ok)
         {
             await LoadGuias();
         }

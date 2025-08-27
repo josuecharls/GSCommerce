@@ -236,9 +236,9 @@ public class CajaController : ControllerBase
                    .Sum(r => r.Monto);
 
         var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
-        var ventaNC = MontoPorGrupo("VENTA POR N.C.", "VENTA CON N.C.");
+        var ventaNC = MontoPorGrupo("VENTA POR N.C", "VENTA CON N.C");
         var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA TICKET");
-        var ventaEfectivo = ventasResumen - ventaTarjeta;
+        var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC;
         var ventaDia = ventaEfectivo + ventaTarjeta;
 
         actual.VentaDia = ventaDia;
@@ -301,7 +301,7 @@ public class CajaController : ControllerBase
             .Sum(v => v.Monto);
 
         decimal VNC(int u, int a) => ventasDia
-            .Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA POR N.C.", "VENTA CON N.C."))
+            .Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA POR N.C", "VENTA CON N.C"))
             .Sum(v => v.Monto);
 
         decimal Ingresos(int u, int a) => movsDia.Where(m => m.IdUsuario == u && m.IdAlmacen == a && m.Naturaleza == "I").Sum(m => m.Monto);
@@ -471,7 +471,7 @@ public class CajaController : ControllerBase
         }
 
         // 3. Resumen adicional
-        //    a) Ventas con tarjeta/online recibidas desde la petición
+        //    a) Ventas con tarjeta/online y notas de crédito recibidas desde la petición
         if (liquidacion.Resumenes != null)
         {
             var tarjetas = liquidacion.Resumenes
@@ -488,34 +488,21 @@ public class CajaController : ControllerBase
                     FechaRegistro = DateTime.Now
                 });
             resumenes.AddRange(tarjetas);
-        }
 
-        //    b) Notas de crédito emitidas en la fecha de la apertura
-        var dayStartNc = apertura.Fecha.ToDateTime(TimeOnly.MinValue);
-        var dayEndNc = apertura.Fecha.ToDateTime(new TimeOnly(23, 59, 59));
-
-        var notasCreditoDia = await _context.NotaDeCreditoCabeceras
-            .Where(n => n.IdUsuario == apertura.IdUsuario &&
-                        n.IdAlmacen == apertura.IdAlmacen &&
-                        n.Fecha >= dayStartNc && n.Fecha <= dayEndNc &&
-                        n.Estado == "E" &&
-                        (n.Empleada == null || n.Empleada == false))
-            .Select(n => new { n.Serie, n.Numero, n.Total })
-            .ToListAsync();
-
-        foreach (var nc in notasCreditoDia)
-        {
-            resumenes.Add(new ResumenCierreDeCaja
-            {
-                IdUsuario = apertura.IdUsuario,
-                IdAlmacen = apertura.IdAlmacen,
-                Fecha = apertura.Fecha,
-                IdGrupo = 7,
-                Grupo = "VENTA POR N.C.",
-                Detalle = $"N.C. N° {nc.Serie}-{nc.Numero:D8}",
-                Monto = nc.Total,
-                FechaRegistro = DateTime.Now
-            });
+            var notasCredito = liquidacion.Resumenes
+                .Where(r => r.IdGrupo == 7)
+                .Select(r => new ResumenCierreDeCaja
+                {
+                    IdUsuario = apertura.IdUsuario,
+                    IdAlmacen = apertura.IdAlmacen,
+                    Fecha = apertura.Fecha,
+                    IdGrupo = r.IdGrupo,
+                    Grupo = r.Grupo,
+                    Detalle = (r.Detalle ?? string.Empty).Trim(),
+                    Monto = r.Monto,
+                    FechaRegistro = DateTime.Now
+                });
+            resumenes.AddRange(notasCredito);
         }
 
         // Consolidar por grupo y detalle
@@ -537,8 +524,7 @@ public class CajaController : ControllerBase
 
         // Calcular venta del día (efectivo + tarjeta/online, sin N.C.)
         var totalVentas = resumenes.Where(r => r.IdGrupo == 2).Sum(r => r.Monto);
-        var ventaNC = resumenes.Where(r => r.IdGrupo == 7).Sum(r => r.Monto);
-        apertura.VentaDia = totalVentas - ventaNC;
+        apertura.VentaDia = totalVentas;
         apertura.Estado = "L";
 
         await _context.SaveChangesAsync();
@@ -628,7 +614,7 @@ public class CajaController : ControllerBase
 
             // 6) VENTAS (del día)
             var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
-            var ventaNC = MontoPorGrupo("VENTA POR N.C.", "VENTA CON N.C.");
+            var ventaNC = MontoPorGrupo("VENTA POR N.C", "VENTA CON N.C");
             var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2");
             var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC; // efectivo real en caja
             var ventaDia = ventaEfectivo + ventaTarjeta;
@@ -720,8 +706,8 @@ public class CajaController : ControllerBase
             // Mantener líneas de Tarjeta / NC tal cual vienen del resumen
             var tarjetasYnc = resumenVentas
                 .Where(r => r.Grupo.StartsWith("VENTA TARJETA/ONLINE", StringComparison.OrdinalIgnoreCase)
-                         || r.Grupo.StartsWith("VENTA POR N.C.", StringComparison.OrdinalIgnoreCase)
-                         || r.Grupo.StartsWith("VENTA CON N.C.", StringComparison.OrdinalIgnoreCase))
+                         || r.Grupo.StartsWith("VENTA POR N.C", StringComparison.OrdinalIgnoreCase)
+                         || r.Grupo.StartsWith("VENTA CON N.C", StringComparison.OrdinalIgnoreCase))
                 .Select(r => new ResumenCierreDeCaja { IdGrupo = 1, Grupo = r.Grupo, Detalle = r.Detalle, Monto = r.Monto });
 
             detalleHoy.AddRange(tarjetasYnc);

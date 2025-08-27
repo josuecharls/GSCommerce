@@ -86,17 +86,22 @@ namespace GSCommerce.Client.Services
         }
 
         // 🔴 Anular guía
-        public async Task<bool> AnularGuia(int id)
+        public async Task<ApiResponse> AnularGuia(int id)
         {
             try
             {
                 var response = await _httpClient.PutAsync($"api/movimientos-guias/{id}/anular", null);
-                return response.IsSuccessStatusCode;
+                var mensaje = await ObtenerMensaje(response);
+                return new ApiResponse
+                {
+                    Ok = response.IsSuccessStatusCode,
+                    Mensaje = mensaje
+                };
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ Error al anular guía: {ex.Message}");
-                return false;
+                return new ApiResponse { Ok = false, Mensaje = $"Error al anular guía: {ex.Message}" };
             }
         }
 
