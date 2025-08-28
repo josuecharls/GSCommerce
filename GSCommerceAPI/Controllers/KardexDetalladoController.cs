@@ -217,7 +217,10 @@ namespace GSCommerceAPI.Controllers
                 .GroupBy(k => new { k.IdAlmacen, k.Codigo })
                 .SelectMany(g =>
                 {
-                    var ordenados = g.OrderBy(k => k.Fecha).ToList();
+                    var ordenados = g
+                        .OrderBy(k => k.Fecha)
+                        .ThenBy(k => k.IdKardex)
+                        .ToList();
                     int saldo = 0;
                     bool inicializado = false;
 
@@ -246,7 +249,9 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToList();
 
-            return Ok(calculado.OrderByDescending(k => k.Fecha));
+            return Ok(calculado
+                .OrderByDescending(k => k.Fecha)
+                .ThenByDescending(k => k.IdKardex));
         }
     }
 }

@@ -3,7 +3,6 @@
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Models.DTOs.Reportes
 @using GSCommerce.Client.Services
-@using System.Text
 @using System.Linq
 @inject ArticuloService ArticuloService
 @inject ReporteService ReporteService
@@ -38,7 +37,7 @@
         }
     </div>
     <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-success w-100" @onclick="ExportarReportePDF">📄 Generar PDF</button>
+        <button class="btn btn-success w-100" @onclick="ExportarExcel">📥 Exportar Excel</button>
     </div>
 </div>
 
@@ -71,7 +70,7 @@
     private List<ArticuloDTO> articulosSeleccionados = new();
     private string mensaje = string.Empty;
 
-    private async Task ExportarReportePDF()
+    private async Task ExportarExcel()
     {
         mensaje = string.Empty;
 
@@ -95,11 +94,15 @@
             return;
         }
 
-        var sb = new StringBuilder();
-        foreach (var rep in reportes)
-            sb.AppendLine(GenerarHtmlTablaArticulo(rep));
+        var data = reportes.Select(r => new ReporteArticuloExcel
+        {
+            SheetName = r.IdArticulo,
+            Headers = BuildHeaders(r),
+            Rows = BuildRows(r)
+        }).ToList();
 
-        await JS.InvokeVoidAsync("generarPDFDesdeHTML", sb.ToString(), "Reporte_Ventas_Articulo.pdf");
+        await JS.InvokeVoidAsync("exportVentasArticuloExcel", data,
+            $"VentasArticulo_{fechaDesde:yyyyMMdd}_{fechaHasta:yyyyMMdd}");
     }
 
     private async Task BuscarArticulo()
@@ -135,87 +138,53 @@
         articulosSeleccionados.Remove(art);
     }
 
-    private string GenerarHtmlTablaArticulo(ReporteArticuloRangoDTO r)
+    private static string[] BuildHeaders(ReporteArticuloRangoDTO r)
     {
-        string css = @"
-    <style>
-      .tbl{width:100%; border-collapse:collapse; font-family:Arial; font-size:12px;}
-      .tbl th, .tbl td{border:1px solid #ccc; padding:6px; text-align:center; }
-      .th1{background:#d9e6f2; font-weight:bold;}
-      .th-sep{background:#7ff0ff; font-weight:bold; text-align:left;}
-      .total{background:#ff0; font-weight:bold;}
-      .left{text-align:left;}
-      .muted{color:#666;}
-    </style>";
+        var headers = new List<string> { "ALMACEN", "COD", "INGRESO", "Descripción" };
+        headers.AddRange(r.Meses.Select(m => m.Label));
+        headers.AddRange(new[] { "TOTAL", "Fch Ing", "Stock", "% Mercadería vendida", "PC", "PV" });
+        return headers.ToArray();
+    }
 
-        var header = $@"
-    {css}
-    <div style='margin-bottom:14px'>
-      <h2 style='text-align:center;margin:0'>VENTAS POR ARTÍCULO</h2>
-      <div style='text-align:center' class='muted'>{r.IdArticulo} - {System.Net.WebUtility.HtmlEncode(r.Descripcion)}</div>
-    </div>";
-
-        var thMeses = string.Join("", r.Meses.Select(m => $"<th class='th1'>{m.Label}</th>"));
-
-        var sb = new StringBuilder();
-        sb.AppendLine(header);
-        sb.AppendLine("<table class='tbl'>");
-        sb.AppendLine("<tr>");
-        sb.AppendLine("<th class='th1'>ALMACEN</th><th class='th1'>COD</th><th class='th1'>INGRESO</th><th class='th1 left'>Descripción</th>");
-        sb.AppendLine(thMeses);
-        sb.AppendLine("<th class='th1'>TOTAL</th><th class='th1'>Fch Ing</th><th class='th1'>Stock</th><th class='th1'>% Mercadería vendida</th><th class='th1'>PC</th><th class='th1'>PV</th>");
-        sb.AppendLine("</tr>");
-
+    private static List<object[]> BuildRows(ReporteArticuloRangoDTO r)
+    {
+        var rows = new List<object[]>();
         foreach (var f in r.Filas)
         {
-            int maxFila = Math.Max(1, f.VentasPorMes.Values.Max());
-            string tdMeses = string.Join("", r.Meses.Select(m =>
+            var row = new List<object>
             {
-                var key = $"{m.Year:D4}{m.Month:D2}";
-                var val = f.VentasPorMes[key];
-                var ratio = (double)val / maxFila;
-                int rC = (int)(255 * (1 - ratio));
-                int gC = (int)(255 * ratio);
-                string bg = val == 0 ? "#f6f6f6" : $"rgb({rC},{gC},120)";
-                return $"<td style='background:{bg}'>{val}</td>";
-            }));
-
-            sb.AppendLine("<tr>");
-            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.NombreAlmacen)}</td>");
-            sb.AppendLine($"<td>{f.Codigo}</td>");
-            sb.AppendLine($"<td>{f.Ingreso}</td>");
-            sb.AppendLine($"<td class='left'>{System.Net.WebUtility.HtmlEncode(r.Descripcion)}</td>");
-            sb.AppendLine(tdMeses);
-            sb.AppendLine($"<td>{f.TotalVentas}</td>");
-            sb.AppendLine($"<td>{(f.FechaPrimerIngreso.HasValue ? f.FechaPrimerIngreso.Value.ToString("dd/MM/yyyy") : "")}</td>");
-            sb.AppendLine($"<td>{f.Stock}</td>");
-            sb.AppendLine($"<td>{f.PorcentajeVendida:N2}</td>");
-            sb.AppendLine($"<td>{f.PC:N2}</td>");
-            sb.AppendLine($"<td>{f.PV:N2}</td>");
-            sb.AppendLine("</tr>");
+                f.NombreAlmacen,
+                f.Codigo,
+                f.Ingreso,
+                r.Descripcion
+            };
+            row.AddRange(r.Meses.Select(m => (object)f.VentasPorMes[m.Key]));
+            row.Add(f.TotalVentas);
+            row.Add(f.FechaPrimerIngreso?.ToString("dd/MM/yyyy") ?? "");
+            row.Add(f.Stock);
+            row.Add(f.PorcentajeVendida);
+            row.Add(f.PC);
+            row.Add(f.PV);
+            rows.Add(row.ToArray());
         }
 
-        string tdm = string.Join("", r.Meses.Select(m =>
-        {
-            var key = $"{m.Year:D4}{m.Month:D2}";
-            var val = r.Totales.VentasPorMes[key];
-            return $"<td class='total'>{val}</td>";
-        }));
+        var totalRow = new List<object> { "Total", "", r.Totales.Ingreso, "" };
+        totalRow.AddRange(r.Meses.Select(m => (object)r.Totales.VentasPorMes[m.Key]));
+        totalRow.Add(r.Totales.TotalVentas);
+        totalRow.Add("");
+        totalRow.Add(r.Totales.Stock);
+        totalRow.Add(r.Totales.PorcentajeVendida);
+        totalRow.Add("");
+        totalRow.Add("");
+        rows.Add(totalRow.ToArray());
 
-        sb.AppendLine("<tr class='total'>");
-        sb.AppendLine("<td>Total</td><td></td>");
-        sb.AppendLine($"<td>{r.Totales.Ingreso}</td>");
-        sb.AppendLine("<td class='left'></td>");
-        sb.AppendLine(tdm);
-        sb.AppendLine($"<td>{r.Totales.TotalVentas}</td>");
-        sb.AppendLine("<td></td>");
-        sb.AppendLine($"<td>{r.Totales.Stock}</td>");
-        sb.AppendLine($"<td>{r.Totales.PorcentajeVendida:N2}</td>");
-        sb.AppendLine("<td></td><td></td>");
-        sb.AppendLine("</tr>");
+        return rows;
+    }
 
-        sb.AppendLine("</table>");
-        sb.AppendLine("<div style='height:18px'></div>");
-        return sb.ToString();
+    private class ReporteArticuloExcel
+    {
+        public string SheetName { get; set; } = string.Empty;
+        public string[] Headers { get; set; } = Array.Empty<string>();
+        public List<object[]> Rows { get; set; } = new();
     }
 }

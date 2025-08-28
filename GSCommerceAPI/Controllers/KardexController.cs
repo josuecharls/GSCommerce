@@ -159,7 +159,53 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToList();
 
-            return Ok(calculado.OrderByDescending(k => k.Fecha));
+            var agrupado = calculado
+                .GroupBy(k => new
+                {
+                    k.IdAlmacen,
+                    k.Almacen,
+                    k.Familia,
+                    k.Linea,
+                    k.Codigo,
+                    k.Articulo,
+                    k.PrecioCompra,
+                    k.PrecioVenta
+                })
+                .Select(g =>
+                {
+                    var ordenados = g.OrderBy(k => k.Fecha).ToList();
+                    var primero = ordenados.First();
+                    var ultimo = ordenados.Last();
+
+                    return new VKardexGeneral
+                    {
+                        IdKardex = 0,
+                        IdAlmacen = g.Key.IdAlmacen,
+                        Almacen = g.Key.Almacen,
+                        Familia = g.Key.Familia,
+                        Linea = g.Key.Linea,
+                        Codigo = g.Key.Codigo,
+                        Articulo = g.Key.Articulo,
+                        PrecioCompra = g.Key.PrecioCompra,
+                        PrecioVenta = g.Key.PrecioVenta,
+                        Fecha = null,
+                        Operacion = string.Empty,
+                        SaldoInicial = primero.SaldoInicial,
+                        ValorizadoInicial = primero.ValorizadoInicial,
+                        Entrada = ordenados.Sum(x => x.Entrada),
+                        ValorizadoEntrada = ordenados.Sum(x => x.ValorizadoEntrada ?? 0),
+                        Salida = ordenados.Sum(x => x.Salida ?? 0),
+                        ValorizadoSalida = ordenados.Sum(x => x.ValorizadoSalida ?? 0),
+                        SaldoFinal = ultimo.SaldoFinal,
+                        ValorizadoFinal = ultimo.ValorizadoFinal,
+                        ValorizadoFinalPc = ultimo.ValorizadoFinalPc,
+                        ValorizadoFinalPv = ultimo.ValorizadoFinalPv
+                    };
+                })
+                .OrderBy(k => k.Codigo)
+                .ToList();
+
+            return Ok(agrupado);
         }
     }
 }

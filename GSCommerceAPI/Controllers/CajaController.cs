@@ -329,8 +329,10 @@ public class CajaController : ControllerBase
             var vTarjeta = VTar(ap.IdUsuario, ap.IdAlmacen);
             var vNC = VNC(ap.IdUsuario, ap.IdAlmacen);
 
-            var vTotal = vResumen;            // Venta Día = efectivo + tarjeta
-            var vEfectivo = vResumen - vTarjeta; // solo efectivo (para saldo de caja)
+            // Venta Día = efectivo + tarjeta - nota de crédito
+            var vTotal = vResumen - vNC;
+            // solo efectivo (para saldo de caja)
+            var vEfectivo = vResumen - vTarjeta - vNC;
 
             var ingresos = Ingresos(ap.IdUsuario, ap.IdAlmacen);
             var egresos = Gastos(ap.IdUsuario, ap.IdAlmacen) + Transf(ap.IdUsuario, ap.IdAlmacen) + Prov(ap.IdUsuario, ap.IdAlmacen);
@@ -346,7 +348,7 @@ public class CajaController : ControllerBase
                 Estado = ap.Estado,
 
                 SaldoInicial = saldoDiaAnterior,
-                VentaDia = vTotal,                                      // <- TOTAL (efectivo + tarjeta)
+                VentaDia = vTotal,  // <- TOTAL (efectivo + tarjeta - N.C.)
                 Ingresos = ingresos,
                 Egresos = egresos,
                 SaldoFinal = saldoDiaAnterior + vEfectivo + ingresos - egresos // <- usa EFECTIVO

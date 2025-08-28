@@ -48,4 +48,14 @@
         XLSX.utils.book_append_sheet(wb, ws, "Top10");
         XLSX.writeFile(wb, `Top10_Articulos_${desde}_a_${hasta}.xlsx`);
     };
+
+    window.exportVentasArticuloExcel = (reportes, filename) => {
+        if (!Array.isArray(reportes) || reportes.length === 0) return;
+        const wb = XLSX.utils.book_new();
+        reportes.forEach(r => {
+            const ws = XLSX.utils.aoa_to_sheet([r.headers, ...r.rows]);
+            XLSX.utils.book_append_sheet(wb, ws, r.sheetName?.substring(0, 31) || "Hoja");
+        });
+        XLSX.writeFile(wb, filename + ".xlsx");
+    };
 })();
