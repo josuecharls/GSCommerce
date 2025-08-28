@@ -174,7 +174,7 @@ namespace GSCommerceAPI.Controllers
 
             await _context.SaveChangesAsync();
 
-            // 4) Actualiza stock: resta en ORIGEN y suma en DESTINO
+            // 4) Actualiza stock y registra en kardex: resta en ORIGEN y suma en DESTINO
             foreach (var detalle in egreso.MovimientosDetalles)
             {
                 var stockOrigen = await _context.StockAlmacens
@@ -185,25 +185,53 @@ namespace GSCommerceAPI.Controllers
                     return BadRequest(new { mensaje = $"Stock insuficiente en almacén de origen para el artículo {detalle.IdArticulo}" });
                 }
 
+                var saldoInicialOrigen = stockOrigen.Stock;
                 stockOrigen.Stock -= detalle.Cantidad;
+
+                _context.Kardices.Add(new Kardex
+                {
+                    IdAlmacen = egreso.IdAlmacen,
+                    IdArticulo = detalle.IdArticulo,
+                    TipoMovimiento = "E",
+                    Fecha = fechaConf,
+                    SaldoInicial = saldoInicialOrigen,
+                    Cantidad = detalle.Cantidad,
+                    SaldoFinal = saldoInicialOrigen - detalle.Cantidad,
+                    Valor = detalle.Valor,
+                    Origen = $"TRANSFERENCIA EGRESO Nro: {egreso.IdMovimiento}"
+                });
 
                 var stockDestino = await _context.StockAlmacens
                     .FirstOrDefaultAsync(s => s.IdAlmacen == ingreso.IdAlmacen && s.IdArticulo == detalle.IdArticulo);
 
+                var saldoInicialDestino = stockDestino?.Stock ?? 0;
+
                 if (stockDestino == null)
                 {
-                    _context.StockAlmacens.Add(new StockAlmacen
+                    stockDestino = new StockAlmacen
                     {
                         IdAlmacen = ingreso.IdAlmacen,
                         IdArticulo = detalle.IdArticulo,
-                        Stock = detalle.Cantidad,
+                        Stock = 0,
                         StockMinimo = 0
-                    });
+                    };
+                    _context.StockAlmacens.Add(stockDestino);
                 }
-                else
+
+                stockDestino.Stock += detalle.Cantidad;
+
+                _context.Kardices.Add(new Kardex
                 {
-                    stockDestino.Stock += detalle.Cantidad;
-                }
+                    IdAlmacen = ingreso.IdAlmacen,
+                    IdArticulo = detalle.IdArticulo,
+                    TipoMovimiento = "I",
+                    Fecha = fechaConf,
+                    SaldoInicial = saldoInicialDestino,
+                    Cantidad = detalle.Cantidad,
+                    SaldoFinal = saldoInicialDestino + detalle.Cantidad,
+                    Valor = detalle.Valor,
+                    Origen = $"TRANSFERENCIA INGRESO Nro: {ingreso.IdMovimiento}"
+                });
             }
 
             await _context.SaveChangesAsync();
@@ -331,13 +359,15 @@ namespace GSCommerceAPI.Controllers
                     await _context.SaveChangesAsync();
                 }
 
-                // Actualizar stock solo para ingresos o egresos directos
+                // Actualizar stock y registrar en kardex para ingresos o egresos directos
                 if (dto.Tipo == "I" || dto.Tipo == "E")
                 {
                     foreach (var d in dto.Detalles)
                     {
                         var stock = await _context.StockAlmacens
                             .FirstOrDefaultAsync(s => s.IdAlmacen == dto.IdAlmacen && s.IdArticulo == d.IdArticulo);
+
+                        var saldoInicial = stock?.Stock ?? 0;
 
                         if (dto.Tipo == "I")
                         {
@@ -354,6 +384,19 @@ namespace GSCommerceAPI.Controllers
                             }
 
                             stock.Stock += d.Cantidad;
+
+                            _context.Kardices.Add(new Kardex
+                            {
+                                IdAlmacen = dto.IdAlmacen,
+                                IdArticulo = d.IdArticulo,
+                                TipoMovimiento = "I",
+                                Fecha = DateTime.Now,
+                                SaldoInicial = saldoInicial,
+                                Cantidad = d.Cantidad,
+                                SaldoFinal = saldoInicial + d.Cantidad,
+                                Valor = d.Valor,
+                                Origen = $"{dto.Motivo} Nro: {movimiento.IdMovimiento}"
+                            });
                         }
                         else // Egreso
                         {
@@ -364,6 +407,19 @@ namespace GSCommerceAPI.Controllers
                             }
 
                             stock.Stock -= d.Cantidad;
+
+                            _context.Kardices.Add(new Kardex
+                            {
+                                IdAlmacen = dto.IdAlmacen,
+                                IdArticulo = d.IdArticulo,
+                                TipoMovimiento = "E",
+                                Fecha = DateTime.Now,
+                                SaldoInicial = saldoInicial,
+                                Cantidad = d.Cantidad,
+                                SaldoFinal = saldoInicial - d.Cantidad,
+                                Valor = d.Valor,
+                                Origen = $"{dto.Motivo} Nro: {movimiento.IdMovimiento}"
+                            });
                         }
                     }
 

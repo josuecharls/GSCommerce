@@ -5,32 +5,32 @@
 @using GSCommerce.Client.Services
 @using System.Linq
 @using System
-@inject IngresosEgresosService ieService
 @inject OrdenCompraService ocService
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject HttpClient Http
 
 <h3>Ordenes de Compra</h3>
 
 <div class="row mb-3">
     <div class="col-md-3">
         <label>Desde:</label>
-        <input type="date" class="form-control" @bind-value="desde" @bind-value:event="oninput" />
+        <input type="date" class="form-control" @bind-value="desdeOc" @bind-value:event="oninput" />
     </div>
     <div class="col-md-3">
         <label>Hasta:</label>
-        <input type="date" class="form-control" @bind-value="hasta" @bind-value:event="oninput" />
+        <input type="date" class="form-control" @bind-value="hastaOc" @bind-value:event="oninput" />
     </div>
     <div class="col-md-4">
         <label>Proveedor:</label>
         <div class="input-group">
-            <input class="form-control" value="@nombreProveedor" readonly />
-            <button class="btn btn-secondary" @onclick="() => mostrarProveedorModal = true">Buscar</button>
-            <button class="btn btn-outline-secondary" @onclick="LimpiarProveedor">X</button>
+            <input class="form-control" value="@nombreProveedorOc" readonly />
+            <button class="btn btn-secondary" @onclick="() => mostrarProveedorModalOc = true">Buscar</button>
+            <button class="btn btn-outline-secondary" @onclick="LimpiarProveedorOc">X</button>
         </div>
     </div>
     <div class="col-md-2 d-flex align-items-end">
-        <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
+        <button class="btn btn-primary w-100" @onclick="BuscarOc">Buscar</button>
     </div>
 </div>
 
@@ -50,9 +50,9 @@
         </tr>
     </thead>
     <tbody>
-        @if (ordenes.Any())
+        @if (ordenesPaginated.Any())
         {
-            foreach (var o in ordenes)
+            foreach (var o in ordenesPaginated)
             {
                 <tr>
                     <td>@o.FechaOc.ToString("dd/MM/yyyy")</td>
@@ -74,24 +74,160 @@
     </tbody>
 </table>
 
-<ProveedorBuscarModal Mostrar="mostrarProveedorModal" MostrarChanged="(v) => mostrarProveedorModal = v" OnSeleccionado="SeleccionarProveedor" />
+<div class="d-flex justify-content-between">
+    <button class="btn btn-secondary" @onclick="PrevPageOc" disabled="@(currentPageOc <= 1)">Anterior</button>
+    <span>Página @currentPageOc de @totalPagesOc</span>
+    <button class="btn btn-secondary" @onclick="NextPageOc" disabled="@(currentPageOc >= totalPagesOc)">Siguiente</button>
+</div>
+
+<div class="mt-2 text-end"><strong>Total: @totalOrdenes.ToString("C")</strong></div>
+
+<h3 class="mt-5">Pago Proveedores</h3>
+
+<div class="row mb-3">
+    <div class="col-md-3">
+        <label>Desde:</label>
+        <input type="date" class="form-control" @bind-value="desdePago" @bind-value:event="oninput" />
+    </div>
+    <div class="col-md-3">
+        <label>Hasta:</label>
+        <input type="date" class="form-control" @bind-value="hastaPago" @bind-value:event="oninput" />
+    </div>
+    <div class="col-md-4">
+        <label>Proveedor:</label>
+        <div class="input-group">
+            <input class="form-control" value="@nombreProveedorPago" readonly />
+            <button class="btn btn-secondary" @onclick="() => mostrarProveedorModalPago = true">Buscar</button>
+            <button class="btn btn-outline-secondary" @onclick="LimpiarProveedorPago">X</button>
+        </div>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="BuscarPagos">Buscar</button>
+    </div>
+</div>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Número</th>
+            <th>Proveedor</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (pagosPaginated.Any())
+        {
+            foreach (var o in pagosPaginated)
+            {
+                <tr>
+                    <td>@o.FechaOc.ToString("dd/MM/yyyy")</td>
+                    <td>@o.NumeroOc</td>
+                    <td>@o.Nombre</td>
+                    <td>@o.ImporteTotal.ToString("C")</td>
+                    <td>@o.Estado</td>
+                    <td>
+                        <button class="btn btn-sm btn-info me-1" @onclick="() => VerDetalle(o.IdOc)">Ver</button>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => VerFotoPago(o)">Foto</button>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="6" class="text-center">Sin registros</td></tr>
+        }
+    </tbody>
+</table>
+
+<div class="d-flex justify-content-between">
+    <button class="btn btn-secondary" @onclick="PrevPagePagos" disabled="@(currentPagePagos <= 1)">Anterior</button>
+    <span>Página @currentPagePagos de @totalPagesPagos</span>
+    <button class="btn btn-secondary" @onclick="NextPagePagos" disabled="@(currentPagePagos >= totalPagesPagos)">Siguiente</button>
+</div>
+
+<div class="mt-2 text-end"><strong>Total: @totalPagos.ToString("C")</strong></div>
+
+@if (showPhotoModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Foto</h5>
+                    <button type="button" class="btn-close" @onclick="ClosePhotoModal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    @if (!string.IsNullOrEmpty(photoUrl))
+                    {
+                        <img src="@photoUrl" alt="Foto" class="img-fluid img-thumbnail" style="max-width:300px;max-height:300px;" />
+                    }
+                    else
+                    {
+                        <p>No hay foto disponible.</p>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="ClosePhotoModal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<ProveedorBuscarModal Mostrar="mostrarProveedorModalOc" MostrarChanged="(v) => mostrarProveedorModalOc = v" OnSeleccionado="SeleccionarProveedorOc" />
+<ProveedorBuscarModal Mostrar="mostrarProveedorModalPago" MostrarChanged="(v) => mostrarProveedorModalPago = v" OnSeleccionado="SeleccionarProveedorPago" />
 
 @code {
-    private DateTime desde = DateTime.Today;
-    private DateTime hasta = DateTime.Today;
+    private DateTime desdeOc = DateTime.Today;
+    private DateTime hastaOc = DateTime.Today;
     private List<OrdenCompraConsultaDTO> ordenes = new();
-    private bool mostrarProveedorModal = false;
-    private int? idProveedor;
-    private string nombreProveedor = string.Empty;
+    private bool mostrarProveedorModalOc = false;
+    private int? idProveedorOc;
+    private string nombreProveedorOc = string.Empty;
+
+    private DateTime desdePago = DateTime.Today;
+    private DateTime hastaPago = DateTime.Today;
+    private List<OrdenCompraConsultaDTO> pagos = new();
+    private bool mostrarProveedorModalPago = false;
+    private int? idProveedorPago;
+    private string nombreProveedorPago = string.Empty;
+
+    private bool showPhotoModal = false;
+    private string? photoUrl;
+
+    private int pageSizeOc = 10;
+    private int currentPageOc = 1;
+    private int totalPagesOc => (int)Math.Ceiling((double)ordenes.Count / pageSizeOc);
+    private IEnumerable<OrdenCompraConsultaDTO> ordenesPaginated => ordenes.Skip((currentPageOc - 1) * pageSizeOc).Take(pageSizeOc);
+
+    private int pageSizePagos = 10;
+    private int currentPagePagos = 1;
+    private int totalPagesPagos => (int)Math.Ceiling((double)pagos.Count / pageSizePagos);
+    private IEnumerable<OrdenCompraConsultaDTO> pagosPaginated => pagos.Skip((currentPagePagos - 1) * pageSizePagos).Take(pageSizePagos);
+
+    private decimal totalOrdenes => ordenes.Sum(o => o.ImporteTotal);
+    private decimal totalPagos => pagos.Sum(o => o.ImporteTotal);
 
     protected override async Task OnInitializedAsync()
     {
-        await Buscar();
+        await Task.WhenAll(BuscarOc(), BuscarPagos());
     }
 
-    private async Task Buscar()
+    private async Task BuscarOc()
     {
-        ordenes = await ocService.ListarAsync(desde, hasta, idProveedor);
+        var lista = await ocService.ListarAsync(desdeOc, hastaOc, idProveedorOc);
+        ordenes = lista.Where(o => !o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
+        currentPageOc = 1;
+    }
+
+    private async Task BuscarPagos()
+    {
+        var lista = await ocService.ListarAsync(desdePago, hastaPago, idProveedorPago);
+        pagos = lista.Where(o => o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
+        currentPagePagos = 1;
     }
 
     private void Nuevo() => Nav.NavigateTo("/ordenes-compra/nuevo");
@@ -104,16 +240,66 @@
         await JS.InvokeVoidAsync("alert", ok ? "Ingreso generado" : "No se pudo generar ingreso");
     }
 
-    private Task SeleccionarProveedor(ProveedorDTO p)
+    private Task SeleccionarProveedorOc(ProveedorDTO p)
     {
-        idProveedor = p.IdProveedor;
-        nombreProveedor = p.Nombre;
+        idProveedorOc = p.IdProveedor;
+        nombreProveedorOc = p.Nombre;
         return Task.CompletedTask;
     }
 
-    private void LimpiarProveedor()
+    private Task SeleccionarProveedorPago(ProveedorDTO p)
     {
-        idProveedor = null;
-        nombreProveedor = string.Empty;
+        idProveedorPago = p.IdProveedor;
+        nombreProveedorPago = p.Nombre;
+        return Task.CompletedTask;
+    }
+
+    private void LimpiarProveedorOc()
+    {
+        idProveedorOc = null;
+        nombreProveedorOc = string.Empty;
+    }
+
+    private void LimpiarProveedorPago()
+    {
+        idProveedorPago = null;
+        nombreProveedorPago = string.Empty;
+    }
+
+    private void PrevPageOc()
+    {
+        if (currentPageOc > 1) currentPageOc--;
+    }
+
+    private void NextPageOc()
+    {
+        if (currentPageOc < totalPagesOc) currentPageOc++;
+    }
+
+    private void PrevPagePagos()
+    {
+        if (currentPagePagos > 1) currentPagePagos--;
+    }
+
+    private void NextPagePagos()
+    {
+        if (currentPagePagos < totalPagesPagos) currentPagePagos++;
+    }
+
+    private void VerFotoPago(OrdenCompraConsultaDTO o)
+    {
+        if (!o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase))
+            return;
+        if (int.TryParse(o.NumeroOc[3..], out var idIe))
+        {
+            photoUrl = $"{Http.BaseAddress}api/IngresosEgresos/foto/{idIe}?t={DateTime.Now.Ticks}";
+            showPhotoModal = true;
+        }
+    }
+
+    private void ClosePhotoModal()
+    {
+        showPhotoModal = false;
+        photoUrl = null;
     }
 }
