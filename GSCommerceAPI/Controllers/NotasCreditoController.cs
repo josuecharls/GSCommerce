@@ -353,6 +353,11 @@ namespace GSCommerceAPI.Controllers
             if (nota.Empleada == true)
                 return BadRequest("Nota de crédito ya utilizada.");
 
+            var almacenNombre = await _context.Almacens
+                .Where(a => a.IdAlmacen == nota.IdAlmacen)
+                .Select(a => a.Nombre)
+                .FirstOrDefaultAsync();
+
             var dto = new NotaCreditoConsultaDTO
             {
                 IdNc = nota.IdNc,
@@ -361,6 +366,7 @@ namespace GSCommerceAPI.Controllers
                 Fecha = nota.Fecha,
                 Nombre = nota.Nombre,
                 Dniruc = nota.Dniruc,
+                Almacen = almacenNombre ?? string.Empty,
                 Total = nota.Total,
                 Estado = nota.Estado,
                 Empleada = nota.Empleada
@@ -473,6 +479,7 @@ namespace GSCommerceAPI.Controllers
                     Fecha = n.Fecha.HasValue ? n.Fecha.Value.ToDateTime(TimeOnly.MinValue) : DateTime.MinValue,
                     Nombre = n.Nombre,
                     Dniruc = n.Dniruc,
+                    Almacen = n.Almacen,
                     Total = n.Total,
                     Estado = n.Estado,
                     Empleada = n.Empleada,

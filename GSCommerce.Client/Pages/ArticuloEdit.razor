@@ -3,58 +3,233 @@
 @using GSCommerce.Client.Services
 @inject ArticuloService ArticuloService
 @inject ProveedorService ProveedorService
+@inject ComplementoService ComplementoService
 @inject NavigationManager Navigation
+@inject ArticuloVarianteService ArticuloVarianteService
+@using GSCommerce.Client.Pages
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
+@inject IJSRuntime JS
 
-<h3>Editar Artículo</h3>
+<h3>✏️ Editar Artículo</h3>
 
-@if (articulo != null)
+@if (!isLoading)
 {
     <div class="card p-4">
         <div class="row">
+            <!-- Izquierda -->
             <div class="col-md-6">
                 <div class="mb-3">
                     <label class="form-label">Código</label>
                     <input type="text" class="form-control" @bind="articulo.IdArticulo" readonly />
                 </div>
+
                 <div class="mb-3">
                     <label class="form-label">Descripción</label>
-                    <input type="text" class="form-control" @bind="articulo.Descripcion" />
+                    <input type="text" class="form-control" @bind="articulo.Descripcion" readonly />
                 </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Descripción Corta</label>
+                    <input type="text" class="form-control" @bind="articulo.DescripcionCorta" readonly />
+                </div>
+
+                <!-- FAMILIA -->
                 <div class="mb-3">
                     <label class="form-label">Familia</label>
-                    <input type="text" class="form-control" @bind="articulo.Familia" />
+                    <div class="input-group">
+                        <select class="form-control" @bind="articulo.Familia" @bind:after="ActualizarDescripcion">
+                            <option value="">-- Seleccionar --</option>
+                            @foreach (var c in familias)
+                            {
+                                <option value="@c.Descripcion">@c.Descripcion</option>
+                            }
+                        </select>
+                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
+                                @onclick='() => OpenNuevoComplemento("FAMILIA")'>
+                            +
+                        </button>
+                    </div>
                 </div>
+
+                <!-- LINEA -->
                 <div class="mb-3">
                     <label class="form-label">Línea</label>
-                    <input type="text" class="form-control" @bind="articulo.Linea" />
+                    <div class="input-group">
+                        <select class="form-control" @bind="articulo.Linea" @bind:after="ActualizarDescripcion">
+                            <option value="">-- Seleccionar --</option>
+                            @foreach (var c in lineas)
+                            {
+                                <option value="@c.Descripcion">@c.Descripcion</option>
+                            }
+                        </select>
+                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
+                                @onclick='() => OpenNuevoComplemento("LINEA")'>
+                            +
+                        </button>
+                    </div>
                 </div>
+
+                <!-- MARCA -->
                 <div class="mb-3">
                     <label class="form-label">Marca</label>
-                    <input type="text" class="form-control" @bind="articulo.Marca" />
+                    <div class="input-group">
+                        <select class="form-control" @bind="articulo.Marca" @bind:after="ActualizarDescripcion">
+                            <option value="">-- Seleccionar --</option>
+                            @foreach (var c in marcas)
+                            {
+                                <option value="@c.Descripcion">@c.Descripcion</option>
+                            }
+                        </select>
+                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
+                                @onclick='() => OpenNuevoComplemento("MARCA")'>
+                            +
+                        </button>
+                    </div>
                 </div>
+
+                <!-- MATERIAL -->
+                <div class="mb-3">
+                    <label class="form-label">Material</label>
+                    <div class="input-group">
+                        <select class="form-control" @bind="articulo.Material" @bind:after="ActualizarDescripcion">
+                            <option value="">-- Seleccionar --</option>
+                            @foreach (var c in materiales)
+                            {
+                                <option value="@c.Descripcion">@c.Descripcion</option>
+                            }
+                        </select>
+                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
+                                @onclick='() => OpenNuevoComplemento("MATERIAL")'>
+                            +
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MODELO -->
                 <div class="mb-3">
                     <label class="form-label">Modelo</label>
-                    <input type="text" class="form-control" @bind="articulo.Modelo" />
+                    <div class="input-group">
+                        <select class="form-control" @bind="articulo.Modelo" @bind:after="ActualizarDescripcion">
+                            <option value="">-- Seleccionar --</option>
+                            @foreach (var c in modelos)
+                            {
+                                <option value="@c.Descripcion">@c.Descripcion</option>
+                            }
+                        </select>
+                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
+                                @onclick='() => OpenNuevoComplemento("MODELO")'>
+                            +
+                        </button>
+                    </div>
                 </div>
+
+                <!-- COLOR -->
                 <div class="mb-3">
                     <label class="form-label">Color</label>
-                    <input type="text" class="form-control" @bind="articulo.Color" />
+                    <div class="input-group">
+                        <select class="form-control" @bind="articulo.Color" @bind:after="ActualizarDescripcion">
+                            <option value="">-- Seleccionar --</option>
+                            @foreach (var c in colores)
+                            {
+                                <option value="@c.Descripcion">@c.Descripcion</option>
+                            }
+                        </select>
+                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
+                                @onclick='() => OpenNuevoComplemento("COLOR")'>
+                            +
+                        </button>
+                    </div>
                 </div>
+
+                <!-- TALLA -->
                 <div class="mb-3">
                     <label class="form-label">Talla</label>
-                    <input type="text" class="form-control" @bind="articulo.Talla" />
+                    <div class="input-group">
+                        <select class="form-control" @bind="articulo.Talla" @bind:after="ActualizarDescripcion">
+                            <option value="">-- Seleccionar --</option>
+                            @foreach (var c in tallas)
+                            {
+                                <option value="@c.Descripcion">@c.Descripcion</option>
+                            }
+                        </select>
+                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
+                                @onclick='() => OpenNuevoComplemento("TALLA")'>
+                            +
+                        </button>
+                    </div>
                 </div>
-            </div>
+
+                <!-- ESTACION -->
+                <div class="mb-3">
+                    <label class="form-label">Estación</label>
+                    <div class="input-group">
+                        <select class="form-control" @bind="articulo.Estacion" @bind:after="ActualizarDescripcion">
+                            <option value="">-- Seleccionar --</option>
+                            @foreach (var c in estaciones)
+                            {
+                                <option value="@c.Descripcion">@c.Descripcion</option>
+                            }
+                        </select>
+                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
+                                @onclick='() => OpenNuevoComplemento("ESTACION")'>
+                            +
+                        </button>
+                    </div>
+                </div>
+
+                <!-- DETALLE -->
+                <div class="mb-3">
+                    <label class="form-label">Detalle</label>
+                    <div class="input-group">
+                        <select class="form-control" @bind="articulo.Detalle" @bind:after="ActualizarDescripcion">
+                            <option value="">-- Seleccionar --</option>
+                            @foreach (var c in detalles)
+                            {
+                                <option value="@c.Descripcion">@c.Descripcion</option>
+                            }
+                        </select>
+                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
+                                @onclick='() => OpenNuevoComplemento("DETALLE")'>
+                            +
+                        </button>
+                    </div>
+                </div>
+            </div> <!-- /col-md-6 izquierda -->
+            <!-- Derecha -->
             <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Proveedor</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" @bind="rucProveedor" @onblur="BuscarProveedorPorRuc" />
+                        <button class="btn btn-secondary" @onclick="() => mostrarProveedorModal = true">Buscar</button>
+                    </div>
+                    <div class="mt-1"><strong>@nombreProveedor</strong></div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Unidad de Almacén</label>
+                    <input type="text" class="form-control" @bind="articulo.UnidadAlmacen" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Moneda de Costeo</label>
+                    <select class="form-control" @bind="articulo.MonedaCosteo">
+                        <option value="SOLES">Soles</option>
+                        <option value="DOLARES">Dólares</option>
+                    </select>
+                </div>
+
                 <div class="mb-3">
                     <label class="form-label">Precio Compra</label>
                     <input type="number" class="form-control" @bind="articulo.PrecioCompra" />
                 </div>
+
                 <div class="mb-3">
                     <label class="form-label">Precio Venta</label>
                     <input type="number" class="form-control" @bind="articulo.PrecioVenta" />
                 </div>
+
                 <div class="mb-3">
                     <label class="form-label">Estado</label>
                     <select class="form-control" @bind="articulo.Estado">
@@ -62,15 +237,19 @@
                         <option value="false">Inactivo</option>
                     </select>
                 </div>
+
+                <!-- Imagen del artículo -->
                 <div class="mb-3 text-center">
-                    <label class="form-label">Nueva Foto</label><br />
+                    <label class="form-label">Imagen del artículo</label><br />
+                    <img src="@articulo.Foto" class="img-thumbnail" width="100" style="display: @(string.IsNullOrEmpty(articulo.Foto) ? "none" : "block")" />
                     <InputFile OnChange="UploadImage" accept="image/*" />
                 </div>
-            </div>
-        </div>
-        <div class="text-center">
-            <button class="btn btn-primary" @onclick="Save">Guardar Cambios</button>
-            <button class="btn btn-secondary" @onclick="Cancel">Cancelar</button>
+            </div> <!-- /col-md-6 derecha -->
+        </div> <!-- /row -->
+        <!-- Botones -->
+        <div class="text-center mt-3">
+            <button class="btn btn-primary" @onclick="SaveArticulo">💾 Guardar</button>
+            <button class="btn btn-danger" @onclick="Cancel">❌ Cancelar</button>
         </div>
     </div>
 }
@@ -79,19 +258,215 @@ else
     <p>Cargando...</p>
 }
 
-@code {
-    [Parameter]
-    public string id { get; set; } = string.Empty;
+<!-- Modal: Nuevo Complemento -->
+@if (mostrarNuevoComplemento)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nuevo @nuevoTipo</h5>
+                    <button type="button" class="btn-close" @onclick="CloseNuevoComplemento"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>Tipo</label>
+                        <input class="form-control" value="@nuevoTipo" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label>Descripción</label>
+                        <input class="form-control" @bind="nuevoDescripcion" />
+                    </div>
+                    <div class="mb-3">
+                        <label>Alias (opcional)</label>
+                        <input class="form-control" @bind="nuevoAlias" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" @onclick="CrearNuevoComplemento">Guardar</button>
+                    <button class="btn btn-secondary" @onclick="CloseNuevoComplemento">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
-    private ArticuloDTO? articulo;
+<ProveedorBuscarModal @bind-Mostrar="mostrarProveedorModal" OnSeleccionado="ProveedorSeleccionado" />
+
+@code {
+    [Parameter] public string id { get; set; } = string.Empty;
+
+    private ArticuloDTO articulo = new();
+    private bool isLoading = true;
+    private bool mostrarProveedorModal = false;
+
+    // Complementos
+    private List<ComplementoDTO> familias = new();
+    private List<ComplementoDTO> lineas = new();
+    private List<ComplementoDTO> marcas = new();
+    private List<ComplementoDTO> materiales = new();
+    private List<ComplementoDTO> modelos = new();
+    private List<ComplementoDTO> colores = new();
+    private List<ComplementoDTO> detalles = new();
+    private List<ComplementoDTO> tallas = new();
+    private List<ComplementoDTO> estaciones = new();
+
+    // Modal nuevo complemento
+    private bool mostrarNuevoComplemento = false;
+    private string nuevoTipo = string.Empty;
+    private string nuevoDescripcion = string.Empty;
+    private string? nuevoAlias = string.Empty;
+
+    private string rucProveedor = string.Empty;
+    private string nombreProveedor = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        articulo = await ArticuloService.GetArticuloById(id);
-        if (articulo == null)
+        var art = await ArticuloService.GetArticuloById(id);
+        if (art == null)
         {
             Navigation.NavigateTo("/articulos");
+            return;
         }
+        articulo = art;
+
+        await LoadComplementos();
+        await CargarVariantes();
+
+        if (articulo.IdProveedor != 0)
+        {
+            var prov = await ProveedorService.GetProveedorById(articulo.IdProveedor);
+            if (prov != null)
+            {
+                rucProveedor = prov.Ruc ?? string.Empty;
+                nombreProveedor = prov.Nombre;
+            }
+        }
+
+        ActualizarDescripcion();
+        isLoading = false;
+    }
+
+    private async Task LoadComplementos()
+    {
+        familias = await ComplementoService.GetByTipo("FAMILIA");
+        lineas = await ComplementoService.GetByTipo("LINEA");
+        marcas = await ComplementoService.GetByTipo("MARCA");
+        materiales = await ComplementoService.GetByTipo("MATERIAL");
+        modelos = await ComplementoService.GetByTipo("MODELO");
+        colores = await ComplementoService.GetByTipo("COLOR");
+        detalles = await ComplementoService.GetByTipo("DETALLE");
+        tallas = await ComplementoService.GetByTipo("TALLA");
+        estaciones = await ComplementoService.GetByTipo("ESTACION");
+    }
+
+    private async Task ReloadTipo(string tipo)
+    {
+        switch (tipo)
+        {
+            case "FAMILIA": familias = await ComplementoService.GetByTipo(tipo); break;
+            case "LINEA": lineas = await ComplementoService.GetByTipo(tipo); break;
+            case "MARCA": marcas = await ComplementoService.GetByTipo(tipo); break;
+            case "MATERIAL": materiales = await ComplementoService.GetByTipo(tipo); break;
+            case "MODELO": modelos = await ComplementoService.GetByTipo(tipo); break;
+            case "COLOR": colores = await ComplementoService.GetByTipo(tipo); break;
+            case "DETALLE": detalles = await ComplementoService.GetByTipo(tipo); break;
+            case "TALLA": tallas = await ComplementoService.GetByTipo(tipo); break;
+            case "ESTACION": estaciones = await ComplementoService.GetByTipo(tipo); break;
+        }
+    }
+
+    private void OpenNuevoComplemento(string tipo)
+    {
+        nuevoTipo = tipo;
+        nuevoDescripcion = string.Empty;
+        nuevoAlias = string.Empty;
+        mostrarNuevoComplemento = true;
+    }
+
+    private void CloseNuevoComplemento()
+    {
+        mostrarNuevoComplemento = false;
+    }
+
+    private async Task CrearNuevoComplemento()
+    {
+        if (string.IsNullOrWhiteSpace(nuevoTipo) || string.IsNullOrWhiteSpace(nuevoDescripcion))
+            return;
+
+        var creado = await ComplementoService.Crear(nuevoTipo, nuevoDescripcion, nuevoAlias);
+        if (creado is not null)
+        {
+            await ReloadTipo(nuevoTipo);
+            SetArticuloProp(nuevoTipo, creado.Descripcion);
+            ActualizarDescripcion();
+            mostrarNuevoComplemento = false;
+        }
+    }
+
+    private void SetArticuloProp(string tipo, string valor)
+    {
+        switch (tipo)
+        {
+            case "FAMILIA": articulo.Familia = valor; break;
+            case "LINEA": articulo.Linea = valor; break;
+            case "MARCA": articulo.Marca = valor; break;
+            case "MATERIAL": articulo.Material = valor; break;
+            case "MODELO": articulo.Modelo = valor; break;
+            case "COLOR": articulo.Color = valor; break;
+            case "TALLA": articulo.Talla = valor; break;
+            case "ESTACION": articulo.Estacion = valor; break;
+            case "DETALLE": articulo.Detalle = valor; break;
+        }
+    }
+
+    private void ActualizarDescripcion()
+    {
+        articulo.Descripcion =
+            $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Color} {articulo.Talla}".Trim();
+        articulo.DescripcionCorta =
+            $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Color} {articulo.Talla}".Trim();
+    }
+
+    private async Task SaveArticulo()
+    {
+        if (articulo.UnidadAlmacen == "string")
+            articulo.UnidadAlmacen = null;
+
+        var ok = await ArticuloService.UpdateArticulo(articulo.IdArticulo, articulo);
+        if (ok) Navigation.NavigateTo("/articulos");
+    }
+
+    private ArticuloVarianteDTO nuevaVariante = new();
+    private List<ArticuloVarianteDTO> variantes = new();
+
+    private async Task AgregarVariante()
+    {
+        if (string.IsNullOrWhiteSpace(nuevaVariante.Color) || string.IsNullOrWhiteSpace(nuevaVariante.Talla))
+            return;
+
+        nuevaVariante.IdArticulo = articulo.IdArticulo;
+
+        var exito = await ArticuloVarianteService.RegistrarVariante(nuevaVariante);
+        if (exito)
+        {
+            await CargarVariantes();
+            nuevaVariante = new();
+        }
+    }
+
+    private async Task EliminarVariante(int idVar)
+    {
+        var exito = await ArticuloVarianteService.EliminarVariante(idVar);
+        if (exito)
+            await CargarVariantes();
+    }
+
+    private async Task CargarVariantes()
+    {
+        if (!string.IsNullOrEmpty(articulo.IdArticulo))
+            variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
     }
 
     private async Task UploadImage(InputFileChangeEventArgs e)
@@ -102,18 +477,35 @@ else
             using var stream = file.OpenReadStream(maxAllowedSize: 5_000_000);
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
-            var base64 = Convert.ToBase64String(ms.ToArray());
-            articulo!.Foto = $"data:{file.ContentType};base64,{base64}";
+            var imageBytes = ms.ToArray();
+            var base64 = Convert.ToBase64String(imageBytes);
+            articulo.Foto = $"data:{file.ContentType};base64,{base64}";
         }
     }
 
-    private async Task Save()
+    private async Task BuscarProveedorPorRuc(FocusEventArgs e)
     {
-        if (articulo != null)
+        if (string.IsNullOrWhiteSpace(rucProveedor))
+            return;
+
+        var resp = await ProveedorService.GetProveedorList(1, 1, rucProveedor);
+        var prov = resp.Data.FirstOrDefault();
+        if (prov != null)
         {
-            bool ok = await ArticuloService.UpdateArticulo(id, articulo);
-            if (ok) Navigation.NavigateTo("/articulos");
+            articulo.IdProveedor = prov.IdProveedor;
+            nombreProveedor = prov.Nombre;
         }
+        else
+        {
+            nombreProveedor = "Proveedor no encontrado";
+        }
+    }
+
+    private void ProveedorSeleccionado(ProveedorDTO prov)
+    {
+        articulo.IdProveedor = prov.IdProveedor;
+        rucProveedor = prov.Ruc ?? string.Empty;
+        nombreProveedor = prov.Nombre;
     }
 
     private void Cancel()

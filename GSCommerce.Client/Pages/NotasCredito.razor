@@ -48,6 +48,7 @@
             <th>Fecha</th>
             <th>Serie</th>
             <th>Número</th>
+            <th>Almacén</th>
             <th>Cliente</th>
             <th>Total</th>
             <th>Estado</th>
@@ -63,6 +64,7 @@
                     <td>@n.Fecha.ToString("dd/MM/yyyy")</td>
                     <td>@n.Serie</td>
                     <td>@n.Numero.ToString("D8")</td>
+                    <td>@n.Almacen</td>
                     <td>@n.Nombre</td>
                     <td>@n.Total.ToString("C")</td>
                     <td>@n.Estado</td>
@@ -72,7 +74,7 @@
         }
         else
         {
-            <tr><td colspan="7" class="text-center">No se encontraron notas de crédito.</td></tr>
+            <tr><td colspan="8" class="text-center">No se encontraron notas de crédito.</td></tr>
         }
         @if (mostrarMenu && notaSeleccionada != null)
         {

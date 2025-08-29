@@ -372,7 +372,7 @@
         efectivoSoles = pagosEfectivo.Sum(p =>
             p.Soles > 0 ? p.Soles - (p.Vuelto ?? 0) : 0);
         efectivoDolares = pagosEfectivo.Sum(p =>
-            p.Dolares > 0 ? p.Dolares - (p.Vuelto ?? 0) : 0);
+            p.Dolares > 0 ? p.Dolares : 0);
 
         notaCredito = pagosActivos
             .Where(p => EsNota(p) && (p.Soles > 0 || p.Dolares > 0))
