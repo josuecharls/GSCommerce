@@ -237,25 +237,20 @@ namespace GSCommerceAPI.Controllers
         )
         {
             var hastaExcl = hasta.Date.AddDays(1);
-            var montos = await (
+
+            var query =
                 from c in _context.ComprobanteDeVentaCabeceras
                 where c.Fecha >= desde.Date && c.Fecha < hastaExcl
                       && (c.Estado != "A")
-                      && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen.Value)
+                      && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen.Value) // ← aplica filtro si viene
+                group c by c.IdAlmacen into g
                 select new
                 {
-                    c.IdAlmacen,
-                    VentaAjustada = c.Total -
-                        c.DetallePagoVenta
-                         .Where(d => d.IdTipoPagoVenta == 8)
-                         .Select(d => d.Soles + d.Dolares * c.TipoCambio)
-                         .DefaultIfEmpty(0m)
-                         .Sum()
-                }
-            )
-            .GroupBy(x => x.IdAlmacen)
-            .Select(g => new { IdAlmacen = g.Key, Venta = g.Sum(x => x.VentaAjustada) })
-            .ToListAsync();
+                    IdAlmacen = g.Key,
+                    Venta = g.Sum(x => x.Total)
+                };
+
+            var montos = await query.ToListAsync();
             var ids = montos.Select(x => x.IdAlmacen).ToList();
 
             var nombres = await _context.Almacens
