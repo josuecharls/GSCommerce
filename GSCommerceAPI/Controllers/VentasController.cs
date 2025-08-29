@@ -192,7 +192,7 @@ namespace GSCommerceAPI.Controllers
                 return Forbid();
 
             var cabecera = await _context.ComprobanteDeVentaCabeceras
-                .Include(c => c.DetallePagoVenta)
+                .Include(c => c.ComprobanteDeVentaDetalles)
                 .FirstOrDefaultAsync(c => c.IdComprobante == id);
 
             if (cabecera == null)
@@ -204,29 +204,18 @@ namespace GSCommerceAPI.Controllers
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                cabecera.SubTotal = dto.SubTotal;
-                cabecera.Igv = dto.Igv;
-                cabecera.Total = dto.Total;
                 cabecera.Estado = "A";
                 cabecera.IdUsuarioAnula = dto.IdUsuario;
                 cabecera.FechaHoraUsuarioAnula = DateTime.Now;
 
-                _context.DetallePagoVenta.RemoveRange(cabecera.DetallePagoVenta);
-
-                foreach (var p in dto.Pagos)
+                foreach (var det in cabecera.ComprobanteDeVentaDetalles)
                 {
-                    var nuevo = new DetallePagoVentum
+                    var stock = await _context.StockAlmacens
+                        .FirstOrDefaultAsync(s => s.IdAlmacen == cabecera.IdAlmacen && s.IdArticulo == det.IdArticulo);
+                    if (stock != null)
                     {
-                        IdComprobante = id,
-                        IdTipoPagoVenta = p.IdTipoPagoVenta,
-                        Soles = p.Soles,
-                        Dolares = p.Dolares,
-                        Datos = p.Datos,
-                        Vuelto = p.Vuelto,
-                        PorcentajeTarjetaSoles = p.PorcentajeTarjetaSoles,
-                        PorcentajeTarjetaDolares = p.PorcentajeTarjetaDolares
-                    };
-                    _context.DetallePagoVenta.Add(nuevo);
+                        stock.Stock += det.Cantidad;
+                    }
                 }
 
                 await _context.SaveChangesAsync();
@@ -248,20 +237,25 @@ namespace GSCommerceAPI.Controllers
         )
         {
             var hastaExcl = hasta.Date.AddDays(1);
-
-            var query =
+            var montos = await (
                 from c in _context.ComprobanteDeVentaCabeceras
                 where c.Fecha >= desde.Date && c.Fecha < hastaExcl
-                      && (c.Estado != "A") 
-                      && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen.Value) // ← aplica filtro si viene
-                group c by c.IdAlmacen into g
+                      && (c.Estado != "A")
+                      && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen.Value)
                 select new
                 {
-                    IdAlmacen = g.Key,
-                    Venta = g.Sum(x => x.Total)
-                };
-
-            var montos = await query.ToListAsync();
+                    c.IdAlmacen,
+                    VentaAjustada = c.Total -
+                        c.DetallePagoVenta
+                         .Where(d => d.IdTipoPagoVenta == 8)
+                         .Select(d => d.Soles + d.Dolares * c.TipoCambio)
+                         .DefaultIfEmpty(0m)
+                         .Sum()
+                }
+            )
+            .GroupBy(x => x.IdAlmacen)
+            .Select(g => new { IdAlmacen = g.Key, Venta = g.Sum(x => x.VentaAjustada) })
+            .ToListAsync();
             var ids = montos.Select(x => x.IdAlmacen).ToList();
 
             var nombres = await _context.Almacens

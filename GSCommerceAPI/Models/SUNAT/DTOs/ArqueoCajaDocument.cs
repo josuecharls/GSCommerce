@@ -124,7 +124,7 @@ public class ArqueoCajaDocument : IDocument
                 footer.Item().Border(1).Padding(8).Table(table =>
                 {
                     var saldoEnCaja = _dto.SaldoInicial + _dto.VentasDelDia + _dto.Ingresos - _dto.Egresos;
-
+                    table.ColumnsDefinition(c => { c.RelativeColumn(); c.ConstantColumn(100); });
                     table.Cell().Text("Saldo de caja (S/)").Bold();
                     table.Cell().AlignRight().Text(saldoEnCaja.ToString("N2"));
                     table.Cell().Text("Fondo fijo (S/)").Bold();

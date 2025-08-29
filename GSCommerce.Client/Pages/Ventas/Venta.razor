@@ -258,39 +258,8 @@
                     <button type="button" class="btn-close" @onclick="CerrarAnulacion"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-2">
-                        <label>Subtotal:</label>
-                        <input type="number" class="form-control" @bind="ventaAnulacion.SubTotal" step="0.01" />
-                    </div>
-                    <div class="mb-2">
-                        <label>IGV:</label>
-                        <input type="number" class="form-control" @bind="ventaAnulacion.Igv" step="0.01" />
-                    </div>
-                    <div class="mb-3">
-                        <label>Total:</label>
-                        <input type="number" class="form-control" @bind="ventaAnulacion.Total" step="0.01" />
-                    </div>
-                    <h5>Pagos</h5>
-                    @for (int i = 0; i < pagosAnulacion.Count; i++)
-                    {
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <select class="form-select" @bind="pagosAnulacion[i].IdTipoPagoVenta">
-                                    @foreach (var tp in tiposPago)
-                                    {
-                                        <option value="@tp.IdTipoPagoVenta">@tp.Descripcion</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="col-4">
-                                <input type="number" class="form-control" @bind="pagosAnulacion[i].Monto" step="0.01" />
-                            </div>
-                            <div class="col-2 d-flex align-items-center">
-                                <button class="btn btn-danger btn-sm" @onclick="() => EliminarPago(pagosAnulacion[i])">X</button>
-                            </div>
-                        </div>
-                    }
-                    <button class="btn btn-secondary btn-sm" @onclick="AgregarPago">Agregar Pago</button>
+                    <p>¿Estás seguro de anular este ticket? Se devolverá el stock y el dinero.</p>
+                    <p><strong>Total:</strong> @ventaAnulacion.Total.ToString("C", new System.Globalization.CultureInfo("es-PE"))</p>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-danger" @onclick="ConfirmarAnulacion">Anular</button>
@@ -362,6 +331,11 @@
             (!string.IsNullOrWhiteSpace(p.FormaPago) &&
              p.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase));
 
+        bool EsEfectivoDolares(DetallePagoDTO p) =>
+            p.IdTipoPagoVenta == 3 ||
+            (!string.IsNullOrWhiteSpace(p.FormaPago) &&
+             p.FormaPago.Contains("DÓLAR", StringComparison.OrdinalIgnoreCase));
+
         bool EsNota(DetallePagoDTO p) =>
             p.IdTipoPagoVenta == 8 ||
             (!string.IsNullOrWhiteSpace(p.FormaPago) &&
@@ -375,20 +349,23 @@
               p.FormaPago.Contains("ONLINE", StringComparison.OrdinalIgnoreCase) ||
               p.FormaPago.Contains("YAPE", StringComparison.OrdinalIgnoreCase) ||
               p.FormaPago.Contains("TRANSFER", StringComparison.OrdinalIgnoreCase)));
-        var pagosEfectivo = pagosActivos.Where(EsEfectivo);
 
-        efectivoSoles = pagosEfectivo.Sum(p =>
-            p.Soles > 0 ? p.Soles - (p.Vuelto ?? 0) : 0);
-        efectivoDolares = pagosEfectivo.Sum(p =>
-            p.Dolares > 0 ? p.Dolares - (p.Vuelto ?? 0) : 0);
+        var pagosEfectivo = pagosActivos.Where(EsEfectivo);
+        var pagosEfectivoDolares = pagosActivos.Where(EsEfectivoDolares);
+
+        var totalVuelto = pagosEfectivo.Sum(p => p.Vuelto ?? 0);
+        var totalVueltoDolares = pagosEfectivoDolares.Sum(p => p.Vuelto ?? 0);
+
+        efectivoSoles = pagosEfectivo.Sum(p => p.Soles) - totalVuelto;
+        efectivoDolares = pagosEfectivoDolares.Sum(p => p.Dolares) - totalVueltoDolares;
 
         notaCredito = pagosActivos
-            .Where(p => EsNota(p) && (p.Soles > 0 || p.Dolares > 0))
-            .Sum(p => p.Soles + p.Dolares);
+            .Where(EsNota)
+            .Sum(p => p.Soles > 0 ? p.Soles : p.Dolares);
 
         tarjetaOnline = pagosActivos
             .Where(EsTarjetaOnline)
-            .Sum(p => p.Soles + p.Dolares);
+            .Sum(p => p.Soles > 0 ? p.Soles : p.Dolares);
 
         totalGeneral = activas.Sum(v => v.Total);
 
@@ -467,24 +444,11 @@
         ventaReenvio = null;
         ventaSeleccionada = null;
     }
+
     private async Task AbrirAnulacion(VentaConsultaDTO v)
     {
         ventaAnulacion = await ventaService.ObtenerVentaPorId(v.IdComprobante);
         if (ventaAnulacion == null) return;
-        tiposPago = await TipoPagoVentaService.ObtenerTodosAsync();
-        pagosAnulacion = ventaAnulacion.Pagos.Select(p => new DetallePagoDTO
-        {
-            IdTipoPagoVenta = p.IdTipoPagoVenta,
-            Monto = p.Soles > 0 ? p.Soles : p.Dolares,
-            Soles = p.Soles,
-            Dolares = p.Dolares,
-            Datos = p.Datos,
-            Vuelto = p.Vuelto,
-            PorcentajeTarjetaSoles = p.PorcentajeTarjetaSoles,
-            PorcentajeTarjetaDolares = p.PorcentajeTarjetaDolares,
-            FormaPago = p.FormaPago,
-            CodigoVerificacion = p.CodigoVerificacion
-        }).ToList();
         idVentaAnulacion = v.IdComprobante;
         mostrarModalAnulacion = true;
     }
@@ -493,21 +457,6 @@
     {
         mostrarModalAnulacion = false;
         ventaAnulacion = null;
-        pagosAnulacion.Clear();
-    }
-
-    private void AgregarPago()
-    {
-        pagosAnulacion.Add(new DetallePagoDTO
-        {
-            IdTipoPagoVenta = tiposPago.FirstOrDefault()?.IdTipoPagoVenta ?? 0,
-            Monto = 0
-        });
-    }
-
-    private void EliminarPago(DetallePagoDTO p)
-    {
-        pagosAnulacion.Remove(p);
     }
 
     private async Task ConfirmarAnulacion()
@@ -516,26 +465,12 @@
         var userId = await AuthService.GetUserId();
         if (userId == null) return;
 
-        foreach (var p in pagosAnulacion)
-        {
-            if (p.IdTipoPagoVenta == 3)
-            {
-                p.Dolares = p.Monto;
-                p.Soles = 0;
-            }
-            else
-            {
-                p.Soles = p.Monto;
-                p.Dolares = 0;
-            }
-        }
-
         var dto = new AnulacionTicketDTO
         {
             SubTotal = ventaAnulacion.SubTotal,
             Igv = ventaAnulacion.Igv,
             Total = ventaAnulacion.Total,
-            Pagos = pagosAnulacion,
+            Pagos = ventaAnulacion.Pagos,
             IdUsuario = userId.Value
         };
 
@@ -543,6 +478,7 @@
         if (ok)
         {
             mostrarModalAnulacion = false;
+            ventaAnulacion = null;
             await BuscarVentas();
         }
     }
