@@ -116,19 +116,20 @@ public class ArqueoCajaDocument : IDocument
 
                     });
                 });
+            });
 
-                column.Item().PaddingVertical(5).LineHorizontal(1);
-                column.Item().EnsureSpace(60);
-                column.Item().ShowEntire().Border(1).Padding(8).Table(table =>
+            page.Footer().Column(footer =>
+            {
+                footer.Item().PaddingVertical(5).LineHorizontal(1);
+                footer.Item().Border(1).Padding(8).Table(table =>
                 {
                     var saldoEnCaja = _dto.SaldoInicial + _dto.VentasDelDia + _dto.Ingresos - _dto.Egresos;
-                    table.ColumnsDefinition(c => { c.RelativeColumn(); c.ConstantColumn(100); });
+
                     table.Cell().Text("Saldo de caja (S/)").Bold();
                     table.Cell().AlignRight().Text(saldoEnCaja.ToString("N2"));
                     table.Cell().Text("Fondo fijo (S/)").Bold();
                     table.Cell().AlignRight().Text(_dto.FondoFijo.ToString("N2"));
                 });
-
             });
         });
     }

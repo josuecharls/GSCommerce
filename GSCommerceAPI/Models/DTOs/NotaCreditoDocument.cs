@@ -41,6 +41,7 @@ namespace GSCommerceAPI.Models.DTOs
                     {
                         table.ColumnsDefinition(columns =>
                         {
+                            columns.ConstantColumn(60);
                             columns.RelativeColumn();
                             columns.ConstantColumn(40);
                             columns.ConstantColumn(60);
@@ -49,6 +50,7 @@ namespace GSCommerceAPI.Models.DTOs
 
                         table.Header(header =>
                         {
+                            header.Cell().Text("Código").Bold();
                             header.Cell().Text("Descripción").Bold();
                             header.Cell().Text("Cant").Bold();
                             header.Cell().Text("Precio").Bold().AlignRight();
@@ -57,6 +59,7 @@ namespace GSCommerceAPI.Models.DTOs
 
                         foreach (var d in _dto.Detalles)
                         {
+                            table.Cell().Text(d.Codigo);
                             table.Cell().Text(d.Descripcion);
                             table.Cell().Text(d.Cantidad.ToString());
                             table.Cell().Text($"{d.Precio:N2}").AlignRight();

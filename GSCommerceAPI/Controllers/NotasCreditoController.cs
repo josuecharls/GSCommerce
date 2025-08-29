@@ -399,6 +399,7 @@ namespace GSCommerceAPI.Controllers
                 Total = nc.Total,
                 Detalles = nc.NotaDeCreditoDetalles.Select(d => new Models.DTOs.NotaCreditoPDFDetalleDTO
                 {
+                    Codigo = d.IdArticulo,
                     Descripcion = d.Descripcion,
                     Cantidad = d.Cantidad ?? 0,
                     Precio = d.Precio ?? 0m,
