@@ -12,6 +12,7 @@
         public decimal ImporteIgv { get; set; }
         public decimal ImporteTotal { get; set; }
         public string? Estado { get; set; }
+        public string? Almacen { get; set; }
         public DateTime? FechaAtencionTotal { get; set; }
         public DateTime? FechaAnulado { get; set; }
         public string Glosa { get; set; } = string.Empty;

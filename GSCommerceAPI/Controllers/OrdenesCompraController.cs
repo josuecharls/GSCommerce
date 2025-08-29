@@ -3,7 +3,7 @@ using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-
+using System.Linq;
 
 namespace GSCommerceAPI.Controllers
 {
@@ -76,7 +76,44 @@ namespace GSCommerceAPI.Controllers
 
             var lista = await query
                 .OrderByDescending(o => o.FechaOc)
+                .Select(o => new OrdenCompraConsultaDTO
+                {
+                    IdOc = o.IdOc,
+                    IdProveedor = o.IdProveedor,
+                    Nombre = o.Nombre,
+                    NumeroOc = o.NumeroOc,
+                    FechaOc = o.FechaOc,
+                    FechaEntrega = o.FechaEntrega,
+                    ImporteSubTotal = o.ImporteSubTotal,
+                    ImporteIgv = o.ImporteIgv,
+                    ImporteTotal = o.ImporteTotal,
+                    Estado = o.Estado,
+                    FechaAtencionTotal = o.FechaAtencionTotal,
+                    FechaAnulado = o.FechaAnulado,
+                    Glosa = o.Glosa
+                })
                 .ToListAsync();
+
+            var idsPagos = lista
+                .Where(x => x.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase) && int.TryParse(x.NumeroOc[3..], out _))
+                .Select(x => int.Parse(x.NumeroOc[3..]))
+                .ToList();
+
+            if (idsPagos.Any())
+            {
+                var almacenes = await _context.IngresosEgresosCabeceras
+                    .Include(i => i.IdAlmacenNavigation)
+                    .Where(i => idsPagos.Contains(i.IdIngresoEgreso))
+                    .ToDictionaryAsync(i => i.IdIngresoEgreso, i => i.IdAlmacenNavigation.Nombre);
+
+                foreach (var item in lista)
+                {
+                    if (item.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase) && int.TryParse(item.NumeroOc[3..], out var idIe) && almacenes.TryGetValue(idIe, out var nomAlmacen))
+                    {
+                        item.Almacen = nomAlmacen;
+                    }
+                }
+            }
 
             return Ok(lista);
         }

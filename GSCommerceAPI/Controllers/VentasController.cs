@@ -258,18 +258,37 @@ namespace GSCommerceAPI.Controllers
                 .Select(a => new { a.IdAlmacen, a.Nombre })
                 .ToListAsync();
 
-            var totalGlobal = montos.Sum(x => x.Venta);
+            // Monto total pagado con nota de crédito por almacén
+            var notasCredito = await (
+                    from p in _context.DetallePagoVenta
+                    join c in _context.ComprobanteDeVentaCabeceras on p.IdComprobante equals c.IdComprobante
+                    where c.Fecha >= desde.Date && c.Fecha < hastaExcl
+                          && c.Estado != "A"
+                          && p.IdTipoPagoVenta == 8
+                          && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen.Value)
+                    group p by c.IdAlmacen into g
+                    select new
+                    {
+                        IdAlmacen = g.Key,
+                        Monto = g.Sum(x => x.Soles)
+                    }
+                )
+                .ToDictionaryAsync(x => x.IdAlmacen, x => x.Monto);
+
+            var totalGlobal = montos.Sum(x => x.Venta - (notasCredito.TryGetValue(x.IdAlmacen, out var nc) ? nc : 0m));
 
             var resultado = montos
                 .Select(x =>
                 {
                     var nombre = nombres.FirstOrDefault(n => n.IdAlmacen == x.IdAlmacen)?.Nombre ?? $"Almacén {x.IdAlmacen}";
-                    var porcentaje = totalGlobal > 0 ? Math.Round((double)(x.Venta / totalGlobal) * 100, 2) : 0;
+                    var nc = notasCredito.TryGetValue(x.IdAlmacen, out var montoNc) ? montoNc : 0m;
+                    var venta = x.Venta - nc;
+                    var porcentaje = totalGlobal > 0 ? Math.Round((double)(venta / totalGlobal) * 100, 2) : 0;
                     return new ReporteTotalTiendasDTO
                     {
                         IdAlmacen = x.IdAlmacen,
                         Tienda = nombre,
-                        Venta = x.Venta,
+                        Venta = venta,
                         Porcentaje = porcentaje
                     };
                 })
