@@ -1,0 +1,124 @@
+﻿@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+
+<div class="modal fade @(Mostrar ? "show d-block" : "")" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Buscar Artículo</h5>
+                <button type="button" class="btn-close" @onclick="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" placeholder="Buscar por descripción" @bind="termino" />
+                    <button class="btn btn-primary" @onclick="Buscar">Buscar</button>
+                </div>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Descripción</th>
+                            <th>Precio</th>
+                            <th>Stock</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in articulos)
+                        {
+                            <tr>
+                                <td>@a.IdArticulo</td>
+                                <td>@a.Descripcion</td>
+                                <td>@(a.PrecioVenta.HasValue? a.PrecioVenta.Value.ToString("N2") : string.Empty)</td>
+                                <td>@a.Stock</td>
+                                <td>
+                                    <button class="btn btn-sm btn-success" @onclick="() => Seleccionar(a)">Seleccionar</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <div class="d-flex justify-content-between">
+                    <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(currentPage == 1)">Anterior</button>
+                    <span>Página @currentPage de @totalPages</span>
+                    <button class="btn btn-secondary" @onclick="NextPage" disabled="@(currentPage == totalPages)">Siguiente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public bool Mostrar { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> MostrarChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<StockDTO> OnSeleccionado { get; set; }
+
+    [Parameter]
+    public int IdAlmacen { get; set; }
+
+    [Inject]
+    private StockService StockService { get; set; } = default!;
+
+    private List<StockDTO> articulos = new();
+    private string termino = string.Empty;
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private int pageSize = 10;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Mostrar)
+        {
+            await Cargar();
+        }
+    }
+
+    private async Task Cargar()
+    {
+        var resp = await StockService.GetStock(IdAlmacen, false, termino, 2, currentPage, pageSize);
+        articulos = resp.Items;
+        totalPages = (int)Math.Ceiling((double)resp.TotalCount / pageSize);
+        if (totalPages == 0) totalPages = 1;
+    }
+
+    private async Task Buscar()
+    {
+        currentPage = 1;
+        await Cargar();
+    }
+
+    private async Task PrevPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await Cargar();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            await Cargar();
+        }
+    }
+
+    private async Task Seleccionar(StockDTO art)
+    {
+        await OnSeleccionado.InvokeAsync(art);
+        await Cerrar();
+    }
+
+    private async Task Cerrar()
+    {
+        Mostrar = false;
+        await MostrarChanged.InvokeAsync(false);
+    }
+}

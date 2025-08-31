@@ -33,20 +33,10 @@
     </div>
 
     <div class="mb-3">
-        <label>Buscar por Descripción:</label>
-        <input class="form-control" value="@descripcionBusqueda" @oninput="BuscarPorDescripcion" />
-        @if (articulosBusqueda.Any())
-        {
-            <ul class="list-group mt-2">
-                @foreach (var a in articulosBusqueda)
-                {
-                    <li class="list-group-item list-group-item-action" @onclick="() => SeleccionarArticuloBusqueda(a)">
-                        @a.Descripcion (@a.IdArticulo) - Stock: @a.Stock
-                    </li>
-                }
-            </ul>
-        }
+        <label>Buscar Artículo:</label><br />
+        <button class="btn btn-outline-secondary" @onclick="() => mostrarArticuloModal = true">Buscar</button>
     </div>
+
 
 <div class="mb-3">
     <label>Tipo de Documento:</label>
@@ -171,8 +161,9 @@ else
     </div>
 }
 
-<CobrarModal @ref="cobrarModalRef" MontoTotal="@montoCobrar" MonedaAlmacen="@monedaCobro" OnConfirmado="CobroConfirmado"
-OnCancelado="CobroCancelado" />
+<ArticuloBuscarModal @bind-Mostrar="mostrarArticuloModal" IdAlmacen="@(idAlmacenActual ?? 0)" OnSeleccionado="SeleccionarArticuloBusqueda" />
+<CobrarModal @ref="cobrarModalRef" MontoTotal="@montoCobrar" MonedaAlmacen="@monedaCobro" TipoDocumento="@venta.TipoDocumento" OnConfirmado="CobroConfirmado"
+             OnCancelado="CobroCancelado" />
 
 @code {
     [Parameter] public string modo { get; set; } = "b1";
@@ -187,6 +178,8 @@ OnCancelado="CobroCancelado" />
     private CobrarModal? cobrarModalRef;
     private List<DetallePagoDTO> pagosRealizados = new();
     private bool ventaCobrada = false;
+    private bool mostrarArticuloModal = false;
+
     private DateTime ultimaEntrada = DateTime.MinValue;
     private bool entradaManual = false;
     //private string? tipoDocumentoSeleccionado;
@@ -426,28 +419,6 @@ OnCancelado="CobroCancelado" />
         {
             await BuscarCodigoAsync();
         }
-    }
-
-    private async Task BuscarPorDescripcion(ChangeEventArgs e)
-    {
-        descripcionBusqueda = e.Value?.ToString() ?? string.Empty;
-        if (descripcionBusqueda.Length >= 3 && idAlmacenActual != null)
-        {
-            var resultado = await StockService.GetStock(idAlmacenActual.Value, false, descripcionBusqueda, 2, 1, 5);
-            articulosBusqueda = resultado.Items;
-        }
-        else
-        {
-            articulosBusqueda.Clear();
-        }
-    }
-
-    private async Task SeleccionarArticuloBusqueda(StockDTO item)
-    {
-        codigoBusqueda = item.IdArticulo;
-        descripcionBusqueda = string.Empty;
-        articulosBusqueda.Clear();
-        await BuscarCodigoAsync();
     }
 
     private async Task BuscarCodigoAsync()

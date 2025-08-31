@@ -116,6 +116,8 @@
     [Parameter] public EventCallback<List<DetallePagoDTO>> OnConfirmado { get; set; }
     [Parameter] public EventCallback OnCancelado { get; set; }
     [Parameter] public string MonedaAlmacen { get; set; } = "PEN";
+    [Parameter] public string? TipoDocumento { get; set; }
+
     public bool Mostrar { get; set; }
 
     private List<TipoPagoVentaDTO> tiposPago = new();
@@ -141,7 +143,15 @@
     protected override async Task OnParametersSetAsync()
     {
         tiposPago = await TipoPagoVentaService.ObtenerTodosAsync();
-        if (MonedaAlmacen != "USD")
+
+        if (!string.IsNullOrWhiteSpace(TipoDocumento) && TipoDocumento.Equals("TICKET", StringComparison.OrdinalIgnoreCase))
+        {
+            tiposPago = tiposPago
+                .Where(t => t.Descripcion == "Efectivo Soles" || t.Descripcion == "Efectivo Dólares")
+                .ToList();
+        }
+
+        else if (MonedaAlmacen != "USD")
         {
             tiposPago = tiposPago.Where(t => t.Descripcion != "Efectivo Dólares").ToList();
         }
