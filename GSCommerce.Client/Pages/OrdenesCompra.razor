@@ -35,6 +35,7 @@
 </div>
 
 <div class="mb-2 text-end">
+    <button class="btn btn-outline-success me-2" @onclick="ExportarOrdenesExcel">Exportar Excel</button>
     <button class="btn btn-success" @onclick="Nuevo">+ Nueva OC</button>
 </div>
 
@@ -105,7 +106,9 @@
         <button class="btn btn-primary w-100" @onclick="BuscarPagos">Buscar</button>
     </div>
 </div>
-
+<div class="mb-2 text-end">
+    <button class="btn btn-outline-success" @onclick="ExportarPagosExcel">Exportar Excel</button>
+</div>
 <table class="table table-bordered">
     <thead>
         <tr>
@@ -228,6 +231,42 @@
         var lista = await ocService.ListarAsync(desdePago, hastaPago, idProveedorPago);
         pagos = lista.Where(o => o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
         currentPagePagos = 1;
+    }
+
+    private async Task ExportarOrdenesExcel()
+    {
+        if (!ordenes.Any())
+            return;
+
+        var headers = new[] { "Fecha", "Número", "Proveedor", "Total", "Estado" };
+        var rows = ordenes.Select(o => new object[]
+        {
+            o.FechaOc.ToString("dd/MM/yyyy"),
+            o.NumeroOc,
+            o.Nombre,
+            o.ImporteTotal,
+            o.Estado ?? string.Empty
+        }).ToArray();
+
+        await JS.InvokeVoidAsync("exportToExcel", headers, rows, $"OrdenesCompra_{desdeOc:yyyyMMdd}_{hastaOc:yyyyMMdd}");
+    }
+
+    private async Task ExportarPagosExcel()
+    {
+        if (!pagos.Any())
+            return;
+
+        var headers = new[] { "Fecha", "Almacén", "Proveedor", "Total", "Estado" };
+        var rows = pagos.Select(o => new object[]
+        {
+            o.FechaOc.ToString("dd/MM/yyyy"),
+            o.Almacen ?? string.Empty,
+            o.Nombre,
+            o.ImporteTotal,
+            o.Estado ?? string.Empty
+        }).ToArray();
+
+        await JS.InvokeVoidAsync("exportToExcel", headers, rows, $"PagosProveedores_{desdePago:yyyyMMdd}_{hastaPago:yyyyMMdd}");
     }
 
     private void Nuevo() => Nav.NavigateTo("/ordenes-compra/nuevo");
