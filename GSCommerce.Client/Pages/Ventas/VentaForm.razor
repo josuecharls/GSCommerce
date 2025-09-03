@@ -314,6 +314,12 @@ else
         }
     }
 
+    private async Task SeleccionarArticuloBusqueda(StockDTO item)
+    {
+        codigoBusqueda = item.IdArticulo;
+        await BuscarCodigoAsync();
+    }
+
     private async Task OnTipoDocumentoChanged(ChangeEventArgs e)
     {
         venta.TipoDocumento = e.Value?.ToString() ?? "";

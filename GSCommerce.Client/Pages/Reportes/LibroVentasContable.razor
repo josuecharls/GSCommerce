@@ -1,0 +1,30 @@
+﻿@page "/reportes/libro-ventas-contable"
+@using GSCommerce.Client.Components
+@inject IJSRuntime JS
+
+<ReportsBreadcrumb Title="Libro de Ventas Contable" />
+
+<div class="row mb-3">
+    <div class="col-md-2">
+        <label>Año:</label>
+        <InputNumber @bind-Value="anio" class="form-control" />
+    </div>
+    <div class="col-md-2">
+        <label>Mes:</label>
+        <InputNumber @bind-Value="mes" class="form-control" />
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-success w-100" @onclick="Descargar">📥 Descargar Excel</button>
+    </div>
+</div>
+
+@code {
+    private int anio = DateTime.Today.Year;
+    private int mes = DateTime.Today.Month;
+
+    private async Task Descargar()
+    {
+        var url = $"/api/api/ventas/libro-ventas-contable?anio={anio}&mes={mes}";
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+}

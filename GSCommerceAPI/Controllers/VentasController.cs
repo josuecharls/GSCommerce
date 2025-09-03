@@ -5,6 +5,8 @@ using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using GSCommerceAPI.Models.SUNAT.DTOs;
 using GSCommerceAPI.Services.SUNAT;
+using ClosedXML.Excel;
+using System.IO;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -423,11 +425,15 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToListAsync();
 
-            // Ingresos (solo movimientos tipo INGRESO)
+            // Ingresos (incluye movimientos tipo INGRESO y transferencias de ingreso)
             var ingresos = await _context.MovimientosDetalles
                 .AsNoTracking()
                 .Where(m => req.Ids.Contains(m.IdArticulo)
-                         && m.IdMovimientoNavigation.Tipo == "I"
+                         && (
+                             m.IdMovimientoNavigation.Tipo == "I" ||
+                             (m.IdMovimientoNavigation.Tipo == "T" &&
+                              EF.Functions.Like(m.IdMovimientoNavigation.Motivo!, "%INGRESO%"))
+                         )
                          && m.IdMovimientoNavigation.Fecha.HasValue
                          && m.IdMovimientoNavigation.Fecha.Value >= DateOnly.FromDateTime(desde)
                          && m.IdMovimientoNavigation.Fecha.Value < DateOnly.FromDateTime(hasta.AddDays(1)))
@@ -1678,6 +1684,81 @@ namespace GSCommerceAPI.Controllers
                 return Ok(resultado.mensaje);
 
             return BadRequest(resultado.mensaje);
+        }
+
+        [HttpGet("libro-ventas-contable")]
+        public async Task<IActionResult> DescargarLibroVentasContable([FromQuery] int anio, [FromQuery] int mes)
+        {
+            var ventas = await _context.ComprobanteDeVentaCabeceras
+                .Where(c => c.Fecha.Year == anio && c.Fecha.Month == mes && c.Estado == "E")
+                .Select(c => new
+                {
+                    c.Fecha,
+                    c.IdCliente,
+                    c.Nombre,
+                    c.Dniruc,
+                    c.IdTipoDocumento,
+                    c.Serie,
+                    c.Numero,
+                    c.SubTotal,
+                    c.Igv,
+                    c.Total,
+                    c.TipoCambio
+                })
+                .OrderBy(c => c.Fecha)
+                .ToListAsync();
+
+            using var wb = new XLWorkbook();
+            var ws = wb.AddWorksheet("RegistroVentas");
+
+            ws.Cell("A1").Value = "LIBRO DE VENTAS";
+            ws.Cell("A2").Value = "Formato de Ingreso del Registro de Ventas";
+            ws.Cell("A4").Value = "Año :";
+            ws.Cell("B4").Value = anio;
+            ws.Cell("A5").Value = "Mes :";
+            ws.Cell("B5").Value = mes;
+            ws.Cell("A7").Value = "TP =   01 Persona Natural,    02 Persona Jurídica,     03 No Domiciliado";
+            ws.Cell("A8").Value = "TD =   1 DNI,   4 Carnet Extranjería,    6 RUC,    7 Pasaporte,    0 Otros";
+            ws.Cell("K10").Value = "Nro.Registros (no Borrar)";
+            ws.Cell("L10").Value = ventas.Count;
+
+            string[] headers = new[]
+            {
+                "Fecha","Codigo","TP","Apellido Paterno","Apellido Materno","Primer Nombre","Segundo Nombre","Razon Social","TD","Nro.Doc.","Cod","Serie","Número","(N/E)","T.Cambio","Cuenta","Monto","Cuenta","Monto","Cuenta","Monto","F.Venc.","Glosa","C.Costo","Orden","Cod.Agen"
+            };
+
+            for (int i = 0; i < headers.Length; i++)
+                ws.Cell(13, i + 1).Value = headers[i];
+
+            int row = 14;
+            foreach (var v in ventas)
+            {
+                string tp = (v.Dniruc != null && v.Dniruc.Length == 11) ? "02" : "01";
+                string td = (v.Dniruc != null && v.Dniruc.Length == 11) ? "6" : (v.Dniruc != null && v.Dniruc.Length == 8 ? "1" : "0");
+
+                ws.Cell(row, 1).Value = v.Fecha.ToString("yyyy/MM/dd");
+                ws.Cell(row, 2).Value = v.IdCliente;
+                ws.Cell(row, 3).Value = tp;
+                ws.Cell(row, 8).Value = v.Nombre;
+                ws.Cell(row, 9).Value = td;
+                ws.Cell(row, 10).Value = v.Dniruc;
+                ws.Cell(row, 11).Value = v.IdTipoDocumento;
+                ws.Cell(row, 12).Value = v.Serie;
+                ws.Cell(row, 13).Value = v.Numero;
+                ws.Cell(row, 14).Value = v.Total;
+                ws.Cell(row, 15).Value = v.TipoCambio;
+                ws.Cell(row, 17).Value = v.SubTotal;
+                ws.Cell(row, 19).Value = v.Igv;
+                ws.Cell(row, 21).Value = v.Total;
+                ws.Cell(row, 22).Value = v.Fecha.ToString("yyyy/MM/dd");
+                row++;
+            }
+
+            using var stream = new MemoryStream();
+            wb.SaveAs(stream);
+            stream.Position = 0;
+            var fileName = $"LibroVentas_{anio}_{mes:00}.xlsx";
+            return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         [HttpGet("dias-pendientes-envio")]

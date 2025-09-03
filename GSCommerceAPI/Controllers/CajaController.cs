@@ -586,7 +586,7 @@ public class CajaController : ControllerBase
                     IdGrupo = m.Naturaleza == "I" ? 3 : 5,
                     Grupo = (m.Tipo ?? "").Trim(),   // <- Tipo = Grupo
                     Detalle = (m.Glosa ?? "").Trim(),   // <- Glosa = Detalle
-                    Monto = m.Monto,
+                    Monto = m.Monto,                    // <- Monto de cada unidad
                     Fecha = apertura.Fecha            // unifica a DateOnly
                 })
                 .ToListAsync();
@@ -683,8 +683,8 @@ public class CajaController : ControllerBase
                              || categoriasExactas.Contains(r.Grupo)))
                 .Sum(r => r.Monto);
 
-            var egresos = gastosGenerales + transferenciasDia + pagosProveedores;
-            var saldoFinal = saldoDiaAnterior + ventaEfectivo + ingresos - egresos;
+            var egresos = gastosGenerales + transferenciasDia + pagosProveedores; // total egresos
+            var saldoFinal = saldoDiaAnterior + ventaEfectivo + ingresos - egresos; // solo efectivo
 
             // 8) Construir DETALLE para el PDF
             var detalleHoy = new List<ResumenCierreDeCaja>();

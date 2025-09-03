@@ -76,8 +76,8 @@ namespace GSCommerceAPI.Controllers
             Stock = s.Stock,
             PrecioCompra = cargo == "CAJERO" ? 0 : s.PrecioCompra,
             ValorCompra = cargo == "CAJERO" ? (decimal?)null : s.ValorCompra,
-            PrecioVenta = cargo == "CAJERO" ? (double?)null : s.PrecioVenta,
-            ValorVenta = cargo == "CAJERO" ? (double?)null : s.ValorVenta,
+            PrecioVenta = s.PrecioVenta,
+            ValorVenta = s.ValorVenta,
             StockMinimo = s.StockMinimo,
             // Si no se especifica un stock mínimo, usar 5 como límite
             EstaBajoMinimo = s.StockMinimo.HasValue

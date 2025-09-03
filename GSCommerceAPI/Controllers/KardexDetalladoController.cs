@@ -88,7 +88,7 @@ namespace GSCommerceAPI.Controllers
             }
 
             var resultado = await query
-                .OrderByDescending(k => k.Fecha)
+                .OrderBy(k => k.Fecha)
                 .ThenBy(k => k.Codigo)
                 .ToListAsync();
 
@@ -250,8 +250,8 @@ namespace GSCommerceAPI.Controllers
                 .ToList();
 
             return Ok(calculado
-                .OrderByDescending(k => k.Fecha)
-                .ThenByDescending(k => k.IdKardex));
+                .OrderBy(k => k.Fecha)
+                .ThenBy(k => k.IdKardex));
         }
     }
 }

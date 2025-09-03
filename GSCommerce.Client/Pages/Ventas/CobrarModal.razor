@@ -147,7 +147,7 @@
         if (!string.IsNullOrWhiteSpace(TipoDocumento) && TipoDocumento.Equals("TICKET", StringComparison.OrdinalIgnoreCase))
         {
             tiposPago = tiposPago
-                .Where(t => t.Descripcion == "Efectivo Soles" || t.Descripcion == "Efectivo Dólares")
+                .Where(t => t.Descripcion == "Efectivo Soles" || t.Descripcion == "Efectivo Dólares" || t.Descripcion == "N.C. - Nota de Crédito")
                 .ToList();
         }
 

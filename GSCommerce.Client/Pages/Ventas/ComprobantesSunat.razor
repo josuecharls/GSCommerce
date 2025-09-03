@@ -1,0 +1,81 @@
+﻿@page "/comprobantes-sunat"
+@using GSCommerce.Client.Models.SUNAT
+@using GSCommerce.Client.Services
+@inject ComprobantesSunatService CompService
+
+<h3>📄 Comprobantes Enviados a SUNAT</h3>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <label>Desde:</label>
+        <InputDate @bind-Value="desde" class="form-control" />
+    </div>
+    <div class="col-md-3">
+        <label>Hasta:</label>
+        <InputDate @bind-Value="hasta" class="form-control" />
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
+    </div>
+</div>
+
+@if (cargando)
+{
+    <p>⏳ Cargando...</p>
+}
+else if (comprobantes.Any())
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Tienda</th>
+                <th>Tipo</th>
+                <th>Número</th>
+                <th>Fecha</th>
+                <th>Monto</th>
+                <th>Estado</th>
+                <th>Respuesta</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in comprobantes)
+            {
+                <tr>
+                    <td>@c.Tienda</td>
+                    <td>@c.TipoDoc</td>
+                    <td>@c.Numero</td>
+                    <td>@c.Fecha</td>
+                    <td>@((c.Apagar ?? 0m).ToString("C"))</td>
+                    <td>@(c.EnviadoSunat ? "Enviado" : "Pendiente")</td>
+                    <td>@c.RespuestaSunat</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else if (busco)
+{
+    <p>No se encontraron comprobantes en el rango indicado.</p>
+}
+
+@code {
+    private DateTime desde = DateTime.Today.AddDays(-7);
+    private DateTime hasta = DateTime.Today;
+    private bool cargando = false;
+    private bool busco = false;
+    private List<PendienteSunatDTO> comprobantes = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        cargando = true;
+        busco = false;
+        comprobantes = await CompService.ObtenerComprobantesAsync(desde, hasta);
+        cargando = false;
+        busco = true;
+    }
+}

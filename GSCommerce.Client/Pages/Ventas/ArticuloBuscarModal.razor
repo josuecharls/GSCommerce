@@ -1,6 +1,6 @@
 ﻿@using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
-
+@inject HttpClient Http
 <div class="modal fade @(Mostrar ? "show d-block" : "")" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
@@ -16,6 +16,7 @@
                 <table class="table table-sm">
                     <thead>
                         <tr>
+                            <th>Foto</th>
                             <th>Código</th>
                             <th>Descripción</th>
                             <th>Precio</th>
@@ -27,6 +28,9 @@
                         @foreach (var a in articulos)
                         {
                             <tr>
+                                <td>
+                                    <img src="@GetFotoUrl(a.IdArticulo)" alt="Foto" style="width:50px;height:50px;object-fit:cover;" />
+                                </td>
                                 <td>@a.IdArticulo</td>
                                 <td>@a.Descripcion</td>
                                 <td>@(a.PrecioVenta.HasValue? a.PrecioVenta.Value.ToString("N2") : string.Empty)</td>
@@ -69,6 +73,9 @@
     private int currentPage = 1;
     private int totalPages = 1;
     private int pageSize = 10;
+
+    private string GetFotoUrl(string id)
+        => $"{Http.BaseAddress}api/articulos/foto/{id}?t={DateTime.Now.Ticks}";
 
     protected override async Task OnParametersSetAsync()
     {
