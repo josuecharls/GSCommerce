@@ -17,5 +17,7 @@
         public string? TicketSunat { get; set; }
         public string? Xml { get; set; }
         public int IdComprobante { get; set; }
+        public string EstadoSunat { get; set; } = string.Empty;
+
     }
 }

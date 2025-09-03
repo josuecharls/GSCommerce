@@ -1,6 +1,8 @@
 ﻿@using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.JSInterop
 @inject HttpClient Http
+@inject IJSRuntime JS
 <div class="modal fade @(Mostrar ? "show d-block" : "")" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
@@ -16,11 +18,11 @@
                 <table class="table table-sm">
                     <thead>
                         <tr>
-                            <th>Foto</th>
                             <th>Código</th>
                             <th>Descripción</th>
                             <th>Precio</th>
                             <th>Stock</th>
+                            <th>Foto</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -28,13 +30,13 @@
                         @foreach (var a in articulos)
                         {
                             <tr>
-                                <td>
-                                    <img src="@GetFotoUrl(a.IdArticulo)" alt="Foto" style="width:50px;height:50px;object-fit:cover;" />
-                                </td>
                                 <td>@a.IdArticulo</td>
                                 <td>@a.Descripcion</td>
                                 <td>@(a.PrecioVenta.HasValue? a.PrecioVenta.Value.ToString("N2") : string.Empty)</td>
                                 <td>@a.Stock</td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" @onclick="() => VerFoto(a.IdArticulo)">Ver Foto</button>
+                                </td>
                                 <td>
                                     <button class="btn btn-sm btn-success" @onclick="() => Seleccionar(a)">Seleccionar</button>
                                 </td>
@@ -115,6 +117,12 @@
             currentPage++;
             await Cargar();
         }
+    }
+
+    private async Task VerFoto(string id)
+    {
+        var url = GetFotoUrl(id);
+        await JS.InvokeVoidAsync("open", url, "_blank");
     }
 
     private async Task Seleccionar(StockDTO art)

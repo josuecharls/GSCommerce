@@ -240,7 +240,7 @@ namespace GSCommerceAPI.Controllers
                             item.SaldoInicial = saldo;
                         }
 
-                        saldo += item.Entrada;
+                        //saldo += item.Entrada;
                         saldo -= item.Salida;
                         item.SaldoFinal = saldo;
                     }

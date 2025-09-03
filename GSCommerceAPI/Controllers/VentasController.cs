@@ -1325,7 +1325,7 @@ namespace GSCommerceAPI.Controllers
                 .OrderBy(x => x.Tienda).ThenBy(x => x.Serie).ThenBy(x => x.Numero)
                 .ToListAsync();
 
-            // 🚫 Nada de ToString("...")/PadLeft en LINQ-to-Entities; aquí ya es LINQ-to-Objects
+            //Nada de ToString("...")/PadLeft en LINQ-to-Entities; aquí ya es LINQ-to-Objects
             var pendientes = rows.Select(x => new PendienteSunatDTO
             {
                 IdFe = x.IdFe ?? 0,
@@ -1342,7 +1342,8 @@ namespace GSCommerceAPI.Controllers
                 RespuestaSunat = x.RespuestaSunat,
                 TicketSunat = x.TicketSunat,
                 Xml = x.Xml,
-                IdComprobante = x.IdComprobante
+                IdComprobante = x.IdComprobante,
+                EstadoSunat = "Pendiente"
             }).ToList();
 
             return Ok(pendientes);

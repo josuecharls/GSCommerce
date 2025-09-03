@@ -12,12 +12,20 @@ namespace GSCommerce.Client.Services
             _http = http;
         }
 
-        public async Task<List<PendienteSunatDTO>> ObtenerComprobantesAsync(DateTime? desde = null, DateTime? hasta = null)
+        public async Task<List<PendienteSunatDTO>> ObtenerComprobantesAsync(
+            DateTime? desde = null,
+            DateTime? hasta = null,
+            int? idAlmacen = null,
+            string? estado = null,
+            int? tipoDoc = null)
         {
             var url = "api/comprobantes";
             var q = new List<string>();
             if (desde.HasValue) q.Add($"desde={desde:yyyy-MM-dd}");
             if (hasta.HasValue) q.Add($"hasta={hasta:yyyy-MM-dd}");
+            if (idAlmacen.HasValue) q.Add($"idAlmacen={idAlmacen}");
+            if (!string.IsNullOrWhiteSpace(estado)) q.Add($"estado={estado}");
+            if (tipoDoc.HasValue) q.Add($"tipoDoc={tipoDoc}");
             if (q.Count > 0) url += "?" + string.Join("&", q);
 
             try

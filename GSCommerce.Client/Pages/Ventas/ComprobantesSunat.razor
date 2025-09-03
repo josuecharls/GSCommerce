@@ -1,20 +1,52 @@
 ﻿@page "/comprobantes-sunat"
 @using GSCommerce.Client.Models.SUNAT
+@using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject ComprobantesSunatService CompService
+@inject AlmacenService AlmacenService
+@inject TipoDocumentoVentaService TipoDocService
 
 <h3>📄 Comprobantes Enviados a SUNAT</h3>
 
 <div class="row g-3 mb-3">
-    <div class="col-md-3">
+    <div class="col-md-2">
         <label>Desde:</label>
         <InputDate @bind-Value="desde" class="form-control" />
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <label>Hasta:</label>
         <InputDate @bind-Value="hasta" class="form-control" />
     </div>
-    <div class="col-md-3 d-flex align-items-end">
+    <div class="col-md-2">
+        <label>Tienda:</label>
+        <select class="form-control" @bind="idAlmacen">
+            <option value="0">Todas</option>
+            @foreach (var a in almacenes)
+            {
+                <option value="@a.IdAlmacen">@a.Nombre</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <label>Estado:</label>
+        <select class="form-control" @bind="estado">
+            <option value="">Todos</option>
+            <option value="enviado">Enviado</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="rechazado">Rechazado</option>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <label>Tipo:</label>
+        <select class="form-control" @bind="tipoDoc">
+            <option value="0">Todos</option>
+            @foreach (var t in tiposDoc)
+            {
+                <option value="@t.IdTipoDocumentoVenta">@t.Descripcion</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
         <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
     </div>
 </div>
@@ -46,7 +78,7 @@ else if (comprobantes.Any())
                     <td>@c.Numero</td>
                     <td>@c.Fecha</td>
                     <td>@((c.Apagar ?? 0m).ToString("C"))</td>
-                    <td>@(c.EnviadoSunat ? "Enviado" : "Pendiente")</td>
+                    <td>@c.EstadoSunat</td>
                     <td>@c.RespuestaSunat</td>
                 </tr>
             }
@@ -61,12 +93,19 @@ else if (busco)
 @code {
     private DateTime desde = DateTime.Today.AddDays(-7);
     private DateTime hasta = DateTime.Today;
+    private int idAlmacen = 0;
+    private string estado = string.Empty;
+    private int tipoDoc = 0;
     private bool cargando = false;
     private bool busco = false;
     private List<PendienteSunatDTO> comprobantes = new();
+    private List<AlmacenDTO> almacenes = new();
+    private List<TipoDocumentoVentaDTO> tiposDoc = new();
 
     protected override async Task OnInitializedAsync()
     {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        tiposDoc = await TipoDocService.GetTiposDocumento();
         await Buscar();
     }
 
@@ -74,7 +113,10 @@ else if (busco)
     {
         cargando = true;
         busco = false;
-        comprobantes = await CompService.ObtenerComprobantesAsync(desde, hasta);
+        int? idAlm = idAlmacen == 0 ? null : idAlmacen;
+        int? tipo = tipoDoc == 0 ? null : tipoDoc;
+        string? est = string.IsNullOrWhiteSpace(estado) ? null : estado;
+        comprobantes = await CompService.ObtenerComprobantesAsync(desde, hasta, idAlm, est, tipo);
         cargando = false;
         busco = true;
     }
