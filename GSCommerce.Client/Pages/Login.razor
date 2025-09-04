@@ -141,7 +141,7 @@ else
         var token = await LocalStorage.GetItemAsync<string>("authToken");
         isAuthenticated = !string.IsNullOrEmpty(token); // Si hay token, está autenticado
 
-        Console.WriteLine($"🔹 Usuario autenticado: {isAuthenticated}");
+        //Console.WriteLine($" Usuario autenticado: {isAuthenticated}");
     }
 
     private async Task HandleLogin()
@@ -155,10 +155,10 @@ else
             var almacen = await LocalStorage.GetItemAsync<string>("IdAlmacen");
             var usuario = await LocalStorage.GetItemAsync<string>("userId");
 
-            Console.WriteLine($"🔹 Token obtenido para autenticar: {token}");
-            Console.WriteLine($"🔹 Cargo obtenido: {cargo}");
-            Console.WriteLine($"🔹 Almacen obtenido: {almacen}");
-            Console.WriteLine($"🔹 Usuario obtenido: {usuario}");
+            //Console.WriteLine($" Token obtenido para autenticar: {token}");
+            //Console.WriteLine($" Cargo obtenido: {cargo}");
+            //Console.WriteLine($" Almacen obtenido: {almacen}");
+            //Console.WriteLine($" Usuario obtenido: {usuario}");
 
             if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(cargo))
             {

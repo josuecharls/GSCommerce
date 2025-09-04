@@ -189,11 +189,10 @@
         personal.FechaRegistro = DateTime.Today;
         almacenes = await AlmacenService.GetAlmacenes();
 
-        // Asignar valores predeterminados si están vacíos
-        personal.DocIdentidad ??= "DNI";  // Predeterminado: DNI
-        personal.Sexo ??= "MASCULINO"; // Predeterminado: MASCULINO
-        personal.EstadoCivil ??= "SOLTERO"; // Predeterminado: SOLTERO
-        personal.TipoEmpleado ??= "EMPLEADO"; // Predeterminado: EMPLEADO
+        personal.DocIdentidad ??= "DNI";
+        personal.Sexo ??= "MASCULINO";
+        personal.EstadoCivil ??= "SOLTERO";
+        personal.TipoEmpleado ??= "EMPLEADO";
 
         var cargoUsuario = await AuthService.GetUserCargo();
         isCajero = string.Equals(cargoUsuario, "CAJERO", StringComparison.OrdinalIgnoreCase);
@@ -210,7 +209,7 @@
         }
         else
         {
-            personal.Cargo ??= "CAJERO"; //Predeterminado: CAJERO
+            personal.Cargo ??= "CAJERO"; 
             if (almacenes != null && almacenes.Any())
             {
                 personal.IdAlmacen ??= almacenes.FirstOrDefault()?.IdAlmacen ?? 0; // Primer almacén disponible
@@ -229,7 +228,7 @@
                 personal.IdAlmacen = idAlmacenUsuario;
             }
 
-            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(personal)); // Muestra los datos en la consola del navegador
+            //Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(personal)); // Muestra los datos en la consola del navegador
 
             bool success = await PersonalService.CreatePersonal(personal);
             if (success)
@@ -271,7 +270,7 @@
             {
     Console.WriteLine($"Archivo seleccionado: {archivo.Name}, Tamaño: {archivo.Size}");
 
-    // Evitar archivos demasiado grandes (Máx. 1MB)
+    // (Máx. 1MB)
     if (archivo.Size > 1_000_000)
     {
         Console.WriteLine("La imagen es demasiado grande. Selecciona una más pequeña.");

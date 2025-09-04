@@ -20,12 +20,12 @@ namespace GSCommerce.Client.Services
             try
             {
                 var response = await _httpClient.GetAsync("api/almacen");
-                var jsonResponse = await response.Content.ReadAsStringAsync(); // 🔹 Imprime el JSON
-                Console.WriteLine($"🔹 JSON recibido en GetAlmacenes(): {jsonResponse}");
+                var jsonResponse = await response.Content.ReadAsStringAsync(); 
+               // Console.WriteLine($" JSON recibido en GetAlmacenes(): {jsonResponse}");
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine($"❌ Error en la API: Código {response.StatusCode}");
+                    Console.WriteLine($"Error en la API: Código {response.StatusCode}");
                     return new List<AlmacenDTO>();
                 }
 
@@ -34,23 +34,19 @@ namespace GSCommerce.Client.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Excepción en GetAlmacenes(): {ex.Message}");
+                Console.WriteLine($"Excepción en GetAlmacenes(): {ex.Message}");
                 return new List<AlmacenDTO>();
             }
         }
 
- 
- 
-
         // Obtener lista de almacenes con paginación y búsqueda
- 
         public async Task<AlmacenResponse> GetAlmacenList(int page, int pageSize, string search = "")
         {
             try
             {
                 var response = await _httpClient.GetAsync($"api/almacen/list?page={page}&pageSize={pageSize}&search={search}");
-                var jsonResponse = await response.Content.ReadAsStringAsync(); // 🔹 Imprime la respuesta
-                Console.WriteLine($"🔹 JSON recibido en GetAlmacenList(): {jsonResponse}");
+                var jsonResponse = await response.Content.ReadAsStringAsync(); //Imprime la respuesta
+                Console.WriteLine($" JSON recibido en GetAlmacenList(): {jsonResponse}");
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -83,11 +79,7 @@ namespace GSCommerce.Client.Services
             }
         }
 
- 
-
- 
         // Obtener un almacén por ID
- 
         public async Task<AlmacenDTO?> GetAlmacenById(int id)
         {
             try
@@ -116,7 +108,6 @@ namespace GSCommerce.Client.Services
         }
 
         // Actualizar un almacén existente
- 
         public async Task<bool> UpdateAlmacen(int id, AlmacenDTO almacen)
         {
             try
@@ -134,7 +125,6 @@ namespace GSCommerce.Client.Services
  
  
         // Eliminar un almacén por ID
- 
         public async Task<bool> DeleteAlmacen(int id)
         {
             try
@@ -152,7 +142,6 @@ namespace GSCommerce.Client.Services
  
  
         // Clase para manejar la respuesta con paginación
- 
         public class AlmacenResponse
         {
             public int TotalItems { get; set; }

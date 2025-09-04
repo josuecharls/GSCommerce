@@ -21,8 +21,8 @@ namespace GSCommerce.Client.Services
             try
             {
                 var response = await _httpClient.GetAsync("api/proveedor");
-                var jsonResponse = await response.Content.ReadAsStringAsync(); // 🔹 Imprime el JSON
-                Console.WriteLine($"🔹 JSON recibido en GetProveedores(): {jsonResponse}");
+                var jsonResponse = await response.Content.ReadAsStringAsync(); // Imprime el JSON
+                Console.WriteLine($" JSON recibido en GetProveedores(): {jsonResponse}");
                 if (!response.IsSuccessStatusCode)
                 {
                     Console.WriteLine($"❌ Error en la API: Código {response.StatusCode}");
@@ -44,8 +44,8 @@ namespace GSCommerce.Client.Services
             try
             {
                 var response = await _httpClient.GetAsync($"api/proveedor/list?page={page}&pageSize={pageSize}&search={search}");
-                var jsonResponse = await response.Content.ReadAsStringAsync(); // 🔹 Imprime la respuesta
-                Console.WriteLine($"🔹 JSON recibido en GetProveedorList(): {jsonResponse}");
+                var jsonResponse = await response.Content.ReadAsStringAsync(); //  Imprime la respuesta
+                Console.WriteLine($" JSON recibido en GetProveedorList(): {jsonResponse}");
                 if (!response.IsSuccessStatusCode)
                 {
                     Console.WriteLine($"❌ Error en la API: Código {response.StatusCode}");

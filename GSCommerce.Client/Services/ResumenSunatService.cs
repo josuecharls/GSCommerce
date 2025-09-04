@@ -30,14 +30,13 @@ namespace GSCommerce.Client.Services
             }
             catch (HttpRequestException ex)
             {
-                Console.WriteLine($"[ResumenSunatService] {ex.Message}");
+               // Console.WriteLine($"[ResumenSunatService] {ex.Message}");
                 return new(); // evita el “Unhandled exception rendering component”
             }
         }
 
         public async Task<string> GenerarResumenAsync(DateTime fecha)
         {
-            // lo dejamos como estaba (si quieres generar para todos los almacenes, lo vemos luego)
             var idAlmacen = await _auth.GetUserAlmacenId();
             if (idAlmacen == null) return "Almacén no encontrado";
 

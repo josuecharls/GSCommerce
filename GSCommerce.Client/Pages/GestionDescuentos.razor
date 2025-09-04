@@ -84,18 +84,18 @@ else
 
     private async Task CargarDescuentos()
     {
-        Console.WriteLine($"🔍 Cargando descuentos para Almacen: {idAlmacen}");
+        //Console.WriteLine($"🔍 Cargando descuentos para Almacen: {idAlmacen}");
         if (idAlmacen > 0)
         {
             descuentos = await DescuentoService.ObtenerDescuentos(idAlmacen);
-            Console.WriteLine($"✅ Descuentos cargados: {descuentos.Count}");
+          //  Console.WriteLine($"Descuentos cargados: {descuentos.Count}");
         }
         await InvokeAsync(StateHasChanged);
     }
 
     private void Agregar()
     {
-        Console.WriteLine($"Navegando a /descuento-form/{idAlmacen}");
+        //Console.WriteLine($"Navegando a /descuento-form/{idAlmacen}");
         Navigation.NavigateTo($"/descuento-form/{idAlmacen}");
     }
 

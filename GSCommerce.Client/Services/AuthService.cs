@@ -32,7 +32,7 @@ namespace GSCommerce.Client.Services
             var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
             if (result != null && !string.IsNullOrEmpty(result.Token))
             {
-                Console.WriteLine($" Token recibido en AuthService: {result.Token}");
+                //Console.WriteLine($" Token recibido en AuthService: {result.Token}");
 
                 await _localStorage.SetItemAsync("authToken", result.Token);
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.Token);
@@ -119,7 +119,7 @@ namespace GSCommerce.Client.Services
             else
             {
                 // Opcional: log, lanzar error o retornar null
-                Console.WriteLine($"Error {response.StatusCode} al obtener emisor.");
+                //Console.WriteLine($"Error {response.StatusCode} al obtener emisor.");
                 return null;
             }
         }

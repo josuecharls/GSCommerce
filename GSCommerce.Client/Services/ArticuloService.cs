@@ -42,7 +42,7 @@ namespace GSCommerce.Client.Services
              {
                  var response = await _httpClient.GetAsync("api/articulos");
                  var jsonResponse = await response.Content.ReadAsStringAsync();
-                 Console.WriteLine($"🔹 JSON recibido en GetArticulos(): {jsonResponse}");
+                 Console.WriteLine($" JSON recibido en GetArticulos(): {jsonResponse}");
 
                  if (!response.IsSuccessStatusCode)
                  {

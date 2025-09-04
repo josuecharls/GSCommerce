@@ -112,7 +112,7 @@ namespace GSCommerce.Client.Services
         {
             if (_authService == null)
             {
-                Console.WriteLine("❌ _authService es NULL en VentaService.");
+                //Console.WriteLine("❌ _authService es NULL en VentaService.");
                 throw new Exception("_authService no está inyectado.");
             }
             int? idAlmacen = await _authService.GetUserAlmacenId();

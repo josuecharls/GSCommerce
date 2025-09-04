@@ -21,7 +21,7 @@ namespace GSCommerce.Client.Services
             {
                 var response = await _httpClient.GetAsync("api/clientes");
                 var jsonResponse = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"🔹 JSON recibido en GetClientes(): {jsonResponse}");
+              //  Console.WriteLine($" JSON recibido en GetClientes(): {jsonResponse}");
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -45,7 +45,7 @@ namespace GSCommerce.Client.Services
             {
                 var response = await _httpClient.GetAsync($"api/clientes/list?page={page}&pageSize={pageSize}&search={search}");
                 var jsonResponse = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"🔹 JSON recibido en GetClienteList(): {jsonResponse}");
+                //Console.WriteLine($" JSON recibido en GetClienteList(): {jsonResponse}");
 
                 if (!response.IsSuccessStatusCode)
                 {

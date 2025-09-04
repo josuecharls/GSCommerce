@@ -203,7 +203,7 @@ else
     {
             try
             {
-                // 🔹 Ya puedes usar idAlmacenActual para buscar la serie:
+                // uso de idAlmacenActual para buscar la serie
                 idAlmacenActual = await AuthService.GetUserAlmacenId();
                 idUsuarioActual = await AuthService.GetUserId();
 
@@ -457,7 +457,7 @@ else
 
         string descripcion = articulo.Descripcion;
         decimal precioUnitario;
-        bool esPromo = false;          // ← flag para evitar doble descuento
+        bool esPromo = false;          //flag para evitar doble descuento
 
         if (idAlmacenActual != null)
         {
@@ -466,7 +466,6 @@ else
             {
                 esPromo = true;
 
-                // Usa el PrecioFinal si viene desde la vista. Si no viene, lo calculamos.
                 precioUnitario = (decimal)(desc.PrecioFinal ??
                                  (double)(articulo.PrecioVenta * (1 - (decimal)desc.DescuentoPorc / 100m)));
             }
@@ -480,7 +479,7 @@ else
             precioUnitario = articulo.PrecioVenta;
         }
 
-        // Conversión si la tienda trabaja en USD (mantengo tu lógica)
+        // Conversión si la tienda trabaja en USD
         if (monedaAlmacen == "USD" && tipoCambioActual > 0)
         {
             var precioEnDolares = precioUnitario / tipoCambioActual;
@@ -492,7 +491,7 @@ else
             precioUnitario = Math.Round(precioEnDolares, 2);
         }
 
-        // Variantes (igual que tenías)
+        // Variantes
         var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
         if (variantes.Any())
         {
@@ -518,7 +517,7 @@ else
             existente.Cantidad += 1;
             existente.PrecioUnitario = precioUnitario;
 
-            // 🔧 FIX: si el precio ya es promocional, no aplicar % otra vez
+            // si el precio ya es promocional, no aplicar % otra vez
             if (esPromo) existente.PorcentajeDescuento = 0m;
         }
         else
@@ -530,7 +529,7 @@ else
                 DescripcionItem = descripcion,
                 Cantidad = 1,
                 PrecioUnitario = precioUnitario,
-                // 🔧 FIX: no aplicar % adicional cuando viene precio promo
+                // no aplicar % adicional cuando viene precio promo
                 PorcentajeDescuento = esPromo ? 0m : 0m
             });
         }
@@ -670,8 +669,8 @@ else
         {
             pago.IdTipoPagoVenta = pago.FormaPago.ToUpper() switch
             {
-                "EFECTIVO" => 2,                // Efectivo Soles
-                "DOLARES" => 3,                 // Efectivo Dólares
+                "EFECTIVO" => 2,              
+                "DOLARES" => 3,                 
                 "VISA" => 4,
                 "MASTERCARD" => 5,
                 "AMERICAN EXPRESS" => 6,
@@ -730,7 +729,7 @@ else
             return;
         }
 
-        // ✅ Incrementar correlativo si la venta fue exitosa
+        // +1 al correlativo si la venta fue exitosa
         if (idAlmacenActual.HasValue)
         {
             await SerieCorrelativoService.IncrementarCorrelativo(
@@ -740,18 +739,18 @@ else
             );
         }
 
-        // ✅ Imprimir ticket en formato texto
+        // Impresion de ticket
         var textoTicket = GenerarHtmlDelTicket();
         await JS.InvokeVoidAsync("imprimirTicket", textoTicket);
-        //await JS.InvokeVoidAsync("alert", "✅ Venta registrada. Pendiente de envío a SUNAT.");
+        //await JS.InvokeVoidAsync("alert", "Venta registrada. Pendiente de envío a SUNAT.");
         if (EsFactura)
         {
-            // SUNAT solo acepta RUC (6) en facturas
+            // SUNAT RUC (6)
             venta.TipoDocumento = "6";
         }
         else
         {
-            // En boletas, puede ser DNI o sin documento
+            // En boletas, DNI o sin nada
             venta.TipoDocumento = venta.DocumentoCliente.Length == 8 ? "1" : "0";
         }
         // Luego de registrar correctamente, envía a SUNAT (si no es TICKET)
@@ -773,7 +772,7 @@ else
                 await JS.InvokeVoidAsync("alert", "❌ Falló el envío a SUNAT.");
         }
 
-        // 🔁 Limpiar manteniendo valores clave
+        // Limpiar manteniendo valores clave
         string? tipoAnterior = venta.TipoDocumento;
         int? vendedorAnterior = venta.IdVendedor;
         string? nombreVendedorAnterior = venta.NombreVendedor;
@@ -794,7 +793,7 @@ else
             return new string(' ', pad) + text;
         }
 
-        // Código SUNAT del comprobante (antes de que lo cambies a “6/1/0”)
+        // Código SUNAT del comprobante
         string tipoDocumentoCodigoSunat = venta.TipoDocumento == "FACTURA" ? "01" : "03";
         string tipoDocClienteSunat = venta.DocumentoCliente?.Length == 11 ? "6" : "1";
 
@@ -835,7 +834,7 @@ else
         decimal notaCredito = venta.Pagos?.Where(EsNota).Sum(p => p.Monto) ?? 0m;
         decimal totalPagos = venta.Pagos?.Sum(p => p.Monto) ?? 0m;
         decimal tarjeta = totalPagos - efectivo - notaCredito;
-        // ===================================
+        // ===================================a
 
         var sb = new StringBuilder();
 
@@ -952,26 +951,26 @@ else
 
             if (response.IsSuccessStatusCode)
             {
-                Console.WriteLine("✅ Venta guardada exitosamente en el servidor.");
+                //Console.WriteLine("Venta guardada exitosamente en el servidor.");
                 await JS.InvokeVoidAsync("alert", "Venta registrada exitosamente.");
                 await LimpiarFormulario();
             }
             else
             {
                 var errorMsg = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"❌ Error al guardar venta: {errorMsg}");
+                //Console.WriteLine($"Error al guardar venta: {errorMsg}");
                 await JS.InvokeVoidAsync("alert", "Error al guardar la venta.");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Excepción al guardar venta: {ex.Message}");
+           // Console.WriteLine($"Excepción al guardar venta: {ex.Message}");
             await JS.InvokeVoidAsync("alert", "Error inesperado al guardar la venta.");
         }
     }
     private async Task CobroCancelado()
     {
-        Console.WriteLine("Cobro cancelado");
+        //Console.WriteLine("Cobro cancelado");
         await Task.CompletedTask;
     }
 

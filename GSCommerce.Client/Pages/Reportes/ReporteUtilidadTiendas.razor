@@ -160,7 +160,7 @@ else
 
     private async Task ExportarPDF()
     {
-        // Inyecta imagen del canvas para que el gráfico salga en el PDF
+        // el gráfico en PDF
         if (_chartModule is not null && reporte.Any())
             await _chartModule.InvokeVoidAsync("injectChartImageForPdf", "utilidadTiendasChart");
 

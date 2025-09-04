@@ -21,12 +21,12 @@ namespace GSCommerce.Client.Services
             var token = await _localStorage.GetItemAsync<string>("authToken");
             var cargo = await _localStorage.GetItemAsync<string>("Cargo");
 
-            Console.WriteLine($"🔹 Token recuperado de LocalStorage: {token}");
-            Console.WriteLine($"🔹 Cargo recuperado de LocalStorage: {cargo}");
+           // Console.WriteLine($" Token recuperado de LocalStorage: {token}");
+           // Console.WriteLine($" Cargo recuperado de LocalStorage: {cargo}");
 
             if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(cargo))
             {
-                Console.WriteLine("❌ No hay token o cargo, usuario no autenticado.");
+                Console.WriteLine("No hay token o cargo, usuario no autenticado.");
                 return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())); // Usuario no autenticado
             }
 
@@ -36,14 +36,14 @@ namespace GSCommerce.Client.Services
             var identity = new ClaimsIdentity(claims, "jwt");
             _currentUser = new ClaimsPrincipal(identity);
 
-            Console.WriteLine("✅ Usuario restaurado correctamente desde el token.");
+           // Console.WriteLine("Usuario restaurado correctamente desde el token.");
             return new AuthenticationState(_currentUser);
         }
 
         public async Task MarkUserAsAuthenticated(string token, string cargo)
         {
-            Console.WriteLine($"🔹 Token recibido en MarkUserAsAuthenticated: {token}");
-            Console.WriteLine($"🔹 Cargo recibido en MarkUserAsAuthenticated: {cargo}");
+           // Console.WriteLine($" Token recibido en MarkUserAsAuthenticated: {token}");
+           // Console.WriteLine($" Cargo recibido en MarkUserAsAuthenticated: {cargo}");
 
             if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(cargo))
             {
@@ -85,7 +85,7 @@ namespace GSCommerce.Client.Services
                 var handler = new JwtSecurityTokenHandler();
                 var jwtToken = handler.ReadJwtToken(token);
 
-                Console.WriteLine("✅ Token JWT correctamente parseado.");
+             //   Console.WriteLine("Token JWT correctamente parseado.");
                 return jwtToken.Claims;
             }
             catch (Exception ex)
@@ -95,7 +95,7 @@ namespace GSCommerce.Client.Services
             }
         }
 
-        // ✅ Función para asegurar que el Base64 tiene padding correcto
+        //Función para asegurar que el Base64 tiene padding correcto
         private string PadBase64String(string base64)
         {
             switch (base64.Length % 4)

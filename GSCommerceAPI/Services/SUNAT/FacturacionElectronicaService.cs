@@ -217,7 +217,6 @@ namespace GSCommerceAPI.Services.SUNAT
             }
 
             var usuarioSOL = $"{rucEmisor}{credenciales.UsuarioSol}";
-            Console.WriteLine($"[SUNAT] Credenciales obtenidas - RUC: {rucEmisor}, Usuario SOL: {usuarioSOL}, Clave SOL: {(string.IsNullOrEmpty(credenciales.ClaveSol) ? "VACÍA" : "******")}");
             return (usuarioSOL, credenciales.ClaveSol);
         }
 
@@ -230,7 +229,6 @@ namespace GSCommerceAPI.Services.SUNAT
                 var nombreXml = $"{comprobante.RucEmisor}-{codigoTipoDoc}-{comprobante.Serie}-{comprobante.Numero:D8}.xml";
                 var rutaXml = Path.Combine(_env.ContentRootPath, "Facturacion", nombreXml);
                 var rutaCertificado = Path.Combine(_env.ContentRootPath, "Certificados", GetCertificadoArchivo(comprobante.RucEmisor));
-                Console.WriteLine($"[SUNAT] Firmando {comprobante.TipoDocumento}-{comprobante.Serie} con certificado {rutaCertificado}");
 
                 var (generado, msg, hash) = await GenerarYFirmarFacturaAsync(comprobante, rutaXml);
                 if (!generado) return (false, msg);
@@ -275,18 +273,12 @@ namespace GSCommerceAPI.Services.SUNAT
                 var xml = GenerarXmlFactura(comprobante);
                 // TEMPORAL: Guardar XML generado antes de firmar para revisión
                 var rutaXmlTemporal = Path.Combine(_env.ContentRootPath, "Facturacion", $"temp_sin_firma_{Guid.NewGuid()}.xml"); await File.WriteAllTextAsync(rutaXmlTemporal, xml);
-                Console.WriteLine("======= XML SIN FIRMA =======");
-                Console.WriteLine(xml);
-                Console.WriteLine("======= FIN XML SIN FIRMA =======");
 
                 // 2. Ruta del certificado digital (Certificados/RUC.p12)
                 var certificadoPath = Path.Combine(_env.ContentRootPath, "Certificados", GetCertificadoArchivo(comprobante.RucEmisor));
                 var passwordCertificado = GetCertificadoPassword(comprobante.RucEmisor);
                 var codigoTipoDoc = ObtenerCodigoTipoDocumentoSUNAT(comprobante.TipoDocumento);
-                Console.WriteLine($"[SUNAT] RUC Emisor: {comprobante.RucEmisor}");
-                Console.WriteLine($"[SUNAT] Serie: {comprobante.Serie}, Número: {comprobante.Numero:D8}");
-                Console.WriteLine($"[SUNAT] Certificado: {certificadoPath}");
-                Console.WriteLine($"[SUNAT] Password Certificado: {passwordCertificado}");
+
                 // 3. Ruta de salida del archivo XML firmado
                 var nombreArchivo = $"{comprobante.RucEmisor}-{codigoTipoDoc}-{comprobante.Serie}-{comprobante.Numero:D8}.xml";
                 var rutaFinal = Path.Combine(_env.ContentRootPath, "Facturacion", nombreArchivo);
@@ -908,8 +900,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 {
                     Console.WriteLine($"[SUNAT] RUC: {partes[0]}, TipoDoc: {partes[1]}, Serie: {partes[2]}, Número: {partes[3]}");
                 }
-                Console.WriteLine($"[SUNAT] Usuario SOL: {usuarioSOL}");
-                Console.WriteLine($"[SUNAT] Clave SOL: {claveSOL}");
+
                 // 2. Configurar binding
                 var binding = new BasicHttpBinding(BasicHttpSecurityMode.TransportWithMessageCredential)
                 {

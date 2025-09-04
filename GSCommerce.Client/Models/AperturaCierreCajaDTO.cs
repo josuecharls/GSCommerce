@@ -29,7 +29,6 @@ namespace GSCommerce.Client.Models
 
         public string? ObservacionCierre { get; set; }
 
-        // Agrega estos campos adicionales para evitar navegar objetos
         public string? NombreUsuario { get; set; }
         public string? NombreCajero { get; set; }
     }

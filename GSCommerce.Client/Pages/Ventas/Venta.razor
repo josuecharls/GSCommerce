@@ -493,8 +493,7 @@
                 IdTipoDocumento = ventaReenvio.IdTipoDocumento,
                 Serie = ventaReenvio.Serie,
                 Numero = nuevoNumeroReenvio,
-                // Usa la fecha y hora actual para diferenciar la impresión del reenvío
-                // respecto a la reimpresión normal dentro de /ventas.
+                //fecha y hora actual para diferenciar la impresión del reenvío
                 Fecha = DateTime.Now,
                 IdCliente = ventaReenvio.IdCliente,
                 Dniruc = ventaReenvio.Dniruc,
@@ -543,7 +542,7 @@
                 return;
             }
 
-            // 👇 forzamos object para evitar dynamic binder
+            // forzamos object para evitar dynamic binder
             var html = GenerarHtmlTicketDesdeVenta((object)ventaCompleta);
             await JS.InvokeVoidAsync("imprimirTicket", html);
         }
@@ -554,7 +553,6 @@
         }
     }
 
-    // === Helper: genera el mismo ticket en texto monoespaciado ===
     private static string GenerarHtmlTicketDesdeVenta(object vObj)
     {
         // ==== Helpers ====
@@ -639,7 +637,7 @@
         // ==== Cliente ====
         string cliente = GetAny<string>(vObj, "", "NombreCliente", "Nombre");
         string docCliente = GetAny<string>(vObj, "", "DocumentoCliente", "Dniruc");
-        string tipoDocClienteSunat = docCliente?.Length == 11 ? "6" : "1"; // mismo default "1" que tu método
+        string tipoDocClienteSunat = docCliente?.Length == 11 ? "6" : "1";
 
         // ==== Totales ====
         decimal subTotal = GetAny<decimal>(vObj, 0m, "SubTotal", "Subtotal");
@@ -704,7 +702,7 @@
         // ==== Detalles ====
         var detalles = GetList(vObj, "Detalles");
 
-        // ==== QR (idéntico) ====
+        // ==== QR====
         string textoQR = $"{rucEmisor}|{tipoDocCodigoSunat}|{serie}|{numero}|{igv:0.00}|{total:0.00}|{fechaEmision:dd/MM/yyyy}|{tipoDocClienteSunat}|{docCliente}";
         string urlQR = $"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={Uri.EscapeDataString(textoQR)}";
 

@@ -137,9 +137,9 @@
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("tipo", out var tipoQuery))
             tipoFiltro = tipoQuery;
 
-        // 🔹 Obtén el almacén real del usuario (ajusta al método que uses)
-        // idAlmacenUsuario = await AuthService.GetIdAlmacenAsync();
-        idAlmacenUsuario = idAlmacenUsuario ?? 0; // <-- quítalo cuando uses AuthService
+        // Obtén el almacén real del usuario
+        //idAlmacenUsuario = await AuthService.GetIdAlmacenAsync();
+        idAlmacenUsuario = idAlmacenUsuario ?? 0; // no olvidar quitarlo al usar AuthService
         await CargarMotivos();
         await LoadGuias();
     }
@@ -236,7 +236,7 @@
     private void ConfirmDeleteGuia(int id)
     {
         // Aquí podrías agregar un modal de confirmación
-        Console.WriteLine($"🗑️ Eliminar guía {id} (pendiente de implementación)");
+        Console.WriteLine($"Eliminar guía {id} (pendiente de implementación)");
     }
 
     private bool CanPrev => currentPage > 1;

@@ -264,10 +264,8 @@
             return;
         }
 
-        // Convertir la imagen a Base64
         string base64Image = Convert.ToBase64String(selectedFile);
 
-        // Crear el objeto PersonalDTO con todos los campos requeridos
         var updatedData = new PersonalDTO
             {
                 IdPersonal = selectedPersonal.IdPersonal,
@@ -280,7 +278,7 @@
                 Foto = base64Image
             };
 
-        Console.WriteLine($"Enviando imagen Base64 de tamaño: {base64Image.Length} caracteres");
+       // Console.WriteLine($"Enviando imagen Base64 de tamaño: {base64Image.Length} caracteres");
 
         bool success = await PersonalService.UpdatePhoto(selectedPersonal.IdPersonal, updatedData);
         if (success)

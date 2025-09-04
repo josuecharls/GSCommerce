@@ -155,7 +155,7 @@ else
         proveedores = await ProveedorService.GetProveedores() ?? new();
 
         guia.Fecha = DateTime.Now;
-        guia.IdUsuario = 1; // ← esto debe venir del login
+        guia.IdUsuario = 1; // esto debe venir del login
         guia.Estado = "E";
 
         tipoMovimiento = tipo switch
@@ -269,12 +269,12 @@ else
         // Asigna el tipo real (I, E, T) antes de enviar
         guia.Tipo = tipoMovimiento;
 
-        // 🔹 Si es transferencia, SIEMPRE egreso en el emisor:
+        // Si es transferencia, SIEMPRE egreso en el emisor:
         if (tipo == "Transferencia")
         {
             guia.Motivo = "TRANSFERENCIA EGRESO";
 
-            // 🔸 Validar stock disponible en el almacén de origen
+            // Validar stock disponible en el almacén de origen
             foreach (var d in guia.Detalles)
             {
                 var stockDisponible = await StockService.GetStockDisponible(d.IdArticulo, guia.IdAlmacen);

@@ -35,7 +35,7 @@ namespace GSCommerceAPI.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine("🔥 ERROR API ARTICULOS: " + ex.Message);
+               // Console.WriteLine("ERROR API ARTICULOS: " + ex.Message);
                 return StatusCode(500, $"Error interno del servidor: {ex.Message}");
             }
         }

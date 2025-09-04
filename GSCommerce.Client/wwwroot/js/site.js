@@ -1,4 +1,11 @@
-﻿function resizeImage(file, width, height, dotNetObject) {
+﻿if (window.location.hostname !== "localhost") {
+    console.log("%c¡Detente!", "color:red; font-size:40px; font-weight:bold;");
+    console.log(
+        "Esta función del navegador está pensada para desarrolladores. Si alguien te pidió copiar y pegar algo aquí para habilitar funciones o \"hackear\" una cuenta, es un engaño."
+    );
+}
+
+function resizeImage(file, width, height, dotNetObject) {
     try {
         if (!(file instanceof Blob)) {
             console.error("El archivo seleccionado no es un Blob válido.");

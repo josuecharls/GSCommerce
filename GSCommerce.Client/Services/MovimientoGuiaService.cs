@@ -26,7 +26,7 @@ namespace GSCommerce.Client.Services
 
                 var response = await _httpClient.GetAsync(url);
                 var jsonResponse = await response.Content.ReadAsStringAsync();
-                //Console.WriteLine($"🔹 JSON recibido en GetGuiasList(): {jsonResponse}");
+                //Console.WriteLine($" JSON recibido en GetGuiasList(): {jsonResponse}");
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -85,7 +85,7 @@ namespace GSCommerce.Client.Services
             public string Mensaje { get; set; } = string.Empty;
         }
 
-        // 🔴 Anular guía
+        //  Anular guía
         public async Task<ApiResponse> AnularGuia(int id)
         {
             try
@@ -118,7 +118,7 @@ namespace GSCommerce.Client.Services
         }
 
 
-        // 🆕 Crear
+        // Crear
         public async Task<bool> CreateMovimiento(MovimientoGuiaDTO movimiento)
         {
             try
@@ -133,7 +133,7 @@ namespace GSCommerce.Client.Services
             }
         }
 
-        // ✏️ Actualizar
+        // Actualizar
         public async Task<bool> UpdateMovimiento(int id, MovimientoGuiaDTO movimiento)
         {
             try
@@ -148,7 +148,7 @@ namespace GSCommerce.Client.Services
             }
         }
 
-        // 🗑️ Eliminar
+        // Eliminar
         public async Task<bool> DeleteMovimiento(int id)
         {
             try
