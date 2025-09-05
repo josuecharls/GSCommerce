@@ -6,6 +6,7 @@
 @inject AlmacenService AlmacenService
 @inject AuthService AuthService
 @inject IJSRuntime JS
+@inject HttpClient Http
 
 <h3>📦 Kardex General</h3>
 
@@ -46,6 +47,15 @@
             <label>Línea</label>
             <input type="text" class="form-control" @bind="linea" />
         </div>
+        @if (string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+        {
+            <div class="col-md-3 align-self-end">
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="chkValorizado" @bind="valorizado" />
+                    <label class="form-check-label" for="chkValorizado">Valorizado</label>
+                </div>
+            </div>
+        }
     </div>
 
     <div class="text-end mb-2">
@@ -106,12 +116,22 @@
                             <th>Línea</th>
                             <th>Código</th>
                             <th>Artículo</th>
+                            <th>Foto</th>
                             <th>Precio Compra</th>
                             <th>Precio Venta</th>
                             <th>Saldo Inicial</th>
                             <th>Entrada</th>
                             <th>Salida</th>
                             <th>Saldo Final</th>
+                            @if (valorizado)
+                            {
+                                <th>Valorizado Inicial</th>
+                                <th>Valorizado Entrada</th>
+                                <th>Valorizado Salida</th>
+                                <th>Valorizado Final</th>
+                                <th>Valorizado Final PC</th>
+                                <th>Valorizado Final VC</th>
+                            }
                         </tr>
                     </thead>
                     <tbody>
@@ -123,12 +143,26 @@
                                 <td>@item.Linea</td>
                                 <td>@item.Codigo</td>
                                 <td>@item.Articulo</td>
+                                <td>
+                                    <button class="btn btn-info btn-sm" @onclick="() => VerFoto(item.Codigo)">
+                                        <i class="bi bi-image"></i>
+                                    </button>
+                                </td>
                                 <td>@item.PrecioCompra.ToString("0.00")</td>
                                 <td>@item.PrecioVenta?.ToString("0.00")</td>
                                 <td>@item.SaldoInicial</td>
                                 <td>@item.Entrada</td>
                                 <td>@item.Salida</td>
                                 <td>@item.SaldoFinal</td>
+                                @if (valorizado)
+                                {
+                                    <td>@item.ValorizadoInicial?.ToString("0.00")</td>
+                                    <td>@item.ValorizadoEntrada?.ToString("0.00")</td>
+                                    <td>@item.ValorizadoSalida?.ToString("0.00")</td>
+                                    <td>@item.ValorizadoFinal?.ToString("0.00")</td>
+                                    <td>@item.ValorizadoFinalPc?.ToString("0.00")</td>
+                                    <td>@item.ValorizadoFinalPv?.ToString("0.00")</td>
+                                }
                             </tr>
                         }
                     </tbody>
@@ -142,6 +176,32 @@
     else
     {
         <p>⚠️ No se encontraron resultados para los filtros aplicados.</p>
+    }
+    @if (showPhotoModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" role="dialog">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Foto</h5>
+                        <button type="button" class="btn-close" @onclick="ClosePhotoModal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        @if (!string.IsNullOrEmpty(photoUrl))
+                        {
+                            <img src="@photoUrl" alt="Foto" class="img-fluid img-thumbnail" style="max-width:300px;max-height:300px;" />
+                        }
+                        else
+                        {
+                            <p>No hay foto disponible.</p>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="ClosePhotoModal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     }
 </div>
 
@@ -157,6 +217,9 @@
     private bool isLoading = false;
     private bool soloLecturaAlmacen = false;
     private string? cargo;
+    private bool valorizado = false;
+    private bool showPhotoModal = false;
+    private string? photoUrl;
 
     protected override async Task OnInitializedAsync()
     {
@@ -187,32 +250,16 @@
 
     private async Task ExportarAExcel()
     {
-        var headers = string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase)
-            ? new[] { "Almacén", "Familia", "Línea", "Código", "Artículo", "Precio Venta", "Saldo Inicial", "Entrada", "Salida", "Saldo Final" }
-            : new[] { "Almacén", "Familia", "Línea", "Código", "Artículo", "Precio Compra", "Precio Venta", "Saldo Inicial", "Entrada", "Salida", "Saldo Final" };
-
-        var data = string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase)
-            ? kardexData.Select(item => new object[]
+        if (string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase))
+        {
+            var headers = new[] { "Almacén", "Familia", "Línea", "Código", "Artículo", "Precio Venta", "Saldo Inicial", "Entrada", "Salida", "Saldo Final" };
+            var data = kardexData.Select(item => new object[]
             {
                 item.Almacen,
                 item.Familia,
                 item.Linea,
                 item.Codigo,
                 item.Articulo,
-                item.PrecioVenta?.ToString("0.00"),
-                item.SaldoInicial,
-                item.Entrada,
-                item.Salida,
-                item.SaldoFinal
-            }).ToArray()
-            : kardexData.Select(item => new object[]
-            {
-                item.Almacen,
-                item.Familia,
-                item.Linea,
-                item.Codigo,
-                item.Articulo,
-                item.PrecioCompra.ToString("0.00"),
                 item.PrecioVenta?.ToString("0.00"),
                 item.SaldoInicial,
                 item.Entrada,
@@ -220,7 +267,71 @@
                 item.SaldoFinal
             }).ToArray();
 
-        await JS.InvokeVoidAsync("exportToExcel", headers, data, "Kardex");
+            await JS.InvokeVoidAsync("exportToExcel", headers, data, "Kardex");
+        }
+        else
+        {
+            var headers = new List<string>
+            {
+                "Almacén", "Familia", "Línea", "Código", "Artículo", "Foto", "Precio Compra", "Precio Venta", "Saldo Inicial", "Entrada", "Salida", "Saldo Final"
+            };
+
+            if (valorizado)
+            {
+                headers.AddRange(new[] { "Valorizado Inicial", "Valorizado Entrada", "Valorizado Salida", "Valorizado Final", "Valorizado Final PC", "Valorizado Final VC" });
+            }
+
+            var data = kardexData.Select(item =>
+            {
+                var row = new List<object>
+                {
+                    item.Almacen,
+                    item.Familia,
+                    item.Linea,
+                    item.Codigo,
+                    item.Articulo,
+                    GetFotoUrl(item.Codigo),
+                    item.PrecioCompra.ToString("0.00"),
+                    item.PrecioVenta?.ToString("0.00"),
+                    item.SaldoInicial,
+                    item.Entrada,
+                    item.Salida,
+                    item.SaldoFinal
+                };
+
+                if (valorizado)
+                {
+                    row.AddRange(new object[]
+                    {
+                        item.ValorizadoInicial?.ToString("0.00"),
+                        item.ValorizadoEntrada?.ToString("0.00"),
+                        item.ValorizadoSalida?.ToString("0.00"),
+                        item.ValorizadoFinal?.ToString("0.00"),
+                        item.ValorizadoFinalPc?.ToString("0.00"),
+                        item.ValorizadoFinalPv?.ToString("0.00")
+                    });
+                }
+
+                return row.ToArray();
+            }).ToArray();
+
+            await JS.InvokeVoidAsync("exportToExcel", headers.ToArray(), data, "Kardex");
+        }
+    }
+
+    private string GetFotoUrl(string codigo)
+        => $"{Http.BaseAddress}api/articulos/foto/{codigo}?t={DateTime.Now.Ticks}";
+
+    private void VerFoto(string codigo)
+    {
+        photoUrl = GetFotoUrl(codigo);
+        showPhotoModal = true;
+    }
+
+    private void ClosePhotoModal()
+    {
+        showPhotoModal = false;
+        photoUrl = null;
     }
 
     private async Task OnKeyEnter(KeyboardEventArgs e)
