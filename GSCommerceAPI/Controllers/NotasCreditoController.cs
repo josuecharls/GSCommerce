@@ -216,8 +216,13 @@ namespace GSCommerceAPI.Controllers
 
                         var stock = await _context.StockAlmacens
                             .FirstOrDefaultAsync(s => s.IdAlmacen == mov.IdAlmacen && s.IdArticulo == d.IdArticulo.ToString());
+
+                        int saldoInicial;
+                        int saldoFinal;
                         if (stock == null)
                         {
+                            saldoInicial = 0;
+                            saldoFinal = d.Cantidad;
                             _context.StockAlmacens.Add(new StockAlmacen
                             {
                                 IdAlmacen = mov.IdAlmacen,
@@ -228,8 +233,26 @@ namespace GSCommerceAPI.Controllers
                         }
                         else
                         {
+                            saldoInicial = stock.Stock;
                             stock.Stock += d.Cantidad;
+                            saldoFinal = stock.Stock;
                         }
+
+                        var valor = d.Precio * (1 - d.PorcentajeDescuento);
+
+                        _context.Kardices.Add(new Kardex
+                        {
+                            IdAlmacen = mov.IdAlmacen,
+                            IdArticulo = d.IdArticulo.ToString(),
+                            TipoMovimiento = "I",
+                            Fecha = DateTime.Now,
+                            SaldoInicial = saldoInicial,
+                            Cantidad = d.Cantidad,
+                            SaldoFinal = saldoFinal,
+                            Valor = valor,
+                            Origen = $"NC: {cabecera.Serie}-{cabecera.Numero}",
+                            NoKardexGeneral = false
+                        });
                     }
                 }
 

@@ -147,7 +147,7 @@ namespace GSCommerceAPI.Controllers
                         ValorizadoEntrada = ordenados.Sum(x => x.ValorizadoEntrada ?? 0),
                         Salida = ordenados.Sum(x => x.Salida ?? 0),
                         ValorizadoSalida = ordenados.Sum(x => x.ValorizadoSalida ?? 0),
-                        SaldoFinal = ultimo.SaldoFinal,
+                        SaldoFinal = primero.SaldoInicial + ordenados.Sum(x => x.Entrada) - ordenados.Sum(x => x.Salida ?? 0),
                         ValorizadoFinal = ultimo.ValorizadoFinal,
                         ValorizadoFinalPc = ultimo.ValorizadoFinalPc,
                         ValorizadoFinalPv = ultimo.ValorizadoFinalPv

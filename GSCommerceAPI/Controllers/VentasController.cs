@@ -123,33 +123,39 @@ namespace GSCommerceAPI.Controllers
 
             var resumen = new ResumenDiarioDTO();
 
-            // 1. Proyecta los datos a memoria
-            var ventasQuery = _context.VRecaudacion3s.Where(v => v.Fecha == fechaHoy);
-            if (idAlmacen.HasValue && idAlmacen > 0)
-                ventasQuery = ventasQuery.Where(v => v.IdAlmacen == idAlmacen);
-            if (idUsuario.HasValue && idUsuario > 0)
-                ventasQuery = ventasQuery.Where(v => v.IdCajero == idUsuario);
+            var pagosQuery =
+                from c in _context.ComprobanteDeVentaCabeceras
+                join p in _context.VDetallePagoVenta1s on c.IdComprobante equals p.IdComprobante
+                where DateOnly.FromDateTime(c.Fecha) == fechaHoy
+                      && c.Estado != "A"
+                      && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen)
+                      && (!idUsuario.HasValue || c.IdCajero == idUsuario)
+                select new { p.Descripcion, p.Soles };
 
-            var ventas = await ventasQuery.ToListAsync();
+            var pagos = await pagosQuery.ToListAsync();
 
-            foreach (var v in ventas)
+            foreach (var p in pagos)
             {
-                var descripcion = (v.Descripcion ?? string.Empty)
+                var descripcion = (p.Descripcion ?? string.Empty)
                     .Split(' ')[0]
                     .ToLowerInvariant();
+                var monto = p.Soles;
 
                 switch (descripcion)
                 {
                     case "efectivo":
-                        resumen.Efectivo += v.Monto ?? 0;
+                        if (monto > 0)
+                            resumen.Efectivo += monto;
                         break;
                     case "tarjeta":
                     case "online":
-                        resumen.Tarjeta += v.Monto ?? 0;
+                        if (monto > 0)
+                            resumen.Tarjeta += monto;
                         break;
                     case "n.c":
                     case "n.c.":
-                        resumen.NotaCredito += v.Monto ?? 0;
+                        if (monto > 0)
+                            resumen.NotaCredito += monto;
                         break;
                 }
             }
@@ -720,28 +726,38 @@ namespace GSCommerceAPI.Controllers
 
             var resumen = new ResumenDiarioDTO();
 
-            var ventas = await _context.VRecaudacion3s
-                .Where(v => v.Fecha == fechaHoy && v.IdAlmacen == idAlmacen && v.IdCajero == idUsuario)
-                .ToListAsync();
+            var pagos = await (
+                from c in _context.ComprobanteDeVentaCabeceras
+                join p in _context.VDetallePagoVenta1s on c.IdComprobante equals p.IdComprobante
+                where DateOnly.FromDateTime(c.Fecha) == fechaHoy
+                      && c.IdAlmacen == idAlmacen
+                      && c.IdCajero == idUsuario
+                      && c.Estado != "A"
+                select new { p.Descripcion, p.Soles }
+            ).ToListAsync();
 
-            foreach (var v in ventas)
+            foreach (var p in pagos)
             {
-                var descripcion = (v.Descripcion ?? string.Empty)
+                var descripcion = (p.Descripcion ?? string.Empty)
                     .Split(' ')[0]
                     .ToLowerInvariant();
+                var monto = p.Soles;
 
                 switch (descripcion)
                 {
                     case "efectivo":
-                        resumen.Efectivo += v.Monto ?? 0;
+                        if (monto > 0)
+                            resumen.Efectivo += monto;
                         break;
                     case "tarjeta":
                     case "online":
-                        resumen.Tarjeta += v.Monto ?? 0;
+                        if (monto > 0)
+                            resumen.Tarjeta += monto;
                         break;
                     case "n.c":
                     case "n.c.":
-                        resumen.NotaCredito += v.Monto ?? 0;
+                        if (monto > 0)
+                            resumen.NotaCredito += monto;
                         break;
                 }
             }
@@ -888,7 +904,7 @@ namespace GSCommerceAPI.Controllers
                 _context.ComprobanteDeVentaCabeceras.Add(cabecera);
                 await _context.SaveChangesAsync();  // Para generar el ID de la cabecera
 
-                // Insertar detalles y actualizar stock
+                // Insertar detalles, actualizar stock y registrar en Kardex
                 foreach (var detalle in ventaRegistro.Detalles)
                 {
                     var nuevoDetalle = new ComprobanteDeVentaDetalle
@@ -911,7 +927,25 @@ namespace GSCommerceAPI.Controllers
                         .FirstOrDefaultAsync(s => s.IdAlmacen == idAlmacen && s.IdArticulo == detalle.CodigoItem);
                     if (stock != null)
                     {
+                        var saldoInicial = stock.Stock;
                         stock.Stock -= (int)detalle.Cantidad;
+                        var saldoFinal = stock.Stock;
+
+                        var valor = detalle.PrecioUnitario * (1 - detalle.PorcentajeDescuento);
+
+                        _context.Kardices.Add(new Kardex
+                        {
+                            IdAlmacen = idAlmacen,
+                            IdArticulo = detalle.CodigoItem,
+                            TipoMovimiento = "E",
+                            Fecha = DateTime.Now,
+                            SaldoInicial = saldoInicial,
+                            Cantidad = (int)detalle.Cantidad,
+                            SaldoFinal = saldoFinal,
+                            Valor = valor,
+                            Origen = $"Venta: {cabecera.Serie}-{cabecera.Numero}",
+                            NoKardexGeneral = false
+                        });
                     }
                 }
 
@@ -1811,8 +1845,8 @@ namespace GSCommerceAPI.Controllers
 
             var comp = await _context.Comprobantes
                 .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
-           // if (comp == null || string.IsNullOrWhiteSpace(comp.RespuestaSunat))
-             //   return BadRequest("El comprobante no ha sido rechazado por SUNAT.");
+            // if (comp == null || string.IsNullOrWhiteSpace(comp.RespuestaSunat))
+            //   return BadRequest("El comprobante no ha sido rechazado por SUNAT.");
 
             // Obtener correlativo actual y asignar nuevo número
             var serieCorr = await _context.SerieCorrelativos

@@ -238,7 +238,7 @@ public class CajaController : ControllerBase
         var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
         var ventaNC = MontoPorGrupo("VENTA POR N.C", "VENTA CON N.C");
         var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA TICKET");
-        var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC;
+        var ventaEfectivo = ventasResumen - ventaTarjeta;
         var ventaDia = ventaEfectivo + ventaTarjeta;
 
         actual.VentaDia = ventaDia;
@@ -618,8 +618,8 @@ public class CajaController : ControllerBase
             var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
             var ventaNC = MontoPorGrupo("VENTA POR N.C", "VENTA CON N.C");
             var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2");
-            var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC; // efectivo real en caja
-            var ventaDia = ventaEfectivo + ventaTarjeta;
+            var ventaEfectivo = ventasResumen - ventaTarjeta; // efectivo real en caja
+            var ventaDia = ventaEfectivo + ventaTarjeta; // total vendido (efectivo + tarjeta)
 
             // --- Distribución de totales ---
             string[] gruposVentaBase = { "VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2" };
