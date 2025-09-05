@@ -77,55 +77,6 @@ namespace GSCommerceAPI.Controllers
                 .OrderByDescending(k => k.Fecha)
                 .ToListAsync();
 
-            var ventasQuery = _context.VDetallesVentas.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(articulo))
-                ventasQuery = ventasQuery.Where(v => v.IdArticulo.Contains(articulo) || v.Descripcion.Contains(articulo));
-
-            if (idAlmacen.HasValue && idAlmacen > 0)
-                ventasQuery = ventasQuery.Where(v => v.IdAlmacen == idAlmacen.Value);
-
-            if (desde.HasValue)
-                ventasQuery = ventasQuery.Where(v => v.Fecha >= desde.Value);
-
-            if (hasta.HasValue)
-                ventasQuery = ventasQuery.Where(v => v.Fecha <= hasta.Value);
-
-            var ventas = await ventasQuery
-                .Join(_context.Articulos,
-                    v => v.IdArticulo,
-                    a => a.IdArticulo,
-                    (v, a) => new { v, a })
-                .Where(va => string.IsNullOrWhiteSpace(familia) || va.a.Familia.Contains(familia))
-                .Where(va => string.IsNullOrWhiteSpace(linea) || va.a.Linea.Contains(linea))
-                .Select(va => new VKardexGeneral
-                {
-                    IdKardex = 0,
-                    IdAlmacen = va.v.IdAlmacen,
-                    Almacen = va.v.Almacen,
-                    Familia = va.a.Familia,
-                    Linea = va.a.Linea,
-                    Codigo = va.v.IdArticulo,
-                    Articulo = va.v.Descripcion,
-                    PrecioCompra = va.v.PrecioCompra,
-                    PrecioVenta = va.v.Precio,
-                    Fecha = va.v.Fecha,
-                    Operacion = $"Venta {va.v.IdComprobante}",
-                    SaldoInicial = 0,
-                    ValorizadoInicial = 0,
-                    Entrada = 0,
-                    ValorizadoEntrada = 0,
-                    Salida = va.v.Cantidad ?? 0,
-                    ValorizadoSalida = va.v.Costo,
-                    SaldoFinal = 0,
-                    ValorizadoFinal = 0,
-                    ValorizadoFinalPc = 0,
-                    ValorizadoFinalPv = 0
-                })
-                .ToListAsync();
-
-            resultado.AddRange(ventas);
-
             var calculado = resultado
                 .GroupBy(k => new { k.IdAlmacen, k.Codigo })
                 .SelectMany(g =>

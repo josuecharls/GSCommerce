@@ -88,130 +88,9 @@ namespace GSCommerceAPI.Controllers
             }
 
             var resultado = await query
-                .OrderBy(k => k.Fecha)
-                .ThenBy(k => k.Codigo)
+                .OrderBy(k => k.Codigo)
+                .ThenBy(k => k.Fecha)
                 .ToListAsync();
-
-            var ventasQuery = _context.VDetallesVentas.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(articulo))
-                ventasQuery = ventasQuery.Where(v => v.IdArticulo.Contains(articulo) || v.Descripcion.Contains(articulo));
-
-            if (idAlmacen.HasValue)
-                ventasQuery = ventasQuery.Where(v => v.IdAlmacen == idAlmacen.Value);
-
-            if (desde.HasValue)
-                ventasQuery = ventasQuery.Where(v => v.Fecha >= desde.Value);
-
-            if (hasta.HasValue)
-                ventasQuery = ventasQuery.Where(v => v.Fecha <= hasta.Value);
-
-            var ventasComprobantes = await ventasQuery
-                .Join(_context.ComprobanteDeVentaCabeceras,
-                    v => v.IdComprobante,
-                    c => c.IdComprobante,
-                    (v, c) => new { v, c })
-                .Join(_context.Articulos,
-                    vc => vc.v.IdArticulo,
-                    a => a.IdArticulo,
-                    (vc, a) => new { vc.v, vc.c, a })
-                .Where(va => string.IsNullOrWhiteSpace(familia) || va.a.Familia.Contains(familia))
-                .Where(va => string.IsNullOrWhiteSpace(linea) || va.a.Linea.Contains(linea))
-                .Join(_context.TipoDocumentoVenta,
-                    va => va.c.IdTipoDocumento,
-                    td => td.IdTipoDocumentoVenta,
-                    (va, td) => new VKardex3
-                    {
-                        IdKardex = 0,
-                        IdAlmacen = va.v.IdAlmacen,
-                        Almacen = va.v.Almacen,
-                        Familia = va.a.Familia,
-                        Linea = va.a.Linea,
-                        Codigo = va.v.IdArticulo,
-                        Articulo = va.v.Descripcion,
-                        PrecioCompra = va.v.PrecioCompra,
-                        PrecioVenta = va.v.Precio,
-                        Fecha = DateOnly.FromDateTime(va.v.Fecha),
-                        Operacion = $"{td.Descripcion} {va.c.Serie}-{va.c.Numero}",
-                        SaldoInicial = 0,
-                        ValorizadoInicial = 0,
-                        Entrada = 0,
-                        ValorizadoEntrada = 0,
-                        Salida = va.v.Cantidad ?? 0,
-                        ValorizadoSalida = va.v.Costo,
-                        SaldoFinal = 0,
-                        ValorizadoFinal = 0,
-                        ValorizadoFinalPc = 0,
-                        ValorizadoFinalPv = 0
-                    })
-                .ToListAsync();
-
-            var notasCreditoQuery = _context.NotaDeCreditoDetalles
-                .Join(_context.NotaDeCreditoCabeceras,
-                    d => d.IdNc,
-                    nc => nc.IdNc,
-                    (d, nc) => new { d, nc })
-                .Join(_context.Articulos,
-                    dn => dn.d.IdArticulo,
-                    a => a.IdArticulo,
-                    (dn, a) => new { dn.d, dn.nc, art = a })
-                .Join(_context.Almacens,
-                    dna => dna.nc.IdAlmacen,
-                    al => al.IdAlmacen,
-                    (dna, al) => new { dna.d, dna.nc, dna.art, al });
-
-            if (!string.IsNullOrWhiteSpace(articulo))
-                notasCreditoQuery = notasCreditoQuery.Where(n =>
-                    (n.d.IdArticulo != null && n.d.IdArticulo.Contains(articulo)) ||
-                    n.d.Descripcion.Contains(articulo));
-
-            if (idAlmacen.HasValue)
-                notasCreditoQuery = notasCreditoQuery.Where(n => n.nc.IdAlmacen == idAlmacen.Value);
-
-            if (desde.HasValue)
-                notasCreditoQuery = notasCreditoQuery.Where(n => n.nc.Fecha >= desde.Value);
-
-            if (hasta.HasValue)
-                notasCreditoQuery = notasCreditoQuery.Where(n => n.nc.Fecha <= hasta.Value);
-
-            if (!string.IsNullOrWhiteSpace(familia))
-                notasCreditoQuery = notasCreditoQuery.Where(n => n.art.Familia.Contains(familia));
-
-            if (!string.IsNullOrWhiteSpace(linea))
-                notasCreditoQuery = notasCreditoQuery.Where(n => n.art.Linea.Contains(linea));
-
-            var notasCredito = await notasCreditoQuery
-                .Join(_context.TipoDocumentoVenta,
-                    n => n.nc.IdTipoDocumento,
-                    td => td.IdTipoDocumentoVenta,
-                    (n, td) => new VKardex3
-                    {
-                        IdKardex = 0,
-                        IdAlmacen = n.nc.IdAlmacen,
-                        Almacen = n.al.Nombre,
-                        Familia = n.art.Familia,
-                        Linea = n.art.Linea,
-                        Codigo = n.d.IdArticulo ?? string.Empty,
-                        Articulo = n.d.Descripcion,
-                        PrecioCompra = n.art.PrecioCompra,
-                        PrecioVenta = n.art.PrecioVenta,
-                        Fecha = DateOnly.FromDateTime(n.nc.Fecha),
-                        Operacion = $"{td.Descripcion} {n.nc.Serie}-{n.nc.Numero}",
-                        SaldoInicial = 0,
-                        ValorizadoInicial = 0,
-                        Entrada = n.d.Cantidad ?? 0,
-                        ValorizadoEntrada = n.d.Total,
-                        Salida = 0,
-                        ValorizadoSalida = 0,
-                        SaldoFinal = 0,
-                        ValorizadoFinal = 0,
-                        ValorizadoFinalPc = 0,
-                        ValorizadoFinalPv = 0
-                    })
-                .ToListAsync();
-
-            resultado.AddRange(ventasComprobantes);
-            resultado.AddRange(notasCredito);
 
             var calculado = resultado
                 .GroupBy(k => new { k.IdAlmacen, k.Codigo })
@@ -240,7 +119,7 @@ namespace GSCommerceAPI.Controllers
                             item.SaldoInicial = saldo;
                         }
 
-                        //saldo += item.Entrada;
+                        saldo += item.Entrada;
                         saldo -= item.Salida;
                         item.SaldoFinal = saldo;
                     }
@@ -250,7 +129,8 @@ namespace GSCommerceAPI.Controllers
                 .ToList();
 
             return Ok(calculado
-                .OrderBy(k => k.Fecha)
+                .OrderBy(k => k.Codigo)
+                .ThenBy(k => k.Fecha)
                 .ThenBy(k => k.IdKardex));
         }
     }
