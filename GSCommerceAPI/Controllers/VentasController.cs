@@ -130,7 +130,7 @@ namespace GSCommerceAPI.Controllers
                       && c.Estado != "A"
                       && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen)
                       && (!idUsuario.HasValue || c.IdCajero == idUsuario)
-                select new { p.Descripcion, p.Soles };
+                select new { p.Descripcion, p.Soles, p.Vuelto };
 
             var pagos = await pagosQuery.ToListAsync();
 
@@ -140,12 +140,13 @@ namespace GSCommerceAPI.Controllers
                     .Split(' ')[0]
                     .ToLowerInvariant();
                 var monto = p.Soles;
+                var vuelto = p.Vuelto ?? 0m;
 
                 switch (descripcion)
                 {
                     case "efectivo":
                         if (monto > 0)
-                            resumen.Efectivo += monto;
+                            resumen.Efectivo += monto - vuelto;
                         break;
                     case "tarjeta":
                     case "online":
@@ -733,7 +734,7 @@ namespace GSCommerceAPI.Controllers
                       && c.IdAlmacen == idAlmacen
                       && c.IdCajero == idUsuario
                       && c.Estado != "A"
-                select new { p.Descripcion, p.Soles }
+                select new { p.Descripcion, p.Soles, p.Vuelto }
             ).ToListAsync();
 
             foreach (var p in pagos)
@@ -742,12 +743,13 @@ namespace GSCommerceAPI.Controllers
                     .Split(' ')[0]
                     .ToLowerInvariant();
                 var monto = p.Soles;
+                var vuelto = p.Vuelto ?? 0m;
 
                 switch (descripcion)
                 {
                     case "efectivo":
                         if (monto > 0)
-                            resumen.Efectivo += monto;
+                            resumen.Efectivo += monto - vuelto;
                         break;
                     case "tarjeta":
                     case "online":
