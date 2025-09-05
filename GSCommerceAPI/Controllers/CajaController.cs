@@ -235,8 +235,11 @@ public class CajaController : ControllerBase
             resumen.Where(r => nombres.Any(n => r.Grupo.StartsWith(n, StringComparison.OrdinalIgnoreCase)))
                    .Sum(r => r.Monto);
 
-        var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
+        var ventaTarjetaTotal = MontoPorGrupo("VENTA TARJETA/ONLINE");
         var ventaNC = MontoPorGrupo("VENTA POR N.C", "VENTA CON N.C");
+        var ventaTarjeta = ventaTarjetaTotal - ventaNC;
+        if (ventaTarjeta < 0) ventaTarjeta = 0;
+
         var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA TICKET");
         var ventaEfectivo = ventasResumen - ventaTarjeta;
         var ventaDia = ventaEfectivo + ventaTarjeta;
@@ -326,13 +329,15 @@ public class CajaController : ControllerBase
                 .FirstOrDefaultAsync() ?? ap.SaldoInicial;
 
             var vResumen = VRes(ap.IdUsuario, ap.IdAlmacen);
-            var vTarjeta = VTar(ap.IdUsuario, ap.IdAlmacen);
+            var vTarjetaTotal = VTar(ap.IdUsuario, ap.IdAlmacen);
             var vNC = VNC(ap.IdUsuario, ap.IdAlmacen);
+            var vTarjeta = vTarjetaTotal - vNC;
+            if (vTarjeta < 0) vTarjeta = 0;
 
-            // Venta Día = efectivo + tarjeta - nota de crédito
-            var vTotal = vResumen - vNC;
+            // Venta Día = efectivo + tarjeta (total sin restar N.C.)
+            var vTotal = vResumen;
             // solo efectivo (para saldo de caja)
-            var vEfectivo = vResumen - vTarjeta - vNC;
+            var vEfectivo = vResumen - vTarjeta;
 
             var ingresos = Ingresos(ap.IdUsuario, ap.IdAlmacen);
             var egresos = Gastos(ap.IdUsuario, ap.IdAlmacen) + Transf(ap.IdUsuario, ap.IdAlmacen) + Prov(ap.IdUsuario, ap.IdAlmacen);
@@ -348,7 +353,7 @@ public class CajaController : ControllerBase
                 Estado = ap.Estado,
 
                 SaldoInicial = saldoDiaAnterior,
-                VentaDia = vTotal,  // <- TOTAL (efectivo + tarjeta - N.C.)
+                VentaDia = vTotal,  // <- TOTAL ventas (efectivo + tarjeta)
                 Ingresos = ingresos,
                 Egresos = egresos,
                 SaldoFinal = saldoDiaAnterior + vEfectivo + ingresos - egresos // <- usa EFECTIVO
@@ -622,6 +627,7 @@ public class CajaController : ControllerBase
             // se descuenta el monto de N.C. del total de tarjetas.
             var ventaTarjeta = ventaTarjetaTotal - ventaNC;
             if (ventaTarjeta < 0) ventaTarjeta = 0;
+
             var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2");
             var ventaEfectivo = ventasResumen - ventaTarjeta; // efectivo real en caja
             var ventaDia = ventaEfectivo + ventaTarjeta; // total vendido (efectivo + tarjeta)
