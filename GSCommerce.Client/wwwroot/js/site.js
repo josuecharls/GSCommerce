@@ -1,8 +1,39 @@
-﻿if (window.location.hostname !== "localhost") {
-    console.log("%c¡Detente!", "color:red; font-size:40px; font-weight:bold;");
+﻿function showConsoleWarning() {
     console.log(
-        "Esta función del navegador está pensada para desarrolladores. Si alguien te pidió copiar y pegar algo aquí para habilitar funciones o \"hackear\" una cuenta, es un engaño."
+        "%c¡Detente!\nEsta función del navegador está pensada para desarrolladores. Si alguien te ha indicado que copiaras y pegaras algo aquí para habilitar una función o para \\\"hackear\\\" la cuenta de alguien, se trata de un fraude.",
+        "color:red; font-size:40px; font-weight:bold;"
     );
+}
+
+if (window.location.hostname !== "localhost") {
+    showConsoleWarning();
+
+    (function () {
+        let devtoolsOpen = false;
+        const element = new Image();
+        Object.defineProperty(element, "id", {
+            get() {
+                devtoolsOpen = true;
+                showConsoleWarning();
+                return "";
+            }
+        });
+
+        setInterval(() => {
+            devtoolsOpen = false;
+            console.log(element);
+            console.clear();
+        }, 1000);
+    })();
+
+    window.addEventListener("keydown", event => {
+        if (
+            event.key === "F12" ||
+            (event.ctrlKey && event.shiftKey && (event.key === "I" || event.key === "J"))
+        ) {
+            showConsoleWarning();
+        }
+    });
 }
 
 function resizeImage(file, width, height, dotNetObject) {
