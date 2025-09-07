@@ -1,5 +1,6 @@
 ﻿@using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using System.Linq
 @inject TipoPagoVentaService TipoPagoVentaService
 @inject NotaCreditoService NotaCreditoService
 
@@ -17,7 +18,7 @@
 
                 <div class="mb-3">
                     <label>Forma de Pago:</label>
-                    <select class="form-select" @bind="idTipoPagoSeleccionado">
+                    <select class="form-select" @bind="idTipoPagoSeleccionado" @bind:after="TipoPagoChanged">
                         @foreach (var tp in tiposPago)
                         {
                             <option value="@tp.IdTipoPagoVenta">@tp.Descripcion</option>
@@ -32,9 +33,21 @@
                 @if (idTipoPagoSeleccionado == 8)
                 {
                     <div class="mb-3">
-                        <label>Documento de Referencia (Serie-Número):</label>
+                        <label>
+                            Documento de Referencia (Serie-Número):
+                            @if (notasCreditoDisponibles.Any())
+                            {
+                                <span class="text-muted">(@string.Join(", ", notasCreditoDisponibles.Select(n => $"{n.Serie}-{n.Numero:D8}")))</span>
+                            }
+                        </label>
                         <div class="input-group">
-                            <input class="form-control" @bind="documentoReferencia" />
+                            <input class="form-control" @bind="documentoReferencia" list="listaNotasCredito" />
+                            <datalist id="listaNotasCredito">
+                                @foreach (var nc in notasCreditoDisponibles)
+                                {
+                                    <option value="@($"{nc.Serie}-{nc.Numero:D8}")"></option>
+                                }
+                            </datalist>
                             <button class="btn btn-outline-secondary" @onclick="BuscarNotaCredito">Buscar</button>
                         </div>
                         @if (notaCreditoSeleccionada != null)
@@ -117,6 +130,7 @@
     [Parameter] public EventCallback OnCancelado { get; set; }
     [Parameter] public string MonedaAlmacen { get; set; } = "PEN";
     [Parameter] public string? TipoDocumento { get; set; }
+    [Parameter] public int IdAlmacen { get; set; }
 
     public bool Mostrar { get; set; }
 
@@ -127,6 +141,7 @@
     private List<DetallePagoDTO> pagos = new();
     private string? documentoReferencia;
     private NotaCreditoConsultaDTO? notaCreditoSeleccionada;
+    private List<NotaCreditoConsultaDTO> notasCreditoDisponibles = new();
 
     private string Simbolo => MonedaAlmacen == "USD" ? "$ " : "S/ ";
 
@@ -156,15 +171,19 @@
             tiposPago = tiposPago.Where(t => t.Descripcion != "Efectivo Dólares").ToList();
         }
         idTipoPagoSeleccionado = tiposPago.FirstOrDefault()?.IdTipoPagoVenta ?? 0;
+
+        await TipoPagoChanged();
     }
 
-    public void Abrir()
+    public async Task Abrir()
     {
         pagos.Clear();
         montoPago = MontoTotal;
         codigoVerificacion = null;
         idTipoPagoSeleccionado = tiposPago.FirstOrDefault()?.IdTipoPagoVenta ?? 0;
+        await TipoPagoChanged();
         Mostrar = true;
+        await InvokeAsync(StateHasChanged);
     }
 
     private void Cerrar()
@@ -221,6 +240,28 @@
         pagos.Remove(pago);
     }
 
+    private async Task TipoPagoChanged()
+    {
+        if (idTipoPagoSeleccionado == 8)
+        {
+            await CargarNotasCredito();
+        }
+        else
+        {
+            notasCreditoDisponibles.Clear();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task CargarNotasCredito()
+    {
+        var notas = await NotaCreditoService.ObtenerNotasAsync(DateTime.Today.AddYears(-1), DateTime.Today, null, IdAlmacen);
+        notasCreditoDisponibles = notas
+            .Where(n => n.Empleada != true && string.IsNullOrEmpty(n.Comprobante))
+            .ToList();
+        await InvokeAsync(StateHasChanged);
+    }
+
     private async Task BuscarNotaCredito()
     {
         notaCreditoSeleccionada = null;
@@ -233,7 +274,7 @@
         try
         {
             var nota = await NotaCreditoService.BuscarPorDocumentoAsync(partes[0], numero);
-            if (nota != null)
+            if (nota != null && nota.Empleada != true && string.IsNullOrEmpty(nota.Comprobante))
             {
                 notaCreditoSeleccionada = nota;
                 var restante = MontoTotal - TotalPagado;

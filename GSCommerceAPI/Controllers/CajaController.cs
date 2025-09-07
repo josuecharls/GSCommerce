@@ -329,10 +329,9 @@ public class CajaController : ControllerBase
                 .FirstOrDefaultAsync() ?? ap.SaldoInicial;
 
             var vResumen = VRes(ap.IdUsuario, ap.IdAlmacen);
-            var vTarjetaTotal = VTar(ap.IdUsuario, ap.IdAlmacen);
+            var vTarjeta = VTar(ap.IdUsuario, ap.IdAlmacen);
             var vNC = VNC(ap.IdUsuario, ap.IdAlmacen);
-            var vTarjeta = vTarjetaTotal - vNC;
-            if (vTarjeta < 0) vTarjeta = 0;
+            _ = vNC; // valor de N.C. referencial (no afecta los cálculos)
 
             // Venta Día = efectivo + tarjeta (total sin restar N.C.)
             var vTotal = vResumen;
@@ -620,17 +619,12 @@ public class CajaController : ControllerBase
                              .Sum(r => r.Monto);
 
             // 6) VENTAS (del día)
-            var ventaTarjetaTotal = MontoPorGrupo("VENTA TARJETA/ONLINE");
+            var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
             var ventaNC = MontoPorGrupo("VENTA POR N.C", "VENTA CON N.C");
-            // Las notas de crédito también se incluyen dentro del grupo de tarjetas en el resumen.
-            // Para evitar que se resten del efectivo y se sumen dos veces al total de tarjetas,
-            // se descuenta el monto de N.C. del total de tarjetas.
-            var ventaTarjeta = ventaTarjetaTotal - ventaNC;
-            if (ventaTarjeta < 0) ventaTarjeta = 0;
 
             var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2");
             var ventaEfectivo = ventasResumen - ventaTarjeta; // efectivo real en caja
-            var ventaDia = ventaEfectivo + ventaTarjeta; // total vendido (efectivo + tarjeta)
+            var ventaDia = ventasResumen; // total vendido (efectivo + tarjeta)
 
             // --- Distribución de totales ---
             string[] gruposVentaBase = { "VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2" };

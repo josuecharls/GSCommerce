@@ -27,8 +27,8 @@
 <h3>Registrar Venta</h3>
 <button class="btn btn-outline-primary" @onclick="AbrirNuevaVenta">+ Nueva Venta</button>
 <fieldset disabled="@ventaCobrada">
-<div class="mb-3">
-    <label>Escanear o Digitar Código:</label>
+    <div class="mb-3">
+        <label>Escanear o Digitar Código:</label>
         <input value="@codigoBusqueda" @oninput="DetectarEntradaCodigo" @onkeypress="BuscarAlPresionarEnter" class="form-control" @ref="inputCodigoRef" />
     </div>
 
@@ -38,96 +38,96 @@
     </div>
 
 
-<div class="mb-3">
-    <label>Tipo de Documento:</label>
-    <select class="form-select" @onchange="OnTipoDocumentoChanged">
-        @if (EsVentaNormal)
-        {
-            <option>BOLETA</option>
-            <option>FACTURA</option>
-        }
-        else if (EsCajaManual)
-        {
-            <option>TICKET</option>
-            <option>BOLETA M</option>
-            <option>FACTURA M</option>
-        }
-    </select>
-</div>
-<div class="mb-3">
-    <label>Vendedor:</label>
-    <select class="form-select" @onchange="OnVendedorChanged">
-        <option value="">-- Seleccione --</option>
-        @foreach (var v in vendedores)
-        {
-            <option value="@v.IdPersonal">@($"{v.Nombres} {v.Apellidos}")</option>
-        }
-    </select>
-</div>
-
-<div class="mb-3">
-    <label>Serie:</label>
-    <input class="form-control" disabled
-           value="@ObtenerSerieConPrefijo()" />
-</div>
-<div class="mb-3">
-    <label>Número:</label>
-    <input class="form-control" value="@venta.Numero.ToString("D8")" disabled />
-</div>
-
-@if (RequiereCliente)
-{
     <div class="mb-3">
-        <label>Cliente (DNI o RUC):</label>
-        <InputText class="form-control" @bind-Value="venta.DocumentoCliente" @onblur="BuscarClientePorDocumento" />
-
-        @if (!string.IsNullOrEmpty(ValidarDocumentoCliente()))
-        {
-            <div class="text-danger">@ValidarDocumentoCliente()</div>
-        }
+        <label>Tipo de Documento:</label>
+        <select class="form-select" @onchange="OnTipoDocumentoChanged">
+            @if (EsVentaNormal)
+            {
+                <option>BOLETA</option>
+                <option>FACTURA</option>
+            }
+            else if (EsCajaManual)
+            {
+                <option>TICKET</option>
+                <option>BOLETA M</option>
+                <option>FACTURA M</option>
+            }
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Vendedor:</label>
+        <select class="form-select" @onchange="OnVendedorChanged">
+            <option value="">-- Seleccione --</option>
+            @foreach (var v in vendedores)
+            {
+                <option value="@v.IdPersonal">@($"{v.Nombres} {v.Apellidos}")</option>
+            }
+        </select>
     </div>
 
     <div class="mb-3">
-        <label>Nombre Cliente:</label>
-        <InputText class="form-control" @bind-Value="venta.NombreCliente" />
+        <label>Serie:</label>
+        <input class="form-control" disabled
+               value="@ObtenerSerieConPrefijo()" />
     </div>
-}
+    <div class="mb-3">
+        <label>Número:</label>
+        <input class="form-control" value="@venta.Numero.ToString("D8")" disabled />
+    </div>
 
-<button class="btn btn-primary mb-3" @onclick="AgregarProducto">+ Agregar Producto</button>
+    @if (RequiereCliente)
+    {
+        <div class="mb-3">
+            <label>Cliente (DNI o RUC):</label>
+            <InputText class="form-control" @bind-Value="venta.DocumentoCliente" @onblur="BuscarClientePorDocumento" />
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Item</th>
-            <th>Código</th>
-            <th>Descripción</th>
-            <th>Cantidad</th>
-            <th>Precio Unitario</th>
-            <th>Descuento (%)</th>
-            <th>Total</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var detalle in venta.Detalles)
-        {
+            @if (!string.IsNullOrEmpty(ValidarDocumentoCliente()))
+            {
+                <div class="text-danger">@ValidarDocumentoCliente()</div>
+            }
+        </div>
+
+        <div class="mb-3">
+            <label>Nombre Cliente:</label>
+            <InputText class="form-control" @bind-Value="venta.NombreCliente" />
+        </div>
+    }
+
+    <button class="btn btn-primary mb-3" @onclick="AgregarProducto">+ Agregar Producto</button>
+
+    <table class="table">
+        <thead>
             <tr>
-                <td>@detalle.Item</td>
-                <td><input class="form-control" @bind="detalle.CodigoItem" disabled /></td>
-                <td><input class="form-control" @bind="detalle.DescripcionItem" disabled /></td>
-                    <td><input type="number" class="form-control" step="1" min="1" @bind="detalle.Cantidad" @oninput="RecalcularTotales"/></td>
+                <th>Item</th>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Cantidad</th>
+                <th>Precio Unitario</th>
+                <th>Descuento (%)</th>
+                <th>Total</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var detalle in venta.Detalles)
+            {
+                <tr>
+                    <td>@detalle.Item</td>
+                    <td><input class="form-control" @bind="detalle.CodigoItem" disabled /></td>
+                    <td><input class="form-control" @bind="detalle.DescripcionItem" disabled /></td>
+                    <td><input type="number" class="form-control" step="1" min="1" @bind="detalle.Cantidad" @oninput="RecalcularTotales" /></td>
                     <td><input type="number" class="form-control" step="0.01" @bind="detalle.PrecioUnitario" @oninput="RecalcularTotales" disabled /></td>
                     <td><input type="number" class="form-control" step="0.01" @bind="detalle.PorcentajeDescuento" @oninput="RecalcularTotales" disabled /></td>
-                <td>@detalle.Total.ToString("N2")</td>
-                <td>
-                    <button class="btn btn-danger btn-sm" @onclick="() => EliminarProducto(detalle)">X</button>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+                    <td>@detalle.Total.ToString("N2")</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" @onclick="() => EliminarProducto(detalle)">X</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
 
-<div class="text-end">
+    <div class="text-end">
         <h5>Subtotal: @SimboloMoneda@venta.SubTotal.ToString("N2")@EquivalenteSoles(venta.SubTotal)</h5>
         <h5>IGV (@porcentajeIgv%): @SimboloMoneda@venta.Igv.ToString("N2")@EquivalenteSoles(venta.Igv)</h5>
         <h5><strong>Total: @SimboloMoneda@venta.Total.ToString("N2")@EquivalenteSoles(venta.Total)</strong></h5>
@@ -162,7 +162,7 @@ else
 }
 
 <ArticuloBuscarModal @bind-Mostrar="mostrarArticuloModal" IdAlmacen="@(idAlmacenActual ?? 0)" OnSeleccionado="SeleccionarArticuloBusqueda" />
-<CobrarModal @ref="cobrarModalRef" MontoTotal="@montoCobrar" MonedaAlmacen="@monedaCobro" TipoDocumento="@venta.TipoDocumento" OnConfirmado="CobroConfirmado"
+<CobrarModal @ref="cobrarModalRef" MontoTotal="@montoCobrar" MonedaAlmacen="@monedaCobro" TipoDocumento="@venta.TipoDocumento" IdAlmacen="@(idAlmacenActual ?? 0)" OnConfirmado="CobroConfirmado"
              OnCancelado="CobroCancelado" />
 
 @code {
@@ -201,69 +201,69 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-            try
+        try
+        {
+            // uso de idAlmacenActual para buscar la serie
+            idAlmacenActual = await AuthService.GetUserAlmacenId();
+            idUsuarioActual = await AuthService.GetUserId();
+
+            // Inicializar la venta
+            venta.TipoDocumento = EsCajaManual ? "TICKET" : "BOLETA";
+
+            if (idAlmacenActual != null && idUsuarioActual != null)
             {
-                // uso de idAlmacenActual para buscar la serie
-                idAlmacenActual = await AuthService.GetUserAlmacenId();
-                idUsuarioActual = await AuthService.GetUserId();
+                var monedaDto = await MonedaAlmacenService.ObtenerAsync(idAlmacenActual.Value);
+                monedaAlmacen = monedaDto?.Moneda ?? "PEN";
+                var igvDto = await IgvAlmacenService.ObtenerAsync(idAlmacenActual.Value);
+                porcentajeIgv = igvDto?.Igv ?? 18m;
 
-                // Inicializar la venta
-                venta.TipoDocumento = EsCajaManual ? "TICKET" : "BOLETA";
-
-                if (idAlmacenActual != null && idUsuarioActual != null)
+                if (monedaAlmacen == "USD")
                 {
-                    var monedaDto = await MonedaAlmacenService.ObtenerAsync(idAlmacenActual.Value);
-                    monedaAlmacen = monedaDto?.Moneda ?? "PEN";
-                    var igvDto = await IgvAlmacenService.ObtenerAsync(idAlmacenActual.Value);
-                    porcentajeIgv = igvDto?.Igv ?? 18m;
-
-                    if (monedaAlmacen == "USD")
-                    {
-                        var tc = await TipoCambioService.ObtenerTipoCambioDeHoyAsync();
-                        tipoCambioActual = tc?.Venta ?? 1m;
-                    }
-                    var apertura = await CajaService.VerificarAperturaAsync(idUsuarioActual.Value, idAlmacenActual.Value);
-                    if (apertura == null || !apertura.Any(a => a.Estado == "A"))
-                    {
-                        await JS.InvokeVoidAsync("alert", "⚠️ Caja no aperturada.");
+                    var tc = await TipoCambioService.ObtenerTipoCambioDeHoyAsync();
+                    tipoCambioActual = tc?.Venta ?? 1m;
+                }
+                var apertura = await CajaService.VerificarAperturaAsync(idUsuarioActual.Value, idAlmacenActual.Value);
+                if (apertura == null || !apertura.Any(a => a.Estado == "A"))
+                {
+                    await JS.InvokeVoidAsync("alert", "⚠️ Caja no aperturada.");
                     Navigation.NavigateTo("/cajita");
                     return;
-                    }
+                }
 
                 var datos = await AuthService.ObtenerDatosEmisorAsync();
-                    if (datos != null)
-                    {
-                        venta.RucEmisor = datos.Ruc;
-                        venta.RazonSocialEmisor = datos.RazonSocial;
-                        venta.DireccionEmisor = datos.Direccion;
-                    }
-
-                    venta.NombreCajero = await AuthService.GetNombrePersonal();
-
-                    venta.IdAlmacen = idAlmacenActual.Value;
-                    venta.IdCajero = idUsuarioActual;
-
-                    vendedores = (await PersonalService.ObtenerVendedoresPorAlmacen(idAlmacenActual.Value))
-                        .Where(v => v.Estado)
-                        .ToList();
-
-                    if (vendedores.Any())
-                    {
-                        var v = vendedores.First();
-                        idVendedorSeleccionado = v.IdPersonal;
-                        venta.IdVendedor = v.IdPersonal;
-                        venta.NombreVendedor = ($"{v.Nombres} {v.Apellidos}").Trim();
-                    }
-                    await CargarSeriePorTipoYAlmacen();
-                    RecalcularTotales();
-
+                if (datos != null)
+                {
+                    venta.RucEmisor = datos.Ruc;
+                    venta.RazonSocialEmisor = datos.RazonSocial;
+                    venta.DireccionEmisor = datos.Direccion;
                 }
+
+                venta.NombreCajero = await AuthService.GetNombrePersonal();
+
+                venta.IdAlmacen = idAlmacenActual.Value;
+                venta.IdCajero = idUsuarioActual;
+
+                vendedores = (await PersonalService.ObtenerVendedoresPorAlmacen(idAlmacenActual.Value))
+                    .Where(v => v.Estado)
+                    .ToList();
+
+                if (vendedores.Any())
+                {
+                    var v = vendedores.First();
+                    idVendedorSeleccionado = v.IdPersonal;
+                    venta.IdVendedor = v.IdPersonal;
+                    venta.NombreVendedor = ($"{v.Nombres} {v.Apellidos}").Trim();
+                }
+                await CargarSeriePorTipoYAlmacen();
+                RecalcularTotales();
+
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error en OnInitializedAsync: {ex.Message}");
-                await JS.InvokeVoidAsync("alert", "Error al cargar el formulario de venta.");
-            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en OnInitializedAsync: {ex.Message}");
+            await JS.InvokeVoidAsync("alert", "Error al cargar el formulario de venta.");
+        }
     }
 
     private async Task CargarSeriePorTipoYAlmacen()
@@ -364,9 +364,9 @@ else
     private void AgregarProducto()
     {
         var nuevoItem = new VentaDetalleDTO
-            {
-                Item = venta.Detalles.Count + 1
-            };
+        {
+            Item = venta.Detalles.Count + 1
+        };
         venta.Detalles.Add(nuevoItem);
         RecalcularTotales();
     }
@@ -571,8 +571,12 @@ else
         }
 
         await InvokeAsync(StateHasChanged);
-        cobrarModalRef?.Abrir();
+        if (cobrarModalRef != null)
+        {
+            await cobrarModalRef.Abrir();
+        }
     }
+
 
     private async Task BuscarClientePorDocumento(FocusEventArgs e)
     {
@@ -645,42 +649,42 @@ else
         var pagoEfectivo = pagosRealizados.FirstOrDefault(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3); venta.Vuelto = pagoEfectivo?.Vuelto ?? 0;
         ventaCobrada = true;
         Console.WriteLine("Venta cobrada con éxito");
-/*
-        await JS.InvokeVoidAsync("console.log", "Datos de la venta enviados a SUNAT:", new
-        {
-            venta.RucEmisor,
-            venta.TipoDocumento,
-            venta.Serie,
-            venta.Numero,
-            venta.DocumentoCliente,
-            venta.NombreCliente,
-            venta.Total,
-            venta.Igv,
-            venta.SubTotal,
-            Detalles = venta.Detalles.Select(d => new { d.Item, d.CodigoItem, d.DescripcionItem, d.Cantidad, d.PrecioUnitario, d.PorcentajeDescuento, d.Total }).ToList()
-        });
-*/
+        /*
+                await JS.InvokeVoidAsync("console.log", "Datos de la venta enviados a SUNAT:", new
+                {
+                    venta.RucEmisor,
+                    venta.TipoDocumento,
+                    venta.Serie,
+                    venta.Numero,
+                    venta.DocumentoCliente,
+                    venta.NombreCliente,
+                    venta.Total,
+                    venta.Igv,
+                    venta.SubTotal,
+                    Detalles = venta.Detalles.Select(d => new { d.Item, d.CodigoItem, d.DescripcionItem, d.Cantidad, d.PrecioUnitario, d.PorcentajeDescuento, d.Total }).ToList()
+                });
+        */
         var tipos = await TipoDocumentoVentaService.GetTiposDocumento();
         var tipoDoc = tipos?.FirstOrDefault(t =>
             t.Descripcion.ToUpper() == venta.TipoDocumento.ToUpper()
             && (EsCajaManual ? t.Manual : !t.Manual));
 
-      /*  foreach (var pago in pagosRealizados)
-        {
-            pago.IdTipoPagoVenta = pago.FormaPago.ToUpper() switch
-            {
-                "EFECTIVO" => 2,              
-                "DOLARES" => 3,                 
-                "VISA" => 4,
-                "MASTERCARD" => 5,
-                "AMERICAN EXPRESS" => 6,
-                "DINNERS CLUB" => 7,
-                "NOTA CREDITO" => 8,
-                "YAPE" => 9,
-                "TRANSFERENCIA" => 10,
-                _ => 2                          // Default a efectivo soles
-            };
-        }*/
+        /*  foreach (var pago in pagosRealizados)
+          {
+              pago.IdTipoPagoVenta = pago.FormaPago.ToUpper() switch
+              {
+                  "EFECTIVO" => 2,
+                  "DOLARES" => 3,
+                  "VISA" => 4,
+                  "MASTERCARD" => 5,
+                  "AMERICAN EXPRESS" => 6,
+                  "DINNERS CLUB" => 7,
+                  "NOTA CREDITO" => 8,
+                  "YAPE" => 9,
+                  "TRANSFERENCIA" => 10,
+                  _ => 2                          // Default a efectivo soles
+              };
+          }*/
 
         if (monedaAlmacen == "USD" && tipoCambioActual > 0)
         {
@@ -715,12 +719,12 @@ else
         }
 
         var resultadoRegistro = await ventaService.RegistrarVentaAsync(new VentaRegistroDTO
-            {
-                Cabecera = venta,
-                Detalles = venta.Detalles,
-                Pagos = pagosRealizados,
-                TipoDocumento = tipoDoc!
-            });
+        {
+            Cabecera = venta,
+            Detalles = venta.Detalles,
+            Pagos = pagosRealizados,
+            TipoDocumento = tipoDoc!
+        });
 
         if (!resultadoRegistro.Success)
         {
@@ -941,11 +945,11 @@ else
         try
         {
             var ventaRegistro = new VentaRegistroDTO
-                {
-                    Cabecera = venta,
-                    Detalles = venta.Detalles.ToList(),
-                    Pagos = pagosRealizados
-                };
+            {
+                Cabecera = venta,
+                Detalles = venta.Detalles.ToList(),
+                Pagos = pagosRealizados
+            };
 
             var response = await Http.PostAsJsonAsync("api/ventas", ventaRegistro);
 
@@ -964,7 +968,7 @@ else
         }
         catch (Exception ex)
         {
-           // Console.WriteLine($"Excepción al guardar venta: {ex.Message}");
+            // Console.WriteLine($"Excepción al guardar venta: {ex.Message}");
             await JS.InvokeVoidAsync("alert", "Error inesperado al guardar la venta.");
         }
     }

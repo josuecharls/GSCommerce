@@ -41,6 +41,20 @@ namespace GSCommerceAPI.Controllers
             if (comprobante == null)
                 return BadRequest("Comprobante original no encontrado.");
 
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (!int.TryParse(userIdClaim, out var userId))
+                return BadRequest("Usuario no válido.");
+
+            var userAlmacen = await _context.Usuarios
+                .Where(u => u.IdUsuario == userId)
+                .Select(u => u.IdPersonalNavigation != null ? (int?)u.IdPersonalNavigation.IdAlmacen : null)
+                .FirstOrDefaultAsync();
+
+            if (!userAlmacen.HasValue || comprobante.IdAlmacen != userAlmacen.Value)
+                return BadRequest("No puede generar una nota de crédito de un almacén al que no pertenece.");
+
+            dto.Cabecera.IdAlmacen = comprobante.IdAlmacen;
+
             if (!string.IsNullOrEmpty(comprobante.GeneroNc))
                 return BadRequest("El comprobante ya tiene una nota de crédito generada.");
 

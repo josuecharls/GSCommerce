@@ -143,6 +143,13 @@ else
             loading = false;
             return;
         }
+        if (idAlmacenActual.HasValue && venta.IdAlmacen != idAlmacenActual.Value)
+        {
+            loading = false;
+            await JS.InvokeVoidAsync("alert", "No puede generar una nota de crédito de un almacén al que no pertenece.");
+            nav.NavigateTo("/ventas");
+            return;
+        }
         serieOriginal = venta.Serie;
         idTipoDocumentoOriginal = venta.IdTipoDocumento;
 

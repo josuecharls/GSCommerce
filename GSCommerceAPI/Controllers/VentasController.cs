@@ -127,7 +127,7 @@ namespace GSCommerceAPI.Controllers
                 from c in _context.ComprobanteDeVentaCabeceras
                 join p in _context.VDetallePagoVenta1s on c.IdComprobante equals p.IdComprobante
                 where DateOnly.FromDateTime(c.Fecha) == fechaHoy
-                      && c.Estado != "A"
+                      && (c.Estado != "A" || c.GeneroNc != null)
                       && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen)
                       && (!idUsuario.HasValue || c.IdCajero == idUsuario)
                 select new { p.Descripcion, p.Soles, p.Vuelto };
@@ -733,7 +733,7 @@ namespace GSCommerceAPI.Controllers
                 where DateOnly.FromDateTime(c.Fecha) == fechaHoy
                       && c.IdAlmacen == idAlmacen
                       && c.IdCajero == idUsuario
-                      && c.Estado != "A"
+                      && (c.Estado != "A" || c.GeneroNc != null)
                 select new { p.Descripcion, p.Soles, p.Vuelto }
             ).ToListAsync();
 
