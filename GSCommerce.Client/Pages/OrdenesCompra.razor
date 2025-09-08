@@ -63,7 +63,7 @@
                     <td>@o.Estado</td>
                     <td>
                         <button class="btn btn-sm btn-info me-1" @onclick="() => VerDetalle(o.IdOc)">Ver</button>
-                        <button class="btn btn-sm btn-secondary" @onclick="() => GenerarIngreso(o.IdOc)">Ingreso</button>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => GenerarIngreso(o.IdOc)" disabled="@ingresoEnProceso.Contains(o.IdOc)">Ingreso</button>
                     </td>
                 </tr>
             }
@@ -214,6 +214,8 @@
     private decimal totalOrdenes => ordenes.Sum(o => o.ImporteTotal);
     private decimal totalPagos => pagos.Sum(o => o.ImporteTotal);
 
+    private HashSet<int> ingresoEnProceso = new();
+
     protected override async Task OnInitializedAsync()
     {
         await Task.WhenAll(BuscarOc(), BuscarPagos());
@@ -275,6 +277,8 @@
 
     private async Task GenerarIngreso(int id)
     {
+        if (!ingresoEnProceso.Add(id))
+            return;
         var ok = await ocService.GenerarIngresoAsync(id, 1009);
         await JS.InvokeVoidAsync("alert", ok ? "Ingreso generado" : "No se pudo generar ingreso");
     }

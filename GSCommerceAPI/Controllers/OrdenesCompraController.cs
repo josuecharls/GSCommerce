@@ -231,12 +231,13 @@ namespace GSCommerceAPI.Controllers
 
                 await _context.SaveChangesAsync();
 
-                // Aumentar stock en el almacén principal por cada detalle
+                // Aumentar stock y registrar en kardex por cada detalle
                 foreach (var d in orden.OrdenDeCompraDetalles)
                 {
                     var stock = await _context.StockAlmacens
                         .FirstOrDefaultAsync(s => s.IdAlmacen == idAlmacen && s.IdArticulo == d.IdArticulo);
 
+                    var saldoInicial = stock?.Stock ?? 0;
                     if (stock == null)
                     {
                         stock = new StockAlmacen
@@ -250,6 +251,21 @@ namespace GSCommerceAPI.Controllers
                     }
 
                     stock.Stock += d.Cantidad;
+                    var saldoFinal = stock.Stock;
+
+                    _context.Kardices.Add(new Kardex
+                    {
+                        IdAlmacen = idAlmacen,
+                        IdArticulo = d.IdArticulo,
+                        TipoMovimiento = "I",
+                        Fecha = DateTime.Now,
+                        SaldoInicial = saldoInicial,
+                        Cantidad = d.Cantidad,
+                        SaldoFinal = saldoFinal,
+                        Valor = d.CostoUnitario,
+                        Origen = $"Ingreso por OC {orden.Glosa}",
+                        NoKardexGeneral = false
+                    });
                 }
 
                 await _context.SaveChangesAsync();

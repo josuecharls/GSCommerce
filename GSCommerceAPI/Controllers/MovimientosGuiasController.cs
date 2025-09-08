@@ -445,6 +445,7 @@ namespace GSCommerceAPI.Controllers
             using var tx = await _context.Database.BeginTransactionAsync();
 
             var movimiento = await _context.MovimientosCabeceras
+                .Include(m => m.MovimientosDetalles)
                 .FirstOrDefaultAsync(m => m.IdMovimiento == id);
 
             if (movimiento == null)
@@ -458,6 +459,71 @@ namespace GSCommerceAPI.Controllers
 
             movimiento.Estado = "A";
 
+            var fecha = DateTime.Now;
+
+            async Task AjustarStockYkardex(MovimientosCabecera mov)
+            {
+                bool esIngreso = mov.Tipo == "I" || (mov.Tipo == "T" && mov.Motivo.Trim() == "TRANSFERENCIA INGRESO");
+                bool esEgreso = mov.Tipo == "E" || (mov.Tipo == "T" && mov.Motivo.Trim() == "TRANSFERENCIA EGRESO");
+
+                foreach (var detalle in mov.MovimientosDetalles)
+                {
+                    var stock = await _context.StockAlmacens
+                        .FirstOrDefaultAsync(s => s.IdAlmacen == mov.IdAlmacen && s.IdArticulo == detalle.IdArticulo);
+
+                    if (stock == null)
+                    {
+                        stock = new StockAlmacen
+                        {
+                            IdAlmacen = mov.IdAlmacen,
+                            IdArticulo = detalle.IdArticulo,
+                            Stock = 0,
+                            StockMinimo = 0
+                        };
+                        _context.StockAlmacens.Add(stock);
+                    }
+
+                    var saldoInicial = stock.Stock;
+
+                    if (esIngreso)
+                    {
+                        stock.Stock -= detalle.Cantidad;
+
+                        _context.Kardices.Add(new Kardex
+                        {
+                            IdAlmacen = mov.IdAlmacen,
+                            IdArticulo = detalle.IdArticulo,
+                            TipoMovimiento = "E",
+                            Fecha = fecha,
+                            SaldoInicial = saldoInicial,
+                            Cantidad = detalle.Cantidad,
+                            SaldoFinal = stock.Stock,
+                            Valor = detalle.Valor,
+                            Origen = $"ANULACIÓN {mov.Motivo} Nro: {mov.IdMovimiento}"
+                        });
+                    }
+                    else if (esEgreso)
+                    {
+                        stock.Stock += detalle.Cantidad;
+
+                        _context.Kardices.Add(new Kardex
+                        {
+                            IdAlmacen = mov.IdAlmacen,
+                            IdArticulo = detalle.IdArticulo,
+                            TipoMovimiento = "I",
+                            Fecha = fecha,
+                            SaldoInicial = saldoInicial,
+                            Cantidad = detalle.Cantidad,
+                            SaldoFinal = stock.Stock,
+                            Valor = detalle.Valor,
+                            Origen = $"ANULACIÓN {mov.Motivo} Nro: {mov.IdMovimiento}"
+                        });
+                    }
+                }
+            }
+
+            await AjustarStockYkardex(movimiento);
+
             bool esTransferencia = string.Equals(movimiento.Motivo?.Trim(), "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(movimiento.Motivo?.Trim(), "TRANSFERENCIA INGRESO", StringComparison.OrdinalIgnoreCase);
 
@@ -470,6 +536,7 @@ namespace GSCommerceAPI.Controllers
                     : "TRANSFERENCIA EGRESO";
 
                 espejo = await _context.MovimientosCabeceras
+                    .Include(m => m.MovimientosDetalles)
                     .Where(m =>
                         m.Tipo == "T" &&
                         m.Motivo.Trim() == motivoEspejo &&
@@ -482,6 +549,7 @@ namespace GSCommerceAPI.Controllers
                 if (espejo != null)
                 {
                     espejo.Estado = "A";
+                    await AjustarStockYkardex(espejo);
                 }
             }
 

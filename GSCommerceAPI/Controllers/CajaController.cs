@@ -355,7 +355,7 @@ public class CajaController : ControllerBase
                 VentaDia = vTotal,  // <- TOTAL ventas (efectivo + tarjeta)
                 Ingresos = ingresos,
                 Egresos = egresos,
-                SaldoFinal = saldoDiaAnterior + vEfectivo + ingresos - egresos // <- usa EFECTIVO
+                SaldoFinal = ap.SaldoFinal // <- usa EFECTIVO
             });
         }
 
