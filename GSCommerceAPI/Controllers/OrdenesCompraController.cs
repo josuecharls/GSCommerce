@@ -204,7 +204,7 @@ namespace GSCommerceAPI.Controllers
                     Tipo = "I",
                     Motivo = "OC",
                     Fecha = DateOnly.FromDateTime(DateTime.Now),
-                    Descripcion = $"Ingreso por OC {orden.NumeroOc}",
+                    Descripcion = orden.Glosa,
                     IdProveedor = orden.IdProveedor,
                     IdOc = orden.IdOc,
                     IdUsuario = orden.IdUsuarioRegistra ?? 0,
@@ -263,7 +263,7 @@ namespace GSCommerceAPI.Controllers
                         Cantidad = d.Cantidad,
                         SaldoFinal = saldoFinal,
                         Valor = d.CostoUnitario,
-                        Origen = $"Ingreso por OC {orden.Glosa}",
+                        Origen = orden.Glosa,
                         NoKardexGeneral = false
                     });
                 }

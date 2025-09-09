@@ -334,9 +334,9 @@ public class CajaController : ControllerBase
             _ = vNC; // valor de N.C. referencial (no afecta los cálculos)
 
             // Venta Día = efectivo + tarjeta (total sin restar N.C.)
-            var vTotal = vResumen;
+            var vTotal = vResumen - vNC;
             // solo efectivo (para saldo de caja)
-            var vEfectivo = vResumen - vTarjeta;
+            var vEfectivo = vResumen - vTarjeta - vNC;
 
             var ingresos = Ingresos(ap.IdUsuario, ap.IdAlmacen);
             var egresos = Gastos(ap.IdUsuario, ap.IdAlmacen) + Transf(ap.IdUsuario, ap.IdAlmacen) + Prov(ap.IdUsuario, ap.IdAlmacen);
@@ -355,7 +355,7 @@ public class CajaController : ControllerBase
                 VentaDia = vTotal,  // <- TOTAL ventas (efectivo + tarjeta)
                 Ingresos = ingresos,
                 Egresos = egresos,
-                SaldoFinal = ap.SaldoFinal // <- usa EFECTIVO
+                SaldoFinal = saldoDiaAnterior + vEfectivo + ingresos - egresos // <- usa EFECTIVO
             });
         }
 
@@ -536,6 +536,7 @@ public class CajaController : ControllerBase
         await _context.SaveChangesAsync();
         return Ok();
     }
+
     // 10. Generar PDF de arqueo de caja
     [HttpGet("arqueo-pdf/{id}")]
     public async Task<IActionResult> GenerarArqueoPDF(int id)
@@ -619,12 +620,15 @@ public class CajaController : ControllerBase
                              .Sum(r => r.Monto);
 
             // 6) VENTAS (del día)
-            var ventaTarjeta = MontoPorGrupo("VENTA TARJETA/ONLINE");
+            var ventasTarjeta = resumenVentas
+                .Where(r => r.Grupo.StartsWith("VENTA TARJETA/ONLINE", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var ventaTarjeta = ventasTarjeta.Sum(r => r.Monto);
             var ventaNC = MontoPorGrupo("VENTA POR N.C", "VENTA CON N.C");
 
             var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2");
-            var ventaEfectivo = ventasResumen - ventaTarjeta; // efectivo real en caja
-            var ventaDia = ventasResumen; // total vendido (efectivo + tarjeta)
+            var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC; // efectivo real en caja
+            var ventaDia = ventasResumen - ventaNC; // total vendido (efectivo + tarjeta)
 
             // --- Distribución de totales ---
             string[] gruposVentaBase = { "VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2" };
@@ -710,17 +714,18 @@ public class CajaController : ControllerBase
                 }
             }
 
-            // Mantener líneas de Tarjeta / NC, ajustando el monto de la tarjeta
-            var tarjetaResumen = resumenVentas
-                .FirstOrDefault(r => r.Grupo.StartsWith("VENTA TARJETA/ONLINE", StringComparison.OrdinalIgnoreCase));
-            if (tarjetaResumen != null && ventaTarjeta > 0)
+            // Detalle de ventas con tarjeta agrupado por método de pago
+            var ventasTarjetaDetalle = ventasTarjeta
+                .GroupBy(r => r.Detalle)
+                .Select(g => new { Detalle = g.Key, Monto = g.Sum(x => x.Monto) });
+            foreach (var vt in ventasTarjetaDetalle)
             {
                 detalleHoy.Add(new ResumenCierreDeCaja
                 {
                     IdGrupo = 1,
-                    Grupo = tarjetaResumen.Grupo,
-                    Detalle = tarjetaResumen.Detalle,
-                    Monto = ventaTarjeta
+                    Grupo = "VENTA TARJETA/ONLINE",
+                    Detalle = vt.Detalle,
+                    Monto = vt.Monto
                 });
             }
 
