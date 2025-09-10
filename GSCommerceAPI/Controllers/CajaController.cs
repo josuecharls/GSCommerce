@@ -235,13 +235,18 @@ public class CajaController : ControllerBase
             resumen.Where(r => nombres.Any(n => r.Grupo.StartsWith(n, StringComparison.OrdinalIgnoreCase)))
                    .Sum(r => r.Monto);
 
+        var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA TICKET");
         var ventaTarjetaTotal = MontoPorGrupo("VENTA TARJETA/ONLINE");
         var ventaNC = MontoPorGrupo("VENTA POR N.C", "VENTA CON N.C");
+
+        // Ajustar ventas considerando notas de crédito
         var ventaTarjeta = ventaTarjetaTotal - ventaNC;
         if (ventaTarjeta < 0) ventaTarjeta = 0;
 
-        var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA TICKET");
-        var ventaEfectivo = ventasResumen - ventaTarjeta;
+        var ventaEfectivo = ventasResumen - ventaTarjetaTotal - ventaNC;
+        if (ventaEfectivo < 0) ventaEfectivo = 0;
+
+        // Venta total del día (efectivo + tarjeta) descontando N.C.
         var ventaDia = ventaEfectivo + ventaTarjeta;
 
         actual.VentaDia = ventaDia;

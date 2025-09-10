@@ -221,10 +221,39 @@ namespace GSCommerceAPI.Controllers
                 {
                     var stock = await _context.StockAlmacens
                         .FirstOrDefaultAsync(s => s.IdAlmacen == cabecera.IdAlmacen && s.IdArticulo == det.IdArticulo);
-                    if (stock != null)
+
+                    var saldoInicial = stock?.Stock ?? 0;
+
+                    if (stock == null)
                     {
-                        stock.Stock += det.Cantidad;
+                        stock = new StockAlmacen
+                        {
+                            IdAlmacen = cabecera.IdAlmacen,
+                            IdArticulo = det.IdArticulo,
+                            Stock = 0,
+                            StockMinimo = 0
+                        };
+                        _context.StockAlmacens.Add(stock);
                     }
+
+                    stock.Stock += det.Cantidad;
+                    var saldoFinal = stock.Stock;
+
+                    var valor = det.Precio * (1 - det.PorcentajeDescuento);
+
+                    _context.Kardices.Add(new Kardex
+                    {
+                        IdAlmacen = cabecera.IdAlmacen,
+                        IdArticulo = det.IdArticulo,
+                        TipoMovimiento = "I",
+                        Fecha = DateTime.Now,
+                        SaldoInicial = saldoInicial,
+                        Cantidad = det.Cantidad,
+                        SaldoFinal = saldoFinal,
+                        Valor = valor,
+                        Origen = $"ANULACIÓN Venta: {cabecera.Serie}-{cabecera.Numero}",
+                        NoKardexGeneral = false
+                    });
                 }
 
                 await _context.SaveChangesAsync();
@@ -246,11 +275,12 @@ namespace GSCommerceAPI.Controllers
         )
         {
             var hastaExcl = hasta.Date.AddDays(1);
+            var hoy = DateTime.Today;
 
             var query =
                 from c in _context.ComprobanteDeVentaCabeceras
                 where c.Fecha >= desde.Date && c.Fecha < hastaExcl
-                      && (c.Estado != "A")
+                      && (c.Fecha < hoy || c.Estado != "A")
                       && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen.Value) // ← aplica filtro si viene
                 group c by c.IdAlmacen into g
                 select new
@@ -1727,7 +1757,10 @@ namespace GSCommerceAPI.Controllers
         public async Task<IActionResult> DescargarLibroVentasContable([FromQuery] int anio, [FromQuery] int mes)
         {
             var ventas = await _context.ComprobanteDeVentaCabeceras
-                .Where(c => c.Fecha.Year == anio && c.Fecha.Month == mes && c.Estado == "E")
+                .Where(c => c.Fecha.Year == anio &&
+                            c.Fecha.Month == mes &&
+                            c.Estado == "E" &&
+                            c.IdTipoDocumento != 4) // excluir TICKET
                 .Select(c => new
                 {
                     c.Fecha,

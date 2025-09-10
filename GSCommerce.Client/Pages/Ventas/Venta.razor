@@ -323,7 +323,11 @@
 
     private void CalcularResumen()
     {
-        var activas = ventas.Where(v => !(v.Estado == "AN" || v.Estado == "ANULADO" || v.Estado == "A"));
+        var hoy = DateTime.Today;
+        var activas = ventas.Where(v =>
+            !(v.Fecha.Date == hoy &&
+              (v.Estado == "AN" || v.Estado == "ANULADO" || v.Estado == "A"))
+        );
         var pagosActivos = activas.SelectMany(v => v.Pagos);
 
         efectivoSoles = 0;
