@@ -86,6 +86,14 @@
                 </NavLink>
             </div>
         }
+        @if (cargo == "CONTADOR")
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/reportes/libro-ventas-contable">
+                    <span class="bi bi-bar-chart-fill" aria-hidden="true"></span> Libro Contable de Ventas
+                </NavLink>
+            </div>
+        }
         @if (cargo == "CAJERO")
         {
         <div class="nav-item px-3">
@@ -114,6 +122,16 @@
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="/cajeros">
                     <span class="bi bi-person" aria-hidden="true"></span> Cajeros
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/administradores">
+                    <span class="bi bi-person-gear" aria-hidden="true"></span> Administradores
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/cambiar-password">
+                    <span class="bi bi-key" aria-hidden="true"></span> Cambiar Contraseña
                 </NavLink>
             </div>
             <div class="nav-item px-3">

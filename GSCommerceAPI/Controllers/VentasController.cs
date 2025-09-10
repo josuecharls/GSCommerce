@@ -280,7 +280,7 @@ namespace GSCommerceAPI.Controllers
             var query =
                 from c in _context.ComprobanteDeVentaCabeceras
                 where c.Fecha >= desde.Date && c.Fecha < hastaExcl
-                      && (c.Fecha < hoy || c.Estado != "A")
+                      && (c.Estado != "A" || (c.Fecha < hoy && c.GeneroNc != null))
                       && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen.Value) // ← aplica filtro si viene
                 group c by c.IdAlmacen into g
                 select new
@@ -302,7 +302,7 @@ namespace GSCommerceAPI.Controllers
                     from p in _context.DetallePagoVenta
                     join c in _context.ComprobanteDeVentaCabeceras on p.IdComprobante equals c.IdComprobante
                     where c.Fecha >= desde.Date && c.Fecha < hastaExcl
-                          && c.Estado != "A"
+                          && (c.Estado != "A" || (c.Fecha < hoy && c.GeneroNc != null))
                           && p.IdTipoPagoVenta == 8
                           && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen.Value)
                     group p by c.IdAlmacen into g
@@ -1809,7 +1809,44 @@ namespace GSCommerceAPI.Controllers
                 ws.Cell(row, 1).Value = v.Fecha.ToString("yyyy/MM/dd");
                 ws.Cell(row, 2).Value = v.IdCliente;
                 ws.Cell(row, 3).Value = tp;
-                ws.Cell(row, 8).Value = v.Nombre;
+
+                if (tp == "02")
+                {
+                    ws.Cell(row, 8).Value = v.Nombre;
+                }
+                else
+                {
+                    var partes = (v.Nombre ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    string primerNombre = string.Empty, segundoNombre = string.Empty, apellidoPaterno = string.Empty, apellidoMaterno = string.Empty;
+
+                    if (partes.Length >= 4)
+                    {
+                        primerNombre = partes[0];
+                        segundoNombre = partes[1];
+                        apellidoPaterno = partes[2];
+                        apellidoMaterno = partes[3];
+                    }
+                    else if (partes.Length == 3)
+                    {
+                        primerNombre = partes[0];
+                        apellidoPaterno = partes[1];
+                        apellidoMaterno = partes[2];
+                    }
+                    else if (partes.Length == 2)
+                    {
+                        primerNombre = partes[0];
+                        apellidoPaterno = partes[1];
+                    }
+                    else if (partes.Length == 1)
+                    {
+                        primerNombre = partes[0];
+                    }
+
+                    ws.Cell(row, 4).Value = apellidoPaterno;
+                    ws.Cell(row, 5).Value = apellidoMaterno;
+                    ws.Cell(row, 6).Value = primerNombre;
+                    ws.Cell(row, 7).Value = segundoNombre;
+                }
                 ws.Cell(row, 9).Value = td;
                 ws.Cell(row, 10).Value = v.Dniruc;
                 ws.Cell(row, 11).Value = v.IdTipoDocumento;

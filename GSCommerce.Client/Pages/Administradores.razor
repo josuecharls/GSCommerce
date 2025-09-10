@@ -1,0 +1,111 @@
+﻿@page "/administradores"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject UsuarioService UsuarioService
+@inject IJSRuntime JS
+
+<h3>Administradores</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (administradores.Any())
+        {
+            @foreach (var a in administradores)
+            {
+                <tr>
+                    <td>@a.Nombre</td>
+                    <td>
+                        @if (a.IdUsuario == 0)
+                        {
+                            <button class="btn btn-primary btn-sm" @onclick="() => AbrirModal(a)">Generar Credenciales</button>
+                        }
+                        else
+                        {
+                            <span class="text-success">Credenciales ya creadas</span>
+                        }
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="2" class="text-center">Cargando...</td></tr>
+        }
+    </tbody>
+</table>
+
+@if (mostrarModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Generar Credenciales</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label>Usuario</label>
+                        <input class="form-control" @bind="credenciales.NombreUsuario" />
+                    </div>
+                    <div class="mb-2">
+                        <label>Contraseña</label>
+                        <input type="password" class="form-control" @bind="credenciales.Password" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" @onclick="GuardarCredenciales">Guardar</button>
+                    <button class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<UsuarioDTO> administradores = new();
+    private bool mostrarModal;
+    private GenerarCredencialesRequest credenciales = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAdministradores();
+    }
+
+    private void AbrirModal(UsuarioDTO admin)
+    {
+        credenciales = new GenerarCredencialesRequest
+        {
+            IdPersonal = admin.IdPersonal,
+            NombreUsuario = admin.Nombre
+        };
+        mostrarModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        credenciales = new GenerarCredencialesRequest();
+    }
+
+    private async Task GuardarCredenciales()
+    {
+        bool ok = await UsuarioService.GenerarCredencialesAsync(credenciales);
+        if (ok)
+            await JS.InvokeVoidAsync("alert", "✅ Credenciales generadas.");
+        else
+            await JS.InvokeVoidAsync("alert", "❌ Error al generar credenciales.");
+        await CargarAdministradores();
+        CerrarModal();
+    }
+
+    private async Task CargarAdministradores()
+    {
+        administradores = await UsuarioService.ObtenerAdministradoresAsync();
+    }
+}

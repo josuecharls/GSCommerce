@@ -4,6 +4,7 @@ using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
+using Microsoft.AspNetCore.Authorization;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Data;
@@ -53,6 +54,73 @@ namespace GSCommerceAPI.Controllers
                 return NotFound();
             }
             return usuario;
+        }
+        [HttpGet("administradores")]
+        public async Task<IActionResult> GetAdministradores()
+        {
+            var administradores = await _context.Personals
+                .Where(p => p.Cargo == "ADMINISTRADOR" || p.Cargo == "CONTADOR" && p.Estado == true)
+                .Select(p => new
+                {
+                    p.IdPersonal,
+                    Nombre = p.Nombres + " " + p.Apellidos,
+                    Usuario = _context.Usuarios.FirstOrDefault(u => u.IdPersonal == p.IdPersonal)
+                })
+                .ToListAsync();
+
+            var resultado = administradores.Select(a => new
+            {
+                IdUsuario = a.Usuario != null ? a.Usuario.IdUsuario : 0,
+                a.Nombre,
+                a.IdPersonal,
+                Estado = a.Usuario?.Estado ?? false,
+                Clave = (string?)null
+            });
+
+            return Ok(resultado);
+        }
+
+        [HttpPost("cambiar-password")]
+        [Authorize(Roles = "ADMINISTRADOR")]
+        public async Task<IActionResult> CambiarPassword([FromBody] CambiarPasswordRequest request)
+        {
+            var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Nombre == request.NombreUsuario);
+            if (usuario == null)
+                return NotFound("Usuario no encontrado.");
+
+            var passwordActual = await GetPasswordFromDB(request.NombreUsuario);
+            if (passwordActual == null || passwordActual != request.PasswordActual)
+                return Unauthorized("Contraseña actual incorrecta.");
+
+            using (var connection = new SqlConnection(_context.Database.GetConnectionString()))
+            {
+                await connection.OpenAsync();
+                using var command = new SqlCommand("dbo.usp_set_password", connection);
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add("@IdUsuario", SqlDbType.Int).Value = usuario.IdUsuario;
+                command.Parameters.Add("@password", SqlDbType.VarChar, 50).Value = request.PasswordNuevo;
+                await command.ExecuteNonQueryAsync();
+            }
+
+            return Ok();
+        }
+
+        private async Task<string?> GetPasswordFromDB(string usuario)
+        {
+            string? password = null;
+            using (var connection = new SqlConnection(_context.Database.GetConnectionString()))
+            {
+                await connection.OpenAsync();
+                using (var command = new SqlCommand("dbo.usp_get_password", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.Parameters.AddWithValue("@usuario", usuario);
+                    var result = await command.ExecuteScalarAsync();
+                    if (result != null)
+                        password = result.ToString();
+                }
+            }
+            return password;
         }
 
         // POST: api/usuarios (Crear un nuevo usuario)

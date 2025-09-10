@@ -65,5 +65,33 @@ namespace GSCommerce.Client.Services
                 return false;
             }
         }
+
+        public async Task<List<UsuarioDTO>> ObtenerAdministradoresAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetFromJsonAsync<List<UsuarioDTO>>("api/usuarios/administradores");
+                return response ?? new();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error al obtener administradores: {ex.Message}");
+                return new();
+            }
+        }
+
+        public async Task<bool> CambiarPasswordAsync(CambiarPasswordRequest request)
+        {
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync("api/usuarios/cambiar-password", request);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error al cambiar contraseña: {ex.Message}");
+                return false;
+            }
+        }
     }
 }
