@@ -33,6 +33,7 @@
                 </th>
                 <th>Precio Compra</th>
                 <th>Precio Venta</th>
+                <th>Fecha Registro</th>
                 <th>Estado</th>
                 <th class="text-center">Acciones</th>
             </tr>
@@ -47,6 +48,7 @@
                         <td>@a.Descripcion</td>
                         <td>S/. @a.PrecioCompra</td>
                         <td>S/. @a.PrecioVenta</td>
+                        <td>@a.FechaRegistro.ToString("dd/MM/yyyy")</td>
                         <td>
                             @if (a.Estado)
                             {
@@ -82,7 +84,7 @@
             }
             else
             {
-                <tr><td colspan="6" class="text-center">Cargando... Espere...</td></tr>
+                <tr><td colspan="7" class="text-center">Cargando... Espere...</td></tr>
             }
         </tbody>
     </table>
@@ -368,7 +370,7 @@
             isDeleting = true;
             try
             {
-                if (await ArticuloService.DeleteArticulo(deleteArticuloId.ToString()))
+                if (await ArticuloService.DeleteArticulo(deleteArticuloId.ToString("D6")))
                 {
                     await LoadArticulos();
                 }

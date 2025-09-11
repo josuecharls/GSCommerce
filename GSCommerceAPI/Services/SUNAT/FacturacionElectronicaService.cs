@@ -532,6 +532,13 @@ namespace GSCommerceAPI.Services.SUNAT
             sb.AppendLine($"<cbc:LineCountNumeric>{dto.Detalles.Count}</cbc:LineCountNumeric>");
             if (dto.TipoDocumento == "07" || dto.TipoDocumento == "08")
             {
+                if (!string.IsNullOrEmpty(dto.SerieDocumentoReferencia) &&
+                    !dto.SerieDocumentoReferencia.StartsWith("F") &&
+                    !dto.SerieDocumentoReferencia.StartsWith("B"))
+                {
+                    var prefijo = dto.TipoDocumentoReferencia == "01" ? "F" : "B";
+                    dto.SerieDocumentoReferencia = prefijo + dto.SerieDocumentoReferencia;
+                }
                 string refId = $"{dto.SerieDocumentoReferencia}-{dto.NumeroDocumentoReferencia:D8}";
                 sb.AppendLine("<cac:DiscrepancyResponse>");
                 sb.AppendLine($"<cbc:ReferenceID>{refId}</cbc:ReferenceID>");

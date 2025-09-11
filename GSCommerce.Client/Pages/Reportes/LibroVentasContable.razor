@@ -1,6 +1,8 @@
 ﻿@page "/reportes/libro-ventas-contable"
 @using GSCommerce.Client.Components
+@using GSCommerce.Client.Services
 @inject IJSRuntime JS
+@inject AlmacenService AlmacenService
 
 <ReportsBreadcrumb Title="Libro de Ventas Contable" />
 
@@ -13,6 +15,16 @@
         <label>Mes:</label>
         <InputNumber @bind-Value="mes" class="form-control" />
     </div>
+    <div class="col-md-3">
+        <label>Razón Social:</label>
+        <InputSelect @bind-Value="razonSocial" class="form-select">
+            <option value="">Todas</option>
+            @foreach (var r in razonesSociales)
+            {
+                <option value="@r">@r</option>
+            }
+        </InputSelect>
+    </div>
     <div class="col-md-3 d-flex align-items-end">
         <button class="btn btn-success w-100" @onclick="Descargar">📥 Descargar Excel</button>
     </div>
@@ -21,10 +33,17 @@
 @code {
     private int anio = DateTime.Today.Year;
     private int mes = DateTime.Today.Month;
+    private List<string> razonesSociales = new();
+    private string razonSocial = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        razonesSociales = (await AlmacenService.GetAlmacenes()).Select(a => a.RazonSocial).Distinct().ToList();
+    }
 
     private async Task Descargar()
     {
-        var url = $"/api/api/ventas/libro-ventas-contable?anio={anio}&mes={mes}";
+        var url = $"/api/api/ventas/libro-ventas-contable?anio={anio}&mes={mes}&razonSocial={Uri.EscapeDataString(razonSocial)}";
         await JS.InvokeVoidAsync("open", url, "_blank");
     }
 }

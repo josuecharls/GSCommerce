@@ -140,7 +140,8 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.DeleteAsync($"api/articulos/{id}");
+                var formattedId = id.PadLeft(6, '0');
+                var response = await _httpClient.DeleteAsync($"api/articulos/{formattedId}");
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)

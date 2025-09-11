@@ -1754,29 +1754,31 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("libro-ventas-contable")]
-        public async Task<IActionResult> DescargarLibroVentasContable([FromQuery] int anio, [FromQuery] int mes)
+        public async Task<IActionResult> DescargarLibroVentasContable([FromQuery] int anio, [FromQuery] int mes, [FromQuery] string? razonSocial)
         {
-            var ventas = await _context.ComprobanteDeVentaCabeceras
-                .Where(c => c.Fecha.Year == anio &&
-                            c.Fecha.Month == mes &&
-                            c.Estado == "E" &&
-                            c.IdTipoDocumento != 4) // excluir TICKET
-                .Select(c => new
-                {
-                    c.Fecha,
-                    c.IdCliente,
-                    c.Nombre,
-                    c.Dniruc,
-                    c.IdTipoDocumento,
-                    c.Serie,
-                    c.Numero,
-                    c.SubTotal,
-                    c.Igv,
-                    c.Total,
-                    c.TipoCambio
-                })
-                .OrderBy(c => c.Fecha)
-                .ToListAsync();
+            var query = from c in _context.ComprobanteDeVentaCabeceras
+                        join a in _context.Almacens on c.IdAlmacen equals a.IdAlmacen
+                        where c.Fecha.Year == anio &&
+                              c.Fecha.Month == mes &&
+                              c.Estado == "E" &&
+                              c.IdTipoDocumento != 4 &&
+                              (string.IsNullOrEmpty(razonSocial) || a.RazonSocial == razonSocial)
+                        select new
+                        {
+                            c.Fecha,
+                            c.IdCliente,
+                            c.Nombre,
+                            c.Dniruc,
+                            c.IdTipoDocumento,
+                            c.Serie,
+                            c.Numero,
+                            c.SubTotal,
+                            c.Igv,
+                            c.Total,
+                            c.TipoCambio
+                        };
+
+            var ventas = await query.OrderBy(v => v.Fecha).ToListAsync();
 
             using var wb = new XLWorkbook();
             var ws = wb.AddWorksheet("RegistroVentas");
