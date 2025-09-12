@@ -277,11 +277,29 @@ namespace GSCommerceAPI.Controllers
             var desdeDate = desde.Date;
             var hastaExcl = hasta.Date.AddDays(1);
 
-            var ventas = await _context.VCierreVentaDiaria1s
+            var ventasQuery = _context.VCierreVentaDiaria1s
                 .AsNoTracking()
                 .Where(v => v.Fecha >= desdeDate && v.Fecha < hastaExcl)
-                .Where(v => !idAlmacen.HasValue || v.IdAlmacen == idAlmacen.Value)
-                .ToListAsync();
+                .Where(v => !idAlmacen.HasValue || v.IdAlmacen == idAlmacen.Value);
+
+            if (desdeDate <= DateTime.Today && hastaExcl > DateTime.Today)
+            {
+                var hoyInicio = DateTime.Today;
+                var hoyFin = hoyInicio.AddHours(23).AddMinutes(59).AddSeconds(59);
+
+                ventasQuery = from v in ventasQuery
+                              join c in _context.ComprobanteDeVentaCabeceras
+                                  on new { v.IdAlmacen, v.Serie, v.Numero }
+                                  equals new { c.IdAlmacen, c.Serie, c.Numero }
+                              where !(v.Estado == "A" &&
+                                      v.Fecha >= hoyInicio && v.Fecha <= hoyFin &&
+                                      c.FechaHoraUsuarioAnula.HasValue &&
+                                      c.FechaHoraUsuarioAnula.Value >= hoyInicio &&
+                                      c.FechaHoraUsuarioAnula.Value <= hoyFin)
+                              select v;
+            }
+
+            var ventas = await ventasQuery.ToListAsync();
 
             var montos = ventas
                 .GroupBy(v => v.IdAlmacen)

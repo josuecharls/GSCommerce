@@ -228,12 +228,26 @@ public class CajaController : ControllerBase
         var fechaInicio = actual.Fecha.ToDateTime(TimeOnly.MinValue);
         var fechaFin = actual.Fecha.ToDateTime(new TimeOnly(23, 59, 59));
 
-        var ventas = await _context.VCierreVentaDiaria1s
+        var ventasQuery = _context.VCierreVentaDiaria1s
             .Where(v => v.IdAlmacen == actual.IdAlmacen &&
                         v.IdCajero == actual.IdUsuario &&
                         v.Fecha >= fechaInicio &&
-                        v.Fecha <= fechaFin)
-            .ToListAsync();
+                        v.Fecha <= fechaFin);
+
+        if (actual.Fecha == DateOnly.FromDateTime(DateTime.Today))
+        {
+            ventasQuery = from v in ventasQuery
+                          join c in _context.ComprobanteDeVentaCabeceras
+                              on new { v.IdAlmacen, v.Serie, v.Numero }
+                              equals new { c.IdAlmacen, c.Serie, c.Numero }
+                          where !(v.Estado == "A" &&
+                                  c.FechaHoraUsuarioAnula.HasValue &&
+                                  c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
+                                  c.FechaHoraUsuarioAnula.Value <= fechaFin)
+                          select v;
+        }
+
+        var ventas = await ventasQuery.ToListAsync();
 
         decimal ventaEfectivo = 0;
         decimal ventaTarjeta = 0;
@@ -292,11 +306,25 @@ public class CajaController : ControllerBase
         var claves = aperturas.Select(a => (a.IdUsuario, a.IdAlmacen)).ToHashSet();
 
         // Ventas del día usando VCierreVentaDiaria1s
-        var ventasDia = await _context.VCierreVentaDiaria1s
+        var ventasDiaQuery = _context.VCierreVentaDiaria1s
             .AsNoTracking()
             .Where(v => v.Fecha >= dayStart && v.Fecha <= dayEnd)
-            .Where(v => !idAlmacen.HasValue || v.IdAlmacen == idAlmacen.Value)
-            .ToListAsync();
+            .Where(v => !idAlmacen.HasValue || v.IdAlmacen == idAlmacen.Value);
+
+        if (fecha.Value == DateOnly.FromDateTime(DateTime.Today))
+        {
+            ventasDiaQuery = from v in ventasDiaQuery
+                             join c in _context.ComprobanteDeVentaCabeceras
+                                 on new { v.IdAlmacen, v.Serie, v.Numero }
+                                 equals new { c.IdAlmacen, c.Serie, c.Numero }
+                             where !(v.Estado == "A" &&
+                                     c.FechaHoraUsuarioAnula.HasValue &&
+                                     c.FechaHoraUsuarioAnula.Value >= dayStart &&
+                                     c.FechaHoraUsuarioAnula.Value <= dayEnd)
+                             select v;
+        }
+
+        var ventasDia = await ventasDiaQuery.ToListAsync();
         ventasDia = ventasDia.Where(v => claves.Contains((v.IdCajero, v.IdAlmacen))).ToList();
         var ventasPorClave = ventasDia
             .GroupBy(v => (v.IdCajero, v.IdAlmacen))
@@ -395,9 +423,23 @@ public class CajaController : ControllerBase
         var fechaInicio = fechaParsed.ToDateTime(new TimeOnly(0, 0, 0));
         var fechaFin = fechaParsed.ToDateTime(new TimeOnly(23, 59, 59));
 
-        var lista = await _context.VCierreVentaDiaria1s
-            .Where(v => v.IdAlmacen == idAlmacen && v.Fecha >= fechaInicio && v.Fecha <= fechaFin)
-            .ToListAsync();
+        var query = _context.VCierreVentaDiaria1s
+            .Where(v => v.IdAlmacen == idAlmacen && v.Fecha >= fechaInicio && v.Fecha <= fechaFin);
+
+        if (fechaParsed == DateOnly.FromDateTime(DateTime.Today))
+        {
+            query = from v in query
+                    join c in _context.ComprobanteDeVentaCabeceras
+                        on new { v.IdAlmacen, v.Serie, v.Numero }
+                        equals new { c.IdAlmacen, c.Serie, c.Numero }
+                    where !(v.Estado == "A" &&
+                            c.FechaHoraUsuarioAnula.HasValue &&
+                            c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
+                            c.FechaHoraUsuarioAnula.Value <= fechaFin)
+                    select v;
+        }
+
+        var lista = await query.ToListAsync();
 
         return Ok(lista);
     }
@@ -575,11 +617,25 @@ public class CajaController : ControllerBase
             var dayEnd = apertura.Fecha.ToDateTime(new TimeOnly(23, 59, 59));
 
             // 2) VENTAS DEL DÍA PARA CÁLCULOS
-            var ventas = await _context.VCierreVentaDiaria1s
+            var ventasQuery = _context.VCierreVentaDiaria1s
                 .Where(v => v.IdAlmacen == apertura.IdAlmacen
                          && v.IdCajero == apertura.IdUsuario
-                         && v.Fecha >= dayStart && v.Fecha <= dayEnd)
-                .ToListAsync();
+                         && v.Fecha >= dayStart && v.Fecha <= dayEnd);
+
+            if (apertura.Fecha == DateOnly.FromDateTime(DateTime.Today))
+            {
+                ventasQuery = from v in ventasQuery
+                              join c in _context.ComprobanteDeVentaCabeceras
+                                  on new { v.IdAlmacen, v.Serie, v.Numero }
+                                  equals new { c.IdAlmacen, c.Serie, c.Numero }
+                              where !(v.Estado == "A" &&
+                                      c.FechaHoraUsuarioAnula.HasValue &&
+                                      c.FechaHoraUsuarioAnula.Value >= dayStart &&
+                                      c.FechaHoraUsuarioAnula.Value <= dayEnd)
+                              select v;
+            }
+
+            var ventas = await ventasQuery.ToListAsync();
 
             decimal ventaEfectivo = 0m, ventaTarjeta = 0m, ventaNC = 0m;
 
