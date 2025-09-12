@@ -224,29 +224,38 @@ public class CajaController : ControllerBase
                         i.Estado == "E")
             .SumAsync(i => (decimal?)i.Monto) ?? 0;
 
-        // Calcular venta del día y venta en efectivo a partir del resumen
-        var resumen = await _context.ResumenCierreDeCajas
-            .Where(r => r.IdUsuario == actual.IdUsuario &&
-                        r.IdAlmacen == actual.IdAlmacen &&
-                        r.Fecha == actual.Fecha)
+        // Calcular ventas del día usando la misma lógica que CajaLiquidacion
+        var fechaInicio = actual.Fecha.ToDateTime(TimeOnly.MinValue);
+        var fechaFin = actual.Fecha.ToDateTime(new TimeOnly(23, 59, 59));
+
+        var ventas = await _context.VCierreVentaDiaria1s
+            .Where(v => v.IdAlmacen == actual.IdAlmacen &&
+                        v.IdCajero == actual.IdUsuario &&
+                        v.Fecha >= fechaInicio &&
+                        v.Fecha <= fechaFin)
             .ToListAsync();
 
-        decimal MontoPorGrupo(params string[] nombres) =>
-            resumen.Where(r => nombres.Any(n => r.Grupo.StartsWith(n, StringComparison.OrdinalIgnoreCase)))
-                   .Sum(r => r.Monto);
+        decimal ventaEfectivo = 0;
+        decimal ventaTarjeta = 0;
 
-        var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA TICKET");
-        var ventaTarjetaTotal = MontoPorGrupo("VENTA TARJETA/ONLINE");
-        var ventaNC = MontoPorGrupo("VENTA POR N.C", "VENTA CON N.C");
+        foreach (var v in ventas)
+        {
+            var tipo = v.Descripcion.Split(' ')[0];
+            switch (tipo)
+            {
+                case "Efectivo":
+                    ventaEfectivo += v.Soles - (v.Vuelto ?? 0);
+                    break;
+                case "Tarjeta":
+                case "Online":
+                    ventaTarjeta += v.Soles;
+                    break;
+                case "N.C.":
+                    // Las notas de crédito no forman parte de la venta del día
+                    break;
+            }
+        }
 
-        // Ajustar ventas considerando notas de crédito
-        var ventaTarjeta = ventaTarjetaTotal - ventaNC;
-        if (ventaTarjeta < 0) ventaTarjeta = 0;
-
-        var ventaEfectivo = ventasResumen - ventaTarjetaTotal - ventaNC;
-        if (ventaEfectivo < 0) ventaEfectivo = 0;
-
-        // Venta total del día (efectivo + tarjeta) descontando N.C.
         var ventaDia = ventaEfectivo + ventaTarjeta;
 
         actual.VentaDia = ventaDia;
@@ -282,13 +291,16 @@ public class CajaController : ControllerBase
 
         var claves = aperturas.Select(a => (a.IdUsuario, a.IdAlmacen)).ToHashSet();
 
-        // Ventas del día desde ResumenCierreDeCajas (solo filas que empiezan con VENTA)
-        var ventasDia = await _context.ResumenCierreDeCajas
+        // Ventas del día usando VCierreVentaDiaria1s
+        var ventasDia = await _context.VCierreVentaDiaria1s
             .AsNoTracking()
-            .Where(r => r.Fecha == fecha && r.Grupo != null && r.Grupo.StartsWith("VENTA"))
-            .Select(r => new { r.IdUsuario, r.IdAlmacen, r.Grupo, r.Monto })
+            .Where(v => v.Fecha >= dayStart && v.Fecha <= dayEnd)
+            .Where(v => !idAlmacen.HasValue || v.IdAlmacen == idAlmacen.Value)
             .ToListAsync();
-        ventasDia = ventasDia.Where(v => claves.Contains((v.IdUsuario, v.IdAlmacen))).ToList();
+        ventasDia = ventasDia.Where(v => claves.Contains((v.IdCajero, v.IdAlmacen))).ToList();
+        var ventasPorClave = ventasDia
+            .GroupBy(v => (v.IdCajero, v.IdAlmacen))
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         // Movimientos del día (ingresos/egresos)
         var movsDia = await _context.IngresosEgresosCabeceras
@@ -297,20 +309,6 @@ public class CajaController : ControllerBase
             .Select(m => new { m.IdUsuario, m.IdAlmacen, m.Naturaleza, Grupo = (m.Tipo ?? "").Trim(), m.Monto })
             .ToListAsync();
         movsDia = movsDia.Where(m => claves.Contains((m.IdUsuario, m.IdAlmacen))).ToList();
-
-        bool SW(string s, params string[] pref) => !string.IsNullOrWhiteSpace(s) && pref.Any(p => s.StartsWith(p, StringComparison.OrdinalIgnoreCase));
-
-        decimal VRes(int u, int a) => ventasDia
-            .Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA TICKET"))
-            .Sum(v => v.Monto);
-
-        decimal VTar(int u, int a) => ventasDia
-            .Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA TARJETA/ONLINE"))
-            .Sum(v => v.Monto);
-
-        decimal VNC(int u, int a) => ventasDia
-            .Where(v => v.IdUsuario == u && v.IdAlmacen == a && SW(v.Grupo, "VENTA POR N.C", "VENTA CON N.C"))
-            .Sum(v => v.Monto);
 
         decimal Ingresos(int u, int a) => movsDia.Where(m => m.IdUsuario == u && m.IdAlmacen == a && m.Naturaleza == "I").Sum(m => m.Monto);
         decimal Transf(int u, int a) => movsDia.Where(m => m.IdUsuario == u && m.IdAlmacen == a && m.Naturaleza == "E" && m.Grupo.StartsWith("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase)).Sum(m => m.Monto);
@@ -333,15 +331,29 @@ public class CajaController : ControllerBase
                 .Select(a => (decimal?)a.SaldoFinal)
                 .FirstOrDefaultAsync() ?? ap.SaldoInicial;
 
-            var vResumen = VRes(ap.IdUsuario, ap.IdAlmacen);
-            var vTarjeta = VTar(ap.IdUsuario, ap.IdAlmacen);
-            var vNC = VNC(ap.IdUsuario, ap.IdAlmacen);
-            _ = vNC; // valor de N.C. referencial (no afecta los cálculos)
-
-            // Venta Día = efectivo + tarjeta (total sin restar N.C.)
-            var vTotal = vResumen - vNC;
-            // solo efectivo (para saldo de caja)
-            var vEfectivo = vResumen - vTarjeta - vNC;
+            decimal vEfectivo = 0, vTarjeta = 0, vNC = 0;
+            if (ventasPorClave.TryGetValue((ap.IdUsuario, ap.IdAlmacen), out var vList))
+            {
+                foreach (var v in vList)
+                {
+                    var tipo = v.Descripcion.Split(' ')[0];
+                    switch (tipo)
+                    {
+                        case "Efectivo":
+                            vEfectivo += v.Soles - (v.Vuelto ?? 0);
+                            break;
+                        case "Tarjeta":
+                        case "Online":
+                            vTarjeta += v.Soles;
+                            break;
+                        case "N.C.":
+                            vNC += v.Soles;
+                            break;
+                    }
+                }
+            }
+            var vTotal = vEfectivo + vTarjeta;
+            _ = vNC; // valor referencial de N.C.
 
             var ingresos = Ingresos(ap.IdUsuario, ap.IdAlmacen);
             var egresos = Gastos(ap.IdUsuario, ap.IdAlmacen) + Transf(ap.IdUsuario, ap.IdAlmacen) + Prov(ap.IdUsuario, ap.IdAlmacen);
@@ -562,7 +574,53 @@ public class CajaController : ControllerBase
             var dayStart = apertura.Fecha.ToDateTime(TimeOnly.MinValue);
             var dayEnd = apertura.Fecha.ToDateTime(new TimeOnly(23, 59, 59));
 
-            // 2) RESUMEN BASE (solo VENTAS) para ese día
+            // 2) VENTAS DEL DÍA PARA CÁLCULOS
+            var ventas = await _context.VCierreVentaDiaria1s
+                .Where(v => v.IdAlmacen == apertura.IdAlmacen
+                         && v.IdCajero == apertura.IdUsuario
+                         && v.Fecha >= dayStart && v.Fecha <= dayEnd)
+                .ToListAsync();
+
+            decimal ventaEfectivo = 0m, ventaTarjeta = 0m, ventaNC = 0m;
+
+            foreach (var v in ventas)
+            {
+                var tipo = v.Descripcion.Split(' ')[0];
+                switch (tipo)
+                {
+                    case "Efectivo":
+                        ventaEfectivo += v.Soles - (v.Vuelto ?? 0);
+                        break;
+                    case "Tarjeta":
+                    case "Online":
+                        ventaTarjeta += v.Soles;
+                        break;
+                    case "N.C.":
+                        ventaNC += v.Soles;
+                        break;
+                }
+            }
+
+            var ventaDia = ventaEfectivo + ventaTarjeta;
+
+            var ventasTarjetaDetalle = ventas
+                .Where(v => v.Descripcion.StartsWith("Tarjeta") || v.Descripcion.StartsWith("Online"))
+                .GroupBy(v => v.Descripcion)
+                .Select(g => new { Detalle = g.Key, Monto = g.Sum(x => x.Soles) })
+                .ToList();
+
+            var notasCreditoDetalle = ventas
+                .Where(v => v.Descripcion.StartsWith("N.C."))
+                .Select(v => new ResumenCierreDeCaja
+                {
+                    IdGrupo = 1,
+                    Grupo = "VENTA POR N.C.",
+                    Detalle = v.Descripcion,
+                    Monto = v.Soles
+                })
+                .ToList();
+
+            // 3) RESUMEN BASE (solo VENTAS) para ese día
             var resumenBase = await _context.ResumenCierreDeCajas
                 .AsNoTracking()
                 .Where(r => r.IdUsuario == apertura.IdUsuario
@@ -601,12 +659,6 @@ public class CajaController : ControllerBase
                 })
                 .ToListAsync();
 
-            // 4) LISTA UNIFICADA SOLO DEL DÍA: VENTAS (resumen) + MOVIMIENTOS (ing/eg)
-            var resumenDia = resumenVentas
-                .Concat(movimientos)
-                .OrderBy(r => r.IdGrupo).ThenBy(r => r.Grupo)
-                .ToList();
-
             // 5) SALDO DEL DÍA ANTERIOR
             var saldoDiaAnterior = await _context.AperturaCierreCajas
                 .AsNoTracking()
@@ -615,26 +667,6 @@ public class CajaController : ControllerBase
                 .Select(a => (decimal?)a.SaldoFinal)
                 .FirstOrDefaultAsync() ?? apertura.SaldoInicial;
 
-            // Helpers
-            bool StartsWithAny(string src, StringComparison cmp, params string[] pref)
-                => !string.IsNullOrWhiteSpace(src) && pref.Any(p => src.StartsWith(p, cmp));
-
-            decimal MontoPorGrupo(params string[] nombres) =>
-                resumenVentas.Where(r => !string.IsNullOrWhiteSpace(r.Grupo) &&
-                                         StartsWithAny(r.Grupo, StringComparison.OrdinalIgnoreCase, nombres))
-                             .Sum(r => r.Monto);
-
-            // 6) VENTAS (del día)
-            var ventasTarjeta = resumenVentas
-                .Where(r => r.Grupo.StartsWith("VENTA TARJETA/ONLINE", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            var ventaTarjeta = ventasTarjeta.Sum(r => r.Monto);
-            var ventaNC = MontoPorGrupo("VENTA POR N.C", "VENTA CON N.C");
-
-            var ventasResumen = MontoPorGrupo("VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2");
-            var ventaEfectivo = ventasResumen - ventaTarjeta - ventaNC; // efectivo real en caja
-            var ventaDia = ventasResumen - ventaNC; // total vendido (efectivo + tarjeta)
-
             // --- Distribución de totales ---
             string[] gruposVentaBase = { "VENTA BOLETAS", "VENTA BOLETA M", "VENTA FACTURA", "VENTA BOLETA 2" };
 
@@ -642,33 +674,7 @@ public class CajaController : ControllerBase
                 .Where(r => gruposVentaBase.Any(g => r.Grupo.StartsWith(g, StringComparison.OrdinalIgnoreCase)))
                 .GroupBy(r => gruposVentaBase.First(g => r.Grupo.StartsWith(g, StringComparison.OrdinalIgnoreCase)))
                 .ToDictionary(g => g.Key, g => g.Sum(x => x.Monto));
-            /*
-                        var ventasResumenTotal = totalesVentaPorGrupo.Values.Sum();
-                        var efectivoPorGrupo = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-
-                        if (ventasResumenTotal > 0)
-                        {
-                            decimal acumulado = 0;
-                            string grupoMayor = totalesVentaPorGrupo.OrderByDescending(kv => kv.Value).First().Key;
-
-                            foreach (var kv in totalesVentaPorGrupo)
-                            {
-                                var proporcion = kv.Value / ventasResumenTotal;
-                                var monto = Math.Round(ventaEfectivo * proporcion, 2);
-                                efectivoPorGrupo[kv.Key] = monto;
-                                acumulado += monto;
-                            }
-
-                            var residuo = Math.Round(ventaEfectivo - acumulado, 2);
-                            if (residuo != 0 && efectivoPorGrupo.ContainsKey(grupoMayor))
-                                efectivoPorGrupo[grupoMayor] = Math.Round(efectivoPorGrupo[grupoMayor] + residuo, 2);
-                        }
-                        else
-                        {
-                            foreach (var g in gruposVentaBase) efectivoPorGrupo[g] = 0m;
-                        }
-            */
-            // 7) INGRESOS / EGRESOS (solo del día) — para totales de tarjetas y egresos
+            // 6) INGRESOS / EGRESOS (solo del día) — para totales de tarjetas y egresos
             var categoriasExactas = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "PAGO LUZ","PAGO AGUA","PAGO TELEFONO","PAGO CELULAR","PAGO ALQUILER",
@@ -700,7 +706,7 @@ public class CajaController : ControllerBase
             var egresos = gastosGenerales + transferenciasDia + pagosProveedores; // total egresos
             var saldoFinal = saldoDiaAnterior + ventaEfectivo + ingresos - egresos; // solo efectivo
 
-            // 8) Construir DETALLE para el PDF
+            // 7) Construir DETALLE para el PDF
             var detalleHoy = new List<ResumenCierreDeCaja>();
 
             // Ventas TOTALES por grupo (detalle = el primero encontrado del resumen)
@@ -714,15 +720,12 @@ public class CajaController : ControllerBase
                         IdGrupo = 1,
                         Grupo = g,
                         Detalle = primerDetalle,
-                        Monto = totalesVentaPorGrupo[g] // <-- solo EFECTIVO aquí
+                        Monto = totalesVentaPorGrupo[g]
                     });
                 }
             }
 
             // Detalle de ventas con tarjeta agrupado por método de pago
-            var ventasTarjetaDetalle = ventasTarjeta
-                .GroupBy(r => r.Detalle)
-                .Select(g => new { Detalle = g.Key, Monto = g.Sum(x => x.Monto) });
             foreach (var vt in ventasTarjetaDetalle)
             {
                 detalleHoy.Add(new ResumenCierreDeCaja
@@ -733,12 +736,6 @@ public class CajaController : ControllerBase
                     Monto = vt.Monto
                 });
             }
-
-            var notasCreditoDetalle = resumenVentas
-                .Where(r => r.Grupo.StartsWith("VENTA POR N.C", StringComparison.OrdinalIgnoreCase)
-                         || r.Grupo.StartsWith("VENTA CON N.C", StringComparison.OrdinalIgnoreCase))
-                .Select(r => new ResumenCierreDeCaja { IdGrupo = 1, Grupo = r.Grupo, Detalle = r.Detalle, Monto = r.Monto });
-
             detalleHoy.AddRange(notasCreditoDetalle);
 
             // Agregar movimientos del día (Tipo -> Grupo, Glosa -> Detalle)
@@ -756,7 +753,7 @@ public class CajaController : ControllerBase
                 .ThenBy(d => d.Grupo)
                 .ToList();
 
-            // 9) DTO PARA EL PDF
+            // 8) DTO PARA EL PDF
             var dto = new ArqueoCajaDTO
             {
                 IdAperturaCierre = apertura.IdAperturaCierre,
@@ -786,7 +783,7 @@ public class CajaController : ControllerBase
                 Resumen = detalleHoy
             };
 
-            // 10) PDF
+            // 9) PDF
             var pdf = new ArqueoCajaDocument(dto).GeneratePdf();
             return File(pdf, "application/pdf", $"ArqueoCaja_{dto.Fecha:yyyyMMdd}.pdf");
         }

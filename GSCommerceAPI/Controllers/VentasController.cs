@@ -274,22 +274,39 @@ namespace GSCommerceAPI.Controllers
             [FromQuery] int? idAlmacen // ← filtro opcional
         )
         {
+            var desdeDate = desde.Date;
             var hastaExcl = hasta.Date.AddDays(1);
-            var hoy = DateTime.Today;
 
-            var query =
-                from c in _context.ComprobanteDeVentaCabeceras
-                where c.Fecha >= desde.Date && c.Fecha < hastaExcl
-                      && (c.Estado != "A" || (c.Fecha < hoy && c.GeneroNc != null))
-                      && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen.Value) // ← aplica filtro si viene
-                group c by c.IdAlmacen into g
-                select new
+            var ventas = await _context.VCierreVentaDiaria1s
+                .AsNoTracking()
+                .Where(v => v.Fecha >= desdeDate && v.Fecha < hastaExcl)
+                .Where(v => !idAlmacen.HasValue || v.IdAlmacen == idAlmacen.Value)
+                .ToListAsync();
+
+            var montos = ventas
+                .GroupBy(v => v.IdAlmacen)
+                .Select(g =>
                 {
-                    IdAlmacen = g.Key,
-                    Venta = g.Sum(x => x.Total)
-                };
+                    decimal vEfectivo = 0m, vTarjeta = 0m;
+                    foreach (var v in g)
+                    {
+                        var tipo = v.Descripcion.Split(' ')[0];
+                        switch (tipo)
+                        {
+                            case "Efectivo":
+                                vEfectivo += v.Soles - (v.Vuelto ?? 0m);
+                                break;
+                            case "Tarjeta":
+                            case "Online":
+                                vTarjeta += v.Soles;
+                                break;
+                        }
+                    }
+                    return new { IdAlmacen = g.Key, Venta = vEfectivo + vTarjeta };
+                })
+                .ToList();
 
-            var montos = await query.ToListAsync();
+            var totalGlobal = montos.Sum(x => x.Venta);
             var ids = montos.Select(x => x.IdAlmacen).ToList();
 
             var nombres = await _context.Almacens
@@ -297,41 +314,20 @@ namespace GSCommerceAPI.Controllers
                 .Select(a => new { a.IdAlmacen, a.Nombre })
                 .ToListAsync();
 
-            // Monto total pagado con nota de crédito por almacén
-            var notasCredito = await (
-                    from p in _context.DetallePagoVenta
-                    join c in _context.ComprobanteDeVentaCabeceras on p.IdComprobante equals c.IdComprobante
-                    where c.Fecha >= desde.Date && c.Fecha < hastaExcl
-                          && (c.Estado != "A" || (c.Fecha < hoy && c.GeneroNc != null))
-                          && p.IdTipoPagoVenta == 8
-                          && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen.Value)
-                    group p by c.IdAlmacen into g
-                    select new
-                    {
-                        IdAlmacen = g.Key,
-                        Monto = g.Sum(x => x.Soles)
-                    }
-                )
-                .ToDictionaryAsync(x => x.IdAlmacen, x => x.Monto);
-
-            var totalGlobal = montos.Sum(x => x.Venta - (notasCredito.TryGetValue(x.IdAlmacen, out var nc) ? nc : 0m));
-
             var resultado = montos
                 .Select(x =>
                 {
                     var nombre = nombres.FirstOrDefault(n => n.IdAlmacen == x.IdAlmacen)?.Nombre ?? $"Almacén {x.IdAlmacen}";
-                    var nc = notasCredito.TryGetValue(x.IdAlmacen, out var montoNc) ? montoNc : 0m;
-                    var venta = x.Venta - nc;
-                    var porcentaje = totalGlobal > 0 ? Math.Round((double)(venta / totalGlobal) * 100, 2) : 0;
+                    var porcentaje = totalGlobal > 0m ? Math.Round((double)(x.Venta / totalGlobal) * 100, 2) : 0;
                     return new ReporteTotalTiendasDTO
                     {
                         IdAlmacen = x.IdAlmacen,
                         Tienda = nombre,
-                        Venta = venta,
+                        Venta = x.Venta,
                         Porcentaje = porcentaje
                     };
                 })
-                .OrderBy(r => r.Venta) // o .OrderByDescending(r => r.Venta)
+                .OrderBy(r => r.Venta)
                 .ToList();
 
             return resultado;
