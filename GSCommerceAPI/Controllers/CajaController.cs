@@ -311,18 +311,15 @@ public class CajaController : ControllerBase
             .Where(v => v.Fecha >= dayStart && v.Fecha <= dayEnd)
             .Where(v => !idAlmacen.HasValue || v.IdAlmacen == idAlmacen.Value);
 
-        if (fecha.Value == DateOnly.FromDateTime(DateTime.Today))
-        {
-            ventasDiaQuery = from v in ventasDiaQuery
-                             join c in _context.ComprobanteDeVentaCabeceras
-                                 on new { v.IdAlmacen, v.Serie, v.Numero }
-                                 equals new { c.IdAlmacen, c.Serie, c.Numero }
-                             where !(v.Estado == "A" &&
-                                     c.FechaHoraUsuarioAnula.HasValue &&
-                                     c.FechaHoraUsuarioAnula.Value >= dayStart &&
-                                     c.FechaHoraUsuarioAnula.Value <= dayEnd)
-                             select v;
-        }
+        ventasDiaQuery = from v in ventasDiaQuery
+                         join c in _context.ComprobanteDeVentaCabeceras
+                             on new { v.IdAlmacen, v.Serie, v.Numero }
+                             equals new { c.IdAlmacen, c.Serie, c.Numero }
+                         where !(c.Estado == "A" &&
+                                 c.FechaHoraUsuarioAnula.HasValue &&
+                                 c.FechaHoraUsuarioAnula.Value >= dayStart &&
+                                 c.FechaHoraUsuarioAnula.Value <= dayEnd)
+                         select v;
 
         var ventasDia = await ventasDiaQuery.ToListAsync();
         ventasDia = ventasDia.Where(v => claves.Contains((v.IdCajero, v.IdAlmacen))).ToList();
@@ -426,18 +423,15 @@ public class CajaController : ControllerBase
         var query = _context.VCierreVentaDiaria1s
             .Where(v => v.IdAlmacen == idAlmacen && v.Fecha >= fechaInicio && v.Fecha <= fechaFin);
 
-        if (fechaParsed == DateOnly.FromDateTime(DateTime.Today))
-        {
-            query = from v in query
-                    join c in _context.ComprobanteDeVentaCabeceras
-                        on new { v.IdAlmacen, v.Serie, v.Numero }
-                        equals new { c.IdAlmacen, c.Serie, c.Numero }
-                    where !(v.Estado == "A" &&
-                            c.FechaHoraUsuarioAnula.HasValue &&
-                            c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
-                            c.FechaHoraUsuarioAnula.Value <= fechaFin)
-                    select v;
-        }
+        query = from v in query
+                join c in _context.ComprobanteDeVentaCabeceras
+                    on new { v.IdAlmacen, v.Serie, v.Numero }
+                    equals new { c.IdAlmacen, c.Serie, c.Numero }
+                where !(c.Estado == "A" &&
+                        c.FechaHoraUsuarioAnula.HasValue &&
+                        c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
+                        c.FechaHoraUsuarioAnula.Value <= fechaFin)
+                select v;
 
         var lista = await query.ToListAsync();
 
@@ -622,18 +616,15 @@ public class CajaController : ControllerBase
                          && v.IdCajero == apertura.IdUsuario
                          && v.Fecha >= dayStart && v.Fecha <= dayEnd);
 
-            if (apertura.Fecha == DateOnly.FromDateTime(DateTime.Today))
-            {
-                ventasQuery = from v in ventasQuery
-                              join c in _context.ComprobanteDeVentaCabeceras
-                                  on new { v.IdAlmacen, v.Serie, v.Numero }
-                                  equals new { c.IdAlmacen, c.Serie, c.Numero }
-                              where !(v.Estado == "A" &&
-                                      c.FechaHoraUsuarioAnula.HasValue &&
-                                      c.FechaHoraUsuarioAnula.Value >= dayStart &&
-                                      c.FechaHoraUsuarioAnula.Value <= dayEnd)
-                              select v;
-            }
+            ventasQuery = from v in ventasQuery
+                          join c in _context.ComprobanteDeVentaCabeceras
+                              on new { v.IdAlmacen, v.Serie, v.Numero }
+                              equals new { c.IdAlmacen, c.Serie, c.Numero }
+                          where !(c.Estado == "A" &&
+                                  c.FechaHoraUsuarioAnula.HasValue &&
+                                  c.FechaHoraUsuarioAnula.Value >= dayStart &&
+                                  c.FechaHoraUsuarioAnula.Value <= dayEnd)
+                          select v;
 
             var ventas = await ventasQuery.ToListAsync();
 
