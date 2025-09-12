@@ -287,6 +287,7 @@ namespace GSCommerceAPI.Controllers
                               on new { v.IdAlmacen, v.Serie, v.Numero }
                               equals new { c.IdAlmacen, c.Serie, c.Numero }
                           where !(c.Estado == "A" &&
+                                  string.IsNullOrEmpty(c.GeneroNc) &&
                                   c.FechaHoraUsuarioAnula.HasValue &&
                                   c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
                           select v;

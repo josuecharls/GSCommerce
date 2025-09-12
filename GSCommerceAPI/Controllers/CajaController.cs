@@ -240,7 +240,8 @@ public class CajaController : ControllerBase
                           join c in _context.ComprobanteDeVentaCabeceras
                               on new { v.IdAlmacen, v.Serie, v.Numero }
                               equals new { c.IdAlmacen, c.Serie, c.Numero }
-                          where !(v.Estado == "A" &&
+                          where !(c.Estado == "A" &&
+                                  string.IsNullOrEmpty(c.GeneroNc) &&
                                   c.FechaHoraUsuarioAnula.HasValue &&
                                   c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
                                   c.FechaHoraUsuarioAnula.Value <= fechaFin)
@@ -316,6 +317,7 @@ public class CajaController : ControllerBase
                              on new { v.IdAlmacen, v.Serie, v.Numero }
                              equals new { c.IdAlmacen, c.Serie, c.Numero }
                          where !(c.Estado == "A" &&
+                                 string.IsNullOrEmpty(c.GeneroNc) &&
                                  c.FechaHoraUsuarioAnula.HasValue &&
                                  c.FechaHoraUsuarioAnula.Value >= dayStart &&
                                  c.FechaHoraUsuarioAnula.Value <= dayEnd)
@@ -428,6 +430,7 @@ public class CajaController : ControllerBase
                     on new { v.IdAlmacen, v.Serie, v.Numero }
                     equals new { c.IdAlmacen, c.Serie, c.Numero }
                 where !(c.Estado == "A" &&
+                        string.IsNullOrEmpty(c.GeneroNc) &&
                         c.FechaHoraUsuarioAnula.HasValue &&
                         c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
                         c.FechaHoraUsuarioAnula.Value <= fechaFin)
@@ -621,6 +624,7 @@ public class CajaController : ControllerBase
                               on new { v.IdAlmacen, v.Serie, v.Numero }
                               equals new { c.IdAlmacen, c.Serie, c.Numero }
                           where !(c.Estado == "A" &&
+                                  string.IsNullOrEmpty(c.GeneroNc) &&
                                   c.FechaHoraUsuarioAnula.HasValue &&
                                   c.FechaHoraUsuarioAnula.Value >= dayStart &&
                                   c.FechaHoraUsuarioAnula.Value <= dayEnd)
