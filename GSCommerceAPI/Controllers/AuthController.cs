@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Collections.Generic;
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -18,6 +20,7 @@ namespace GSCommerceAPI.Controllers
     {
         private readonly SyscharlesContext _context;
         private readonly IConfiguration _configuration;
+        private static readonly Dictionary<int, string> _refreshTokens = new();
 
         public AuthController(SyscharlesContext context, IConfiguration configuration)
         {
@@ -50,11 +53,16 @@ namespace GSCommerceAPI.Controllers
 
             string cargo = user.IdPersonalNavigation?.Cargo ?? "USUARIO"; // Si no tiene cargo, se le asigna "USUARIO"
             var token = GenerateJwtToken(user, cargo);
+            var refreshToken = GenerateRefreshToken();
+
+            _refreshTokens[user.IdUsuario] = refreshToken;
+
             int almacenId = user.IdPersonalNavigation?.IdAlmacen ?? 0;
 
             return Ok(new
             {
                 Token = token,
+                RefreshToken = refreshToken,
                 UserId = user.IdUsuario,
                 Nombre = user.Nombre,
                 Cargo = cargo,
@@ -127,11 +135,59 @@ namespace GSCommerceAPI.Controllers
             Console.WriteLine($"Token generado en backend: {jwt}");
             return jwt;
         }
+
+        private static string GenerateRefreshToken()
+        {
+            var randomNumber = new byte[32];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+            return Convert.ToBase64String(randomNumber);
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+        {
+            if (!_refreshTokens.TryGetValue(request.UserId, out var existingToken) || existingToken != request.RefreshToken)
+            {
+                return Unauthorized("Refresh token inválido.");
+            }
+
+            var user = await _context.Usuarios
+                .Include(u => u.IdPersonalNavigation)
+                .FirstOrDefaultAsync(u => u.IdUsuario == request.UserId);
+
+            if (user == null || !user.Estado)
+            {
+                return Unauthorized("Usuario inactivo o no encontrado.");
+            }
+
+            string cargo = user.IdPersonalNavigation?.Cargo ?? "USUARIO";
+            var token = GenerateJwtToken(user, cargo);
+            var newRefreshToken = GenerateRefreshToken();
+            _refreshTokens[user.IdUsuario] = newRefreshToken;
+            int almacenId = user.IdPersonalNavigation?.IdAlmacen ?? 0;
+
+            return Ok(new
+            {
+                Token = token,
+                RefreshToken = newRefreshToken,
+                UserId = user.IdUsuario,
+                Nombre = user.Nombre,
+                Cargo = cargo,
+                IdAlmacen = almacenId
+            });
+        }
     }
 
     public class LoginRequest
     {
         public required string Usuario { get; set; }
         public required string Password { get; set; }
+    }
+
+    public class RefreshTokenRequest
+    {
+        public int UserId { get; set; }
+        public required string RefreshToken { get; set; }
     }
 }

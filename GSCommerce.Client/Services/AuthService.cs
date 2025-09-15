@@ -35,6 +35,7 @@ namespace GSCommerce.Client.Services
                 //Console.WriteLine($" Token recibido en AuthService: {result.Token}");
 
                 await _localStorage.SetItemAsync("authToken", result.Token);
+                await _localStorage.SetItemAsync("refreshToken", result.RefreshToken);
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.Token);
                 await _localStorage.SetItemAsync("userName", result.Nombre);
                 await _localStorage.SetItemAsync("userId", result.UserId);
@@ -54,10 +55,44 @@ namespace GSCommerce.Client.Services
         public async Task Logout()
         {
             await _localStorage.RemoveItemAsync("authToken");
+            await _localStorage.RemoveItemAsync("refreshToken");
             await _localStorage.RemoveItemAsync("userName");
             await _localStorage.RemoveItemAsync("userId");
             await _localStorage.RemoveItemAsync("Cargo"); // Elimina el Cargo al cerrar sesión
             _currentUser = null;
+        }
+
+        public async Task<bool> RefreshTokenAsync()
+        {
+            var refreshToken = await _localStorage.GetItemAsync<string>("refreshToken");
+            var userId = await _localStorage.GetItemAsync<int>("userId");
+            if (string.IsNullOrEmpty(refreshToken) || userId == 0)
+            {
+                return false;
+            }
+
+            var request = new RefreshTokenRequest { UserId = userId, RefreshToken = refreshToken };
+            var response = await _httpClient.PostAsJsonAsync("api/auth/refresh-token", request);
+            if (!response.IsSuccessStatusCode)
+            {
+                await Logout();
+                return false;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
+            if (result != null && !string.IsNullOrEmpty(result.Token))
+            {
+                await _localStorage.SetItemAsync("authToken", result.Token);
+                await _localStorage.SetItemAsync("refreshToken", result.RefreshToken);
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.Token);
+                await _localStorage.SetItemAsync("userName", result.Nombre);
+                await _localStorage.SetItemAsync("userId", result.UserId);
+                await _localStorage.SetItemAsync("IdAlmacen", result.IdAlmacen);
+                await _localStorage.SetItemAsync("Cargo", result.Cargo);
+                return true;
+            }
+
+            return false;
         }
 
         public async Task<string?> GetNombrePersonal()
@@ -142,9 +177,16 @@ namespace GSCommerce.Client.Services
     public class AuthResponse
     {
         public required string Token { get; set; }
+        public required string RefreshToken { get; set; }
         public int UserId { get; set; }
         public required string Nombre { get; set; }
         public required string Cargo { get; set; } // Se añade el Cargo en la respuesta
         public int IdAlmacen { get; set; }  // Se añade el almacen
+    }
+
+    public class RefreshTokenRequest
+    {
+        public int UserId { get; set; }
+        public required string RefreshToken { get; set; }
     }
 }

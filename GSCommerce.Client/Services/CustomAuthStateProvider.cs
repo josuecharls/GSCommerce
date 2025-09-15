@@ -3,17 +3,22 @@ using Microsoft.AspNetCore.Components.Authorization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GSCommerce.Client.Services
 {
     public class CustomAuthStateProvider : AuthenticationStateProvider
     {
         private readonly ILocalStorageService _localStorage;
+        private readonly AuthService _authService;
         private ClaimsPrincipal _currentUser = new ClaimsPrincipal(new ClaimsIdentity());
 
-        public CustomAuthStateProvider(ILocalStorageService localStorage)
+        public CustomAuthStateProvider(ILocalStorageService localStorage, AuthService authService)
         {
             _localStorage = localStorage;
+            _authService = authService;
         }
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
@@ -21,29 +26,44 @@ namespace GSCommerce.Client.Services
             var token = await _localStorage.GetItemAsync<string>("authToken");
             var cargo = await _localStorage.GetItemAsync<string>("Cargo");
 
-           // Console.WriteLine($" Token recuperado de LocalStorage: {token}");
-           // Console.WriteLine($" Cargo recuperado de LocalStorage: {cargo}");
-
             if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(cargo))
             {
-                Console.WriteLine("No hay token o cargo, usuario no autenticado.");
-                return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())); // Usuario no autenticado
+                return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
             }
 
-            var claims = ParseClaimsFromJwt(token).ToList();
-            claims.Add(new Claim("Cargo", cargo));
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(token);
+
+            if (jwtToken.ValidTo <= DateTime.UtcNow)
+            {
+                var refreshed = await _authService.RefreshTokenAsync();
+                if (!refreshed)
+                {
+                    await MarkUserAsLoggedOut();
+                    return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+                }
+
+                token = await _localStorage.GetItemAsync<string>("authToken");
+                jwtToken = handler.ReadJwtToken(token);
+                cargo = await _localStorage.GetItemAsync<string>("Cargo");
+            }
+
+            var claims = jwtToken.Claims.ToList();
+            if (!string.IsNullOrEmpty(cargo))
+            {
+                claims.Add(new Claim("Cargo", cargo));
+            }
 
             var identity = new ClaimsIdentity(claims, "jwt");
             _currentUser = new ClaimsPrincipal(identity);
 
-           // Console.WriteLine("Usuario restaurado correctamente desde el token.");
             return new AuthenticationState(_currentUser);
         }
 
         public async Task MarkUserAsAuthenticated(string token, string cargo)
         {
-           // Console.WriteLine($" Token recibido en MarkUserAsAuthenticated: {token}");
-           // Console.WriteLine($" Cargo recibido en MarkUserAsAuthenticated: {cargo}");
+            // Console.WriteLine($" Token recibido en MarkUserAsAuthenticated: {token}");
+            // Console.WriteLine($" Cargo recibido en MarkUserAsAuthenticated: {cargo}");
 
             if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(cargo))
             {
@@ -66,6 +86,7 @@ namespace GSCommerce.Client.Services
         public async Task MarkUserAsLoggedOut()
         {
             await _localStorage.RemoveItemAsync("authToken");
+            await _localStorage.RemoveItemAsync("refreshToken");
             await _localStorage.RemoveItemAsync("Cargo");
             _currentUser = new ClaimsPrincipal(new ClaimsIdentity());
             NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(_currentUser)));
@@ -73,7 +94,7 @@ namespace GSCommerce.Client.Services
 
         public async Task<string?> GetUserCargo()
         {
-            return await _localStorage.GetItemAsync<string>("Cargo"); //  Obtener Cargo de LocalStorage
+            return await _localStorage.GetItemAsync<string>("Cargo");
         }
 
         private IEnumerable<Claim> ParseClaimsFromJwt(string token)
@@ -91,7 +112,7 @@ namespace GSCommerce.Client.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ Error al parsear el token JWT: {ex.Message}");
-                return claims; // Devolver una lista vacía si hay un error
+                return claims;
             }
         }
 
