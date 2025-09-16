@@ -1,0 +1,164 @@
+﻿@page "/reportes/top10-articulos-menos-vendidos"
+@using GSCommerce.Client.Components
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Models
+@using System.Globalization
+@using GSCommerce.Client.Services
+@inject ReporteService ReporteService
+@inject AlmacenService AlmacenService
+@inject AuthService AuthService
+@inject IJSRuntime JS
+@inject ComplementoService ComplementoService
+
+<ReportsBreadcrumb Title="Top 10 Artículos Menos Vendidos" />
+
+<div class="row g-3 align-items-end mb-3">
+    <div class="col-12 col-sm-6 col-lg-3">
+        <label>Desde:</label>
+        <InputDate @bind-Value="desde" class="form-control" />
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <label>Hasta:</label>
+        <InputDate @bind-Value="hasta" class="form-control" />
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <label>Línea:</label>
+        <select class="form-select" @bind="lineaSeleccionada">
+            <option value="">Todas</option>
+            @foreach (var l in lineas)
+            {
+                <option value="@l.Descripcion">@l.Descripcion</option>
+            }
+        </select>
+    </div>
+
+    @if (esAdmin)
+    {
+        <div class="col-12 col-sm-6 col-lg-3">
+            <label>Almacén:</label>
+            <select class="form-select" @bind="idAlmacenSel">
+                <option value="0">General (todos)</option>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+    }
+
+    <div class="col-12 col-lg-3 d-flex align-items-stretch gap-2">
+        <button class="btn btn-primary flex-fill" @onclick="Buscar" disabled="@loading">
+            @(loading ? "Buscando..." : "Buscar")
+        </button>
+        <button class="btn btn-success" @onclick="ExportarExcel" disabled="@(!articulosMenosVendidos.Any())">
+            Exportar Excel
+        </button>
+    </div>
+</div>
+
+@if (articulosMenosVendidos.Any())
+{
+    var pe = CultureInfo.GetCultureInfo("es-PE");
+    <table class="table table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>#</th>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Línea</th>
+                <th>Cantidad Vendida</th>
+                <th>Total Importe</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in articulosMenosVendidos.Select((r, i) => new { r, i }))
+            {
+                <tr>
+                    <td>@(item.i + 1)</td>
+                    <td>@item.r.Codigo</td>
+                    <td>@item.r.Descripcion</td>
+                    <td>@item.r.Linea</td>
+                    <td>@item.r.TotalUnidadesVendidas</td>
+                    <td>@item.r.TotalImporte.ToString("C", pe)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="alert alert-warning text-center">No se encontraron ventas para el rango seleccionado.</div>
+}
+
+@code {
+    private List<TopArticuloDTO> articulosMenosVendidos = new();
+    private DateTime desde = DateTime.Today.AddDays(-30);
+    private DateTime hasta = DateTime.Today;
+
+    private bool esAdmin = false;
+    private List<AlmacenDTO> almacenes = new();
+    private int idAlmacenSel = 0;
+    private List<ComplementoDTO> lineas = new();
+    private string lineaSeleccionada = string.Empty;
+
+    private bool loading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        esAdmin = (await AuthService.GetUserCargo() ?? string.Empty).ToUpperInvariant() == "ADMINISTRADOR";
+        lineas = await ComplementoService.GetByTipo("LINEA") ?? new();
+        if (esAdmin)
+        {
+            almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        }
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        loading = true;
+        try
+        {
+            int? idAlmacenParam = esAdmin && idAlmacenSel > 0 ? idAlmacenSel : (int?)null;
+            var lineaParam = string.IsNullOrWhiteSpace(lineaSeleccionada) ? null : lineaSeleccionada;
+            articulosMenosVendidos = await ReporteService.ObtenerTop10ArticulosMenosVendidos(desde, hasta, idAlmacenParam, lineaParam);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ExportarExcel()
+    {
+        var filas = articulosMenosVendidos.Select((r, i) => new ExportRow
+        {
+            Nro = i + 1,
+            Codigo = r.Codigo,
+            Descripcion = r.Descripcion,
+            Linea = r.Linea,
+            Cantidad = r.TotalUnidadesVendidas,
+            Importe = r.TotalImporte
+        }).ToList();
+
+        var nombreAlmacen = "General (todos)";
+        if (esAdmin && idAlmacenSel > 0)
+            nombreAlmacen = almacenes.FirstOrDefault(a => a.IdAlmacen == idAlmacenSel)?.Nombre ?? $"Almacén {idAlmacenSel}";
+
+        var nombreLinea = string.IsNullOrWhiteSpace(lineaSeleccionada) ? "Todas las líneas" : lineaSeleccionada;
+
+        await JS.InvokeVoidAsync("exportTop10Excel",
+            filas, desde.ToString("yyyy-MM-dd"), hasta.ToString("yyyy-MM-dd"), nombreAlmacen, nombreLinea,
+            "Top 10 Artículos Menos Vendidos", "Top10_Articulos_MenosVendidos");
+    }
+
+    private class ExportRow
+    {
+        public int Nro { get; set; }
+        public string Codigo { get; set; } = "";
+        public string Descripcion { get; set; } = "";
+        public string Linea { get; set; } = "";
+        public decimal Cantidad { get; set; }
+        public decimal Importe { get; set; }
+    }
+}

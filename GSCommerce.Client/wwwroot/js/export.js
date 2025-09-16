@@ -7,7 +7,7 @@
         return Number.isFinite(n) ? n : 0;
     }
 
-    window.exportTop10Excel = (rows, desde, hasta, almacenLabel, lineaLabel) => {
+    window.exportTop10Excel = (rows, desde, hasta, almacenLabel, lineaLabel, title, fileLabel) => {
         if (!Array.isArray(rows) || rows.length === 0) return;
 
         // Normaliza claves por si vienen en camelCase desde Blazor
@@ -20,8 +20,15 @@
             importe: toNum(r.importe ?? r.Importe)
         }));
 
+        const headerTitle = typeof title === 'string' && title.trim().length > 0
+            ? title.trim()
+            : 'Top 10 Artículos';
+        const fileName = typeof fileLabel === 'string' && fileLabel.trim().length > 0
+            ? fileLabel.trim()
+            : 'Top10_Articulos';
+
         const header = [
-            ["Top 10 Artículos"],
+            [headerTitle],
             [`Rango: ${desde} a ${hasta}`],
             [`Ámbito: ${almacenLabel}`]
         ];
@@ -53,7 +60,7 @@
         ];
 
         XLSX.utils.book_append_sheet(wb, ws, "Top10");
-        XLSX.writeFile(wb, `Top10_Articulos_${desde}_a_${hasta}.xlsx`);
+        XLSX.writeFile(wb, `${fileName}_${desde}_a_${hasta}.xlsx`);
     };
 
     window.exportVentasArticuloExcel = (reportes, filename) => {

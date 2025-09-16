@@ -1273,6 +1273,64 @@ namespace GSCommerceAPI.Controllers
         }
 
         [Authorize]
+        [HttpGet("reporte-top10-articulos-menos-vendidos")]
+        public async Task<IActionResult> ReporteTop10ArticulosMenosVendidos(
+            [FromQuery] DateTime? desde,
+            [FromQuery] DateTime? hasta,
+            [FromQuery] int? idAlmacen,
+            [FromQuery] string? linea,
+            [FromQuery] int top = 10)
+        {
+            var start = (desde ?? DateTime.Today).Date;
+            var end = (hasta ?? DateTime.Today).Date.AddDays(1);
+            top = top <= 0 ? 10 : top;
+
+            var cargo = User.FindFirst("Cargo")?.Value;
+            var idAlmClaim = User.FindFirst("IdAlmacen")?.Value;
+
+            int? idAlmacenForzado = null;
+            if (string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(idAlmClaim, out var alm))
+            {
+                idAlmacenForzado = alm;
+            }
+
+            var q = from d in _context.ComprobanteDeVentaDetalles.AsNoTracking()
+                    join c in _context.ComprobanteDeVentaCabeceras.AsNoTracking() on d.IdComprobante equals c.IdComprobante
+                    join a in _context.Articulos.AsNoTracking() on d.IdArticulo equals a.IdArticulo
+                    where c.Fecha >= start && c.Fecha < end && c.Estado == "E"
+                    select new { d, c, a };
+
+            if (idAlmacenForzado.HasValue)
+                q = q.Where(x => x.c.IdAlmacen == idAlmacenForzado.Value);
+            else if (idAlmacen.HasValue && idAlmacen.Value > 0)
+                q = q.Where(x => x.c.IdAlmacen == idAlmacen.Value);
+
+            if (!string.IsNullOrWhiteSpace(linea))
+            {
+                var filtroLinea = linea.Trim();
+                q = q.Where(x => x.a.Linea == filtroLinea);
+            }
+
+            var resultado = await q
+                .GroupBy(x => new { x.d.IdArticulo, x.d.Descripcion, x.a.Linea })
+                .Select(g => new TopArticuloDTO
+                {
+                    Codigo = g.Key.IdArticulo,
+                    Descripcion = g.Key.Descripcion,
+                    Linea = g.Key.Linea,
+                    TotalUnidadesVendidas = g.Sum(x => x.d.Cantidad),
+                    TotalImporte = g.Sum(x => x.d.Total)
+                })
+                .OrderBy(x => x.TotalUnidadesVendidas)
+                .ThenBy(x => x.TotalImporte)
+                .Take(top)
+                .ToListAsync();
+
+            return Ok(resultado);
+        }
+
+        [Authorize]
         [HttpGet("reporte-top10-articulos")]
         public async Task<IActionResult> ReporteTop10Articulos(
             [FromQuery] DateTime? desde,

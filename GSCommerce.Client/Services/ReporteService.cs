@@ -50,6 +50,21 @@ public class ReporteService
         return response ?? new();
     }
 
+    public async Task<List<TopArticuloDTO>> ObtenerTop10ArticulosMenosVendidos(
+    DateTime desde,
+    DateTime hasta,
+    int? idAlmacen = null,
+    string? linea = null)
+    {
+        var url = $"api/ventas/reporte-top10-articulos-menos-vendidos?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+        if (idAlmacen.HasValue && idAlmacen.Value > 0)
+            url += $"&idAlmacen={idAlmacen.Value}";
+        if (!string.IsNullOrWhiteSpace(linea))
+            url += $"&linea={Uri.EscapeDataString(linea)}";
+        var response = await _http.GetFromJsonAsync<List<TopArticuloDTO>>(url);
+        return response ?? new();
+    }
+
     public async Task<List<ReporteTotalTiendasDTO>> ObtenerTotalTiendas(DateTime desde, DateTime hasta, int? idAlmacen = null)
     {
         var url = $"api/ventas/reporte-total-tiendas?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
