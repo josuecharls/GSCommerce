@@ -36,6 +36,12 @@ namespace GSCommerce.Client.Services
             var data = await _httpClient.GetFromJsonAsync<List<TomaInventarioDetalleDTO>>($"api/toma-inventarios/{idToma}/detalles");
             return data ?? new();
         }
+        public async Task<bool> ActualizarDetalleAsync(int idToma, TomaInventarioDetalleDTO dto)
+        {
+            var response = await _httpClient.PutAsJsonAsync(
+                $"api/toma-inventarios/{idToma}/detalles/{dto.IdTomaInventarioDetalle}", dto);
+            return response.IsSuccessStatusCode;
+        }
 
         public async Task<bool> AgregarDetalleAsync(int idToma, TomaInventarioDetalleDTO dto)
         {

@@ -62,7 +62,7 @@
                         }
                         else if (t.EstadoToma == "Terminado")
                         {
-                            <button class="btn btn-sm btn-warning me-1" @onclick="() => ReemplazarStock(t.IdTomaInventario)">📦 Aplicar</button>
+                            <button class="btn btn-sm btn-warning me-1" @onclick="() => ReemplazarStock(t.IdTomaInventario)" disabled="@(aplicandoId == t.IdTomaInventario)">📦 Aplicar</button>
                         }
                     </td>
                 </tr>
@@ -80,6 +80,7 @@ else
     private List<AlmacenDTO> almacenes = new();
     private int? anio = DateTime.Now.Year;
     private int? idAlmacen;
+    private int? aplicandoId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -141,15 +142,16 @@ else
         }
     }
 
-
     private async Task ReemplazarStock(int idToma)
     {
         if (await JS.InvokeAsync<bool>("confirm", "¿Reemplazar stock para los códigos ingresados?"))
         {
+            aplicandoId = idToma;
             if (await TIService.ReemplazarStockAsync(idToma))
             {
                 await CargarTomas();
             }
+            aplicandoId = null;
         }
     }
 }

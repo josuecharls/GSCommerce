@@ -1278,6 +1278,7 @@ namespace GSCommerceAPI.Controllers
             [FromQuery] DateTime? desde,
             [FromQuery] DateTime? hasta,
             [FromQuery] int? idAlmacen,
+            [FromQuery] string? linea,
             [FromQuery] int top = 10)
         {
             var start = (desde ?? DateTime.Today).Date;
@@ -1295,22 +1296,30 @@ namespace GSCommerceAPI.Controllers
                 idAlmacenForzado = alm;
             }
 
-            var q = from d in _context.ComprobanteDeVentaDetalles
-                    join c in _context.ComprobanteDeVentaCabeceras on d.IdComprobante equals c.IdComprobante
+            var q = from d in _context.ComprobanteDeVentaDetalles.AsNoTracking()
+                    join c in _context.ComprobanteDeVentaCabeceras.AsNoTracking() on d.IdComprobante equals c.IdComprobante
+                    join a in _context.Articulos.AsNoTracking() on d.IdArticulo equals a.IdArticulo
                     where c.Fecha >= start && c.Fecha < end && c.Estado == "E"
-                    select new { d, c };
+                    select new { d, c, a };
 
             if (idAlmacenForzado.HasValue)
                 q = q.Where(x => x.c.IdAlmacen == idAlmacenForzado.Value);
             else if (idAlmacen.HasValue && idAlmacen.Value > 0)
                 q = q.Where(x => x.c.IdAlmacen == idAlmacen.Value);
 
+            if (!string.IsNullOrWhiteSpace(linea))
+            {
+                var filtroLinea = linea.Trim();
+                q = q.Where(x => x.a.Linea == filtroLinea);
+            }
+
             var resultado = await q
-                .GroupBy(x => new { x.d.IdArticulo, x.d.Descripcion })
+                .GroupBy(x => new { x.d.IdArticulo, x.d.Descripcion, x.a.Linea })
                 .Select(g => new TopArticuloDTO
                 {
                     Codigo = g.Key.IdArticulo,
                     Descripcion = g.Key.Descripcion,
+                    Linea = g.Key.Linea,
                     TotalUnidadesVendidas = g.Sum(x => x.d.Cantidad),
                     TotalImporte = g.Sum(x => x.d.Total)
                 })

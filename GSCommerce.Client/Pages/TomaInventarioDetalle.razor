@@ -36,6 +36,7 @@
                 <th class="text-end">Cantidad</th>
                 <th class="text-end">Sobrante</th>
                 <th class="text-end">Faltante</th>
+                <th class="text-center">Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -44,9 +45,14 @@
                 <tr>
                     <td>@d.IdArticulo</td>
                     <td>@d.Nombre</td>
-                    <td class="text-end">@d.Cantidad</td>
+                    <td class="text-end">
+                        <InputNumber class="form-control form-control-sm text-end" @bind-Value="d.Cantidad" />
+                    </td>
                     <td class="text-end">@(d.Sobrante ?? 0)</td>
                     <td class="text-end">@(d.Faltante ?? 0)</td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-primary" @onclick="() => ActualizarDetalle(d)">💾</button>
+                    </td>
                 </tr>
             }
         </tbody>
@@ -56,7 +62,6 @@ else
 {
     <p>Sin detalles registrados.</p>
 }
-
 @code {
     [Parameter]
     public int id { get; set; }
@@ -88,6 +93,22 @@ else
             else
             {
                 await JS.InvokeVoidAsync("alert", "No se pudo agregar");
+            }
+        }
+    }
+
+    private async Task ActualizarDetalle(TomaInventarioDetalleDTO item)
+    {
+        if (item.Cantidad > 0)
+        {
+            var ok = await TIService.ActualizarDetalleAsync(id, item);
+            if (ok)
+            {
+                await Cargar();
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "No se pudo actualizar");
             }
         }
     }

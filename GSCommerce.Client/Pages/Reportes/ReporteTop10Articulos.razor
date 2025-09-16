@@ -8,22 +8,33 @@
 @inject AlmacenService AlmacenService
 @inject AuthService AuthService
 @inject IJSRuntime JS
+@inject ComplementoService ComplementoService
 
 <ReportsBreadcrumb Title="Top 10 Artículos" />
 
-<div class="row mb-3">
-    <div class="col-md-3">
+<div class="row g-3 align-items-end mb-3">
+    <div class="col-12 col-sm-6 col-lg-3">
         <label>Desde:</label>
         <InputDate @bind-Value="desde" class="form-control" />
     </div>
-    <div class="col-md-3">
+    <div class="col-12 col-sm-6 col-lg-3">
         <label>Hasta:</label>
         <InputDate @bind-Value="hasta" class="form-control" />
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <label>Línea:</label>
+        <select class="form-select" @bind="lineaSeleccionada">
+            <option value="">Todas</option>
+            @foreach (var l in lineas)
+            {
+                <option value="@l.Descripcion">@l.Descripcion</option>
+            }
+        </select>
     </div>
 
     @if (esAdmin)
     {
-        <div class="col-md-3">
+        <div class="col-12 col-sm-6 col-lg-3">
             <label>Almacén:</label>
             <select class="form-select" @bind="idAlmacenSel">
                 <option value="0">General (todos)</option>
@@ -35,8 +46,8 @@
         </div>
     }
 
-    <div class="col-md-3 d-flex align-items-end gap-2">
-        <button class="btn btn-primary w-100" @onclick="Buscar" disabled="@loading">
+    <div class="col-12 col-lg-3 d-flex align-items-stretch gap-2">
+        <button class="btn btn-primary flex-fill" @onclick="Buscar" disabled="@loading">
             @(loading ? "Buscando..." : "Buscar")
         </button>
         <button class="btn btn-success" @onclick="ExportarExcel" disabled="@(!top10.Any())">
@@ -54,6 +65,7 @@
                 <th>#</th>
                 <th>Código</th>
                 <th>Descripción</th>
+                <th>Línea</th>
                 <th>Cantidad Vendida</th>
                 <th>Total Importe</th>
             </tr>
@@ -65,6 +77,7 @@
                     <td>@(item.i + 1)</td>
                     <td>@item.r.Codigo</td>
                     <td>@item.r.Descripcion</td>
+                    <td>@item.r.Linea</td>
                     <td>@item.r.TotalUnidadesVendidas</td>
                     <td>@item.r.TotalImporte.ToString("C", pe)</td>
                 </tr>
@@ -86,12 +99,15 @@ else
     private bool esAdmin = false;
     private List<AlmacenDTO> almacenes = new();
     private int idAlmacenSel = 0;
+    private List<ComplementoDTO> lineas = new();
+    private string lineaSeleccionada = string.Empty;
 
     private bool loading = false;
 
     protected override async Task OnInitializedAsync()
     {
         esAdmin = (await AuthService.GetUserCargo() ?? string.Empty).ToUpperInvariant() == "ADMINISTRADOR";
+        lineas = await ComplementoService.GetByTipo("LINEA") ?? new();
         if (esAdmin)
         {
             almacenes = await AlmacenService.GetAlmacenes() ?? new();
@@ -105,7 +121,8 @@ else
         try
         {
             int? idAlmacenParam = esAdmin && idAlmacenSel > 0 ? idAlmacenSel : (int?)null;
-            top10 = await ReporteService.ObtenerTop10Articulos(desde, hasta, idAlmacenParam);
+            var lineaParam = string.IsNullOrWhiteSpace(lineaSeleccionada) ? null : lineaSeleccionada;
+            top10 = await ReporteService.ObtenerTop10Articulos(desde, hasta, idAlmacenParam, lineaParam);
         }
         finally
         {
@@ -120,6 +137,7 @@ else
             Nro = i + 1,
             Codigo = r.Codigo,
             Descripcion = r.Descripcion,
+            Linea = r.Linea,
             Cantidad = r.TotalUnidadesVendidas,
             Importe = r.TotalImporte
         }).ToList();
@@ -128,8 +146,10 @@ else
         if (esAdmin && idAlmacenSel > 0)
             nombreAlmacen = almacenes.FirstOrDefault(a => a.IdAlmacen == idAlmacenSel)?.Nombre ?? $"Almacén {idAlmacenSel}";
 
+        var nombreLinea = string.IsNullOrWhiteSpace(lineaSeleccionada) ? "Todas las líneas" : lineaSeleccionada;
+
         await JS.InvokeVoidAsync("exportTop10Excel",
-            filas, desde.ToString("yyyy-MM-dd"), hasta.ToString("yyyy-MM-dd"), nombreAlmacen);
+            filas, desde.ToString("yyyy-MM-dd"), hasta.ToString("yyyy-MM-dd"), nombreAlmacen, nombreLinea);
     }
 
     private class ExportRow
@@ -137,6 +157,7 @@ else
         public int Nro { get; set; }
         public string Codigo { get; set; } = "";
         public string Descripcion { get; set; } = "";
+        public string Linea { get; set; } = "";
         public decimal Cantidad { get; set; }
         public decimal Importe { get; set; }
     }

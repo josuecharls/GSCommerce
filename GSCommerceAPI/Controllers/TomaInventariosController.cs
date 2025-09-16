@@ -105,6 +105,21 @@ namespace GSCommerceAPI.Controllers
             return Ok(detalle);
         }
 
+        [HttpPut("{id}/detalles/{detalleId}")]
+        public async Task<IActionResult> ActualizarDetalle(int id, int detalleId, TomaInventarioDetalle dto)
+        {
+            var detalle = await _context.TomaInventarioDetalles
+                .FirstOrDefaultAsync(d => d.IdTomaInventarioDetalle == detalleId && d.IdTomaInventario == id);
+
+            if (detalle == null)
+                return NotFound();
+
+            detalle.Cantidad = dto.Cantidad;
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
         [HttpPut("{id}/terminar")]
         public async Task<IActionResult> Terminar(int id)
         {

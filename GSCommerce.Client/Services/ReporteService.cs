@@ -35,11 +35,17 @@ public class ReporteService
         return response ?? new();
     }
 
-    public async Task<List<TopArticuloDTO>> ObtenerTop10Articulos(DateTime desde, DateTime hasta, int? idAlmacen = null)
+    public async Task<List<TopArticuloDTO>> ObtenerTop10Articulos(
+        DateTime desde,
+        DateTime hasta,
+        int? idAlmacen = null,
+        string? linea = null)
     {
         var url = $"api/ventas/reporte-top10-articulos?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
         if (idAlmacen.HasValue && idAlmacen.Value > 0)
             url += $"&idAlmacen={idAlmacen.Value}";
+        if (!string.IsNullOrWhiteSpace(linea))
+            url += $"&linea={Uri.EscapeDataString(linea)}";
         var response = await _http.GetFromJsonAsync<List<TopArticuloDTO>>(url);
         return response ?? new();
     }
