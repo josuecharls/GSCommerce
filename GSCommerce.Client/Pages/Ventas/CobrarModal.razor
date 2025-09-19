@@ -156,10 +156,45 @@
         TipoPagoSeleccionado?.Descripcion?.Contains("Yape", StringComparison.OrdinalIgnoreCase) == true;
 
     private decimal? MaxMontoPago => EsTarjetaOYape ? MontoRestante : null;
-    private decimal VueltoCalculado =>
-        pagos.Where(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3).Sum(p => p.Monto) > MontoTotal
-            ? pagos.Where(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3).Sum(p => p.Monto) - MontoTotal
-            : 0;
+
+    private bool EsPagoEfectivo(int idTipoPagoVenta)
+    {
+        var tipoPago = tiposPago.FirstOrDefault(t => t.IdTipoPagoVenta == idTipoPagoVenta);
+
+        if (tipoPago != null)
+        {
+            if (string.Equals(tipoPago.Tipo, "Efectivo", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(tipoPago.Descripcion) &&
+                tipoPago.Descripcion.Contains("Efectivo", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return idTipoPagoVenta == 2 || idTipoPagoVenta == 3;
+    }
+
+    private decimal VueltoCalculado
+    {
+        get
+        {
+            var totalEfectivo = pagos.Where(p => EsPagoEfectivo(p.IdTipoPagoVenta)).Sum(p => p.Monto);
+
+            if (totalEfectivo <= 0)
+            {
+                return 0;
+            }
+
+            var totalNoEfectivo = pagos.Where(p => !EsPagoEfectivo(p.IdTipoPagoVenta)).Sum(p => p.Monto);
+            var saldoCubiertoConEfectivo = Math.Max(0, MontoTotal - totalNoEfectivo);
+
+            return Math.Max(0, totalEfectivo - saldoCubiertoConEfectivo);
+        }
+    }
 
     private bool PuedeConfirmar => TotalPagado >= MontoTotal;
 
@@ -213,6 +248,7 @@
             {
                 return;
             }
+
             if (idTipoPagoSeleccionado == 8 && notaCreditoSeleccionada == null)
             {
                 return;
@@ -266,7 +302,6 @@
         else
         {
             notasCreditoDisponibles.Clear();
-            await InvokeAsync(StateHasChanged);
         }
 
         if (EsTarjetaOYape)
@@ -317,7 +352,7 @@
     {
         // Calculamos el vuelto total antes de enviar los pagos
         var vuelto = VueltoCalculado;
-        var pagoEfectivo = pagos.FirstOrDefault(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3);
+        var pagoEfectivo = pagos.FirstOrDefault(p => EsPagoEfectivo(p.IdTipoPagoVenta));
 
         if (pagoEfectivo != null)
         {

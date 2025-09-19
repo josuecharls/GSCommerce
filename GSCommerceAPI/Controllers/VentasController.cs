@@ -417,6 +417,7 @@ namespace GSCommerceAPI.Controllers
                 return BadRequest("Debe enviar al menos un código de artículo.");
             var desde = req.Desde.Date;
             var hasta = req.Hasta.Date;
+            var hastaExclusiva = hasta.AddDays(1);
 
             // Meses del rango
             var meses = new List<Models.Reportes.MesColDTO>();
@@ -453,7 +454,7 @@ namespace GSCommerceAPI.Controllers
                 .AsNoTracking()
                 .Where(d => req.Ids.Contains(d.IdArticulo)
                          && d.IdComprobanteNavigation.Fecha >= desde
-                         && d.IdComprobanteNavigation.Fecha < hasta.AddDays(1))
+                         && d.IdComprobanteNavigation.Fecha < hastaExclusiva)
                 .Select(d => new {
                     d.IdArticulo,
                     d.IdComprobanteNavigation.IdAlmacen,
@@ -469,23 +470,19 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToListAsync();
 
-            // Ingresos (incluye movimientos tipo INGRESO y transferencias de ingreso)
-            var ingresos = await _context.MovimientosDetalles
+            // Ingresos tomados desde Kardex para incluir cualquier movimiento que sume stock en el almacén
+            var ingresos = await _context.Kardices
                 .AsNoTracking()
-                .Where(m => req.Ids.Contains(m.IdArticulo)
-                         && (
-                             m.IdMovimientoNavigation.Tipo == "I" ||
-                             (m.IdMovimientoNavigation.Tipo == "T" &&
-                              EF.Functions.Like(m.IdMovimientoNavigation.Motivo!, "%INGRESO%"))
-                         )
-                         && m.IdMovimientoNavigation.Fecha.HasValue
-                         && m.IdMovimientoNavigation.Fecha.Value >= DateOnly.FromDateTime(desde)
-                         && m.IdMovimientoNavigation.Fecha.Value < DateOnly.FromDateTime(hasta.AddDays(1)))
-                .Select(m => new {
-                    m.IdArticulo,
-                    m.IdMovimientoNavigation.IdAlmacen,
-                    m.Cantidad,
-                    m.IdMovimientoNavigation.Fecha
+                .Where(k => req.Ids.Contains(k.IdArticulo)
+                            && k.TipoMovimiento == "I"
+                            && k.Fecha >= desde
+                            && k.Fecha < hastaExclusiva)
+                .Select(k => new
+                {
+                    k.IdArticulo,
+                    k.IdAlmacen,
+                    k.Cantidad,
+                    k.Fecha
                 })
                 .ToListAsync();
 
@@ -535,7 +532,7 @@ namespace GSCommerceAPI.Controllers
                         NombreAlmacen = nombre,
                         Codigo = art.IdArticulo,
                         Ingreso = ing?.Cant ?? 0,
-                        FechaPrimerIngreso = ing?.Fch != null ? ing.Fch.Value.ToDateTime(new TimeOnly(0, 0)) : null,
+                        FechaPrimerIngreso = ing?.Fch,
                         Stock = st?.Stock ?? 0,
                         PC = art.PrecioCompra,
                         PV = art.PrecioVenta

@@ -37,7 +37,10 @@
         }
     </div>
     <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-success w-100" @onclick="ExportarExcel">📥 Exportar Excel</button>
+        <div class="d-flex flex-column gap-2 w-100">
+            <button class="btn btn-primary" @onclick="GenerarVistaPrevia">👁️ Vista previa</button>
+            <button class="btn btn-success" @onclick="ExportarExcel" disabled="@(!reportesVistaPrevia.Any())">📥 Exportar Excel</button>
+        </div>
     </div>
 </div>
 
@@ -62,39 +65,169 @@
     <div class="alert alert-warning text-center">@mensaje</div>
 }
 
+@if (isCargandoVistaPrevia)
+{
+    <div class="text-center my-4">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p class="mt-2 mb-0">Generando vista previa...</p>
+    </div>
+}
+else if (reportesVistaPrevia.Any())
+{
+    @foreach (var reporte in reportesVistaPrevia)
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
+                    <span class="fw-semibold">@reporte.IdArticulo - @reporte.Descripcion</span>
+                    <small class="text-white-50">PC: @reporte.PrecioCompra | PV: @reporte.PrecioVenta</small>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ALMACEN</th>
+                                <th>COD</th>
+                                <th>INGRESO</th>
+                                <th>Descripción</th>
+                                @foreach (var mes in reporte.Meses)
+                                {
+                                    <th>@mes.Label</th>
+                                }
+                                <th>TOTAL</th>
+                                <th>Fch Ing</th>
+                                <th>Stock</th>
+                                <th>% Mercadería vendida</th>
+                                <th>PC</th>
+                                <th>PV</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var fila in reporte.Filas)
+                            {
+                                <tr>
+                                    <td>@fila.NombreAlmacen</td>
+                                    <td>@fila.Codigo</td>
+                                    <td>@fila.Ingreso</td>
+                                    <td>@reporte.Descripcion</td>
+                                    @foreach (var mes in reporte.Meses)
+                                    {
+                                        var tieneMes = fila.VentasPorMes.TryGetValue(mes.Key, out var ventasMes);
+                                        <td>@(tieneMes? ventasMes : 0)</td>
+                                    }
+                                    <td>@fila.TotalVentas</td>
+                                    <td>@(fila.FechaPrimerIngreso?.ToString("dd/MM/yyyy") ?? "-")</td>
+                                    <td>@fila.Stock</td>
+                                    <td>@fila.PorcentajeVendida</td>
+                                    <td>@fila.PC</td>
+                                    <td>@fila.PV</td>
+                                </tr>
+                            }
+                            <tr class="table-secondary fw-semibold">
+                                <td>Total</td>
+                                <td></td>
+                                <td>@reporte.Totales.Ingreso</td>
+                                <td></td>
+                                @foreach (var mes in reporte.Meses)
+                                {
+                                    var totalMes = reporte.Totales.VentasPorMes.TryGetValue(mes.Key, out var ventasMes) ? ventasMes : 0;
+                                    <td>@totalMes</td>
+                                }
+                                <td>@reporte.Totales.TotalVentas</td>
+                                <td></td>
+                                <td>@reporte.Totales.Stock</td>
+                                <td>@reporte.Totales.PorcentajeVendida</td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+}
+
 @code {
-    private DateTime fechaDesde = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-    private DateTime fechaHasta = DateTime.Today;
+    private DateTime _fechaDesde = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime fechaDesde
+    {
+        get => _fechaDesde;
+        set
+        {
+            if (_fechaDesde != value)
+            {
+                _fechaDesde = value;
+                LimpiarVistaPrevia();
+            }
+        }
+    }
+
+    private DateTime _fechaHasta = DateTime.Today;
+    private DateTime fechaHasta
+    {
+        get => _fechaHasta;
+        set
+        {
+            if (_fechaHasta != value)
+            {
+                _fechaHasta = value;
+                LimpiarVistaPrevia();
+            }
+        }
+    }
     private string searchTerm = string.Empty;
     private List<ArticuloDTO> resultadosBusqueda = new();
     private List<ArticuloDTO> articulosSeleccionados = new();
     private string mensaje = string.Empty;
+    private bool isCargandoVistaPrevia;
+    private List<ReporteArticuloRangoDTO> reportesVistaPrevia = new();
+
+    private async Task GenerarVistaPrevia()
+    {
+        mensaje = string.Empty;
+        LimpiarVistaPrevia();
+
+        if (!ValidarParametros(out var ids))
+        {
+            return;
+        }
+
+        isCargandoVistaPrevia = true;
+
+        try
+        {
+            var reportes = await ReporteService.ObtenerReporteArticulosRango(ids, fechaDesde, fechaHasta);
+
+            if (reportes.Count == 0)
+            {
+                mensaje = "❌ No se encontró información para los parámetros seleccionados.";
+                return;
+            }
+
+            reportesVistaPrevia = reportes;
+        }
+        finally
+        {
+            isCargandoVistaPrevia = false;
+        }
+    }
 
     private async Task ExportarExcel()
     {
         mensaje = string.Empty;
 
-        if (!articulosSeleccionados.Any())
+        if (!reportesVistaPrevia.Any())
         {
-            mensaje = "⚠️ Debes seleccionar al menos un artículo.";
-            return;
-        }
-        if (fechaHasta < fechaDesde)
-        {
-            mensaje = "⚠️ La fecha hasta debe ser posterior a la fecha desde.";
+            mensaje = "ℹ️ Genera primero la vista previa del reporte.";
             return;
         }
 
-        var ids = articulosSeleccionados.Select(a => a.IdArticulo).ToList();
-        var reportes = await ReporteService.ObtenerReporteArticulosRango(ids, fechaDesde, fechaHasta);
-
-        if (reportes.Count == 0)
-        {
-            mensaje = "❌ No se encontró información para los parámetros seleccionados.";
-            return;
-        }
-
-        var data = reportes.Select(r => new ReporteArticuloExcel
+        var data = reportesVistaPrevia.Select(r => new ReporteArticuloExcel
         {
             SheetName = r.IdArticulo,
             Headers = BuildHeaders(r),
@@ -128,6 +261,7 @@
         if (!articulosSeleccionados.Any(a => a.IdArticulo == art.IdArticulo))
         {
             articulosSeleccionados.Add(art);
+            LimpiarVistaPrevia();
         }
         searchTerm = string.Empty;
         resultadosBusqueda.Clear();
@@ -136,6 +270,35 @@
     private void RemoverArticulo(ArticuloDTO art)
     {
         articulosSeleccionados.Remove(art);
+        LimpiarVistaPrevia();
+    }
+
+    private bool ValidarParametros(out List<string> ids)
+    {
+        ids = articulosSeleccionados.Select(a => a.IdArticulo).ToList();
+
+        if (!ids.Any())
+        {
+            mensaje = "⚠️ Debes seleccionar al menos un artículo.";
+            return false;
+        }
+
+        if (fechaHasta < fechaDesde)
+        {
+            mensaje = "⚠️ La fecha hasta debe ser posterior a la fecha desde.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private void LimpiarVistaPrevia()
+    {
+        if (reportesVistaPrevia.Any())
+        {
+            reportesVistaPrevia.Clear();
+        }
+        mensaje = string.Empty;
     }
 
     private static string[] BuildHeaders(ReporteArticuloRangoDTO r)

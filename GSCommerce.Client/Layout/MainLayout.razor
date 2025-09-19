@@ -1,12 +1,17 @@
 ﻿@using GSCommerce.Client.Services
+@using GSCommerce.Client.Models
+@using Microsoft.AspNetCore.Components.Routing
+@using System.Linq
+@using System
 @inherits LayoutComponentBase
+@implements IDisposable
 
 <div class="page">
     <div class="sidebar">
         <NavMenu />
     </div>
     <main>
-    <div class="main">
+        <div class="main">
             <div class="top-row d-flex align-items-center px-3 py-2 shadow-sm bg-light" style="gap: 1rem;">
                 @if (cargo == "ADMINISTRADOR")
                 {
@@ -47,49 +52,177 @@
                 </div>
             </div>
 
-        <div class="content px-4">
-            @Body
+            @if (mostrarAlertaStockCritico && articulosStockCritico.Any())
+            {
+                <div class="px-3 pt-3">
+                    <div class="alert alert-danger alert-dismissible fade show d-flex align-items-start" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill fs-4 me-2 mt-1"></i>
+                        <div class="flex-grow-1">
+                            <strong>Stock crítico detectado en tu almacén (≤@StockCriticoUmbral)</strong>
+                            <ul class="mb-0 mt-2 ps-3">
+                                @foreach (var articulo in articulosStockCritico.Take(MaxArticulosAlert))
+                                {
+                                    <li>@articulo.Descripcion (@articulo.Stock unidades)</li>
+                                }
+                            </ul>
+                            @if (articulosStockCritico.Count > MaxArticulosAlert)
+                            {
+                                <small class="d-block mt-2">Y @((articulosStockCritico.Count - MaxArticulosAlert)) artículo(s) más con poco stock.</small>
+                            }
+                            <small class="d-block mt-2">Revisa el módulo de stock para más detalles.</small>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-light mt-3"
+                                    @onclick="SuprimirAlertaStockCriticoHastaNuevoInicio">
+                                No volver a mostrar hasta el próximo inicio de sesión
+                            </button>
+                        </div>
+                        <button type="button" class="btn-close ms-2" aria-label="Cerrar" @onclick="CerrarAlertaStockCritico"></button>
+                    </div>
+                </div>
+            }
+
+            <div class="content px-4">
+                @Body
+            </div>
         </div>
-    </div>
     </main>
 </div>
 
 @code {
-
     [Inject] AuthService AuthService { get; set; } = null!;
     [Inject] CustomAuthStateProvider AuthStateProvider { get; set; } = null!;
     [Inject] NavigationManager Navigation { get; set; } = null!;
+    [Inject] StockService StockService { get; set; } = null!;
 
-    private string? userName;
     private string? cargo;
+    private List<StockDTO> articulosStockCritico = new();
+    private bool mostrarAlertaStockCritico;
+    private bool consultandoStockCritico;
+    private int? idAlmacenUsuario;
+    private bool disposed;
+    private const int StockCriticoUmbral = 10;
+    private const int MaxArticulosAlert = 5;
+    private bool suprimirAlertaStockCriticoHastaNuevoInicio;
 
     protected override async Task OnInitializedAsync()
     {
         cargo = await AuthService.GetUserCargo();
+
+        if (cargo == "CAJERO")
+        {
+            idAlmacenUsuario = NormalizarIdAlmacen(await AuthService.GetUserAlmacenId());
+            Navigation.LocationChanged += HandleLocationChanged;
+            await ConsultarStockCriticoAsync();
+        }
     }
+
+    private async Task ConsultarStockCriticoAsync()
+    {
+        if (cargo != "CAJERO" || consultandoStockCritico)
+        {
+            return;
+        }
+
+        if (suprimirAlertaStockCriticoHastaNuevoInicio)
+        {
+            if (mostrarAlertaStockCritico)
+            {
+                mostrarAlertaStockCritico = false;
+                articulosStockCritico.Clear();
+
+                if (!disposed)
+                {
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+
+            return;
+        }
+
+        consultandoStockCritico = true;
+
+        try
+        {
+            if (!idAlmacenUsuario.HasValue)
+            {
+                idAlmacenUsuario = NormalizarIdAlmacen(await AuthService.GetUserAlmacenId());
+            }
+
+            var articulos = await StockService.GetLowStockItems(idAlmacenUsuario, StockCriticoUmbral);
+
+            articulosStockCritico = articulos
+                .OrderBy(a => a.Stock)
+                .ThenBy(a => a.Descripcion)
+                .ToList();
+
+            if (suprimirAlertaStockCriticoHastaNuevoInicio)
+            {
+                mostrarAlertaStockCritico = false;
+                articulosStockCritico.Clear();
+            }
+            else
+            {
+                mostrarAlertaStockCritico = articulosStockCritico.Any();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error al consultar stock crítico global: {ex.Message}");
+        }
+        finally
+        {
+            consultandoStockCritico = false;
+        }
+
+        if (!disposed)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        try
+        {
+            await ConsultarStockCriticoAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error al actualizar alerta de stock crítico: {ex.Message}");
+        }
+    }
+
+    private void CerrarAlertaStockCritico()
+    {
+        mostrarAlertaStockCritico = false;
+    }
+
+    private void SuprimirAlertaStockCriticoHastaNuevoInicio()
+    {
+        suprimirAlertaStockCriticoHastaNuevoInicio = true;
+        mostrarAlertaStockCritico = false;
+        articulosStockCritico.Clear();
+    }
+
     private async Task Logout()
     {
         await AuthStateProvider.MarkUserAsLoggedOut();
         Navigation.NavigateTo("/login", forceLoad: true);
     }
-}
 
-
-@*@inherits LayoutComponentBase
-@inject NavigationManager Navigation
-
-<div class="page">
-    @if (!IsLoginPage)
+    public void Dispose()
     {
-        <NavMenu />
+        disposed = true;
+        Navigation.LocationChanged -= HandleLocationChanged;
     }
-    <div class="main">
-        <div class="content px-4">
-            @Body
-        </div>
-    </div>
-</div>
 
-@code {
-    private bool IsLoginPage => Navigation.Uri.Contains("/login");
-} *@
+    private static int? NormalizarIdAlmacen(int? idAlmacen)
+    {
+        if (!idAlmacen.HasValue || idAlmacen.Value <= 0)
+        {
+            return null;
+        }
+
+        return idAlmacen;
+    }
+}

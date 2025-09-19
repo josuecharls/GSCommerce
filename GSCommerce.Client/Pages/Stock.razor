@@ -93,14 +93,15 @@ else
             <button class="btn btn-outline-success mt-2" @onclick="ExportarAExcel">📥 Exportar a Excel</button>
         </div>
     </div>
-    @if (listaStock.Any(s => s.EstaBajoMinimo))
+    @if (listaStock.Count(s => s.EstaBajoMinimo || s.Stock <= StockCriticoUmbral) > 0)
     {
+        var totalStockCritico = listaStock.Count(s => s.EstaBajoMinimo || s.Stock <= StockCriticoUmbral);
         <div class="alert alert-warning d-flex align-items-center" role="alert">
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            Hay <strong>@listaStock.Count(s => s.EstaBajoMinimo)</strong> artículos con stock por debajo del mínimo en este almacén.
+            Hay <strong>@totalStockCritico</strong> artículos con stock crítico (≤@StockCriticoUmbral) en este almacén.
         </div>
     }
-    else if (soloStockBajo && !listaStockFiltrada.Any(s => s.EstaBajoMinimo))
+    else if (soloStockBajo && !listaStockFiltrada.Any(s => s.EstaBajoMinimo || s.Stock <= StockCriticoUmbral))
     {
         <div class="alert alert-success d-flex align-items-center" role="alert">
             <i class="bi bi-check-circle-fill me-2"></i>
@@ -170,6 +171,8 @@ else
     private int currentPage = 1;
     private int totalPages = 1;
     private const int pageSize = 50;
+    private const int StockCriticoUmbral = 10;
+    private const int MaxArticulosMensaje = 3;
 
     private string? cargo;
 
@@ -224,25 +227,50 @@ else
     private void AplicarFiltro()
     {
         listaStockFiltrada = listaStock
-            .Where(s => !soloStockBajo || s.EstaBajoMinimo == true)
+            .Where(s => !soloStockBajo || s.EstaBajoMinimo || s.Stock <= StockCriticoUmbral)
             .ToList();
     }
 
-    private async Task VerificarStockCritico()
+    private Task VerificarStockCritico()
     {
         mostrarAlertaStock = false;
-        foreach (var item in listaStock)
+
+        var articulosCriticos = listaStock
+            .Where(item => item.EstaBajoMinimo || item.Stock <= StockCriticoUmbral)
+            .OrderBy(item => item.Stock)
+            .ThenBy(item => item.Descripcion)
+            .ToList();
+
+        if (articulosCriticos.Any())
         {
-            if (item.Stock == 10)
+            var articulosParaMensaje = articulosCriticos.Take(MaxArticulosMensaje).ToList();
+            var detalles = articulosParaMensaje
+                .Select(item => $"'{item.Descripcion}' ({item.Stock} unidades)")
+                .ToList();
+
+            if (detalles.Count == 1)
             {
-                var disponible = await StockService.GetStockDisponible(item.IdArticulo, 1);
-                mensajeAlertaStock = disponible > 0
-                    ? $"El artículo '{item.Descripcion}' tiene 10 unidades en tienda. Stock en almacén principal: {disponible}."
-                    : $"El artículo '{item.Descripcion}' tiene 10 unidades en tienda y no hay stock en el almacén principal.";
-                mostrarAlertaStock = true;
-                break;
+                mensajeAlertaStock = $"El artículo {detalles[0]} tiene stock crítico (≤{StockCriticoUmbral}).";
             }
+            else
+            {
+                mensajeAlertaStock = $"Los artículos {string.Join(", ", detalles)} tienen stock crítico (≤{StockCriticoUmbral}).";
+            }
+
+            var restantes = articulosCriticos.Count - articulosParaMensaje.Count;
+            if (restantes > 0)
+            {
+                mensajeAlertaStock += $" Además, hay {restantes} artículo(s) más con poco stock.";
+            }
+
+            mostrarAlertaStock = true;
         }
+        else
+        {
+            mensajeAlertaStock = string.Empty;
+        }
+
+        return Task.CompletedTask;
     }
 
     private async Task ExportarAExcel()

@@ -46,6 +46,33 @@ namespace GSCommerce.Client.Services
                 return new PagedResult<StockDTO>();
             }
         }
+
+        public async Task<List<StockDTO>> GetLowStockItems(int? idAlmacen = null, int threshold = 10)
+        {
+            try
+            {
+                string url = $"api/stock/low-stock?threshold={threshold}";
+
+                if (idAlmacen.HasValue)
+                {
+                    url += $"&idAlmacen={idAlmacen.Value}";
+                }
+
+                var resultado = await _httpClient.GetFromJsonAsync<List<StockDTO>>(url);
+                return resultado ?? new List<StockDTO>();
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                Console.WriteLine("❌ Acceso no autorizado al obtener el stock crítico.");
+                return new List<StockDTO>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error al obtener el stock crítico: {ex.Message}");
+                return new List<StockDTO>();
+            }
+        }
+
         public async Task<int> GetStockDisponible(string codigoArticulo, int idAlmacen)
         {
             var lista = await GetStock(idAlmacen, false, codigoArticulo, 1, 1, 1);
