@@ -128,7 +128,7 @@ else
     private int? idUsuarioActual;
     private string serieOriginal = string.Empty;
     private int idTipoDocumentoOriginal;
-
+    private decimal tasaIgv = 0m;
 
     protected override async Task OnInitializedAsync()
     {
@@ -170,6 +170,8 @@ else
             Total = venta.Total,
             AFavor = venta.AFavor
         };
+
+        tasaIgv = CalcularTasaIgv(cabecera.SubTotal, cabecera.Igv, cabecera.Total);
 
         await CargarSeriePorTipoYAlmacen();
 
@@ -230,8 +232,32 @@ else
         RecalcularTotales();
     }
 
+    private static decimal CalcularTasaIgv(decimal subTotal, decimal igv, decimal total)
+    {
+        if (subTotal > 0m)
+        {
+            var tasa = igv / subTotal;
+            return tasa < 0m ? 0m : tasa;
+        }
+
+        if (total > 0m)
+        {
+            var baseImponible = total - igv;
+            if (baseImponible > 0m)
+            {
+                var tasa = igv / baseImponible;
+                return tasa < 0m ? 0m : tasa;
+            }
+        }
+
+        return 0m;
+    }
+
     private void RecalcularTotales()
     {
+        if (cabecera == null)
+            return;
+
         decimal total = 0;
         int item = 1;
 
@@ -242,10 +268,23 @@ else
             total += d.Total;
         }
 
-        cabecera!.Total = Math.Round(total, 2);
+        total = Math.Round(total, 2);
+
+        cabecera.Total = total;
         cabecera.Redondeo = 0;
-        cabecera.SubTotal = Math.Round(cabecera.Total / 1.18m, 2);
-        cabecera.Igv = Math.Round(cabecera.Total - cabecera.SubTotal, 2);
+
+        if (tasaIgv <= 0m)
+        {
+            cabecera.SubTotal = cabecera.Total;
+            cabecera.Igv = 0m;
+        }
+        else
+        {
+            var factor = 1m + tasaIgv;
+            cabecera.SubTotal = Math.Round(cabecera.Total / factor, 2);
+            cabecera.Igv = Math.Round(cabecera.Total - cabecera.SubTotal, 2);
+        }
+
         cabecera.AFavor = cabecera.Total;
     }
 

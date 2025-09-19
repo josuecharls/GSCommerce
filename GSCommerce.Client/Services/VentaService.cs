@@ -130,6 +130,68 @@ namespace GSCommerce.Client.Services
             string departamento = dpdParts.Length > 2 ? dpdParts[2].Trim() : string.Empty;
 
             var monedaEnvio = "PEN";
+            decimal baseImponible = cabecera.SubTotal;
+            if (baseImponible <= 0m)
+            {
+                var posibleBase = cabecera.Total - cabecera.Igv;
+                if (posibleBase > 0m)
+                    baseImponible = posibleBase;
+            }
+
+            decimal tasaIgv = 0m;
+            if (baseImponible > 0m)
+            {
+                tasaIgv = cabecera.Igv / baseImponible;
+            }
+
+            if (tasaIgv < 0m)
+                tasaIgv = 0m;
+
+            decimal factorIgv = tasaIgv > 0m ? 1m + tasaIgv : 1m;
+
+            var detallesComprobante = detalles.Select(d =>
+            {
+                var precioConIgv = Math.Round(d.PrecioUnitario, 2);
+                var precioSinIgv = tasaIgv > 0m
+                    ? Math.Round(precioConIgv / factorIgv, 2)
+                    : precioConIgv;
+                var totalConIgv = Math.Round(precioConIgv * d.Cantidad, 2);
+                var totalSinIgv = tasaIgv > 0m
+                    ? Math.Round(precioSinIgv * d.Cantidad, 2)
+                    : totalConIgv;
+                var igvDetalle = tasaIgv > 0m
+                    ? Math.Round(totalConIgv - totalSinIgv, 2)
+                    : 0m;
+
+                return new ComprobanteDetalleDTO
+                {
+                    Item = d.Item,
+                    CodigoItem = d.CodigoItem,
+                    DescripcionItem = d.DescripcionItem,
+                    Cantidad = d.Cantidad,
+                    PrecioUnitarioConIGV = precioConIgv,
+                    PrecioUnitarioSinIGV = precioSinIgv,
+                    IGV = igvDetalle,
+                };
+            }).ToList();
+
+            var subtotalDetalles = Math.Round(detallesComprobante.Sum(det => det.TotalSinIGV), 2);
+            var igvDetalles = Math.Round(detallesComprobante.Sum(det => det.IGV), 2);
+            var totalDetalles = Math.Round(detallesComprobante.Sum(det => det.Total), 2);
+
+            var subtotalCabecera = Math.Round(cabecera.SubTotal, 2);
+            var igvCabecera = Math.Round(cabecera.Igv, 2);
+            var totalCabecera = Math.Round(cabecera.Total, 2);
+
+            if (Math.Abs(subtotalCabecera - subtotalDetalles) > 0.01m)
+                subtotalCabecera = subtotalDetalles;
+
+            if (Math.Abs(igvCabecera - igvDetalles) > 0.01m)
+                igvCabecera = igvDetalles;
+
+            if (Math.Abs(totalCabecera - totalDetalles) > 0.01m)
+                totalCabecera = totalDetalles;
+
             var comprobante = new ComprobanteCabeceraDTO
             {
                 IdComprobante = cabecera.IdComprobante,
@@ -150,22 +212,11 @@ namespace GSCommerce.Client.Services
                 DepartamentoEmisor = departamento,
                 ProvinciaEmisor = provincia,
                 DistritoEmisor = distrito,
-                // Asegurar que los montos principales estén redondeados a 2 decimales
-                SubTotal = Math.Round(cabecera.SubTotal, 2),
-                Igv = Math.Round(cabecera.Igv, 2),
-                Total = Math.Round(cabecera.Total, 2),
-                MontoLetras = ConvertirMontoALetras(Math.Round(cabecera.Total, 2), monedaEnvio),
-
-                Detalles = detalles.Select(d => new ComprobanteDetalleDTO
-                {
-                    Item = d.Item,
-                    CodigoItem = d.CodigoItem,
-                    DescripcionItem = d.DescripcionItem,
-                    Cantidad = d.Cantidad,
-                    PrecioUnitarioConIGV = d.PrecioUnitario,
-                    PrecioUnitarioSinIGV = Math.Round(d.PrecioUnitario / 1.18m, 2),
-                    IGV = Math.Round((d.PrecioUnitario * d.Cantidad) - (d.PrecioUnitario * d.Cantidad / 1.18m), 2),
-                }).ToList()
+                SubTotal = subtotalCabecera,
+                Igv = igvCabecera,
+                Total = totalCabecera,
+                MontoLetras = ConvertirMontoALetras(totalCabecera, monedaEnvio),
+                Detalles = detallesComprobante
             };
 
             var response = await _httpClient.PostAsJsonAsync("api/ventas/enviar-sunat", comprobante);

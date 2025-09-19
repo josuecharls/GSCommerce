@@ -22,7 +22,6 @@ if (window.location.hostname !== "localhost") {
         setInterval(() => {
             devtoolsOpen = false;
             console.log(element);
-            console.clear();
         }, 1000);
     })();
 
