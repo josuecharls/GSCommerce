@@ -823,9 +823,11 @@ else
 
         bool EsEfectivo(DetallePagoDTO p) =>
             p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3 ||
+            (!string.IsNullOrWhiteSpace(p.Tipo) && p.Tipo.Equals("EFECTIVO", StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrWhiteSpace(p.FormaPago) && p.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase));
 
         bool EsNota(DetallePagoDTO p) =>
+            (!string.IsNullOrWhiteSpace(p.Tipo) && p.Tipo.StartsWith("N.C", StringComparison.OrdinalIgnoreCase)) ||
             p.IdTipoPagoVenta == 8 ||
             (!string.IsNullOrWhiteSpace(p.FormaPago) && p.FormaPago.Contains("NOTA", StringComparison.OrdinalIgnoreCase));
 

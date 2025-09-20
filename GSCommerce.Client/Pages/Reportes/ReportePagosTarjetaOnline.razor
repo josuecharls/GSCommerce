@@ -1,0 +1,259 @@
+﻿@page "/reportes/pagos-tarjeta-online"
+@using System.Linq
+@using GSCommerce.Client.Components
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@inject ReporteService ReporteService
+@inject AuthService AuthService
+@inject AlmacenService AlmacenService
+@inject IJSRuntime JS
+
+<ReportsBreadcrumb Title="Ventas con Tarjeta / Online" />
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <label>Desde:</label>
+        <InputDate @bind-Value="desde" class="form-control" />
+    </div>
+    <div class="col-md-3">
+        <label>Hasta:</label>
+        <InputDate @bind-Value="hasta" class="form-control" />
+    </div>
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col-md-3">
+            <label>Almacén:</label>
+            <select class="form-select" @bind="selectedAlmacen">
+                <option value="0">Todos</option>
+                @foreach (var alm in almacenes)
+                {
+                    <option value="@alm.IdAlmacen">@alm.Nombre</option>
+                }
+            </select>
+        </div>
+    }
+    else if (almacenes.Any())
+    {
+        <div class="col-md-3">
+            <label>Almacén:</label>
+            <input class="form-control" value="@almacenes.First().Nombre" disabled />
+        </div>
+    }
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="Buscar" disabled="@cargando">🔍 Buscar</button>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-success w-100" @onclick="ExportarExcel" disabled="@(!totales.Any() || cargando)">📥 Exportar Excel</button>
+    </div>
+</div>
+
+@if (cargando)
+{
+    <div class="text-center my-4">
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
+}
+else if (totales.Any())
+{
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white fw-bold">
+            Totales por método de pago
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Método</th>
+                            <th>Tipo</th>
+                            <th class="text-center">Operaciones</th>
+                            <th class="text-end">Soles</th>
+                            <th class="text-end">Dólares</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in totales)
+                        {
+                            <tr>
+                                <td>@item.Descripcion</td>
+                                <td>@item.Tipo</td>
+                                <td class="text-center">@item.CantidadOperaciones</td>
+                                <td class="text-end">S/ @item.TotalSoles.ToString("N2")</td>
+                                <td class="text-end">$ @item.TotalDolares.ToString("N2")</td>
+                                <td class="text-end">@item.Total.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td>Total</td>
+                            <td></td>
+                            <td class="text-center">@totalOperaciones</td>
+                            <td class="text-end">S/ @totalSoles.ToString("N2")</td>
+                            <td class="text-end">$ @totalDolares.ToString("N2")</td>
+                            <td class="text-end">@totalGeneral.ToString("N2")</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @if (detalles.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-header bg-light fw-bold">
+                Detalle de operaciones (@detalles.Count)
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Comprobante</th>
+                                <th>Método</th>
+                                <th>Tipo</th>
+                                <th>Cajero</th>
+                                <th>Almacén</th>
+                                <th class="text-end">Soles</th>
+                                <th class="text-end">Dólares</th>
+                                <th class="text-end">Total</th>
+                                <th>Código</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var det in detalles)
+                            {
+                                <tr class="@GetDetalleRowClass(det)">
+                                    <td>@det.Fecha.ToString("dd/MM/yyyy")</td>
+                                    <td>@det.Comprobante</td>
+                                    <td>@det.Metodo</td>
+                                    <td>@det.Tipo</td>
+                                    <td>@(string.IsNullOrWhiteSpace(det.Cajero) ? "-" : det.Cajero)</td>
+                                    <td>@(string.IsNullOrWhiteSpace(det.Almacen) ? det.IdAlmacen.ToString() : det.Almacen)</td>
+                                    <td class="text-end">@det.Soles.ToString("N2")</td>
+                                    <td class="text-end">@det.Dolares.ToString("N2")</td>
+                                    <td class="text-end">@det.Total.ToString("N2")</td>
+                                    <td>@(string.IsNullOrWhiteSpace(det.CodigoOperacion) ? "-" : det.CodigoOperacion)</td>
+                                    <td>@(det.EstaAnulado ? "ANULADO" : "VIGENTE")</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="6" class="text-end">Total</td>
+                                <td class="text-end">@detalles.Sum(d => d.Soles).ToString("N2")</td>
+                                <td class="text-end">@detalles.Sum(d => d.Dolares).ToString("N2")</td>
+                                <td class="text-end">@detalles.Sum(d => d.Total).ToString("N2")</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="alert alert-info text-center">No se encontraron pagos con tarjeta u online en el periodo seleccionado.</div>
+}
+
+@code {
+    private DateTime desde = DateTime.Today;
+    private DateTime hasta = DateTime.Today;
+    private List<PagoTarjetaOnlineResumenDTO> totales = new();
+    private List<PagoTarjetaOnlineDetalleDTO> detalles = new();
+    private List<AlmacenDTO> almacenes = new();
+    private int selectedAlmacen;
+    private string cargo = string.Empty;
+    private bool cargando;
+
+    private decimal totalSoles => totales.Sum(t => t.TotalSoles);
+    private decimal totalDolares => totales.Sum(t => t.TotalDolares);
+    private decimal totalGeneral => totalSoles + totalDolares;
+    private int totalOperaciones => totales.Sum(t => t.CantidadOperaciones);
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo() ?? string.Empty;
+        var almacenUsuario = await AuthService.GetUserAlmacenId();
+
+        if (cargo == "ADMINISTRADOR")
+        {
+            almacenes = await AlmacenService.GetAlmacenes() ?? new();
+            selectedAlmacen = 0;
+        }
+        else if (almacenUsuario.HasValue)
+        {
+            selectedAlmacen = almacenUsuario.Value;
+            var almacen = await AlmacenService.GetAlmacenById(selectedAlmacen);
+            if (almacen != null)
+            {
+                almacenes = new List<AlmacenDTO> { almacen };
+            }
+        }
+
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        cargando = true;
+        try
+        {
+            int? filtroAlmacen = cargo == "ADMINISTRADOR"
+                ? (selectedAlmacen > 0 ? selectedAlmacen : (int?)null)
+                : (selectedAlmacen > 0 ? selectedAlmacen : (int?)null);
+
+            var resultado = await ReporteService.ObtenerPagosTarjetaOnline(desde, hasta, filtroAlmacen);
+            totales = resultado.Totales?.OrderBy(t => t.Tipo).ThenBy(t => t.Descripcion).ToList() ?? new();
+            detalles = resultado.Detalles?.OrderBy(d => d.Fecha).ThenBy(d => d.Serie).ThenBy(d => d.Numero).ToList() ?? new();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task ExportarExcel()
+    {
+        if (!totales.Any())
+        {
+            return;
+        }
+
+        var headers = new[] { "Método", "Tipo", "Operaciones", "Soles", "Dólares", "Total" };
+        var rows = totales
+            .Select(t => new object[]
+            {
+                t.Descripcion,
+                t.Tipo,
+                t.CantidadOperaciones,
+                Math.Round(t.TotalSoles, 2),
+                Math.Round(t.TotalDolares, 2),
+                Math.Round(t.Total, 2)
+            })
+            .ToList();
+
+        rows.Add(new object[]
+        {
+            "TOTAL",
+            string.Empty,
+            totalOperaciones,
+            Math.Round(totalSoles, 2),
+            Math.Round(totalDolares, 2),
+            Math.Round(totalGeneral, 2)
+        });
+
+        var fileName = $"PagosTarjetaOnline_{desde:yyyyMMdd}_{hasta:yyyyMMdd}";
+        await JS.InvokeVoidAsync("exportToExcel", headers, rows.ToArray(), fileName);
+    }
+
+    private string GetDetalleRowClass(PagoTarjetaOnlineDetalleDTO detalle)
+        => detalle.EstaAnulado ? "table-danger" : string.Empty;
+}

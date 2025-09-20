@@ -19,8 +19,14 @@
         public decimal? PorcentajeTarjetaSoles { get; set; }
 
         public decimal? PorcentajeTarjetaDolares { get; set; }
+
         public string FormaPago { get; set; } = string.Empty;
+
         public decimal Monto { get; set; }
+
         public string? CodigoVerificacion { get; set; }
+
+        public string Tipo { get; set; } = string.Empty;
+
     }
 }

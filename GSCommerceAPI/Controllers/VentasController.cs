@@ -54,24 +54,25 @@ namespace GSCommerceAPI.Controllers
                 .Select(p => p.Nombres + " " + p.Apellidos)
                 .FirstOrDefaultAsync();
 
-            var pagos = await _context.VDetallePagoVenta1s
-                .Where(p => p.IdComprobante == id)
-                .Select(p => new DetallePagoDTO
-                {
-                    IdDetallePagoVenta = p.IdDetallePagoVenta,
-                    IdComprobante = p.IdComprobante,
-                    IdTipoPagoVenta = p.IdTipoPagoVenta,
-                    Soles = p.Soles,
-                    Dolares = p.Dolares,
-                    Datos = p.Datos,
-                    CodigoVerificacion = p.Datos,
-                    Vuelto = p.Vuelto,
-                    PorcentajeTarjetaSoles = p.PorcentajeTarjetaSoles,
-                    PorcentajeTarjetaDolares = p.PorcentajeTarjetaDolares,
-                    FormaPago = p.Descripcion,
-                    Monto = p.Soles
-                })
-                .ToListAsync();
+            var pagos = await (from p in _context.VDetallePagoVenta1s
+                               join tp in _context.TipoPagoVenta on p.IdTipoPagoVenta equals tp.IdTipoPagoVenta
+                               where p.IdComprobante == id
+                               select new DetallePagoDTO
+                               {
+                                   IdDetallePagoVenta = p.IdDetallePagoVenta,
+                                   IdComprobante = p.IdComprobante,
+                                   IdTipoPagoVenta = p.IdTipoPagoVenta,
+                                   Soles = p.Soles,
+                                   Dolares = p.Dolares,
+                                   Datos = p.Datos,
+                                   CodigoVerificacion = p.Datos,
+                                   Vuelto = p.Vuelto,
+                                   PorcentajeTarjetaSoles = p.PorcentajeTarjetaSoles,
+                                   PorcentajeTarjetaDolares = p.PorcentajeTarjetaDolares,
+                                   FormaPago = tp.Descripcion,
+                                   Monto = p.Soles > 0 ? p.Soles : p.Dolares,
+                                   Tipo = tp.Tipo
+                               }).ToListAsync();
 
             var venta = new VentaDTO
             {
@@ -410,6 +411,102 @@ namespace GSCommerceAPI.Controllers
             return resultado;
         }
 
+        [HttpGet("reporte-pagos-tarjeta-online")]
+        [Authorize]
+        public async Task<IActionResult> ReportePagosTarjetaOnline(
+            [FromQuery] DateTime? desde,
+            [FromQuery] DateTime? hasta,
+            [FromQuery] int? idAlmacen)
+        {
+            var fechaInicio = (desde ?? DateTime.Today).Date;
+            var fechaFin = (hasta ?? DateTime.Today).Date;
+            if (fechaFin < fechaInicio)
+                fechaFin = fechaInicio;
+            var fechaFinExclusiva = fechaFin.AddDays(1);
+
+            var registros = await (from cabecera in _context.ComprobanteDeVentaCabeceras.AsNoTracking()
+                                   join pago in _context.VDetallePagoVenta1s.AsNoTracking()
+                                       on cabecera.IdComprobante equals pago.IdComprobante
+                                   join tipo in _context.TipoPagoVenta.AsNoTracking()
+                                       on pago.IdTipoPagoVenta equals tipo.IdTipoPagoVenta
+                                   join almacen in _context.Almacens.AsNoTracking()
+                                       on cabecera.IdAlmacen equals almacen.IdAlmacen
+                                   join usuario in _context.Usuarios.AsNoTracking()
+                                       on cabecera.IdCajero equals usuario.IdUsuario into usuariosJoin
+                                   from usuario in usuariosJoin.DefaultIfEmpty()
+                                   where cabecera.Fecha >= fechaInicio
+                                         && cabecera.Fecha < fechaFinExclusiva
+                                         && (idAlmacen == null || cabecera.IdAlmacen == idAlmacen.Value)
+                                         && (cabecera.Estado != "A" || cabecera.GeneroNc != null)
+                                         && (tipo.Tipo == "Tarjeta" || tipo.Tipo == "Online")
+                                   select new
+                                   {
+                                       cabecera.IdComprobante,
+                                       cabecera.Fecha,
+                                       cabecera.Serie,
+                                       cabecera.Numero,
+                                       cabecera.IdTipoDocumento,
+                                       cabecera.IdAlmacen,
+                                       AlmacenNombre = almacen.Nombre,
+                                       cabecera.IdCajero,
+                                       CajeroNombre = usuario != null ? usuario.Nombre : null,
+                                       cabecera.Estado,
+                                       pago.Soles,
+                                       pago.Dolares,
+                                       pago.Datos,
+                                       tipo.IdTipoPagoVenta,
+                                       Tipo = tipo.Tipo,
+                                       Metodo = tipo.Descripcion
+                                   }).ToListAsync();
+
+            var totales = registros
+                .GroupBy(r => new { r.IdTipoPagoVenta, r.Tipo, r.Metodo })
+                .Select(g => new PagoTarjetaOnlineResumenDTO
+                {
+                    IdTipoPagoVenta = g.Key.IdTipoPagoVenta,
+                    Tipo = g.Key.Tipo,
+                    Descripcion = g.Key.Metodo,
+                    TotalSoles = g.Sum(x => x.Soles),
+                    TotalDolares = g.Sum(x => x.Dolares),
+                    CantidadOperaciones = g.Count()
+                })
+                .OrderBy(t => t.Tipo)
+                .ThenBy(t => t.Descripcion)
+                .ToList();
+
+            var detalles = registros
+                .OrderBy(r => r.Fecha)
+                .ThenBy(r => r.Serie)
+                .ThenBy(r => r.Numero)
+                .Select(r => new PagoTarjetaOnlineDetalleDTO
+                {
+                    IdComprobante = r.IdComprobante,
+                    Fecha = r.Fecha,
+                    Serie = r.Serie,
+                    Numero = r.Numero,
+                    IdTipoDocumento = r.IdTipoDocumento,
+                    Metodo = r.Metodo,
+                    Tipo = r.Tipo,
+                    Soles = r.Soles,
+                    Dolares = r.Dolares,
+                    CodigoOperacion = r.Datos,
+                    IdAlmacen = r.IdAlmacen,
+                    Almacen = r.AlmacenNombre,
+                    IdCajero = r.IdCajero,
+                    Cajero = r.CajeroNombre ?? string.Empty,
+                    Estado = r.Estado
+                })
+                .ToList();
+
+            var respuesta = new ReportePagosTarjetaOnlineResponseDTO
+            {
+                Totales = totales,
+                Detalles = detalles
+            };
+
+            return Ok(respuesta);
+        }
+
         [HttpPost("reporte-articulos-rango")]
         public async Task<IActionResult> ObtenerReporteArticulosRango([FromBody] ReporteArticulosRangoRequest req)
         {
@@ -672,24 +769,25 @@ namespace GSCommerceAPI.Controllers
             // Agrupar formas de pago
             if (ids.Count > 0)
             {
-                var pagosList = await _context.VDetallePagoVenta1s
-                    .Where(p => ids.Contains(p.IdComprobante))
-                    .Select(p => new DetallePagoDTO
-                    {
-                        IdDetallePagoVenta = p.IdDetallePagoVenta,
-                        IdComprobante = p.IdComprobante,
-                        IdTipoPagoVenta = p.IdTipoPagoVenta,
-                        Soles = p.Soles,
-                        Dolares = p.Dolares,
-                        Datos = p.Datos,
-                        Vuelto = p.Vuelto,
-                        PorcentajeTarjetaSoles = p.PorcentajeTarjetaSoles,
-                        PorcentajeTarjetaDolares = p.PorcentajeTarjetaDolares,
-                        FormaPago = p.Descripcion,
-                        Monto = p.Soles > 0 ? p.Soles : p.Dolares,
-                        CodigoVerificacion = p.Datos
-                    })
-                    .ToListAsync();
+                var pagosList = await (from p in _context.VDetallePagoVenta1s
+                                       join tp in _context.TipoPagoVenta on p.IdTipoPagoVenta equals tp.IdTipoPagoVenta
+                                       where ids.Contains(p.IdComprobante)
+                                       select new DetallePagoDTO
+                                       {
+                                           IdDetallePagoVenta = p.IdDetallePagoVenta,
+                                           IdComprobante = p.IdComprobante,
+                                           IdTipoPagoVenta = p.IdTipoPagoVenta,
+                                           Soles = p.Soles,
+                                           Dolares = p.Dolares,
+                                           Datos = p.Datos,
+                                           Vuelto = p.Vuelto,
+                                           PorcentajeTarjetaSoles = p.PorcentajeTarjetaSoles,
+                                           PorcentajeTarjetaDolares = p.PorcentajeTarjetaDolares,
+                                           FormaPago = tp.Descripcion,
+                                           Monto = p.Soles > 0 ? p.Soles : p.Dolares,
+                                           CodigoVerificacion = p.Datos,
+                                           Tipo = tp.Tipo
+                                       }).ToListAsync();
 
                 var pagosAgrupados = pagosList
                     .GroupBy(p => p.IdComprobante)

@@ -1,4 +1,5 @@
-﻿@using GSCommerce.Client.Services
+﻿@using Blazored.LocalStorage
+@using GSCommerce.Client.Services
 @using GSCommerce.Client.Models
 @using Microsoft.AspNetCore.Components.Routing
 @using System.Linq
@@ -72,7 +73,7 @@
                             <small class="d-block mt-2">Revisa el módulo de stock para más detalles.</small>
                             <button type="button"
                                     class="btn btn-sm btn-outline-light mt-3"
-                                    @onclick="SuprimirAlertaStockCriticoHastaNuevoInicio">
+                                    @onclick="SuprimirAlertaStockCriticoHastaNuevoInicioAsync">
                                 No volver a mostrar hasta el próximo inicio de sesión
                             </button>
                         </div>
@@ -93,6 +94,7 @@
     [Inject] CustomAuthStateProvider AuthStateProvider { get; set; } = null!;
     [Inject] NavigationManager Navigation { get; set; } = null!;
     [Inject] StockService StockService { get; set; } = null!;
+    [Inject] ILocalStorageService LocalStorage { get; set; } = null!;
 
     private string? cargo;
     private List<StockDTO> articulosStockCritico = new();
@@ -103,6 +105,8 @@
     private const int StockCriticoUmbral = 10;
     private const int MaxArticulosAlert = 5;
     private bool suprimirAlertaStockCriticoHastaNuevoInicio;
+    private string? claveSupresionAlertaStockCritico;
+    private const string ClaveSupresionAlertaStockCriticoPrefix = "stockAlertSuppressed_";
 
     protected override async Task OnInitializedAsync()
     {
@@ -110,6 +114,9 @@
 
         if (cargo == "CAJERO")
         {
+            var idUsuario = await AuthService.GetUserId();
+            claveSupresionAlertaStockCritico = ConstruirClaveSupresionStockCritico(idUsuario);
+            suprimirAlertaStockCriticoHastaNuevoInicio = await CargarPreferenciaSupresionAsync();
             idAlmacenUsuario = NormalizarIdAlmacen(await AuthService.GetUserAlmacenId());
             Navigation.LocationChanged += HandleLocationChanged;
             await ConsultarStockCriticoAsync();
@@ -197,15 +204,18 @@
         mostrarAlertaStockCritico = false;
     }
 
-    private void SuprimirAlertaStockCriticoHastaNuevoInicio()
+    private async Task SuprimirAlertaStockCriticoHastaNuevoInicioAsync()
     {
         suprimirAlertaStockCriticoHastaNuevoInicio = true;
         mostrarAlertaStockCritico = false;
         articulosStockCritico.Clear();
+
+        await GuardarPreferenciaSupresionAsync(true);
     }
 
     private async Task Logout()
     {
+        await GuardarPreferenciaSupresionAsync(false);
         await AuthStateProvider.MarkUserAsLoggedOut();
         Navigation.NavigateTo("/login", forceLoad: true);
     }
@@ -224,5 +234,57 @@
         }
 
         return idAlmacen;
+    }
+
+    private string ConstruirClaveSupresionStockCritico(int? usuarioId)
+    {
+        if (usuarioId.HasValue && usuarioId.Value > 0)
+        {
+            return $"{ClaveSupresionAlertaStockCriticoPrefix}{usuarioId.Value}";
+        }
+
+        return $"{ClaveSupresionAlertaStockCriticoPrefix}anon";
+    }
+
+    private async Task<bool> CargarPreferenciaSupresionAsync()
+    {
+        if (string.IsNullOrEmpty(claveSupresionAlertaStockCritico))
+        {
+            return false;
+        }
+
+        try
+        {
+            return await LocalStorage.GetItemAsync<bool>(claveSupresionAlertaStockCritico);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error al recuperar la preferencia de alerta de stock crítico: {ex.Message}");
+            return false;
+        }
+    }
+
+    private async Task GuardarPreferenciaSupresionAsync(bool suprimir)
+    {
+        if (string.IsNullOrEmpty(claveSupresionAlertaStockCritico))
+        {
+            return;
+        }
+
+        try
+        {
+            if (suprimir)
+            {
+                await LocalStorage.SetItemAsync(claveSupresionAlertaStockCritico, true);
+            }
+            else
+            {
+                await LocalStorage.RemoveItemAsync(claveSupresionAlertaStockCritico);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error al persistir la preferencia de alerta de stock crítico: {ex.Message}");
+        }
     }
 }

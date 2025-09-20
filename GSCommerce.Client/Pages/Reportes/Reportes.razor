@@ -22,6 +22,14 @@
             </div>
         </div>
     </div>
+    <div class="col">
+        <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReportePagosTarjetaOnline">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <i class="bi bi-credit-card" style="font-size: 3rem; color: #6c757d;"></i>
+                <h5 class="fw-bold mt-2 text-uppercase text-center" style="white-space: normal;">Pagos Tarjeta / Online</h5>
+            </div>
+        </div>
+    </div>
     @if (cargo != "CONTADOR")
     {
     <div class="col">
@@ -148,6 +156,11 @@
     private void IrAReporteUtilidadTiendas()
     {
         Navigation.NavigateTo("/reportes/utilidad-tiendas");
+    }
+
+    private void IrAReportePagosTarjetaOnline()
+    {
+        Navigation.NavigateTo("/reportes/pagos-tarjeta-online");
     }
 
     private void IrALibroVentasContable()

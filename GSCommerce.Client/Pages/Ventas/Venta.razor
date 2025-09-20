@@ -339,10 +339,14 @@
 
         foreach (var p in pagosActivos)
         {
-            var descripcion = (p.FormaPago?.Split(' ')[0] ?? string.Empty).ToUpperInvariant();
+            var categoria = string.IsNullOrWhiteSpace(p.Tipo)
+                ? (p.FormaPago?.Split(' ')[0] ?? string.Empty)
+                : p.Tipo;
+            categoria = categoria.Trim().ToUpperInvariant();
+
             var monto = p.Soles > 0 ? p.Soles : p.Dolares;
 
-            switch (descripcion)
+            switch (categoria)
             {
                 case "EFECTIVO":
                     if (p.Soles > 0)
@@ -356,6 +360,7 @@
                     break;
                 case "N.C.":
                 case "N.C":
+                case "NOTA":
                     notaCredito += monto;
                     break;
             }
