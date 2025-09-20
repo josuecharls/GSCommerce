@@ -98,6 +98,11 @@
                     </td>
                 </tr>
                 }
+                <tr class="table-light">
+                    <td colspan="4" class="text-end fw-bold">Total</td>
+                    <td class="fw-bold">@TotalMonto.ToString("N2")</td>
+                    <td colspan="2"></td>
+                </tr>
         }
         else
         {
@@ -187,7 +192,7 @@
 
     private async Task Buscar()
     {
-        lista = await IngresosEgresosService.Listar(idAlmacen == 0 ? null : idAlmacen, idUsuario, fechaInicio, fechaFin, naturaleza, tipo);
+        lista = await IngresosEgresosService.Listar(idAlmacen == 0 ? null : idAlmacen, idUsuario, fechaInicio, fechaFin, naturaleza, tipo) ?? new List<IngresoEgresoDTO>();
     }
 
     private void Nuevo()
@@ -221,4 +226,7 @@
         showPhotoModal = false;
         photoUrl = null;
     }
+
+    private decimal TotalMonto => lista.Sum(item => item.Monto);
+
 }

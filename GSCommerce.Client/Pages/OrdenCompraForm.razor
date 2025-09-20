@@ -61,8 +61,8 @@
                 <td><input class="form-control" @bind="d.IdArticulo" @bind:event="onchange" @bind:after="async () => await BuscarArticulo(d)" /></td>
                 <td>@d.DescripcionArticulo</td>
                 <td>@d.UnidadMedida</td>
-                <td><input type="number" class="form-control" @bind="d.Cantidad" @oninput="ActualizarTotales" /></td>
-                <td><input type="number" step="0.01" class="form-control" @bind="d.CostoUnitario" @oninput="ActualizarTotales" /></td>
+                <td><input type="number" class="form-control" @bind="d.Cantidad" @bind:event="oninput" @bind:after="ActualizarTotales" /></td>
+                <td><input type="number" step="0.01" class="form-control" @bind="d.CostoUnitario" @bind:event="oninput" @bind:after="ActualizarTotales" /></td>
                 <td>@d.Total.ToString("N2")</td>
                 <td><button class="btn btn-danger btn-sm" @onclick="() => EliminarDetalle(d)">X</button></td>
             </tr>
@@ -77,7 +77,7 @@
 </div>
 
 <div class="text-end">
-    <button class="btn btn-success" @onclick="Guardar">Guardar</button>
+    <button class="btn btn-success" @onclick="Guardar" disabled="@estaGuardando">Guardar</button>
     <button class="btn btn-secondary" @onclick="Volver">Cancelar</button>
 </div>
 
@@ -86,6 +86,7 @@
 @code {
     private OrdenCompraDTO orden = new() { FechaOc = DateTime.Today, FechaEntrega = DateTime.Today };
     private bool mostrarProveedorModal = false;
+    private bool estaGuardando = false;
 
     private void AgregarDetalle()
     {
@@ -125,10 +126,31 @@
 
     private async Task Guardar()
     {
-        var id = await ocService.CrearAsync(orden);
-        await JS.InvokeVoidAsync("alert", id != null ? "OC registrada" : "Error al registrar");
-        if (id != null)
-            Nav.NavigateTo("/ordenes-compra");
+        if (estaGuardando)
+        {
+            return;
+        }
+
+        estaGuardando = true;
+
+        try
+        {
+            var id = await ocService.CrearAsync(orden);
+            await JS.InvokeVoidAsync("alert", id != null ? "OC registrada" : "Error al registrar");
+            if (id != null)
+            {
+                Nav.NavigateTo("/ordenes-compra");
+            }
+            else
+            {
+                estaGuardando = false;
+            }
+        }
+        catch
+        {
+            estaGuardando = false;
+            await JS.InvokeVoidAsync("alert", "Error al registrar");
+        }
     }
 
     private void Volver() => Nav.NavigateTo("/ordenes-compra");
