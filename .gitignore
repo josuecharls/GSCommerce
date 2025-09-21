@@ -37,6 +37,10 @@ wwwroot/_framework/
 *.user
 *.suo
 
+# Ignorar appsettings sensibles
+appsettings.Development.json
+appsettings.json
+
 ## Build results
 bin/
 obj/
