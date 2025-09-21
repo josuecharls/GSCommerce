@@ -93,6 +93,23 @@ public class ReporteService
         var resp = await _http.GetFromJsonAsync<ReportePagosTarjetaOnlineResponseDTO>(url);
         return resp ?? new ReportePagosTarjetaOnlineResponseDTO();
     }
+    public async Task<ReporteAvanceHoraDTO> ObtenerAvanceVentasHora(DateTime desde, DateTime hasta, int? idAlmacen = null)
+    {
+        var url = $"api/ventas/reporte-avance-por-hora?desde={Uri.EscapeDataString(desde.ToString("yyyy-MM-ddTHH:mm:ss"))}&hasta={Uri.EscapeDataString(hasta.ToString("yyyy-MM-ddTHH:mm:ss"))}";
+        if (idAlmacen.HasValue && idAlmacen.Value > 0)
+        {
+            url += $"&idAlmacen={idAlmacen.Value}";
+        }
+
+        var resp = await _http.GetFromJsonAsync<ReporteAvanceHoraDTO>(url);
+        return resp ?? new ReporteAvanceHoraDTO
+        {
+            HoraInicio = desde,
+            HoraFin = hasta,
+            TotalVentas = 0m,
+            Tickets = 0
+        };
+    }
     public async Task<List<ReporteArticuloRangoDTO>> ObtenerReporteArticulosRango(
     List<string> ids, DateTime desde, DateTime hasta)
     {

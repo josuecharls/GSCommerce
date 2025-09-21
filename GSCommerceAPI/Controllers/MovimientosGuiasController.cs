@@ -451,15 +451,24 @@ namespace GSCommerceAPI.Controllers
             if (movimiento == null)
                 return NotFound(new { mensaje = "Movimiento no encontrado" });
 
-            if (movimiento.Estado == "A")
+            var estadoOriginal = movimiento.Estado?.Trim() ?? string.Empty;
+            var motivoNormalizado = movimiento.Motivo?.Trim() ?? string.Empty;
+
+            if (string.Equals(estadoOriginal, "A", StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { mensaje = "La guía ya está anulada" });
 
-            if (movimiento.Estado != "E")
+            if (!string.Equals(estadoOriginal, "E", StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { mensaje = "Solo se pueden anular guías emitidas" });
+
+            var esTransferencia = string.Equals(motivoNormalizado, "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(motivoNormalizado, "TRANSFERENCIA INGRESO", StringComparison.OrdinalIgnoreCase);
 
             movimiento.Estado = "A";
 
             var fecha = DateTime.Now;
+
+            bool DebeRevertirStock(bool esTransferenciaMovimiento, string estadoAnterior)
+                => !esTransferenciaMovimiento || !string.Equals(estadoAnterior, "E", StringComparison.OrdinalIgnoreCase);
 
             async Task AjustarStockYkardex(MovimientosCabecera mov)
             {
@@ -522,16 +531,16 @@ namespace GSCommerceAPI.Controllers
                 }
             }
 
-            await AjustarStockYkardex(movimiento);
-
-            bool esTransferencia = string.Equals(movimiento.Motivo?.Trim(), "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(movimiento.Motivo?.Trim(), "TRANSFERENCIA INGRESO", StringComparison.OrdinalIgnoreCase);
+            if (DebeRevertirStock(esTransferencia, estadoOriginal))
+            {
+                await AjustarStockYkardex(movimiento);
+            }
 
             MovimientosCabecera? espejo = null;
 
             if (esTransferencia)
             {
-                var motivoEspejo = string.Equals(movimiento.Motivo?.Trim(), "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase)
+                var motivoEspejo = string.Equals(motivoNormalizado, "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase)
                     ? "TRANSFERENCIA INGRESO"
                     : "TRANSFERENCIA EGRESO";
 
@@ -548,8 +557,15 @@ namespace GSCommerceAPI.Controllers
 
                 if (espejo != null)
                 {
+                    var estadoOriginalEspejo = espejo.Estado?.Trim() ?? string.Empty;
+                    var espejoEsTransferencia = string.Equals(espejo.Motivo?.Trim(), "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(espejo.Motivo?.Trim(), "TRANSFERENCIA INGRESO", StringComparison.OrdinalIgnoreCase);
+
                     espejo.Estado = "A";
-                    await AjustarStockYkardex(espejo);
+                    if (DebeRevertirStock(espejoEsTransferencia, estadoOriginalEspejo))
+                    {
+                        await AjustarStockYkardex(espejo);
+                    }
                 }
             }
 

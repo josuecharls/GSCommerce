@@ -115,7 +115,12 @@
                     <td>@detalle.Item</td>
                     <td><input class="form-control" @bind="detalle.CodigoItem" disabled /></td>
                     <td><input class="form-control" @bind="detalle.DescripcionItem" disabled /></td>
-                    <td><input type="number" class="form-control" step="1" min="1" @bind="detalle.Cantidad" @oninput="RecalcularTotales" /></td>
+                    <td>
+                        <input type="number" class="form-control" step="1" min="1"
+                               @bind-value="detalle.Cantidad"
+                               @bind-value:event="oninput"
+                               @bind-value:after="OnCantidadChanged" />
+                    </td>
                     <td><input type="number" class="form-control" step="0.01" @bind="detalle.PrecioUnitario" @oninput="RecalcularTotales" disabled /></td>
                     <td><input type="number" class="form-control" step="0.01" @bind="detalle.PorcentajeDescuento" @oninput="RecalcularTotales" disabled /></td>
                     <td>@detalle.Total.ToString("N2")</td>
@@ -397,6 +402,11 @@ else
         venta.SubTotal = Math.Round(venta.Total / factor, 2);
         venta.Igv = Math.Round(venta.Total - venta.SubTotal, 2);
         venta.APagar = venta.Total;
+    }
+
+    private void OnCantidadChanged()
+    {
+        RecalcularTotales();
     }
 
     private async Task BuscarAlPresionarEnter(KeyboardEventArgs e)
@@ -827,8 +837,8 @@ else
             (!string.IsNullOrWhiteSpace(p.FormaPago) && p.FormaPago.Contains("EFECTIVO", StringComparison.OrdinalIgnoreCase));
 
         bool EsNota(DetallePagoDTO p) =>
-            (!string.IsNullOrWhiteSpace(p.Tipo) && p.Tipo.StartsWith("N.C", StringComparison.OrdinalIgnoreCase)) ||
             p.IdTipoPagoVenta == 8 ||
+            (!string.IsNullOrWhiteSpace(p.Tipo) && p.Tipo.StartsWith("N.C", StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrWhiteSpace(p.FormaPago) && p.FormaPago.Contains("NOTA", StringComparison.OrdinalIgnoreCase));
 
         var formasPago = (venta.Pagos != null && venta.Pagos.Any())

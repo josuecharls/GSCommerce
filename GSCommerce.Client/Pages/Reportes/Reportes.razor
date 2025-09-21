@@ -32,29 +32,37 @@
     </div>
     @if (cargo != "CONTADOR")
     {
-    <div class="col">
-        <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteVentasArticulo">
-            <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                <i class="bi bi-receipt-cutoff" style="font-size: 3rem; color: #6c757d;"></i>
-                <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Ventas por Articulo</h5>
+        <div class="col">
+            <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteVentasArticulo">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                    <i class="bi bi-receipt-cutoff" style="font-size: 3rem; color: #6c757d;"></i>
+                    <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Ventas por Articulo</h5>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col">
-        <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteRanking">
-            <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                <i class="bi bi-receipt-cutoff" style="font-size: 3rem; color: #6c757d;"></i>
-                <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Reporte Ranking Vendedoras</h5>
+        <div class="col">
+            <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteRanking">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                    <i class="bi bi-receipt-cutoff" style="font-size: 3rem; color: #6c757d;"></i>
+                    <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Reporte Ranking Vendedoras</h5>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col">
-        <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteTotalTiendas">
-            <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                <i class="bi bi-receipt-cutoff" style="font-size: 3rem; color: #6c757d;"></i>
-                <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Reporte Total Tiendas</h5>
+        <div class="col">
+            <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteTotalTiendas">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                    <i class="bi bi-receipt-cutoff" style="font-size: 3rem; color: #6c757d;"></i>
+                    <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Reporte Total Tiendas</h5>
+                </div>
             </div>
         </div>
+        <div class="col">
+            <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteAvanceHora">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                    <i class="bi bi-clock-history" style="font-size: 3rem; color: #6c757d;"></i>
+                    <h5 class="fw-bold mt-2 text-uppercase text-center" style="white-space: normal;">Avance Ventas por Hora</h5>
+                </div>
+            </div>
         </div>
     }
     @*
@@ -141,6 +149,11 @@
     private void IrAReporteRankingDiario()
     {
         Navigation.NavigateTo("/reportes/ranking-diario-vendedores");
+    }
+
+    private void IrAReporteAvanceHora()
+    {
+        Navigation.NavigateTo("/reportes/avance-ventas-hora");
     }
 
     private void IrAReporteTOPten()

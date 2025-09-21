@@ -1,0 +1,236 @@
+﻿@page "/reportes/avance-ventas-hora"
+@using GSCommerce.Client.Components
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@inject ReporteService ReporteService
+@inject AuthService AuthService
+@inject AlmacenService AlmacenService
+@inject IJSRuntime JS
+
+<ReportsBreadcrumb Title="Avance de Ventas por Hora" />
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <label>Fecha:</label>
+        <InputDate @bind-Value="fechaSeleccionada" class="form-control" />
+    </div>
+    <div class="col-md-3">
+        <label>Hora:</label>
+        <select class="form-select" @bind="horaSeleccionada">
+            @foreach (var hora in horas)
+            {
+                <option value="@hora">@hora.ToString("00"):00</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label>Meta (S/):</label>
+        <InputNumber @bind-Value="meta" class="form-control" step="0.01" min="0" />
+    </div>
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col-md-3">
+            <label>Almacén:</label>
+            <select class="form-select" @bind="selectedAlmacen">
+                <option value="0">Todos</option>
+                @foreach (var alm in almacenes)
+                {
+                    <option value="@alm.IdAlmacen">@alm.Nombre</option>
+                }
+            </select>
+        </div>
+    }
+    else if (almacenes.Any())
+    {
+        <div class="col-md-3">
+            <label>Almacén:</label>
+            <input class="form-control" value="@almacenes.First().Nombre" disabled />
+        </div>
+    }
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="Buscar" disabled="@cargando">🔍 Buscar</button>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-success w-100" @onclick="ExportarExcel" disabled="@cargando">📥 Exportar Excel</button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(mensajeError))
+{
+    <div class="alert alert-danger">@mensajeError</div>
+}
+
+@if (cargando)
+{
+    <div class="text-center my-4">
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+            <div class="d-flex flex-column flex-md-row justify-content-between">
+                <span class="fw-bold text-uppercase">Avances de ventas GSHOP</span>
+                <small class="text-white-50">@ObtenerDescripcionRango()</small>
+            </div>
+            <small class="text-white-50">@ObtenerDescripcionAlmacen()</small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm text-center mb-0">
+                    <tbody>
+                        <tr style="background-color:#c6efce;">
+                            <th class="text-start">Meta:</th>
+                            <td class="fw-bold">S/ @meta.ToString("N2")</td>
+                        </tr>
+                        <tr style="background-color:#ffeb9c;">
+                            <th class="text-start">Avance:</th>
+                            <td class="fw-bold">S/ @avance.TotalVentas.ToString("N2")</td>
+                        </tr>
+                        <tr style="background-color:#f8cbad;">
+                            <th class="text-start">Diferencia:</th>
+                            <td class="fw-bold @GetDifferenceTextClass()">@FormatearDiferencia(DiferenciaMonto)</td>
+                        </tr>
+                        <tr style="background-color:#ddebf7;">
+                            <th class="text-start">Ticket:</th>
+                            <td class="fw-bold">@avance.Tickets</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private readonly List<int> horas = Enumerable.Range(0, 24).ToList();
+    private DateTime fechaSeleccionada = DateTime.Today;
+    private int horaSeleccionada = DateTime.Now.Hour;
+    private decimal meta = 4500m;
+    private List<AlmacenDTO> almacenes = new();
+    private int selectedAlmacen;
+    private string cargo = string.Empty;
+    private bool cargando;
+    private string? mensajeError;
+    private ReporteAvanceHoraDTO avance = new();
+
+    private decimal DiferenciaMonto => avance.TotalVentas - meta;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo() ?? string.Empty;
+        var idAlmacenUsuario = await AuthService.GetUserAlmacenId();
+
+        if (cargo == "ADMINISTRADOR")
+        {
+            almacenes = await AlmacenService.GetAlmacenes() ?? new();
+            selectedAlmacen = 0;
+        }
+        else if (idAlmacenUsuario.HasValue)
+        {
+            selectedAlmacen = idAlmacenUsuario.Value;
+            var almacen = await AlmacenService.GetAlmacenById(selectedAlmacen);
+            if (almacen != null)
+            {
+                almacenes = new List<AlmacenDTO> { almacen };
+            }
+        }
+
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        cargando = true;
+        mensajeError = null;
+        var inicio = fechaSeleccionada.Date.AddHours(horaSeleccionada);
+        var fin = inicio.AddHours(1);
+
+        try
+        {
+            int? filtroAlmacen = null;
+            if (cargo == "ADMINISTRADOR")
+            {
+                filtroAlmacen = selectedAlmacen > 0 ? selectedAlmacen : null;
+            }
+            else if (selectedAlmacen > 0)
+            {
+                filtroAlmacen = selectedAlmacen;
+            }
+
+            avance = await ReporteService.ObtenerAvanceVentasHora(inicio, fin, filtroAlmacen);
+        }
+        catch
+        {
+            mensajeError = "No se pudo obtener el reporte. Inténtelo nuevamente.";
+            avance = new ReporteAvanceHoraDTO
+            {
+                HoraInicio = inicio,
+                HoraFin = fin,
+                TotalVentas = 0m,
+                Tickets = 0
+            };
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task ExportarExcel()
+    {
+        var headers = new[] { "Concepto", "Moneda", "Valor" };
+        var rows = new List<object[]>
+        {
+            new object[] { "Meta", "S/", Math.Round(meta, 2) },
+            new object[] { "Avance", "S/", Math.Round(avance.TotalVentas, 2) },
+            new object[] { "Diferencia", "S/", Math.Round(DiferenciaMonto, 2) },
+            new object[] { "Ticket", string.Empty, avance.Tickets }
+        };
+
+        var inicio = fechaSeleccionada.Date.AddHours(horaSeleccionada);
+        var fileName = $"AvanceVentas_{inicio:yyyyMMdd_HH}";
+        await JS.InvokeVoidAsync("exportToExcel", headers, rows.ToArray(), fileName);
+    }
+
+    private string ObtenerDescripcionRango()
+    {
+        var inicio = avance.HoraInicio == default ? fechaSeleccionada.Date.AddHours(horaSeleccionada) : avance.HoraInicio;
+        var fin = avance.HoraFin == default || avance.HoraFin <= inicio ? inicio.AddHours(1) : avance.HoraFin;
+        return $"{inicio:dd/MM/yyyy HH:mm} - {fin:dd/MM/yyyy HH:mm}";
+    }
+
+    private string ObtenerDescripcionAlmacen()
+    {
+        if (cargo == "ADMINISTRADOR")
+        {
+            if (selectedAlmacen <= 0)
+            {
+                return "Todos los almacenes";
+            }
+
+            var almacen = almacenes.FirstOrDefault(a => a.IdAlmacen == selectedAlmacen);
+            return almacen?.Nombre ?? $"Almacén {selectedAlmacen}";
+        }
+
+        if (almacenes.Any())
+        {
+            return almacenes.First().Nombre;
+        }
+
+        return "Almacén no asignado";
+    }
+
+    private string FormatearDiferencia(decimal monto)
+    {
+        var signo = monto < 0 ? "-" : string.Empty;
+        return $"{signo}S/ {Math.Abs(monto):N2}";
+    }
+
+    private string GetDifferenceTextClass() => DiferenciaMonto < 0 ? "text-danger" : "text-success";
+}

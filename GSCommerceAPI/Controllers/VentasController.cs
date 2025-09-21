@@ -572,6 +572,7 @@ namespace GSCommerceAPI.Controllers
                 .AsNoTracking()
                 .Where(k => req.Ids.Contains(k.IdArticulo)
                             && k.TipoMovimiento == "I"
+                            && (k.Origen == null || !EF.Functions.Like(k.Origen, "ANULACIÓN%"))
                             && k.Fecha >= desde
                             && k.Fecha < hastaExclusiva)
                 .Select(k => new
@@ -675,6 +676,64 @@ namespace GSCommerceAPI.Controllers
             }
 
             return Ok(respuesta);
+        }
+
+        [HttpGet("reporte-avance-por-hora")]
+        [Authorize]
+        public async Task<ActionResult<ReporteAvanceHoraDTO>> GetReporteAvancePorHora(
+            [FromQuery] DateTime? desde,
+            [FromQuery] DateTime? hasta,
+            [FromQuery] int? idAlmacen)
+        {
+            var inicio = desde ?? DateTime.Today.Date;
+            var fin = hasta ?? inicio.AddHours(1);
+            if (fin <= inicio)
+                fin = inicio.AddHours(1);
+
+            var cargo = User.FindFirst("Cargo")?.Value;
+            var idAlmacenClaim = User.FindFirst("IdAlmacen")?.Value;
+
+            int? idAlmacenForzado = null;
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(idAlmacenClaim, out var idAlmClaim))
+            {
+                idAlmacenForzado = idAlmClaim;
+            }
+
+            var query = _context.ComprobanteDeVentaCabeceras
+                .AsNoTracking()
+                .Where(c => c.Fecha >= inicio && c.Fecha < fin)
+                .Where(c => c.Estado != "A" || c.GeneroNc != null);
+
+            if (idAlmacenForzado.HasValue)
+            {
+                query = query.Where(c => c.IdAlmacen == idAlmacenForzado.Value);
+            }
+            else if (idAlmacen.HasValue && idAlmacen.Value > 0)
+            {
+                query = query.Where(c => c.IdAlmacen == idAlmacen.Value);
+            }
+
+            var ventas = await query
+                .Select(c => new
+                {
+                    Monto = c.Apagar ?? c.Total,
+                    c.IdComprobante
+                })
+                .ToListAsync();
+
+            var total = ventas.Sum(v => v.Monto);
+            var tickets = ventas.Count;
+
+            var resultado = new ReporteAvanceHoraDTO
+            {
+                HoraInicio = inicio,
+                HoraFin = fin,
+                TotalVentas = total,
+                Tickets = tickets
+            };
+
+            return Ok(resultado);
         }
 
         [HttpGet("list")]
