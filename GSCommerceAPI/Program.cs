@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using GSCommerceAPI.Services;
+using GSCommerceAPI.Services.Reportes;
 using GSCommerceAPI.Services.SUNAT;
 using ServicioSunat;
 
@@ -14,11 +16,16 @@ var builder = WebApplication.CreateBuilder(args);
 // Configurar la conexión con SQL Server usando SyscharlesContext
 builder.Services.AddDbContext<SyscharlesContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.Configure<ReporteAvanceHoraEmailOptions>(builder.Configuration.GetSection(ReporteAvanceHoraEmailOptions.SectionName));
 Console.WriteLine(
     "Cadena de conexión: " + builder.Configuration.GetConnectionString("DefaultConnection"));
 
 builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaService>();
+builder.Services.AddScoped<ReporteAvanceHoraProvider>();
+builder.Services.AddScoped<IReporteAvanceHoraEmailService, ReporteAvanceHoraEmailService>();
 builder.Services.AddHostedService<TicketValidationBackgroundService>();
+builder.Services.AddHostedService<ReporteAvanceHoraEmailBackgroundService>();
+
 // Habilitar CORS para permitir llamadas desde el frontend
 builder.Services.AddCors(options =>
 {

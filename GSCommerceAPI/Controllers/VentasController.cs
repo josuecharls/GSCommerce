@@ -1,18 +1,19 @@
-﻿using GSCommerce.Client.Models;
+﻿using ClosedXML.Excel;
+using GSCommerce.Client.Models;
 using GSCommerce.Client.Models.DTOs.Reportes;
 using GSCommerce.Client.Models.SUNAT;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
+using GSCommerceAPI.Services.Reportes;
+using GSCommerceAPI.Models.Reportes; // For VentaDiariaAlmacenDTO
 using GSCommerceAPI.Models.SUNAT.DTOs;
 using GSCommerceAPI.Services.SUNAT;
-using ClosedXML.Excel;
-using System.IO;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.IO;
 using System.Linq;
 using System.Security.Claims;
-using GSCommerceAPI.Models.Reportes; // For VentaDiariaAlmacenDTO
 
 
 namespace GSCommerceAPI.Controllers
@@ -23,11 +24,16 @@ namespace GSCommerceAPI.Controllers
     {
         private readonly SyscharlesContext _context;
         private readonly IFacturacionElectronicaService _facturacionService;
+        private readonly ReporteAvanceHoraProvider _reporteAvanceHoraProvider;
 
-        public VentasController(SyscharlesContext context, IFacturacionElectronicaService facturacionService)
+        public VentasController(
+            SyscharlesContext context,
+            IFacturacionElectronicaService facturacionService,
+            ReporteAvanceHoraProvider reporteAvanceHoraProvider)
         {
             _context = context;
             _facturacionService = facturacionService;
+            _reporteAvanceHoraProvider = reporteAvanceHoraProvider;
         }
 
         [HttpGet("{id}")]
@@ -686,25 +692,6 @@ namespace GSCommerceAPI.Controllers
             [FromQuery] DateTime? hasta,
             [FromQuery] int? idAlmacen)
         {
-            var inicio = desde ?? DateTime.Today.Date;
-            inicio = new DateTime(inicio.Year, inicio.Month, inicio.Day, inicio.Hour, 0, 0);
-
-            var fin = hasta ?? inicio.AddHours(1);
-            fin = new DateTime(fin.Year, fin.Month, fin.Day, fin.Hour, 0, 0);
-
-            if (fin <= inicio)
-            {
-                fin = inicio.AddHours(1);
-            }
-
-            var diaInicio = inicio.Date;
-            var diaFin = diaInicio.AddDays(1);
-
-            if (fin > diaFin)
-            {
-                fin = diaFin;
-            }
-
             var cargo = User.FindFirst("Cargo")?.Value;
             var idAlmacenClaim = User.FindFirst("IdAlmacen")?.Value;
 
@@ -715,87 +702,12 @@ namespace GSCommerceAPI.Controllers
                 idAlmacenForzado = idAlmClaim;
             }
 
-            var queryBase = _context.ComprobanteDeVentaCabeceras
-                .AsNoTracking()
-                .Where(c => c.Fecha >= diaInicio && c.Fecha < diaFin)
-                .Where(c => c.Estado != "A" || c.GeneroNc != null);
-
-            if (idAlmacenForzado.HasValue)
-            {
-                queryBase = queryBase.Where(c => c.IdAlmacen == idAlmacenForzado.Value);
-            }
-            else if (idAlmacen.HasValue && idAlmacen.Value > 0)
-            {
-                queryBase = queryBase.Where(c => c.IdAlmacen == idAlmacen.Value);
-            }
-
-            var ventasDia = await queryBase
-                .Select(c => new
-                {
-                    c.Fecha,
-                    Monto = c.Apagar ?? c.Total,
-                    c.IdComprobante
-                })
-                .ToListAsync();
-
-            var ventasPorHora = ventasDia
-                .GroupBy(v => v.Fecha.Hour)
-                .ToDictionary(
-                    g => g.Key,
-                    g => new
-                    {
-                        Total = g.Sum(x => x.Monto),
-                        Tickets = g.Count()
-                    });
-
-            var detalles = new List<ReporteAvanceHoraDetalleDTO>();
-            decimal acumuladoMontos = 0m;
-            int acumuladoTickets = 0;
-
-            for (var hora = 0; hora < 24; hora++)
-            {
-                var horaInicioDetalle = diaInicio.AddHours(hora);
-                var horaFinDetalle = horaInicioDetalle.AddHours(1);
-
-                decimal totalHoraDetalle = 0m;
-                int ticketsHoraDetalle = 0;
-
-                if (ventasPorHora.TryGetValue(hora, out var resumenHora))
-                {
-                    totalHoraDetalle = resumenHora.Total;
-                    ticketsHoraDetalle = resumenHora.Tickets;
-                }
-
-                acumuladoMontos += totalHoraDetalle;
-                acumuladoTickets += ticketsHoraDetalle;
-
-                detalles.Add(new ReporteAvanceHoraDetalleDTO
-                {
-                    HoraInicio = horaInicioDetalle,
-                    HoraFin = horaFinDetalle,
-                    TotalHora = totalHoraDetalle,
-                    TotalAcumulado = acumuladoMontos,
-                    TicketsHora = ticketsHoraDetalle,
-                    TicketsAcumulados = acumuladoTickets
-                });
-            }
-
-            var detalleSeleccionado = detalles
-                .FirstOrDefault(d => inicio >= d.HoraInicio && inicio < d.HoraFin);
-
-            var detalleAcumulado = detalles
-                .LastOrDefault(d => d.HoraInicio < fin);
-
-            var resultado = new ReporteAvanceHoraDTO
-            {
-                HoraInicio = inicio,
-                HoraFin = fin,
-                TotalVentas = detalleSeleccionado?.TotalHora ?? 0m,
-                TotalVentasDia = detalleAcumulado?.TotalAcumulado ?? 0m,
-                Tickets = detalleSeleccionado?.TicketsHora ?? 0,
-                TicketsDia = detalleAcumulado?.TicketsAcumulados ?? 0,
-                DetalleHoras = detalles
-            };
+            var resultado = await _reporteAvanceHoraProvider.ObtenerReporteAsync(
+                desde,
+                hasta,
+                idAlmacen,
+                idAlmacenForzado,
+                HttpContext.RequestAborted);
 
             return Ok(resultado);
         }
