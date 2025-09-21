@@ -122,4 +122,39 @@ public class ReporteService
         if (!resp.IsSuccessStatusCode) return new();
         return await resp.Content.ReadFromJsonAsync<List<ReporteArticuloRangoDTO>>() ?? new();
     }
+
+    public async Task<List<ReporteGastosInversionDTO>> ObtenerReporteGastos(int anio, int mes, int? idAlmacen = null)
+    {
+        var url = $"api/reportes/gastos?anio={anio}&mes={mes}";
+        if (idAlmacen.HasValue && idAlmacen.Value > 0)
+        {
+            url += $"&idAlmacen={idAlmacen.Value}";
+        }
+
+        var resp = await _http.GetFromJsonAsync<List<ReporteGastosInversionDTO>>(url);
+        return resp ?? new();
+    }
+
+    public async Task<bool> GuardarReporteGastos(GuardarReporteGastosRequest request)
+    {
+        var resp = await _http.PostAsJsonAsync("api/reportes/gastos/detalles", request);
+        return resp.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> GuardarReporteGastosAlquiler(GuardarReporteGastosAlquilerRequest request)
+    {
+        var resp = await _http.PostAsJsonAsync("api/reportes/gastos/alquiler", request);
+        return resp.IsSuccessStatusCode;
+    }
+
+    public async Task<HttpResponseMessage> ExportarReporteGastosExcel(int anio, int mes, int? idAlmacen = null)
+    {
+        var url = $"api/reportes/gastos/exportar?anio={anio}&mes={mes}";
+        if (idAlmacen.HasValue && idAlmacen.Value > 0)
+        {
+            url += $"&idAlmacen={idAlmacen.Value}";
+        }
+
+        return await _http.GetAsync(url);
+    }
 }

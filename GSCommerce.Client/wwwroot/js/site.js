@@ -82,6 +82,19 @@ function resizeImage(file, width, height, dotNetObject) {
     }
 }
 
+window.downloadFileFromBytes = (fileName, contentType, base64Data) => {
+    try {
+        const link = document.createElement('a');
+        link.href = `data:${contentType};base64,${base64Data}`;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } catch (error) {
+        console.error('No se pudo descargar el archivo', error);
+    }
+};
+
 window.renderVentasDiaChart = (canvasId, items, highlightId) => {
     const ctx = document.getElementById(canvasId);
     if (!ctx) return;

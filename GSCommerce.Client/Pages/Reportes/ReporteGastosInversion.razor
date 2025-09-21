@@ -1,0 +1,346 @@
+﻿@page "/reportes/gastos-inversion"
+@using System.Globalization
+@using GSCommerce.Client.Components
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@inject ReporteService ReporteService
+@inject AuthService AuthService
+@inject IJSRuntime JS
+
+<ReportsBreadcrumb Title="Inversión Mensual" />
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label">Año</label>
+                <select class="form-select" @bind="anioSeleccionado" @bind:after="Buscar" disabled="@cargando">
+                    @foreach (var anio in aniosDisponibles)
+                    {
+                        <option value="@anio">@anio</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label">Mes</label>
+                <select class="form-select" @bind="mesSeleccionado" disabled="@cargando">
+                    @foreach (var mes in meses)
+                    {
+                        <option value="@mes.Numero">@mes.Nombre</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-4 col-md-3 d-flex">
+                <button class="btn btn-primary w-100 me-2" @onclick="Buscar" disabled="@cargando">🔍 Buscar</button>
+                <button class="btn btn-success w-100" @onclick="ExportarExcel" disabled="@(!reporte.Any() || cargando)">📊 Exportar Excel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (cargando)
+{
+    <div class="alert alert-info text-center">Cargando información...</div>
+}
+else if (!reporte.Any())
+{
+    <div class="alert alert-warning text-center">No se encontraron datos para el periodo seleccionado.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle text-nowrap">
+            <thead class="table-light">
+                <tr class="text-center">
+                    <th>TIENDA</th>
+                    <th>ALQUILER</th>
+                    <th>PLANILLAS</th>
+                    <th>AGUA</th>
+                    <th>LUZ</th>
+                    <th>INTERNET</th>
+                    <th>SUNAT</th>
+                    <th>DIVERSOS</th>
+                    <th>PLANILLA BCP/ALQUILER - SERVICIOS</th>
+                    <th>TOTAL INVERSIÓN</th>
+                    <th>@($"VENTA {NombreMesActual.ToUpperInvariant()}")</th>
+                    <th>COSTO DE MERCADERÍA</th>
+                    <th>UTILIDAD BRUTA</th>
+                    <th>UTILIDAD NETA</th>
+                    @if (puedeEditar)
+                    {
+                        <th>ACCIONES</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var fila in reporte)
+                {
+                    <tr>
+                        <td class="fw-bold">@fila.Tienda</td>
+                        <td>
+                            <div class="input-group input-group-sm">
+                            <input type="number" @bind="fila.Alquiler" @bind:event="oninput" @bind:after="() => RecalcularFila(fila)" class="form-control text-end" step="0.01" disabled="@(!PuedeEditarAlquiler(fila))" />
+                                @if (puedeEditar)
+                                {
+                                    if (PuedeEditarAlquiler(fila))
+                                    {
+                                        <button class="btn btn-success" title="Guardar alquiler" disabled="@guardandoAlquiler.Contains(fila.IdAlmacen)" @onclick="() => GuardarAlquiler(fila)">💾</button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-outline-secondary" title="Editar alquiler" @onclick="() => ActivarEdicionAlquiler(fila.IdAlmacen)">✏️</button>
+                                    }
+                                }
+                            </div>
+                        </td>
+                        <td>
+                            <input type="number" @bind="fila.Planillas" @bind:event="oninput" @bind:after="() => RecalcularFila(fila)" class="form-control form-control-sm text-end" step="0.01" disabled="@(!puedeEditar)" />
+                        </td>
+                        <td>
+                            <input type="number" @bind="fila.Agua" @bind:event="oninput" @bind:after="() => RecalcularFila(fila)" class="form-control form-control-sm text-end" step="0.01" disabled="@(!puedeEditar)" />
+                        </td>
+                        <td>
+                            <input type="number" @bind="fila.Luz" @bind:event="oninput" @bind:after="() => RecalcularFila(fila)" class="form-control form-control-sm text-end" step="0.01" disabled="@(!puedeEditar)" />
+                        </td>
+                        <td>
+                            <input type="number" @bind="fila.Internet" @bind:event="oninput" @bind:after="() => RecalcularFila(fila)" class="form-control form-control-sm text-end" step="0.01" disabled="@(!puedeEditar)" />
+                        </td>
+                        <td>
+                            <input type="number" @bind="fila.Sunat" @bind:event="oninput" @bind:after="() => RecalcularFila(fila)" class="form-control form-control-sm text-end" step="0.01" disabled="@(!puedeEditar)" />
+                        </td>
+                        <td>
+                            <input type="number" @bind="fila.Diversos" @bind:event="oninput" @bind:after="() => RecalcularFila(fila)" class="form-control form-control-sm text-end" step="0.01" disabled="@(!puedeEditar)" />
+                        </td>
+                        <td>
+                            <input type="number" @bind="fila.PlanillaServicios" @bind:event="oninput" @bind:after="() => RecalcularFila(fila)" class="form-control form-control-sm text-end" step="0.01" disabled="@(!puedeEditar)" />
+                        </td>
+                        <td class="text-end fw-semibold">S/ @fila.TotalInversion.ToString("N2")</td>
+                        <td class="text-end">S/ @fila.Venta.ToString("N2")</td>
+                        <td class="text-end">S/ @fila.CostoMercaderia.ToString("N2")</td>
+                        <td class="text-end text-success fw-semibold">S/ @fila.UtilidadBruta.ToString("N2")</td>
+                        <td class="text-end @(fila.UtilidadNeta < 0 ? "text-danger" : "text-success") fw-semibold">S/ @fila.UtilidadNeta.ToString("N2")</td>
+                        @if (puedeEditar)
+                        {
+                            <td class="text-center">
+                                <button class="btn btn-primary btn-sm" disabled="@guardandoGastos.Contains(fila.IdAlmacen)" @onclick="() => GuardarGastos(fila)">💾 Guardar</button>
+                            </td>
+                        }
+                    </tr>
+                }
+                <tr class="table-secondary fw-bold">
+                    <td>TOTAL</td>
+                    <td class="text-end">S/ @TotalAlquiler.ToString("N2")</td>
+                    <td class="text-end">S/ @TotalPlanillas.ToString("N2")</td>
+                    <td class="text-end">S/ @TotalAgua.ToString("N2")</td>
+                    <td class="text-end">S/ @TotalLuz.ToString("N2")</td>
+                    <td class="text-end">S/ @TotalInternet.ToString("N2")</td>
+                    <td class="text-end">S/ @TotalSunat.ToString("N2")</td>
+                    <td class="text-end">S/ @TotalDiversos.ToString("N2")</td>
+                    <td class="text-end">S/ @TotalPlanillaServicios.ToString("N2")</td>
+                    <td class="text-end">S/ @TotalInversion.ToString("N2")</td>
+                    <td class="text-end">S/ @TotalVenta.ToString("N2")</td>
+                    <td class="text-end">S/ @TotalCostoMercaderia.ToString("N2")</td>
+                    <td class="text-end text-success">S/ @TotalUtilidadBruta.ToString("N2")</td>
+                    <td class="text-end @(TotalUtilidadNeta < 0 ? "text-danger" : "text-success")">S/ @TotalUtilidadNeta.ToString("N2")</td>
+                    @if (puedeEditar)
+                    {
+                        <td></td>
+                    }
+                </tr>
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private readonly CultureInfo cultura = CultureInfo.CreateSpecificCulture("es-PE");
+    private List<ReporteGastosInversionDTO> reporte = new();
+    private readonly int anioActual = DateTime.Today.Year;
+    private int anioSeleccionado = DateTime.Today.Year;
+    private int mesSeleccionado = DateTime.Today.Month;
+    private bool cargando;
+    private string? cargo;
+    private readonly Dictionary<int, bool> estadoEdicionAlquiler = new();
+    private readonly HashSet<int> guardandoAlquiler = new();
+    private readonly HashSet<int> guardandoGastos = new();
+
+    private IEnumerable<int> aniosDisponibles => Enumerable.Range(anioActual - 5, 6).OrderByDescending(a => a);
+
+    private IEnumerable<(int Numero, string Nombre)> meses => Enumerable.Range(1, 12)
+        .Select(m => (Numero: m, Nombre: cultura.TextInfo.ToTitleCase(new DateTime(2000, m, 1).ToString("MMMM", cultura))));
+
+    private bool puedeEditar => string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
+
+    private string NombreMesActual => cultura.TextInfo.ToTitleCase(new DateTime(anioSeleccionado, mesSeleccionado, 1).ToString("MMMM", cultura));
+
+    private decimal TotalAlquiler => reporte.Sum(r => r.Alquiler);
+    private decimal TotalPlanillas => reporte.Sum(r => r.Planillas);
+    private decimal TotalAgua => reporte.Sum(r => r.Agua);
+    private decimal TotalLuz => reporte.Sum(r => r.Luz);
+    private decimal TotalInternet => reporte.Sum(r => r.Internet);
+    private decimal TotalSunat => reporte.Sum(r => r.Sunat);
+    private decimal TotalDiversos => reporte.Sum(r => r.Diversos);
+    private decimal TotalPlanillaServicios => reporte.Sum(r => r.PlanillaServicios);
+    private decimal TotalInversion => reporte.Sum(r => r.TotalInversion);
+    private decimal TotalVenta => reporte.Sum(r => r.Venta);
+    private decimal TotalCostoMercaderia => reporte.Sum(r => r.CostoMercaderia);
+    private decimal TotalUtilidadBruta => reporte.Sum(r => r.UtilidadBruta);
+    private decimal TotalUtilidadNeta => reporte.Sum(r => r.UtilidadNeta);
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo();
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        cargando = true;
+        try
+        {
+            reporte = await ReporteService.ObtenerReporteGastos(anioSeleccionado, mesSeleccionado);
+            estadoEdicionAlquiler.Clear();
+            guardandoAlquiler.Clear();
+            guardandoGastos.Clear();
+            foreach (var item in reporte)
+            {
+                estadoEdicionAlquiler[item.IdAlmacen] = !item.TieneAlquilerFijo;
+            }
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void RecalcularFila(ReporteGastosInversionDTO fila)
+    {
+        fila.Alquiler = Math.Round(fila.Alquiler, 2);
+        fila.Planillas = Math.Round(fila.Planillas, 2);
+        fila.Agua = Math.Round(fila.Agua, 2);
+        fila.Luz = Math.Round(fila.Luz, 2);
+        fila.Internet = Math.Round(fila.Internet, 2);
+        fila.Sunat = Math.Round(fila.Sunat, 2);
+        fila.Diversos = Math.Round(fila.Diversos, 2);
+        fila.PlanillaServicios = Math.Round(fila.PlanillaServicios, 2);
+        fila.TotalInversion = Math.Round(fila.Alquiler + fila.Planillas + fila.Agua + fila.Luz + fila.Internet + fila.Sunat + fila.Diversos + fila.PlanillaServicios, 2);
+        fila.CostoMercaderia = Math.Round(fila.Venta - fila.UtilidadBruta, 2);
+        fila.UtilidadNeta = Math.Round(fila.UtilidadBruta - fila.TotalInversion, 2);
+    }
+
+    private bool PuedeEditarAlquiler(ReporteGastosInversionDTO fila)
+    {
+        if (!puedeEditar)
+        {
+            return false;
+        }
+
+        if (!fila.TieneAlquilerFijo)
+        {
+            return true;
+        }
+
+        return estadoEdicionAlquiler.TryGetValue(fila.IdAlmacen, out var habilitado) && habilitado;
+    }
+
+    private void ActivarEdicionAlquiler(int idAlmacen)
+    {
+        estadoEdicionAlquiler[idAlmacen] = true;
+    }
+
+    private async Task GuardarAlquiler(ReporteGastosInversionDTO fila)
+    {
+        if (!puedeEditar)
+        {
+            return;
+        }
+
+        guardandoAlquiler.Add(fila.IdAlmacen);
+        try
+        {
+            var ok = await ReporteService.GuardarReporteGastosAlquiler(new GuardarReporteGastosAlquilerRequest
+            {
+                IdAlmacen = fila.IdAlmacen,
+                Alquiler = fila.Alquiler
+            });
+
+            if (ok)
+            {
+                await JS.InvokeVoidAsync("alert", "✅ Alquiler actualizado.");
+                estadoEdicionAlquiler[fila.IdAlmacen] = false;
+                fila.TieneAlquilerFijo = true;
+                RecalcularFila(fila);
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "❌ No se pudo actualizar el alquiler.");
+            }
+        }
+        finally
+        {
+            guardandoAlquiler.Remove(fila.IdAlmacen);
+        }
+    }
+
+    private async Task GuardarGastos(ReporteGastosInversionDTO fila)
+    {
+        if (!puedeEditar)
+        {
+            return;
+        }
+
+        guardandoGastos.Add(fila.IdAlmacen);
+        try
+        {
+            var ok = await ReporteService.GuardarReporteGastos(new GuardarReporteGastosRequest
+            {
+                IdAlmacen = fila.IdAlmacen,
+                Anio = anioSeleccionado,
+                Mes = mesSeleccionado,
+                Planillas = fila.Planillas,
+                Agua = fila.Agua,
+                Luz = fila.Luz,
+                Internet = fila.Internet,
+                Sunat = fila.Sunat,
+                Diversos = fila.Diversos,
+                PlanillaServicios = fila.PlanillaServicios
+            });
+
+            if (ok)
+            {
+                await JS.InvokeVoidAsync("alert", "✅ Gastos guardados correctamente.");
+                RecalcularFila(fila);
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "❌ No se pudieron guardar los gastos.");
+            }
+        }
+        finally
+        {
+            guardandoGastos.Remove(fila.IdAlmacen);
+        }
+    }
+
+    private async Task ExportarExcel()
+    {
+        try
+        {
+            using var response = await ReporteService.ExportarReporteGastosExcel(anioSeleccionado, mesSeleccionado);
+            if (!response.IsSuccessStatusCode)
+            {
+                await JS.InvokeVoidAsync("alert", "❌ No se pudo exportar el reporte.");
+                return;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var base64 = Convert.ToBase64String(bytes);
+            var nombreArchivo = $"ReporteGastos_{anioSeleccionado}_{mesSeleccionado:D2}.xlsx";
+            await JS.InvokeVoidAsync("downloadFileFromBytes", nombreArchivo, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
+        }
+        catch
+        {
+            await JS.InvokeVoidAsync("alert", "❌ Error inesperado al exportar.");
+        }
+    }
+}
