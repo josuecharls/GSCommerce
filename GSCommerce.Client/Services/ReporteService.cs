@@ -107,9 +107,13 @@ public class ReporteService
             HoraInicio = desde,
             HoraFin = hasta,
             TotalVentas = 0m,
-            Tickets = 0
+            TotalVentasDia = 0m,
+            Tickets = 0,
+            TicketsDia = 0,
+            DetalleHoras = new List<ReporteAvanceHoraDetalleDTO>()
         };
     }
+
     public async Task<List<ReporteArticuloRangoDTO>> ObtenerReporteArticulosRango(
     List<string> ids, DateTime desde, DateTime hasta)
     {
