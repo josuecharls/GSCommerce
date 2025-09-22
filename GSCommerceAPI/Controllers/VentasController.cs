@@ -514,28 +514,6 @@ namespace GSCommerceAPI.Controllers
             return Ok(respuesta);
         }
 
-        [Authorize]
-        [HttpGet("lineas-articulos")]
-        public async Task<ActionResult<IEnumerable<LineaFiltroDTO>>> ObtenerLineasArticulos()
-        {
-            var lineas = await _context.Articulos
-                .AsNoTracking()
-                .Where(a => a.Estado)
-                .GroupBy(a => new { a.Linea, a.Familia, a.Marca })
-                .Select(g => new LineaFiltroDTO
-                {
-                    Linea = g.Key.Linea,
-                    Familia = g.Key.Familia,
-                    Marca = g.Key.Marca
-                })
-                .OrderBy(x => x.Familia)
-                .ThenBy(x => x.Linea)
-                .ThenBy(x => x.Marca)
-                .ToListAsync();
-
-            return Ok(lineas);
-        }
-
         [HttpPost("reporte-articulos-rango")]
         public async Task<IActionResult> ObtenerReporteArticulosRango([FromBody] ReporteArticulosRangoRequest req)
         {
@@ -1491,7 +1469,7 @@ namespace GSCommerceAPI.Controllers
             var q = from d in _context.ComprobanteDeVentaDetalles.AsNoTracking()
                     join c in _context.ComprobanteDeVentaCabeceras.AsNoTracking() on d.IdComprobante equals c.IdComprobante
                     join a in _context.Articulos.AsNoTracking() on d.IdArticulo equals a.IdArticulo
-                    where c.Fecha >= start && c.Fecha < end && c.Estado == "E"
+                    where c.Fecha >= start && c.Fecha < end && c.Estado == "E" && d.Precio > 15m
                     select new { d, c, a };
 
             if (idAlmacenForzado.HasValue)
