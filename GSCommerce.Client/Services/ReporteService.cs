@@ -34,6 +34,11 @@ public class ReporteService
         var response = await _http.GetFromJsonAsync<List<RankingVendedoraDTO>>(url);
         return response ?? new();
     }
+    public async Task<List<LineaFiltroDTO>> ObtenerLineasArticulos()
+    {
+        var response = await _http.GetFromJsonAsync<List<LineaFiltroDTO>>("api/ventas/lineas-articulos");
+        return response ?? new();
+    }
 
     public async Task<List<TopArticuloDTO>> ObtenerTop10Articulos(
         DateTime desde,

@@ -8,7 +8,6 @@
 @inject AlmacenService AlmacenService
 @inject AuthService AuthService
 @inject IJSRuntime JS
-@inject ComplementoService ComplementoService
 
 <ReportsBreadcrumb Title="Top 10 Artículos Menos Vendidos" />
 
@@ -27,7 +26,7 @@
             <option value="">Todas</option>
             @foreach (var l in lineas)
             {
-                <option value="@l.Descripcion">@l.Descripcion</option>
+                <option value="@l.Linea">@l.DisplayName</option>
             }
         </select>
     </div>
@@ -98,7 +97,7 @@ else
     private bool esAdmin = false;
     private List<AlmacenDTO> almacenes = new();
     private int idAlmacenSel = 0;
-    private List<ComplementoDTO> lineas = new();
+    private List<LineaFiltroDTO> lineas = new();
     private string lineaSeleccionada = string.Empty;
 
     private bool loading = false;
@@ -106,7 +105,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         esAdmin = (await AuthService.GetUserCargo() ?? string.Empty).ToUpperInvariant() == "ADMINISTRADOR";
-        lineas = await ComplementoService.GetByTipo("LINEA") ?? new();
+        lineas = await ReporteService.ObtenerLineasArticulos();
         if (esAdmin)
         {
             almacenes = await AlmacenService.GetAlmacenes() ?? new();
@@ -145,8 +144,12 @@ else
         if (esAdmin && idAlmacenSel > 0)
             nombreAlmacen = almacenes.FirstOrDefault(a => a.IdAlmacen == idAlmacenSel)?.Nombre ?? $"Almacén {idAlmacenSel}";
 
-        var nombreLinea = string.IsNullOrWhiteSpace(lineaSeleccionada) ? "Todas las líneas" : lineaSeleccionada;
-
+        var nombreLinea = "Todas las líneas";
+        if (!string.IsNullOrWhiteSpace(lineaSeleccionada))
+        {
+            nombreLinea = lineas.FirstOrDefault(l => l.Linea == lineaSeleccionada)?.DisplayName
+                ?? lineaSeleccionada;
+        }
         await JS.InvokeVoidAsync("exportTop10Excel",
             filas, desde.ToString("yyyy-MM-dd"), hasta.ToString("yyyy-MM-dd"), nombreAlmacen, nombreLinea,
             "Top 10 Artículos Menos Vendidos", "Top10_Articulos_MenosVendidos");
