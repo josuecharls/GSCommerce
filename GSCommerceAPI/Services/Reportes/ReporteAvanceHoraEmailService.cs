@@ -1,17 +1,37 @@
-﻿using System.Globalization;
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using GSCommerce.Client.Models.DTOs.Reportes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace GSCommerceAPI.Services;
 
+public sealed class ReporteAvanceHoraEmailEntry
+{
+    public ReporteAvanceHoraEmailEntry(ReporteAvanceHoraDTO reporte, string? nombreAlmacen, int? idAlmacen)
+    {
+        Reporte = reporte ?? throw new ArgumentNullException(nameof(reporte));
+        NombreAlmacen = nombreAlmacen;
+        IdAlmacen = idAlmacen;
+    }
+
+    public ReporteAvanceHoraDTO Reporte { get; }
+
+    public string? NombreAlmacen { get; }
+
+    public int? IdAlmacen { get; }
+}
+
 public interface IReporteAvanceHoraEmailService
 {
-    Task EnviarReporteAsync(ReporteAvanceHoraDTO reporte, string? nombreAlmacen, int? idAlmacen, CancellationToken cancellationToken = default);
+    Task EnviarReporteAsync(IReadOnlyCollection<ReporteAvanceHoraEmailEntry> reportes, CancellationToken cancellationToken = default);
 }
 
 public class ReporteAvanceHoraEmailService : IReporteAvanceHoraEmailService
@@ -27,7 +47,7 @@ public class ReporteAvanceHoraEmailService : IReporteAvanceHoraEmailService
         _optionsMonitor = optionsMonitor;
     }
 
-    public async Task EnviarReporteAsync(ReporteAvanceHoraDTO reporte, string? nombreAlmacen, int? idAlmacen, CancellationToken cancellationToken = default)
+    public async Task EnviarReporteAsync(IReadOnlyCollection<ReporteAvanceHoraEmailEntry> reportes, CancellationToken cancellationToken = default)
     {
         var options = _optionsMonitor.CurrentValue;
 
@@ -55,8 +75,19 @@ public class ReporteAvanceHoraEmailService : IReporteAvanceHoraEmailService
             return;
         }
 
-        var subject = BuildSubject(options, reporte, nombreAlmacen, idAlmacen);
-        var body = BuildBody(options, reporte, nombreAlmacen);
+        var entradasValidas = reportes?
+            .Where(r => r is not null)
+            .ToList()
+            ?? new List<ReporteAvanceHoraEmailEntry>();
+
+        if (entradasValidas.Count == 0)
+        {
+            _logger.LogWarning("No se proporcionaron datos válidos para el correo de avance por hora.");
+            return;
+        }
+
+        var subject = BuildSubject(options, entradasValidas);
+        var body = BuildBody(options, entradasValidas);
 
         using var message = new MailMessage
         {
@@ -87,68 +118,112 @@ public class ReporteAvanceHoraEmailService : IReporteAvanceHoraEmailService
         {
             cancellationToken.ThrowIfCancellationRequested();
             await smtp.SendMailAsync(message);
-            _logger.LogInformation("Reporte de avance por hora enviado correctamente para {Almacen}.", nombreAlmacen ?? "todos los almacenes");
+            _logger.LogInformation("Reporte de avance por hora enviado correctamente para {Almacenes}.", ObtenerDescripcionLog(entradasValidas));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "Error al enviar el correo de avance por hora para {Almacen}.", nombreAlmacen ?? "todos los almacenes");
+            _logger.LogError(ex, "Error al enviar el correo de avance por hora para {Almacenes}.", ObtenerDescripcionLog(entradasValidas));
         }
     }
 
-    private static string BuildSubject(ReporteAvanceHoraEmailOptions options, ReporteAvanceHoraDTO reporte, string? nombreAlmacen, int? idAlmacen)
+    private static string BuildSubject(ReporteAvanceHoraEmailOptions options, IReadOnlyCollection<ReporteAvanceHoraEmailEntry> reportes)
     {
         var baseSubject = string.IsNullOrWhiteSpace(options.Subject)
             ? "Reporte de avance por hora"
             : options.Subject!;
 
-        var etiquetaAlmacen = !string.IsNullOrWhiteSpace(nombreAlmacen)
-            ? nombreAlmacen
-            : idAlmacen.HasValue ? $"Almacén {idAlmacen.Value}" : "Todos los almacenes";
+        if (reportes.Count == 0)
+        {
+            return baseSubject;
+        }
 
-        return $"{baseSubject} - {etiquetaAlmacen} - {reporte.HoraFin:dd/MM/yyyy HH:mm}";
+        var horaFin = reportes
+            .Select(r => r.Reporte.HoraFin)
+            .Where(h => h != default)
+            .OrderByDescending(h => h)
+            .FirstOrDefault();
+
+        if (horaFin == default)
+        {
+            horaFin = DateTime.Now;
+        }
+
+        var etiquetaAlmacen = reportes.Count == 1
+            ? ObtenerEtiquetaAlmacen(reportes.First())
+            : "Todos los almacenes";
+
+        return $"{baseSubject} - {etiquetaAlmacen} - {horaFin:dd/MM/yyyy HH:mm}";
     }
 
-    private static string BuildBody(ReporteAvanceHoraEmailOptions options, ReporteAvanceHoraDTO reporte, string? nombreAlmacen)
+    private static string BuildBody(ReporteAvanceHoraEmailOptions options, IReadOnlyCollection<ReporteAvanceHoraEmailEntry> reportes)
     {
         var culture = new CultureInfo("es-PE");
         var sb = new StringBuilder();
 
-        sb.AppendLine("GSCommerce - Reporte de avance por hora");
-        if (!string.IsNullOrWhiteSpace(nombreAlmacen))
+        var entradas = reportes
+            .Where(r => r is not null)
+            .ToList();
+
+        for (var index = 0; index < entradas.Count; index++)
         {
-            sb.AppendLine($"Almacén: {nombreAlmacen}");
+            var entrada = entradas[index];
+            var etiquetaAlmacen = ObtenerEtiquetaAlmacen(entrada);
+
+            sb.AppendLine($"Almacén: {etiquetaAlmacen}");
+            sb.AppendLine($"Avance en la hora: S/ {entrada.Reporte.TotalVentas.ToString("N2", culture)}");
+            sb.AppendLine($"Avance acumulado del día: S/ {entrada.Reporte.TotalVentasDia.ToString("N2", culture)}");
+            sb.AppendLine($"Tickets en la hora: {entrada.Reporte.Tickets}");
+            sb.AppendLine($"Tickets acumulados del día: {entrada.Reporte.TicketsDia}");
+
+            if (index < entradas.Count - 1)
+            {
+                sb.AppendLine();
+                sb.AppendLine(new string('=', 27));
+                sb.AppendLine();
+            }
         }
-        sb.AppendLine($"Intervalo seleccionado: {reporte.HoraInicio:dd/MM/yyyy HH:mm} - {reporte.HoraFin:dd/MM/yyyy HH:mm}");
-        sb.AppendLine();
-        sb.AppendLine($"Avance en la hora: S/ {reporte.TotalVentas.ToString("N2", culture)}");
-        sb.AppendLine($"Avance acumulado del día: S/ {reporte.TotalVentasDia.ToString("N2", culture)}");
-        sb.AppendLine($"Tickets en la hora: {reporte.Tickets}");
-        sb.AppendLine($"Tickets acumulados del día: {reporte.TicketsDia}");
 
         if (!string.IsNullOrWhiteSpace(options.AdditionalMessage))
         {
-            sb.AppendLine();
-            sb.AppendLine(options.AdditionalMessage);
-        }
-
-        if (reporte.DetalleHoras?.Any() == true)
-        {
-            sb.AppendLine();
-            sb.AppendLine("Detalle por hora:");
-            sb.AppendLine("Hora | Intervalo | Ventas hora | Ventas acumuladas | Tickets hora | Tickets acumulados");
-
-            foreach (var detalle in reporte.DetalleHoras.OrderBy(d => d.HoraInicio))
+            if (entradas.Count > 0)
             {
-                sb.AppendLine(
-                    $"{detalle.HoraInicio:HH:mm} | {detalle.HoraInicio:HH:mm}-{detalle.HoraFin:HH:mm} | " +
-                    $"S/ {detalle.TotalHora.ToString("N2", culture)} | S/ {detalle.TotalAcumulado.ToString("N2", culture)} | " +
-                    $"{detalle.TicketsHora} | {detalle.TicketsAcumulados}");
+                sb.AppendLine();
             }
+
+            sb.AppendLine(options.AdditionalMessage);
         }
 
         sb.AppendLine();
         sb.AppendLine("Este correo fue enviado automáticamente por GSCommerce.");
 
         return sb.ToString();
+    }
+
+    private static string ObtenerEtiquetaAlmacen(ReporteAvanceHoraEmailEntry entrada)
+    {
+        if (!string.IsNullOrWhiteSpace(entrada.NombreAlmacen))
+        {
+            return entrada.NombreAlmacen!;
+        }
+
+        return entrada.IdAlmacen.HasValue
+            ? $"Almacén {entrada.IdAlmacen.Value}"
+            : "Todos los almacenes";
+    }
+
+    private static string ObtenerDescripcionLog(IEnumerable<ReporteAvanceHoraEmailEntry> entradas)
+    {
+        var etiquetas = entradas
+            .Where(e => e is not null)
+            .Select(ObtenerEtiquetaAlmacen)
+            .Distinct()
+            .ToList();
+
+        return etiquetas.Count switch
+        {
+            0 => "sin almacenes",
+            1 => etiquetas[0],
+            _ => "todos los almacenes"
+        };
     }
 }

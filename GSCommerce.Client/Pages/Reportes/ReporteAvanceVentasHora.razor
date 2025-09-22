@@ -4,10 +4,12 @@
 @using GSCommerce.Client.Models.DTOs.Reportes
 @using GSCommerce.Client.Services
 @using System.Linq
+@using Blazored.LocalStorage
 @inject ReporteService ReporteService
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService
 @inject IJSRuntime JS
+@inject ILocalStorageService LocalStorage
 
 <ReportsBreadcrumb Title="Avance de Ventas por Hora" />
 
@@ -27,13 +29,13 @@
     </div>
     <div class="col-md-3">
         <label>Meta diaria (S/):</label>
-        <InputNumber @bind-Value="meta" class="form-control" step="0.01" min="0" />
+        <InputNumber @bind-Value="Meta" class="form-control" step="0.01" min="0" />
     </div>
     @if (cargo == "ADMINISTRADOR")
     {
         <div class="col-md-3">
             <label>Almacén:</label>
-            <select class="form-select" @bind="selectedAlmacen">
+            <select class="form-select" value="@selectedAlmacen" @onchange="OnAlmacenChanged">
                 <option value="0">Todos</option>
                 @foreach (var alm in almacenes)
                 {
@@ -89,7 +91,7 @@ else
                     <tbody>
                         <tr style="background-color:#c6efce;">
                             <th class="text-start">Meta diaria:</th>
-                            <td class="fw-bold text-end">S/ @meta.ToString("N2")</td>
+                            <td class="fw-bold text-end">S/ @Meta.ToString("N2")</td>
                         </tr>
                         <tr style="background-color:#ffeb9c;">
                             <th class="text-start">Avance por hora:</th>
@@ -158,17 +160,40 @@ else
 
 @code {
     private readonly List<int> horas = Enumerable.Range(0, 24).ToList();
+    private const decimal MetaPredeterminada = 4500m;
+    private const string MetaStorageKeyPrefix = "ReporteAvanceHoraMeta_";
+    private readonly Dictionary<int, decimal> metasPorAlmacen = new();
     private DateTime fechaSeleccionada = DateTime.Today;
     private int horaSeleccionada = DateTime.Now.Hour;
-    private decimal meta = 4500m;
     private List<AlmacenDTO> almacenes = new();
     private int selectedAlmacen;
     private string cargo = string.Empty;
     private bool cargando;
     private string? mensajeError;
     private ReporteAvanceHoraDTO avance = new();
+    private decimal metaActual = MetaPredeterminada;
+    private bool suprimirGuardadoMeta;
 
-    private decimal DiferenciaMonto => avance.TotalVentasDia - meta;
+    private decimal Meta
+    {
+        get => metaActual;
+        set
+        {
+            if (metaActual == value)
+            {
+                return;
+            }
+
+            metaActual = value;
+
+            if (!suprimirGuardadoMeta)
+            {
+                _ = InvokeAsync(() => GuardarMetaSeleccionadaAsync(value));
+            }
+        }
+    }
+
+    private decimal DiferenciaMonto => avance.TotalVentasDia - Meta;
 
     protected override async Task OnInitializedAsync()
     {
@@ -190,6 +215,7 @@ else
             }
         }
 
+        await CargarMetaSeleccionadaAsync();
         await Buscar();
     }
 
@@ -252,7 +278,7 @@ else
 
         var rows = new List<object[]>
         {
-            new object[] { "Meta diaria", string.Empty, Math.Round(meta, 2), null, null, null },
+            new object[] { "Meta diaria", string.Empty, Math.Round(Meta, 2), null, null, null },
             new object[] { "Avance por hora", intervaloHoras, Math.Round(avance.TotalVentas, 2), null, null, null },
             new object[] { "Avance acumulado", $"Hasta {horaFinTexto}", null, Math.Round(avance.TotalVentasDia, 2), null, null },
             new object[] { "Diferencia vs meta", string.Empty, Math.Round(DiferenciaMonto, 2), null, null, null },
@@ -284,6 +310,73 @@ else
         var fileName = $"AvanceVentas_{inicioSeleccionado:yyyyMMdd_HH}";
         await JS.InvokeVoidAsync("exportToExcel", headers, rows.ToArray(), fileName);
     }
+
+    private async Task OnAlmacenChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var nuevoAlmacen))
+        {
+            if (selectedAlmacen != nuevoAlmacen)
+            {
+                selectedAlmacen = nuevoAlmacen;
+                await CargarMetaSeleccionadaAsync();
+            }
+        }
+    }
+
+    private async Task CargarMetaSeleccionadaAsync()
+    {
+        var idMeta = ObtenerIdAlmacenParaMeta();
+        var metaAlmacen = await ObtenerMetaAsync(idMeta);
+
+        suprimirGuardadoMeta = true;
+        Meta = metaAlmacen;
+        suprimirGuardadoMeta = false;
+    }
+
+    private async Task<decimal> ObtenerMetaAsync(int almacenId)
+    {
+        if (metasPorAlmacen.TryGetValue(almacenId, out var metaGuardada))
+        {
+            return metaGuardada;
+        }
+
+        try
+        {
+            var storageKey = ObtenerMetaStorageKey(almacenId);
+            if (await LocalStorage.ContainKeyAsync(storageKey))
+            {
+                var almacenMeta = await LocalStorage.GetItemAsync<decimal>(storageKey);
+                metasPorAlmacen[almacenId] = almacenMeta;
+                return almacenMeta;
+            }
+        }
+        catch
+        {
+            // Si no se puede acceder al almacenamiento local, se utilizará la meta predeterminada.
+        }
+
+        metasPorAlmacen[almacenId] = MetaPredeterminada;
+        return MetaPredeterminada;
+    }
+
+    private async Task GuardarMetaSeleccionadaAsync(decimal valor)
+    {
+        var idMeta = ObtenerIdAlmacenParaMeta();
+        metasPorAlmacen[idMeta] = valor;
+
+        try
+        {
+            await LocalStorage.SetItemAsync(ObtenerMetaStorageKey(idMeta), valor);
+        }
+        catch
+        {
+            // Si no se puede guardar la meta no se lanza una excepción para no interrumpir el flujo del reporte.
+        }
+    }
+
+    private int ObtenerIdAlmacenParaMeta() => selectedAlmacen;
+
+    private static string ObtenerMetaStorageKey(int almacenId) => $"{MetaStorageKeyPrefix}{almacenId}";
 
     private (DateTime Inicio, DateTime Fin) ObtenerIntervaloSeleccionado()
     {
