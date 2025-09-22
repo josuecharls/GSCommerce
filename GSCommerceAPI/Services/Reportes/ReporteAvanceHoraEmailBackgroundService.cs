@@ -1,5 +1,6 @@
 ﻿using GSCommerceAPI.Data;
 using Microsoft.EntityFrameworkCore;
+using GSCommerceAPI.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -84,7 +85,7 @@ public class ReporteAvanceHoraEmailBackgroundService : BackgroundService
 
         using var scope = _scopeFactory.CreateScope();
         var provider = scope.ServiceProvider.GetRequiredService<ReporteAvanceHoraProvider>();
-        var emailService = scope.ServiceProvider.GetRequiredService<ReporteAvanceHoraEmailService>();
+        var emailService = scope.ServiceProvider.GetRequiredService<IReporteAvanceHoraEmailService>();
         var context = scope.ServiceProvider.GetRequiredService<SyscharlesContext>();
 
         var almacenesConfigurados = options.WarehouseIds?.Where(id => id > 0).Distinct().ToList() ?? new List<int>();
