@@ -63,7 +63,8 @@
                     <td>@o.Estado</td>
                     <td>
                         <button class="btn btn-sm btn-info me-1" @onclick="() => VerDetalle(o.IdOc)">Ver</button>
-                        <button class="btn btn-sm btn-secondary" @onclick="() => GenerarIngreso(o.IdOc)" disabled="@ingresoEnProceso.Contains(o.IdOc)">Ingreso</button>
+                        <button class="btn btn-sm btn-warning me-1" @onclick="() => Editar(o.IdOc)" disabled="@(!PuedeEditar(o))">Editar</button>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => GenerarIngreso(o.IdOc)" disabled="@(!PuedeGenerarIngreso(o))">Ingreso</button>
                     </td>
                 </tr>
             }
@@ -226,6 +227,7 @@
         var lista = await ocService.ListarAsync(desdeOc, hastaOc, idProveedorOc);
         ordenes = lista.Where(o => !o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
         currentPageOc = 1;
+        ingresoEnProceso.Clear();
     }
 
     private async Task BuscarPagos()
@@ -275,13 +277,42 @@
 
     private void VerDetalle(int id) => Nav.NavigateTo($"/ordenes-compra/{id}");
 
+    private void Editar(int id) => Nav.NavigateTo($"/ordenes-compra/editar/{id}");
+
     private async Task GenerarIngreso(int id)
     {
         if (!ingresoEnProceso.Add(id))
             return;
-        var ok = await ocService.GenerarIngresoAsync(id, 1009);
-        await JS.InvokeVoidAsync("alert", ok ? "Ingreso generado" : "No se pudo generar ingreso");
+
+        try
+        {
+            var resultado = await ocService.GenerarIngresoAsync(id, 1009);
+            if (resultado.Success)
+            {
+                await JS.InvokeVoidAsync("alert", "Ingreso generado");
+                var orden = ordenes.FirstOrDefault(o => o.IdOc == id);
+                if (orden != null)
+                {
+                    orden.Estado = resultado.Estado ?? "INGRESADO";
+                }
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", resultado.ErrorMessage ?? "No se pudo generar ingreso");
+            }
+        }
+        finally
+        {
+            ingresoEnProceso.Remove(id);
+        }
     }
+
+    private static bool PuedeEditar(OrdenCompraConsultaDTO o) =>
+        string.IsNullOrEmpty(o.Estado) || o.Estado.Equals("PENDIENTE", StringComparison.OrdinalIgnoreCase);
+
+    private bool PuedeGenerarIngreso(OrdenCompraConsultaDTO o) =>
+        PuedeEditar(o) && !ingresoEnProceso.Contains(o.IdOc);
+
 
     private Task SeleccionarProveedorOc(ProveedorDTO p)
     {

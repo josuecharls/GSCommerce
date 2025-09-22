@@ -1,4 +1,5 @@
 ﻿@page "/ordenes-compra/nuevo"
+@page "/ordenes-compra/editar/{id:int}"
 @**@
 @using Microsoft.AspNetCore.Authorization
 @using GSCommerce.Client.Models
@@ -9,8 +10,14 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
-<h3>Nueva Orden de Compra</h3>
+<h3>@(esEdicion ? "Editar Orden de Compra" : "Nueva Orden de Compra")</h3>
 
+@if (estaCargando)
+{
+    <p>Cargando...</p>
+}
+else
+{
 <div class="mb-3">
     <label>Proveedor:</label>
     <div class="input-group">
@@ -77,16 +84,48 @@
 </div>
 
 <div class="text-end">
-    <button class="btn btn-success" @onclick="Guardar" disabled="@estaGuardando">Guardar</button>
-    <button class="btn btn-secondary" @onclick="Volver">Cancelar</button>
+        <button class="btn btn-success" @onclick="Guardar" disabled="@estaGuardando">@(esEdicion ? "Actualizar" : "Guardar")</button>
+        <button class="btn btn-secondary" @onclick="Volver">Cancelar</button>
 </div>
 
 <ProveedorBuscarModal Mostrar="mostrarProveedorModal" MostrarChanged="(v) => mostrarProveedorModal = v" OnSeleccionado="SeleccionarProveedor" />
+}
 
 @code {
+    [Parameter] public int? id { get; set; }
+
+    private bool esEdicion => id.HasValue;
+
     private OrdenCompraDTO orden = new() { FechaOc = DateTime.Today, FechaEntrega = DateTime.Today };
     private bool mostrarProveedorModal = false;
     private bool estaGuardando = false;
+    private bool estaCargando = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (esEdicion)
+        {
+            estaCargando = true;
+            try
+            {
+                var existente = await ocService.ObtenerOrdenPorId(id!.Value);
+                if (existente == null)
+                {
+                    await JS.InvokeVoidAsync("alert", "No se encontró la orden de compra");
+                    Nav.NavigateTo("/ordenes-compra");
+                    return;
+                }
+
+                orden = existente;
+                orden.Detalles = orden.Detalles.OrderBy(d => d.Item).ToList();
+                ActualizarTotales();
+            }
+            finally
+            {
+                estaCargando = false;
+            }
+        }
+    }
 
     private void AgregarDetalle()
     {
@@ -131,25 +170,49 @@
             return;
         }
 
+        if (!orden.Detalles.Any())
+        {
+            await JS.InvokeVoidAsync("alert", "Debe agregar al menos un artículo.");
+            return;
+        }
+
         estaGuardando = true;
 
         try
         {
-            var id = await ocService.CrearAsync(orden);
-            await JS.InvokeVoidAsync("alert", id != null ? "OC registrada" : "Error al registrar");
-            if (id != null)
+            ActualizarTotales();
+
+            if (esEdicion)
             {
-                Nav.NavigateTo("/ordenes-compra");
+                var ok = await ocService.ActualizarAsync(orden);
+                await JS.InvokeVoidAsync("alert", ok ? "OC actualizada" : "Error al actualizar");
+                if (ok)
+                {
+                    Nav.NavigateTo("/ordenes-compra");
+                }
+                else
+                {
+                    estaGuardando = false;
+                }
             }
             else
             {
-                estaGuardando = false;
+                var idNuevo = await ocService.CrearAsync(orden);
+                await JS.InvokeVoidAsync("alert", idNuevo != null ? "OC registrada" : "Error al registrar");
+                if (idNuevo != null)
+                {
+                    Nav.NavigateTo("/ordenes-compra");
+                }
+                else
+                {
+                    estaGuardando = false;
+                }
             }
         }
         catch
         {
             estaGuardando = false;
-            await JS.InvokeVoidAsync("alert", "Error al registrar");
+            await JS.InvokeVoidAsync("alert", esEdicion ? "Error al actualizar" : "Error al registrar");
         }
     }
 

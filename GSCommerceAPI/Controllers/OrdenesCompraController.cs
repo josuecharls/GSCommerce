@@ -49,17 +49,19 @@ namespace GSCommerceAPI.Controllers
                 ImporteTotal = orden.ImporteTotal,
                 EstadoEmision = orden.EstadoEmision,
                 EstadoAtencion = orden.EstadoAtencion,
-                Detalles = orden.OrdenDeCompraDetalles.Select(d => new OrdenCompraDetalleDTO
-                {
-                    IdOc = d.IdOc,
-                    Item = d.Item,
-                    IdArticulo = d.IdArticulo,
-                    DescripcionArticulo = d.DescripcionArticulo,
-                    UnidadMedida = d.UnidadMedida,
-                    Cantidad = d.Cantidad,
-                    CostoUnitario = d.CostoUnitario,
-                    Total = d.Total
-                }).ToList()
+                Detalles = orden.OrdenDeCompraDetalles
+                    .OrderBy(d => d.Item)
+                    .Select(d => new OrdenCompraDetalleDTO
+                    {
+                        IdOc = d.IdOc,
+                        Item = d.Item,
+                        IdArticulo = d.IdArticulo,
+                        DescripcionArticulo = d.DescripcionArticulo,
+                        UnidadMedida = d.UnidadMedida,
+                        Cantidad = d.Cantidad,
+                        CostoUnitario = d.CostoUnitario,
+                        Total = d.Total
+                    }).ToList()
             });
         }
 
@@ -93,6 +95,25 @@ namespace GSCommerceAPI.Controllers
                     Glosa = o.Glosa
                 })
                 .ToListAsync();
+
+            var idsOc = lista.Select(l => l.IdOc).ToList();
+            if (idsOc.Any())
+            {
+                var estados = await _context.OrdenDeCompraCabeceras
+                    .Where(o => idsOc.Contains(o.IdOc))
+                    .Select(o => new { o.IdOc, o.EstadoAtencion })
+                    .ToDictionaryAsync(o => o.IdOc, o => o.EstadoAtencion);
+
+                foreach (var item in lista)
+                {
+                    if (estados.TryGetValue(item.IdOc, out var estadoAtencion) &&
+                        !string.IsNullOrEmpty(estadoAtencion) &&
+                        estadoAtencion.Equals("IN", StringComparison.OrdinalIgnoreCase))
+                    {
+                        item.Estado = "INGRESADO";
+                    }
+                }
+            }
 
             var idsPagos = lista
                 .Where(x => x.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase) && int.TryParse(x.NumeroOc[3..], out _))
@@ -184,6 +205,73 @@ namespace GSCommerceAPI.Controllers
             }
         }
 
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Actualizar(int id, [FromBody] OrdenCompraDTO dto)
+        {
+            if (dto == null || dto.Detalles == null || !dto.Detalles.Any())
+                return BadRequest("Datos incompletos.");
+
+            var orden = await _context.OrdenDeCompraCabeceras
+                .Include(o => o.OrdenDeCompraDetalles)
+                .FirstOrDefaultAsync(o => o.IdOc == id);
+
+            if (orden == null)
+                return NotFound();
+
+            if (!string.Equals(orden.EstadoAtencion, "PE", StringComparison.OrdinalIgnoreCase))
+                return BadRequest("Solo las órdenes pendientes pueden editarse.");
+
+            using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                orden.IdProveedor = dto.IdProveedor;
+                orden.NumeroOc = dto.NumeroOc;
+                orden.FechaOc = dto.FechaOc;
+                orden.Rucproveedor = dto.RucProveedor;
+                orden.NombreProveedor = dto.NombreProveedor;
+                orden.DireccionProveedor = dto.DireccionProveedor;
+                orden.Moneda = dto.Moneda;
+                orden.TipoCambio = dto.TipoCambio;
+                orden.FormaPago = dto.FormaPago;
+                orden.SinIgv = dto.SinIgv;
+                orden.FechaEntrega = dto.FechaEntrega;
+                orden.Atencion = dto.Atencion;
+                orden.Glosa = dto.Glosa;
+                orden.ImporteSubTotal = dto.ImporteSubTotal;
+                orden.ImporteIgv = dto.ImporteIgv;
+                orden.ImporteTotal = dto.ImporteTotal;
+
+                _context.OrdenDeCompraDetalles.RemoveRange(orden.OrdenDeCompraDetalles);
+
+                int item = 1;
+                foreach (var d in dto.Detalles)
+                {
+                    var detalle = new OrdenDeCompraDetalle
+                    {
+                        IdOc = orden.IdOc,
+                        Item = item++,
+                        IdArticulo = d.IdArticulo,
+                        DescripcionArticulo = d.DescripcionArticulo,
+                        UnidadMedida = d.UnidadMedida,
+                        Cantidad = d.Cantidad,
+                        CostoUnitario = d.CostoUnitario,
+                        Total = d.Total
+                    };
+                    _context.OrdenDeCompraDetalles.Add(detalle);
+                }
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                return StatusCode(500, $"Error al actualizar OC: {ex.Message}");
+            }
+        }
+
         [HttpPost("{id}/generar-ingreso")]
         public async Task<IActionResult> GenerarIngreso(int id, int idAlmacen)
         {
@@ -194,6 +282,8 @@ namespace GSCommerceAPI.Controllers
                 .Include(o => o.OrdenDeCompraDetalles)
                 .FirstOrDefaultAsync(o => o.IdOc == id);
             if (orden == null) return NotFound();
+            if (!string.Equals(orden.EstadoAtencion, "PE", StringComparison.OrdinalIgnoreCase))
+                return BadRequest("La orden ya fue ingresada o no está pendiente.");
 
             using var tx = await _context.Database.BeginTransactionAsync();
             try
@@ -269,9 +359,14 @@ namespace GSCommerceAPI.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                orden.EstadoAtencion = "IN";
+                orden.FechaAtencionTotal = DateTime.Now;
+
+                await _context.SaveChangesAsync();
                 await tx.CommitAsync();
 
-                return Ok(new { mov.IdMovimiento });
+                return Ok(new { mov.IdMovimiento, Estado = "INGRESADO" });
             }
             catch (Exception ex)
             {

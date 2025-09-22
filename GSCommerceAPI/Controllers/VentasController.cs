@@ -575,7 +575,7 @@ namespace GSCommerceAPI.Controllers
                 .ToListAsync();
 
             // Ingresos tomados desde Kardex para incluir cualquier movimiento que sume stock en el almacén
-            var ingresos = await _context.Kardices
+            var ingresosRaw = await _context.Kardices
                 .AsNoTracking()
                 .Where(k => req.Ids.Contains(k.IdArticulo)
                             && k.TipoMovimiento == "I"
@@ -587,11 +587,52 @@ namespace GSCommerceAPI.Controllers
                     k.IdArticulo,
                     k.IdAlmacen,
                     k.Cantidad,
-                    k.Fecha
+                    k.Fecha,
+                    k.Origen
                 })
                 .ToListAsync();
 
-            var ingresosAgg = ingresos
+            var ingresos = ingresosRaw
+                .Select(x => new
+                {
+                    x.IdArticulo,
+                    x.IdAlmacen,
+                    x.Cantidad,
+                    x.Fecha,
+                    MovimientoId = TryObtenerIdMovimiento(x.Origen)
+                })
+                .ToList();
+
+            var movimientoIds = ingresos
+                .Where(x => x.MovimientoId.HasValue)
+                .Select(x => x.MovimientoId!.Value)
+                .Distinct()
+                .ToList();
+
+            var movimientosAnulados = new HashSet<int>();
+            if (movimientoIds.Count > 0)
+            {
+                var idsAnulados = await _context.MovimientosCabeceras
+                    .AsNoTracking()
+                    .Where(m => movimientoIds.Contains(m.IdMovimiento) && m.Estado != "E")
+                    .Select(m => m.IdMovimiento)
+                    .ToListAsync();
+
+                movimientosAnulados = idsAnulados.ToHashSet();
+            }
+
+            var ingresosFiltrados = ingresos
+                .Where(x => !x.MovimientoId.HasValue || !movimientosAnulados.Contains(x.MovimientoId.Value))
+                .Select(x => new
+                {
+                    x.IdArticulo,
+                    x.IdAlmacen,
+                    x.Cantidad,
+                    x.Fecha
+                })
+                .ToList();
+
+            var ingresosAgg = ingresosFiltrados
                 .GroupBy(x => new { x.IdArticulo, x.IdAlmacen })
                 .Select(g => new {
                     g.Key.IdArticulo,
@@ -2222,6 +2263,40 @@ namespace GSCommerceAPI.Controllers
             var sufijo = moneda == "USD" ? "DOLARES" : "SOLES";
 
             return $"{letras} Y {decimales:D2}/100 {sufijo}";
+        }
+        private static int? TryObtenerIdMovimiento(string? origen)
+        {
+            if (string.IsNullOrWhiteSpace(origen))
+            {
+                return null;
+            }
+
+            const string marcador = "Nro:";
+            var indice = origen.LastIndexOf(marcador, StringComparison.OrdinalIgnoreCase);
+            if (indice < 0)
+            {
+                return null;
+            }
+
+            indice += marcador.Length;
+            while (indice < origen.Length && char.IsWhiteSpace(origen[indice]))
+            {
+                indice++;
+            }
+
+            var fin = indice;
+            while (fin < origen.Length && char.IsDigit(origen[fin]))
+            {
+                fin++;
+            }
+
+            if (fin == indice)
+            {
+                return null;
+            }
+
+            var segmento = origen[indice..fin];
+            return int.TryParse(segmento, out var id) ? id : null;
         }
 
         private static string NumeroALetras(long numero)

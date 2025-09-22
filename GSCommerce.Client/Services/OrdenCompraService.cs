@@ -53,10 +53,32 @@ namespace GSCommerce.Client.Services
             return null;
         }
 
-        public async Task<bool> GenerarIngresoAsync(int idOc, int idAlmacen = 1009)
+        public async Task<bool> ActualizarAsync(OrdenCompraDTO dto)
+        {
+            var resp = await _httpClient.PutAsJsonAsync($"api/ordenes-compra/{dto.IdOc}", dto);
+            return resp.IsSuccessStatusCode;
+        }
+
+        public async Task<GenerarIngresoResult> GenerarIngresoAsync(int idOc, int idAlmacen = 1009)
         {
             var resp = await _httpClient.PostAsync($"api/ordenes-compra/{idOc}/generar-ingreso?idAlmacen={idAlmacen}", null);
-            return resp.IsSuccessStatusCode;
+            if (resp.IsSuccessStatusCode)
+            {
+                var data = await resp.Content.ReadFromJsonAsync<GenerarIngresoResponse>();
+                return new GenerarIngresoResult
+                {
+                    Success = true,
+                    IdMovimiento = data?.IdMovimiento,
+                    Estado = data?.Estado
+                };
+            }
+
+            var mensaje = await resp.Content.ReadAsStringAsync();
+            return new GenerarIngresoResult
+            {
+                Success = false,
+                ErrorMessage = string.IsNullOrWhiteSpace(mensaje) ? resp.ReasonPhrase : mensaje
+            };
         }
     }
 }

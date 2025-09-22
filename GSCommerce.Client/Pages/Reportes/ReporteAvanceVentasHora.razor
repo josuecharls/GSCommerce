@@ -29,7 +29,7 @@
     </div>
     <div class="col-md-3">
         <label>Meta diaria (S/):</label>
-        <InputNumber @bind-Value="Meta" class="form-control" step="0.01" min="0" />
+        <InputNumber @bind-Value="Meta" class="form-control" step="0.01" min="0" disabled="@(!PuedeEditarMeta)" />
     </div>
     @if (cargo == "ADMINISTRADOR")
     {
@@ -173,6 +173,7 @@ else
     private ReporteAvanceHoraDTO avance = new();
     private decimal metaActual = MetaPredeterminada;
     private bool suprimirGuardadoMeta;
+    private bool PuedeEditarMeta => cargo == "ADMINISTRADOR";
 
     private decimal Meta
     {
@@ -186,7 +187,7 @@ else
 
             metaActual = value;
 
-            if (!suprimirGuardadoMeta)
+            if (!suprimirGuardadoMeta && PuedeEditarMeta)
             {
                 _ = InvokeAsync(() => GuardarMetaSeleccionadaAsync(value));
             }
