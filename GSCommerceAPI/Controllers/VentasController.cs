@@ -1542,19 +1542,43 @@ namespace GSCommerceAPI.Controllers
                 q = q.Where(x => x.a.Linea == filtroLinea);
             }
 
-            var resultado = await q
-                .GroupBy(x => new { x.d.IdArticulo, x.d.Descripcion, x.a.Linea })
-                .Select(g => new TopArticuloDTO
+            var articulosAgrupados = await q
+                .GroupBy(x => x.d.IdArticulo)
+                .Select(g => new
                 {
-                    Codigo = g.Key.IdArticulo,
-                    Descripcion = g.Key.Descripcion,
-                    Linea = g.Key.Linea,
+                    Codigo = g.Key,
+                    Descripcion = g.Select(x => x.d.Descripcion).FirstOrDefault(),
+                    Linea = g.Select(x => x.a.Linea).FirstOrDefault(),
                     TotalUnidadesVendidas = g.Sum(x => x.d.Cantidad),
                     TotalImporte = g.Sum(x => x.d.Total)
                 })
                 .OrderByDescending(x => x.TotalImporte)
                 .Take(top)
                 .ToListAsync();
+
+            static string LimpiarDescripcion(string? descripcion, string codigo)
+            {
+                var texto = (descripcion ?? string.Empty)
+                    .Replace("No Aplica", string.Empty, StringComparison.OrdinalIgnoreCase);
+
+                var normalizado = string.Join(" ", texto
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+                normalizado = normalizado.Trim();
+
+                return string.IsNullOrWhiteSpace(normalizado) ? codigo : normalizado;
+            }
+
+            var resultado = articulosAgrupados
+                .Select(item => new TopArticuloDTO
+                {
+                    Codigo = item.Codigo,
+                    Descripcion = LimpiarDescripcion(item.Descripcion, item.Codigo),
+                    Linea = item.Linea ?? string.Empty,
+                    TotalUnidadesVendidas = item.TotalUnidadesVendidas,
+                    TotalImporte = item.TotalImporte
+                })
+                .ToList();
 
             return Ok(resultado);
         }

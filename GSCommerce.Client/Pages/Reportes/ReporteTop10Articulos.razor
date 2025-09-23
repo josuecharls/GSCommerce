@@ -122,7 +122,11 @@ else
         {
             int? idAlmacenParam = esAdmin && idAlmacenSel > 0 ? idAlmacenSel : (int?)null;
             var lineaParam = string.IsNullOrWhiteSpace(lineaSeleccionada) ? null : lineaSeleccionada;
-            top10 = await ReporteService.ObtenerTop10Articulos(desde, hasta, idAlmacenParam, lineaParam);
+            top10 = await ReporteService.ObtenerTop10Articulos(desde, hasta, idAlmacenParam, lineaParam) ?? new();
+            foreach (var item in top10)
+            {
+                item.Descripcion = LimpiarDescripcion(item.Descripcion, item.Codigo);
+            }
         }
         finally
         {
@@ -136,8 +140,7 @@ else
         {
             Nro = i + 1,
             Codigo = r.Codigo,
-            Descripcion = r.Descripcion,
-            Linea = r.Linea,
+            Descripcion = LimpiarDescripcion(r.Descripcion, r.Codigo),
             Cantidad = r.TotalUnidadesVendidas,
             Importe = r.TotalImporte
         }).ToList();
@@ -150,6 +153,19 @@ else
 
         await JS.InvokeVoidAsync("exportTop10Excel",
             filas, desde.ToString("yyyy-MM-dd"), hasta.ToString("yyyy-MM-dd"), nombreAlmacen, nombreLinea);
+    }
+
+    private static string LimpiarDescripcion(string? descripcion, string codigo)
+    {
+        var texto = (descripcion ?? string.Empty)
+            .Replace("No Aplica", string.Empty, StringComparison.OrdinalIgnoreCase);
+
+        var normalizado = string.Join(" ", texto
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+        normalizado = normalizado.Trim();
+
+        return string.IsNullOrWhiteSpace(normalizado) ? codigo : normalizado;
     }
 
     private class ExportRow
