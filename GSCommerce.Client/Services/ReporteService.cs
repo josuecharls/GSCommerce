@@ -1,4 +1,5 @@
 ﻿using GSCommerce.Client.Models.DTOs.Reportes;
+using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Json;
 
 public class ReporteArticulosRangoRequest
@@ -39,13 +40,46 @@ public class ReporteService
         DateTime desde,
         DateTime hasta,
         int? idAlmacen = null,
-        string? linea = null)
+        IEnumerable<string>? lineas = null,
+        IEnumerable<string>? familias = null)
     {
-        var url = $"api/ventas/reporte-top10-articulos?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+        var queryParams = new Dictionary<string, string?>
+        {
+            ["desde"] = desde.ToString("yyyy-MM-dd"),
+            ["hasta"] = hasta.ToString("yyyy-MM-dd")
+        };
+
         if (idAlmacen.HasValue && idAlmacen.Value > 0)
-            url += $"&idAlmacen={idAlmacen.Value}";
-        if (!string.IsNullOrWhiteSpace(linea))
-            url += $"&linea={Uri.EscapeDataString(linea)}";
+        {
+            queryParams["idAlmacen"] = idAlmacen.Value.ToString();
+        }
+
+        var url = QueryHelpers.AddQueryString("api/ventas/reporte-top10-articulos", queryParams);
+
+        if (lineas != null)
+        {
+            foreach (var linea in lineas)
+            {
+                if (string.IsNullOrWhiteSpace(linea))
+                {
+                    continue;
+                }
+                url = QueryHelpers.AddQueryString(url, "lineas", linea.Trim());
+            }
+        }
+
+        if (familias != null)
+        {
+            foreach (var familia in familias)
+            {
+                if (string.IsNullOrWhiteSpace(familia))
+                {
+                    continue;
+                }
+                url = QueryHelpers.AddQueryString(url, "familias", familia.Trim());
+            }
+        }
+
         var response = await _http.GetFromJsonAsync<List<TopArticuloDTO>>(url);
         return response ?? new();
     }
@@ -54,17 +88,50 @@ public class ReporteService
         DateTime desde,
         DateTime hasta,
         int? idAlmacen = null,
-        string? linea = null)
+        IEnumerable<string>? lineas = null,
+        IEnumerable<string>? familias = null)
     {
-        var url = $"api/ventas/reporte-top10-articulos-menos-vendidos?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+        var queryParams = new Dictionary<string, string?>
+        {
+            ["desde"] = desde.ToString("yyyy-MM-dd"),
+            ["hasta"] = hasta.ToString("yyyy-MM-dd")
+        };
+
         if (idAlmacen.HasValue && idAlmacen.Value > 0)
-            url += $"&idAlmacen={idAlmacen.Value}";
-        if (!string.IsNullOrWhiteSpace(linea))
-            url += $"&linea={Uri.EscapeDataString(linea)}";
+        {
+            queryParams["idAlmacen"] = idAlmacen.Value.ToString();
+        }
+
+        var url = QueryHelpers.AddQueryString("api/ventas/reporte-top10-articulos-menos-vendidos", queryParams);
+
+        if (lineas != null)
+        {
+            foreach (var linea in lineas)
+            {
+                if (string.IsNullOrWhiteSpace(linea))
+                {
+                    continue;
+                }
+                url = QueryHelpers.AddQueryString(url, "lineas", linea.Trim());
+            }
+        }
+
+        if (familias != null)
+        {
+            foreach (var familia in familias)
+            {
+                if (string.IsNullOrWhiteSpace(familia))
+                {
+                    continue;
+                }
+                url = QueryHelpers.AddQueryString(url, "familias", familia.Trim());
+            }
+        }
 
         var response = await _http.GetFromJsonAsync<List<TopArticuloDTO>>(url);
         return response ?? new();
     }
+
 
     public async Task<List<ReporteTotalTiendasDTO>> ObtenerTotalTiendas(DateTime desde, DateTime hasta, int? idAlmacen = null)
     {

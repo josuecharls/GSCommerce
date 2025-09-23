@@ -1,0 +1,234 @@
+﻿@using System.Linq
+@typeparam TItem
+
+<div class="multi-select dropdown">
+    <button type="button"
+            class="btn btn-outline-secondary dropdown-toggle w-100 d-flex align-items-center justify-content-between text-start"
+            data-bs-toggle="dropdown"
+            data-bs-auto-close="outside">
+        <span class="multi-select-button-text text-truncate">@ButtonText</span>
+        <i class="bi bi-chevron-down ms-2"></i>
+    </button>
+    <div class="dropdown-menu w-100 p-0 multi-select-menu">
+        <div class="p-2">
+            @if (EnableSearch)
+            {
+                <div class="mb-2">
+                    <input class="form-control form-control-sm"
+                           type="text"
+                           placeholder="@SearchPlaceholder"
+                           @bind="searchText"
+                           @bind:event="oninput" />
+                </div>
+            }
+
+            @if (ShowActions)
+            {
+                <div class="d-flex justify-content-between gap-2 mb-2 multi-select-actions">
+                    <button type="button" class="btn btn-link btn-sm px-0" @onclick="SelectAll">Seleccionar todo</button>
+                    <button type="button" class="btn btn-link btn-sm px-0" @onclick="Clear">Limpiar</button>
+                </div>
+            }
+
+            @{
+                var filteredItems = GetFilteredItems();
+            }
+
+            <div class="multi-select-options">
+                @if (!filteredItems.Any())
+                {
+                    <div class="text-muted small py-2 px-1">@NoResultsText</div>
+                }
+                else
+                {
+                    foreach (var item in filteredItems)
+                    {
+                        var value = Normalize(ValueSelector(item));
+                        if (string.IsNullOrEmpty(value))
+                        {
+                            continue;
+                        }
+                        var text = Normalize(TextSelector?.Invoke(item) ?? ValueSelector(item));
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="@GetCheckboxId(value)"
+                                   checked="@IsSelected(value)"
+                                   @onchange="(e) => OnItemToggled(value, e.Value)" />
+                            <label class="form-check-label text-truncate" for="@GetCheckboxId(value)">@text</label>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public IEnumerable<TItem> Items { get; set; } = Enumerable.Empty<TItem>();
+
+    [Parameter]
+    public Func<TItem, string?> ValueSelector { get; set; } = default!;
+
+    [Parameter]
+    public Func<TItem, string?>? TextSelector { get; set; }
+
+    [Parameter]
+    public List<string> SelectedValues { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<string>> SelectedValuesChanged { get; set; }
+
+    [Parameter]
+    public string Placeholder { get; set; } = "Selección múltiple";
+
+    [Parameter]
+    public string SearchPlaceholder { get; set; } = "Buscar...";
+
+    [Parameter]
+    public string NoResultsText { get; set; } = "Sin resultados";
+
+    [Parameter]
+    public bool EnableSearch { get; set; } = false;
+
+    [Parameter]
+    public bool ShowActions { get; set; } = false;
+
+    private string searchText = string.Empty;
+    private HashSet<string> selectedSet = new(StringComparer.OrdinalIgnoreCase);
+
+    private string ButtonText
+    {
+        get
+        {
+            if (!selectedSet.Any())
+            {
+                return Placeholder;
+            }
+
+            var labels = (Items ?? Enumerable.Empty<TItem>())
+                .Select(item => new
+                {
+                    Value = Normalize(ValueSelector(item)),
+                    Text = Normalize(TextSelector?.Invoke(item) ?? ValueSelector(item))
+                })
+                .Where(x => !string.IsNullOrEmpty(x.Value) && selectedSet.Contains(x.Value))
+                .Select(x => x.Text)
+                .Where(text => !string.IsNullOrEmpty(text))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (!labels.Any())
+            {
+                labels = selectedSet.ToList();
+            }
+
+            if (labels.Count <= 2)
+            {
+                return string.Join(", ", labels);
+            }
+
+            return $"{labels.Count} seleccionados";
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        var values = SelectedValues ?? new List<string>();
+        selectedSet = new HashSet<string>(
+            values.Where(v => !string.IsNullOrWhiteSpace(v)).Select(Normalize),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private IReadOnlyList<TItem> GetFilteredItems()
+    {
+        var items = Items ?? Enumerable.Empty<TItem>();
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            return items.ToList();
+        }
+
+        var term = searchText.Trim();
+        return items
+            .Where(item =>
+            {
+                var text = Normalize(TextSelector?.Invoke(item) ?? ValueSelector(item));
+                return text.Contains(term, StringComparison.OrdinalIgnoreCase);
+            })
+            .ToList();
+    }
+
+    private string GetCheckboxId(string value)
+    {
+        var sanitized = new string(value.Where(char.IsLetterOrDigit).ToArray());
+        if (string.IsNullOrEmpty(sanitized))
+        {
+            sanitized = "item";
+        }
+
+        var hash = Math.Abs(StringComparer.OrdinalIgnoreCase.GetHashCode(value));
+        return $"multi_{sanitized}_{hash}";
+    }
+
+    private static string Normalize(string? value) => (value ?? string.Empty).Trim();
+
+    private bool IsSelected(string value) => selectedSet.Contains(value);
+
+    private async Task OnItemToggled(string value, object? changeValue)
+    {
+        var isChecked = changeValue switch
+        {
+            bool b => b,
+            string s => s.Equals("true", StringComparison.OrdinalIgnoreCase) || s.Equals("on", StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
+
+        if (isChecked)
+        {
+            selectedSet.Add(value);
+        }
+        else
+        {
+            selectedSet.Remove(value);
+        }
+
+        await NotifySelectionChanged();
+    }
+
+    private async Task SelectAll()
+    {
+        selectedSet = new HashSet<string>(
+            (Items ?? Enumerable.Empty<TItem>())
+                .Select(item => Normalize(ValueSelector(item)))
+                .Where(v => !string.IsNullOrEmpty(v)),
+            StringComparer.OrdinalIgnoreCase);
+
+        await NotifySelectionChanged();
+    }
+
+    private async Task Clear()
+    {
+        if (!selectedSet.Any())
+        {
+            return;
+        }
+
+        selectedSet.Clear();
+        await NotifySelectionChanged();
+    }
+
+    private async Task NotifySelectionChanged()
+    {
+        var list = selectedSet.ToList();
+        if (SelectedValuesChanged.HasDelegate)
+        {
+            await SelectedValuesChanged.InvokeAsync(list);
+        }
+        else
+        {
+            SelectedValues = list;
+        }
+        StateHasChanged();
+    }
+}

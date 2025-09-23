@@ -22,14 +22,19 @@
         <InputDate @bind-Value="hasta" class="form-control" />
     </div>
     <div class="col-12 col-sm-6 col-lg-3">
-        <label>Línea:</label>
-        <select class="form-select" @bind="lineaSeleccionada">
-            <option value="">Todas</option>
-            @foreach (var l in lineas)
-            {
-                <option value="@l.Descripcion">@l.Descripcion</option>
-            }
-        </select>
+        <label>Líneas:</label>
+        <MultiSelectDropdown Items="lineas"
+                             ValueSelector="@(l => l.Descripcion ?? string.Empty)"
+                             @bind-SelectedValues="lineasSeleccionadas" />
+        <small class="text-muted">Dejar vacío para incluir todas.</small>
+    </div>
+
+    <div class="col-12 col-sm-6 col-lg-3">
+        <label>Familias:</label>
+        <MultiSelectDropdown Items="familias"
+                             ValueSelector="@(f => f.Descripcion ?? string.Empty)"
+                             @bind-SelectedValues="familiasSeleccionadas" />
+        <small class="text-muted">Dejar vacío para incluir todas.</small>
     </div>
 
     @if (esAdmin)
@@ -65,7 +70,6 @@
                 <th>#</th>
                 <th>Código</th>
                 <th>Descripción</th>
-                <th>Línea</th>
                 <th>Cantidad Vendida</th>
                 <th>Total Importe</th>
             </tr>
@@ -77,7 +81,6 @@
                     <td>@(item.i + 1)</td>
                     <td>@item.r.Codigo</td>
                     <td>@item.r.Descripcion</td>
-                    <td>@item.r.Linea</td>
                     <td>@item.r.TotalUnidadesVendidas</td>
                     <td>@item.r.TotalImporte.ToString("C", pe)</td>
                 </tr>
@@ -99,7 +102,9 @@ else
     private List<AlmacenDTO> almacenes = new();
     private int idAlmacenSel = 0;
     private List<ComplementoDTO> lineas = new();
-    private string lineaSeleccionada = string.Empty;
+    private List<ComplementoDTO> familias = new();
+    private List<string> lineasSeleccionadas = new();
+    private List<string> familiasSeleccionadas = new();
 
     private bool loading = false;
 
@@ -107,6 +112,7 @@ else
     {
         esAdmin = (await AuthService.GetUserCargo() ?? string.Empty).ToUpperInvariant() == "ADMINISTRADOR";
         lineas = await ComplementoService.GetByTipo("LINEA") ?? new();
+        familias = await ComplementoService.GetByTipo("FAMILIA") ?? new();
         if (esAdmin)
         {
             almacenes = await AlmacenService.GetAlmacenes() ?? new();
@@ -120,8 +126,19 @@ else
         try
         {
             int? idAlmacenParam = esAdmin && idAlmacenSel > 0 ? idAlmacenSel : (int?)null;
-            var lineaParam = string.IsNullOrWhiteSpace(lineaSeleccionada) ? null : lineaSeleccionada;
-            articulosMenosVendidos = await ReporteService.ObtenerTop10ArticulosMenosVendidos(desde, hasta, idAlmacenParam, lineaParam);
+            var lineasFiltro = lineasSeleccionadas
+                .Where(l => !string.IsNullOrWhiteSpace(l))
+                .Select(l => l.Trim())
+                .ToList();
+            var familiasFiltro = familiasSeleccionadas
+                .Where(f => !string.IsNullOrWhiteSpace(f))
+                .Select(f => f.Trim())
+                .ToList();
+
+            articulosMenosVendidos = await ReporteService.ObtenerTop10ArticulosMenosVendidos(
+                desde, hasta, idAlmacenParam,
+                lineasFiltro,
+                familiasFiltro);
         }
         finally
         {
@@ -136,7 +153,6 @@ else
             Nro = i + 1,
             Codigo = r.Codigo,
             Descripcion = r.Descripcion,
-            Linea = r.Linea,
             Cantidad = r.TotalUnidadesVendidas,
             Importe = r.TotalImporte
         }).ToList();
@@ -145,10 +161,20 @@ else
         if (esAdmin && idAlmacenSel > 0)
             nombreAlmacen = almacenes.FirstOrDefault(a => a.IdAlmacen == idAlmacenSel)?.Nombre ?? $"Almacén {idAlmacenSel}";
 
-        var nombreLinea = string.IsNullOrWhiteSpace(lineaSeleccionada) ? "Todas las líneas" : lineaSeleccionada;
+        var nombreLineas = lineasSeleccionadas.Any()
+            ? string.Join(", ", lineasSeleccionadas)
+            : "Todas las líneas";
+        var nombreFamilias = familiasSeleccionadas.Any()
+            ? string.Join(", ", familiasSeleccionadas)
+            : "Todas las familias";
 
         await JS.InvokeVoidAsync("exportTop10Excel",
-            filas, desde.ToString("yyyy-MM-dd"), hasta.ToString("yyyy-MM-dd"), nombreAlmacen, nombreLinea,
+            filas,
+            desde.ToString("yyyy-MM-dd"),
+            hasta.ToString("yyyy-MM-dd"),
+            nombreAlmacen,
+            nombreLineas,
+            nombreFamilias,
             "Top 10 Artículos Menos Vendidos", "Top10_Articulos_MenosVendidos");
     }
 
@@ -157,7 +183,6 @@ else
         public int Nro { get; set; }
         public string Codigo { get; set; } = "";
         public string Descripcion { get; set; } = "";
-        public string Linea { get; set; } = "";
         public decimal Cantidad { get; set; }
         public decimal Importe { get; set; }
     }

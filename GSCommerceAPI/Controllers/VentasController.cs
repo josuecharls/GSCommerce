@@ -1449,7 +1449,8 @@ namespace GSCommerceAPI.Controllers
             [FromQuery] DateTime? desde,
             [FromQuery] DateTime? hasta,
             [FromQuery] int? idAlmacen,
-            [FromQuery] string? linea,
+            [FromQuery] List<string>? lineas,
+            [FromQuery] List<string>? familias,
             [FromQuery] int top = 10)
         {
             var start = (desde ?? DateTime.Today).Date;
@@ -1477,19 +1478,34 @@ namespace GSCommerceAPI.Controllers
             else if (idAlmacen.HasValue && idAlmacen.Value > 0)
                 q = q.Where(x => x.c.IdAlmacen == idAlmacen.Value);
 
-            if (!string.IsNullOrWhiteSpace(linea))
+            var lineasFiltradas = lineas?
+                .Where(l => !string.IsNullOrWhiteSpace(l))
+                .Select(l => l.Trim())
+                .ToList();
+
+            if (lineasFiltradas is { Count: > 0 })
             {
-                var filtroLinea = linea.Trim();
-                q = q.Where(x => x.a.Linea == filtroLinea);
+                q = q.Where(x => x.a.Linea != null && lineasFiltradas.Contains(x.a.Linea));
+            }
+
+            var familiasFiltradas = familias?
+                .Where(f => !string.IsNullOrWhiteSpace(f))
+                .Select(f => f.Trim())
+                .ToList();
+
+            if (familiasFiltradas is { Count: > 0 })
+            {
+                q = q.Where(x => x.a.Familia != null && familiasFiltradas.Contains(x.a.Familia));
             }
 
             var resultado = await q
-                .GroupBy(x => new { x.d.IdArticulo, x.d.Descripcion, x.a.Linea })
+                .GroupBy(x => new { x.d.IdArticulo, x.d.Descripcion, x.a.Linea, x.a.Familia })
                 .Select(g => new TopArticuloDTO
                 {
                     Codigo = g.Key.IdArticulo,
                     Descripcion = g.Key.Descripcion,
                     Linea = g.Key.Linea,
+                    Familia = g.Key.Familia ?? string.Empty,
                     TotalUnidadesVendidas = g.Sum(x => x.d.Cantidad),
                     TotalImporte = g.Sum(x => x.d.Total)
                 })
@@ -1507,7 +1523,8 @@ namespace GSCommerceAPI.Controllers
             [FromQuery] DateTime? desde,
             [FromQuery] DateTime? hasta,
             [FromQuery] int? idAlmacen,
-            [FromQuery] string? linea,
+            [FromQuery] List<string>? lineas,
+            [FromQuery] List<string>? familias,
             [FromQuery] int top = 10)
         {
             var start = (desde ?? DateTime.Today).Date;
@@ -1536,10 +1553,24 @@ namespace GSCommerceAPI.Controllers
             else if (idAlmacen.HasValue && idAlmacen.Value > 0)
                 q = q.Where(x => x.c.IdAlmacen == idAlmacen.Value);
 
-            if (!string.IsNullOrWhiteSpace(linea))
+            var lineasFiltradas = lineas?
+                .Where(l => !string.IsNullOrWhiteSpace(l))
+                .Select(l => l.Trim())
+                .ToList();
+
+            if (lineasFiltradas is { Count: > 0 })
             {
-                var filtroLinea = linea.Trim();
-                q = q.Where(x => x.a.Linea == filtroLinea);
+                q = q.Where(x => x.a.Linea != null && lineasFiltradas.Contains(x.a.Linea));
+            }
+
+            var familiasFiltradas = familias?
+                .Where(f => !string.IsNullOrWhiteSpace(f))
+                .Select(f => f.Trim())
+                .ToList();
+
+            if (familiasFiltradas is { Count: > 0 })
+            {
+                q = q.Where(x => x.a.Familia != null && familiasFiltradas.Contains(x.a.Familia));
             }
 
             var articulosAgrupados = await q
@@ -1549,6 +1580,7 @@ namespace GSCommerceAPI.Controllers
                     Codigo = g.Key,
                     Descripcion = g.Select(x => x.d.Descripcion).FirstOrDefault(),
                     Linea = g.Select(x => x.a.Linea).FirstOrDefault(),
+                    Familia = g.Select(x => x.a.Familia).FirstOrDefault(),
                     TotalUnidadesVendidas = g.Sum(x => x.d.Cantidad),
                     TotalImporte = g.Sum(x => x.d.Total)
                 })
@@ -1575,6 +1607,7 @@ namespace GSCommerceAPI.Controllers
                     Codigo = item.Codigo,
                     Descripcion = LimpiarDescripcion(item.Descripcion, item.Codigo),
                     Linea = item.Linea ?? string.Empty,
+                    Familia = item.Familia ?? string.Empty,
                     TotalUnidadesVendidas = item.TotalUnidadesVendidas,
                     TotalImporte = item.TotalImporte
                 })

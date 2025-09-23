@@ -157,3 +157,66 @@ code {
         font-size: 10pt;
         font-weight: bold;
     }
+
+.multi-select .dropdown-toggle::after {
+    display: none;
+}
+
+.multi-select .dropdown-toggle {
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    color: #212529;
+    font-weight: 500;
+    padding: 0.45rem 0.75rem;
+}
+
+    .multi-select .dropdown-toggle:hover,
+    .multi-select .dropdown-toggle:focus {
+        background-color: #f8f9fa;
+        color: #212529;
+    }
+
+.multi-select .multi-select-button-text {
+    flex: 1 1 auto;
+}
+
+.multi-select .multi-select-menu {
+    max-height: 18rem;
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.1);
+}
+
+.multi-select .multi-select-options {
+    max-height: 14rem;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
+.multi-select .form-check {
+    padding-left: 1.6rem;
+    margin-bottom: 0.35rem;
+}
+
+.multi-select .form-check-input {
+    margin-left: -1.6rem;
+    margin-top: 0.35rem;
+}
+
+.multi-select .form-check-label {
+    white-space: nowrap;
+}
+
+    .multi-select .form-check-label.text-truncate {
+        display: inline-block;
+        max-width: 100%;
+    }
+
+.multi-select .multi-select-actions .btn-link {
+    color: #0d6efd;
+    text-decoration: none;
+}
+
+    .multi-select .multi-select-actions .btn-link:hover {
+        text-decoration: underline;
+    }
