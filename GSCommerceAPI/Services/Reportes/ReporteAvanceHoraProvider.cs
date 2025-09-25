@@ -1,5 +1,6 @@
 ﻿using GSCommerce.Client.Models.DTOs.Reportes;
 using GSCommerceAPI.Data;
+using System;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 
@@ -40,10 +41,9 @@ public class ReporteAvanceHoraProvider
             fin = diaFin;
         }
 
-        var queryBase = _context.ComprobanteDeVentaCabeceras
+        var ventasQuery = _context.VCierreVentaDiaria1s
             .AsNoTracking()
-            .Where(c => c.Fecha >= diaInicio && c.Fecha < diaFin)
-            .Where(c => c.Estado != "A" || c.GeneroNc != null);
+            .Where(v => v.Fecha >= diaInicio && v.Fecha < diaFin);
 
         var almacenFiltro = idAlmacenForzado.HasValue
             ? idAlmacenForzado
@@ -51,17 +51,42 @@ public class ReporteAvanceHoraProvider
 
         if (almacenFiltro.HasValue)
         {
-            queryBase = queryBase.Where(c => c.IdAlmacen == almacenFiltro.Value);
+            ventasQuery = ventasQuery.Where(v => v.IdAlmacen == almacenFiltro.Value);
         }
 
-        var ventasDia = await queryBase
-            .Select(c => new
+        var ventasFiltradas = from v in ventasQuery
+                              join c in _context.ComprobanteDeVentaCabeceras.AsNoTracking()
+                                  on new { v.IdAlmacen, v.Serie, v.Numero }
+                                  equals new { c.IdAlmacen, c.Serie, c.Numero }
+                              where !(c.Estado == "A" &&
+                                      string.IsNullOrEmpty(c.GeneroNc) &&
+                                      c.FechaHoraUsuarioAnula.HasValue &&
+                                      c.FechaHoraUsuarioAnula.Value >= diaInicio &&
+                                      c.FechaHoraUsuarioAnula.Value < diaFin)
+                              select new
+                              {
+                                  v.Fecha,
+                                  v.Descripcion,
+                                  v.Soles,
+                                  v.Vuelto,
+                                  v.Serie,
+                                  v.Numero,
+                                  v.IdAlmacen
+                              };
+
+        static decimal CalcularMonto(string descripcion, decimal soles, decimal? vuelto)
+        {
+            var tipo = descripcion?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+
+            return tipo switch
             {
-                c.Fecha,
-                Monto = c.Apagar ?? c.Total,
-                c.IdComprobante
-            })
-            .ToListAsync(cancellationToken);
+                "Efectivo" => Math.Max(0m, soles - (vuelto ?? 0m)),
+                "Tarjeta" or "Online" => soles,
+                _ => 0m
+            };
+        }
+
+        var ventasDia = await ventasQuery.ToListAsync(cancellationToken);
 
         var ventasPorHora = ventasDia
             .GroupBy(v => v.Fecha.Hour)
@@ -69,8 +94,8 @@ public class ReporteAvanceHoraProvider
                 g => g.Key,
                 g => new
                 {
-                    Total = g.Sum(x => x.Monto),
-                    Tickets = g.Count()
+                    Total = g.Sum(x => CalcularMonto(x.Descripcion, x.Soles, x.Vuelto)),
+                    Tickets = g.Select(x => (x.IdAlmacen, x.Serie, x.Numero)).Distinct().Count()
                 });
 
         var detalles = new List<ReporteAvanceHoraDetalleDTO>();

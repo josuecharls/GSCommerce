@@ -6,6 +6,7 @@
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService
 @inject IJSRuntime JS
+@using System.Linq
 @inject TipoPagoVentaService TipoPagoVentaService
 
 <h3>Ventas Registradas</h3>
@@ -327,9 +328,11 @@
         var fin = hasta.Date;
         var activas = ventas.Where(v =>
             !(v.Fecha.Date >= inicio && v.Fecha.Date <= fin &&
-              (v.Estado == "AN" || v.Estado == "ANULADO" || v.Estado == "A") &&
-              string.IsNullOrEmpty(v.GeneroNC))
-        );
+              (string.Equals(v.Estado, "A", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(v.Estado, "AN", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(v.Estado, "ANULADO", StringComparison.OrdinalIgnoreCase)) &&
+              string.IsNullOrWhiteSpace(v.GeneroNC))
+        ).ToList();
         var pagosActivos = activas.SelectMany(v => v.Pagos);
 
         efectivoSoles = 0;
@@ -339,30 +342,30 @@
 
         foreach (var p in pagosActivos)
         {
-            var categoria = string.IsNullOrWhiteSpace(p.Tipo)
-                ? (p.FormaPago?.Split(' ')[0] ?? string.Empty)
-                : p.Tipo;
-            categoria = categoria.Trim().ToUpperInvariant();
+            var etiqueta = !string.IsNullOrWhiteSpace(p.FormaPago) ? p.FormaPago : p.Tipo;
+            var token = (etiqueta ?? string.Empty)
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault() ?? string.Empty;
 
-            var monto = p.Soles > 0 ? p.Soles : p.Dolares;
+            var soles = p.Soles;
+            var dolares = p.Dolares;
+            var vuelto = p.Vuelto ?? 0m;
 
-            switch (categoria)
+            if (token.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
             {
-                case "EFECTIVO":
-                    if (p.Soles > 0)
-                        efectivoSoles += p.Soles - (p.Vuelto ?? 0);
-                    else
-                        efectivoDolares += p.Dolares - (p.Vuelto ?? 0);
-                    break;
-                case "TARJETA":
-                case "ONLINE":
-                    tarjetaOnline += monto;
-                    break;
-                case "N.C.":
-                case "N.C":
-                case "NOTA":
-                    notaCredito += monto;
-                    break;
+                if (soles > 0)
+                    efectivoSoles += soles - vuelto;
+                else
+                    efectivoDolares += dolares - vuelto;
+            }
+            else if (token.Equals("Tarjeta", StringComparison.OrdinalIgnoreCase) ||
+                     token.Equals("Online", StringComparison.OrdinalIgnoreCase))
+            {
+                tarjetaOnline += soles > 0 ? soles : dolares;
+            }
+            else if (token.Equals("N.C.", StringComparison.OrdinalIgnoreCase))
+            {
+                notaCredito += soles > 0 ? soles : dolares;
             }
         }
 

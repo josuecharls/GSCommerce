@@ -829,7 +829,7 @@ namespace GSCommerceAPI.Controllers
             {
                 var montos = await _context.ComprobanteDeVentaCabeceras
                     .Where(c => ids.Contains(c.IdComprobante))
-                    .Select(c => new { c.IdComprobante, c.SubTotal, c.Igv })
+                    .Select(c => new { c.IdComprobante, c.SubTotal, c.Igv, c.GeneroNc })
                     .ToDictionaryAsync(c => c.IdComprobante);
 
                 foreach (var v in ventas)
@@ -838,6 +838,7 @@ namespace GSCommerceAPI.Controllers
                     {
                         v.SubTotal = m.SubTotal;
                         v.Igv = m.Igv;
+                        v.GeneroNC = string.IsNullOrWhiteSpace(m.GeneroNc) ? null : m.GeneroNc;
                     }
                 }
             }
@@ -999,21 +1000,75 @@ namespace GSCommerceAPI.Controllers
             if (!DateOnly.TryParse(fecha, out var fechaDia))
                 return BadRequest("Fecha inválida");
 
-            var inicio = fechaDia.ToDateTime(new TimeOnly(0, 0, 0));
+            var inicio = fechaDia.ToDateTime(TimeOnly.MinValue);
             var fin = fechaDia.ToDateTime(new TimeOnly(23, 59, 59));
 
-            var ventas = await _context.ComprobanteDeVentaCabeceras
-                .Where(c => c.Fecha >= inicio && c.Fecha <= fin && c.Estado == "E")
-                .GroupBy(c => c.IdAlmacen)
-                .Select(g => new VentaDiariaAlmacenDTO
-                {
-                    IdAlmacen = g.Key,
-                    NombreAlmacen = _context.Almacens.Where(a => a.IdAlmacen == g.Key).Select(a => a.Nombre).FirstOrDefault() ?? "",
-                    Total = g.Sum(c => c.Total)
-                })
-                .ToListAsync();
+            var ventasQuery = _context.VCierreVentaDiaria1s
+                .AsNoTracking()
+                .Where(v => v.Fecha >= inicio && v.Fecha <= fin);
 
-            return Ok(ventas);
+            ventasQuery = from v in ventasQuery
+                          join c in _context.ComprobanteDeVentaCabeceras
+                              on new { v.IdAlmacen, v.Serie, v.Numero }
+                              equals new { c.IdAlmacen, c.Serie, c.Numero }
+                          where !(c.Estado == "A" &&
+                                  string.IsNullOrEmpty(c.GeneroNc) &&
+                                  c.FechaHoraUsuarioAnula.HasValue &&
+                                  c.FechaHoraUsuarioAnula.Value >= inicio &&
+                                  c.FechaHoraUsuarioAnula.Value <= fin)
+                          select v;
+
+            var ventas = await ventasQuery.ToListAsync();
+
+            var totalesPorAlmacen = new Dictionary<int, (decimal efectivo, decimal tarjeta)>();
+
+            foreach (var venta in ventas)
+            {
+                if (!totalesPorAlmacen.ContainsKey(venta.IdAlmacen))
+                {
+                    totalesPorAlmacen[venta.IdAlmacen] = (0m, 0m);
+                }
+
+                var (efectivo, tarjeta) = totalesPorAlmacen[venta.IdAlmacen];
+
+                var descripcion = (venta.Descripcion ?? string.Empty).Split(' ');
+                var tipo = descripcion.Length > 0 ? descripcion[0] : string.Empty;
+
+                switch (tipo)
+                {
+                    case "Efectivo":
+                        efectivo += venta.Soles - (venta.Vuelto ?? 0m);
+                        break;
+                    case "Tarjeta":
+                    case "Online":
+                        tarjeta += venta.Soles;
+                        break;
+                    case "N.C.":
+                        // Las notas de crédito no se contabilizan en la venta del día
+                        break;
+                }
+
+                totalesPorAlmacen[venta.IdAlmacen] = (efectivo, tarjeta);
+            }
+
+            var idsAlmacenes = totalesPorAlmacen.Keys.ToList();
+
+            var nombresAlmacen = await _context.Almacens
+                .Where(a => idsAlmacenes.Contains(a.IdAlmacen))
+                .Select(a => new { a.IdAlmacen, a.Nombre })
+                .ToDictionaryAsync(a => a.IdAlmacen, a => a.Nombre);
+
+            var resultado = totalesPorAlmacen
+                .Select(kvp => new VentaDiariaAlmacenDTO
+                {
+                    IdAlmacen = kvp.Key,
+                    NombreAlmacen = nombresAlmacen.TryGetValue(kvp.Key, out var nombre) ? nombre : string.Empty,
+                    Total = kvp.Value.efectivo + kvp.Value.tarjeta
+                })
+                .OrderBy(r => r.NombreAlmacen)
+                .ToList();
+
+            return Ok(resultado);
         }
 
 
