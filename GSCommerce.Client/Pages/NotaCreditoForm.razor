@@ -85,7 +85,7 @@ else if (cabecera != null)
                             @d.Cantidad
                         }
                     </td>
-                    <td>@(d.PorcentajeDescuento * 100).ToString("N2")</td>
+                    <td>@($"{d.PorcentajeDescuento * 100:N2}%")</td>
                     <td>@(d.Total.ToString("N2"))</td>
                     <td>
                         @if (editable)

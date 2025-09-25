@@ -666,7 +666,7 @@ public class CajaController : ControllerBase
                 {
                     IdGrupo = 1,
                     Grupo = "VENTA POR N.C.",
-                    Detalle = v.Descripcion,
+                    Detalle = $"N.C. - {v.Serie}-{v.Numero:D8}",
                     Monto = v.Soles
                 })
                 .ToList();

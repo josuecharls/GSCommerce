@@ -62,7 +62,7 @@
     </div>
 
     <div class="@(cargo == "ADMINISTRADOR" ? "col-md-12 col-lg-3" : "col-md-4") d-flex align-items-end">
-        <button class="btn btn-primary w-100" @onclick="BuscarVentas"><i class="bi bi-search"></i>Buscar</button>
+        <button class="btn btn-primary w-100" @onclick="BuscarVentas"><i class="bi bi-search"></i> Buscar</button>
     </div>
 </div>
 
@@ -178,7 +178,7 @@
                                 <div class="text-muted small mt-1">NC: @v.NumeroNotaCredito</div>
                             }
                         }
-                        @if (cargo != "CAJERO" && v.TipoDocumento != "TICKET" && v.EstadoSunat == "PENDIENTE" || v.EstadoSunat == "RECHAZADO" && (v.TipoDocumento == "BOLETA" || v.TipoDocumento == "BOLETA M" || v.TipoDocumento == "FACTURA"))
+                        @if (cargo == "ADMINISTRADOR" && v.TipoDocumento != "TICKET" && v.EstadoSunat == "PENDIENTE" || v.EstadoSunat == "RECHAZADO" && (v.TipoDocumento == "BOLETA" || v.TipoDocumento == "BOLETA M" || v.TipoDocumento == "FACTURA"))
                         {
                             <div class="btn-group btn-group-sm flex-wrap mt-1" role="group">
                                 <button class="btn btn-outline-warning" title="Reenviar a SUNAT" @onclick="@(() => ReenviarSunat(v))">
