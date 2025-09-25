@@ -36,7 +36,7 @@ cd GSCommerce
 El proyecto utiliza SQL Server, y la conexión está definida en el archivo appsettings.json de GSCommerceAPI:
 ```json
 "ConnectionStrings": {
-  "DefaultConnection": "Server=localhost;Database=SYSCHARLES;User Id=sa;Password=TU_PASSWORD;TrustServerCertificate=True;"
+  "DefaultConnection": "Server=localhost;Database=SYSCHARLES;User Id=sa;Password=;TrustServerCertificate=True;"
 }
 ```
 
@@ -131,4 +131,4 @@ git push origin main
 ## Licencia
 
 Este proyecto es de uso privado y está en desarrollo.
-**Creado por Cipiriano Corporation.** 
+**Creado por Josue Cipiriano.** 
