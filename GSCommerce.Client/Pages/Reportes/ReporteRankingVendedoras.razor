@@ -22,7 +22,7 @@
         <InputDate @bind-Value="hasta" class="form-control" />
     </div>
     <div class="col-md-4 d-flex align-items-end">
-        <button class="btn btn-primary w-100" @onclick="BuscarRanking">Buscar</button>
+        <button class="btn btn-primary w-100" @onclick="BuscarRanking"><i class="bi bi-search"></i>Buscar</button>
     </div>
 </div>
 <div class="row mb-3">
@@ -57,11 +57,11 @@
     <div class="col d-flex justify-content-end">
         @if (cargo == "CAJERO")
         {
-            <button class="btn btn-success" @onclick="ExportarExcel">📥 Exportar a Excel</button>
+            <button class="btn btn-success" @onclick="ExportarExcel"><i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel</button>
         }
         else if (cargo == "ADMINISTRADOR")
         {
-            <button class="btn btn-danger" @onclick="ExportarPDF">📄 Descargar PDF</button>
+            <button class="btn btn-danger" @onclick="ExportarPDF"><i class="bi bi-filetype-pdf"></i> Descargar PDF</button>
         }
     </div>
 </div>

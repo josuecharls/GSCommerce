@@ -15,7 +15,7 @@
         <div class="mb-3">
             <label class="form-label">Código Artículo</label>
             <input class="form-control" @bind="iscodigo" />
-            <button class="btn btn-outline-primary" @onclick="BuscarArticulo">Buscar</button>
+            <button class="btn btn-outline-primary" @onclick="BuscarArticulo"><i class="bi bi-search"></i>Buscar</button>
             @if (!string.IsNullOrEmpty(codigo) && articulo == null)
             {
                 <div class="alert alert-danger mt-2">

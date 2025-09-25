@@ -31,7 +31,7 @@
                 </select>
             </div>
             <div class="col-sm-4 col-md-3 d-flex">
-                <button class="btn btn-primary w-100 me-2" @onclick="Buscar" disabled="@cargando">🔍 Buscar</button>
+                <button class="btn btn-primary w-100 me-2" @onclick="Buscar" disabled="@cargando"><i class="bi bi-search"></i> Buscar</button>
                 <button class="btn btn-success w-100" @onclick="ExportarExcel" disabled="@(!reporte.Any() || cargando)">📊 Exportar Excel</button>
             </div>
         </div>
@@ -84,11 +84,11 @@ else
                                 {
                                     if (PuedeEditarAlquiler(fila))
                                     {
-                                        <button class="btn btn-success" title="Guardar alquiler" disabled="@guardandoAlquiler.Contains(fila.IdAlmacen)" @onclick="() => GuardarAlquiler(fila)">💾</button>
+                                        <button class="btn btn-success" title="Guardar alquiler" disabled="@guardandoAlquiler.Contains(fila.IdAlmacen)" @onclick="() => GuardarAlquiler(fila)"><i class="bi bi-floppy2"></i> </button>
                                     }
                                     else
                                     {
-                                        <button class="btn btn-outline-secondary" title="Editar alquiler" @onclick="() => ActivarEdicionAlquiler(fila.IdAlmacen)">✏️</button>
+                                        <button class="btn btn-outline-secondary" title="Editar alquiler" @onclick="() => ActivarEdicionAlquiler(fila.IdAlmacen)"><i class="bi bi-pencil-square"></i></button>
                                     }
                                 }
                             </div>
@@ -122,7 +122,7 @@ else
                         @if (puedeEditar)
                         {
                             <td class="text-center">
-                                <button class="btn btn-primary btn-sm" disabled="@guardandoGastos.Contains(fila.IdAlmacen)" @onclick="() => GuardarGastos(fila)">💾 Guardar</button>
+                                <button class="btn btn-primary btn-sm" disabled="@guardandoGastos.Contains(fila.IdAlmacen)" @onclick="() => GuardarGastos(fila)"><i class="bi bi-floppy2"></i>  Guardar</button>
                             </td>
                         }
                     </tr>

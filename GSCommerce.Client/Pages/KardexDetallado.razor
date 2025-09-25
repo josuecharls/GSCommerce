@@ -8,7 +8,7 @@
 @inject IJSRuntime JS
 @inject HttpClient Http
 
-<h3>📘 Kardex Detallado</h3>
+<h3><i class="bi bi-journal"></i>  Kardex Detallado</h3>
 
 <div class="card p-4">
     <div class="row mb-3">
@@ -59,13 +59,13 @@
     </div>
 
     <div class="text-end mb-2">
-        <button class="btn btn-primary" @onclick="BuscarKardex">🔍 Consultar</button>
-        <button class="btn btn-success ms-2" @onclick="ExportarAExcel">📤 Excel</button>
+        <button class="btn btn-primary" @onclick="BuscarKardex"><i class="bi bi-search"></i> Consultar</button>
+        <button class="btn btn-success ms-2" @onclick="ExportarAExcel"><i class="bi bi-file-earmark-arrow-down"></i> Excel</button>
     </div>
 
     @if (isLoading)
     {
-        <p>🔄 Cargando movimientos...</p>
+        <p><i class="bi bi-arrow-counterclockwise"></i> Cargando movimientos...</p>
     }
     else if (kardexData.Any())
     {
@@ -183,7 +183,10 @@
     }
     else
     {
-        <p>⚠️ No se encontraron movimientos.</p>
+        <p>
+            <i class="bi bi-exclamation-triangle"></i>
+            No se encontraron resultados para los filtros aplicados.
+        </p>
     }
     @if (showPhotoModal)
     {

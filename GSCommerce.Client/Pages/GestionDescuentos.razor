@@ -7,7 +7,7 @@
 @inject AlmacenService AlmacenService
 @inject NavigationManager Navigation
 
-<h3>📉 Gestión de Descuentos</h3>
+<h3>Gestión de Descuentos</h3>
 
 <div class="mb-3">
     <select class="form-select" @bind="Almacen">
@@ -44,8 +44,8 @@
                 <td>@d.PrecioFinal</td>
                 <td>@d.Utilidad</td>
                 <td>
-                    <button class="btn btn-warning btn-sm me-1" @onclick="() => Editar(d)">✏️</button>
-                    <button class="btn btn-danger btn-sm" @onclick="() => Eliminar(d)">🗑️</button>
+                    <button class="btn btn-warning btn-sm me-1" @onclick="() => Editar(d)"><i class="bi bi-pencil-square"></i> Editar</button>
+                    <button class="btn btn-danger btn-sm" @onclick="() => Eliminar(d)"><i class="bi bi-trash"></i> Eliminar</button>
                 </td>
             </tr>
         }

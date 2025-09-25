@@ -82,7 +82,7 @@ namespace GSCommerce.Client.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error al eliminar serie: {ex.Message}");
+                Console.WriteLine($"Error al eliminar serie: {ex.Message}");
                 return false;
             }
         }

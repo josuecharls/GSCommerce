@@ -158,7 +158,7 @@ namespace GSCommerce.Client.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error al eliminar movimiento: {ex.Message}");
+                Console.WriteLine($"Error al eliminar movimiento: {ex.Message}");
                 return false;
             }
         }

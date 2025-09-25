@@ -4,7 +4,7 @@
 @inject ProveedorService ProveedorService
 @inject NavigationManager Navigation
 
-<h3>✏️ Editar Proveedor</h3>
+<h3><i class="bi bi-pencil-square"></i> Editar Proveedor</h3>
 
 @if (!isLoading)
 {
@@ -87,8 +87,8 @@
 
         <!-- Botones -->
         <div class="text-center mt-3">
-            <button class="btn btn-primary" @onclick="UpdateProveedor">💾 Guardar Cambios</button>
-            <button class="btn btn-danger" @onclick="Cancel">❌ Cancelar</button>
+            <button class="btn btn-primary" @onclick="UpdateProveedor"><i class="bi bi-floppy2"></i>  Guardar Cambios</button>
+            <button class="btn btn-danger" @onclick="Cancel"><i class="bi bi-x-lg"></i> Cancelar</button>
         </div>
     </div>
 }

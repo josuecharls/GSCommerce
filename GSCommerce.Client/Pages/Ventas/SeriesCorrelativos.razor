@@ -45,8 +45,8 @@
                     <td>@s.Correlativo</td>
                     <td>@(s.Estado ? "ACTIVO" : "INACTIVO")</td>
                     <td>
-                        <button class="btn btn-warning btn-sm" @onclick="(() => Editar(s))">✏️</button>
-                        <button class="btn btn-danger btn-sm" @onclick="(() => Eliminar(s.IdSerieCorrelativo))">🗑️</button>
+                        <button class="btn btn-warning btn-sm" @onclick="(() => Editar(s))"><i class="bi bi-pencil-square"></i></button>
+                        <button class="btn btn-danger btn-sm" @onclick="(() => Eliminar(s.IdSerieCorrelativo))"><i class="bi bi-trash"></i></button>
                     </td>
                 </tr>
             }

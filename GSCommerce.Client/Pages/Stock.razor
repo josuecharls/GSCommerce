@@ -6,7 +6,7 @@
 @inject AuthService AuthService
 @inject IJSRuntime JS
 
-<h3>📦 Control de Stock de Artículos</h3>
+<h3><i class="bi bi-box-seam-fill"></i>  Control de Stock de Artículos</h3>
 
 @if (mostrarAlertaStock)
 {
@@ -89,8 +89,8 @@ else
         </div>
 
         <div class="col-md-2 d-grid">
-            <button class="btn btn-primary" @onclick="Actualizar">🔄 Actualizar</button>
-            <button class="btn btn-outline-success mt-2" @onclick="ExportarAExcel">📥 Exportar a Excel</button>
+            <button class="btn btn-primary" @onclick="Actualizar"><i class="bi bi-arrow-counterclockwise"></i> Actualizar</button>
+            <button class="btn btn-outline-success mt-2" @onclick="ExportarAExcel"><i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel</button>
         </div>
     </div>
     @if (listaStock.Count(s => s.EstaBajoMinimo || s.Stock <= StockCriticoUmbral) > 0)
@@ -98,7 +98,7 @@ else
         var totalStockCritico = listaStock.Count(s => s.EstaBajoMinimo || s.Stock <= StockCriticoUmbral);
         <div class="alert alert-warning d-flex align-items-center" role="alert">
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            Hay <strong>@totalStockCritico</strong> artículos con stock crítico (≤@StockCriticoUmbral) en este almacén.
+            Hay <strong> @totalStockCritico </strong> artículos con stock crítico (≤@StockCriticoUmbral) en este almacén.
         </div>
     }
     else if (soloStockBajo && !listaStockFiltrada.Any(s => s.EstaBajoMinimo || s.Stock <= StockCriticoUmbral))

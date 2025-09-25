@@ -9,13 +9,13 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using System.Linq
 
-<h3>📦 Gestión de Almacenes</h3>
+<h3><i class="bi bi-box-seam-fill"></i>  Gestión de Almacenes</h3>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <button @onclick="CreateNewAlmacen" class="btn btn-success">+ Nuevo Almacén</button>
     <div class="input-group w-50">
         <input type="text" @bind="searchTerm" placeholder="Buscar por nombre..." class="form-control" />
-        <button @onclick="SearchAlmacen" class="btn btn-primary">🔍 Buscar</button>
+        <button @onclick="SearchAlmacen" class="btn btn-primary"><i class="bi bi-search"></i> Buscar</button>
     </div>
 </div>
 
@@ -73,11 +73,11 @@
 <!-- Controles de paginación -->
 <div class="d-flex justify-content-between">
     <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(!CanPrev)">
-        ⬅️ Anterior
+        <i class="bi bi-arrow-left"></i> Anterior
     </button>
     <span>Página @currentPage de @totalPages</span>
     <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanNext)">
-        Siguiente ➡️
+        Siguiente <i class="bi bi-arrow-right"></i>
     </button>
 </div>
 
@@ -204,7 +204,7 @@
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️ Error al eliminar: {ex.Message}");
+                Console.WriteLine($"Error al eliminar: {ex.Message}");
             }
             isDeleting = false;
             CloseDeleteModal();

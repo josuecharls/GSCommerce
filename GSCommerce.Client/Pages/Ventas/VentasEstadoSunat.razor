@@ -5,7 +5,7 @@
 @inject HttpClient Http
 @inject IJSRuntime JS
 
-<h3>📄 Estado SUNAT de Comprobantes</h3>
+<h3><i class="bi bi-file-earmark-zip-fill"></i> Estado SUNAT de Comprobantes</h3>
 
 <div class="row mb-3">
     <div class="col-md-3">
@@ -17,7 +17,7 @@
         <InputDate @bind-Value="fechaHasta" class="form-control" />
     </div>
     <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-primary" @onclick="BuscarEstados">🔍 Buscar</button>
+        <button class="btn btn-primary" @onclick="BuscarEstados"><i class="bi bi-search"></i> Buscar</button>
     </div>
 </div>
 

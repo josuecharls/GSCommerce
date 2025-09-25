@@ -7,7 +7,7 @@
 @inject HttpClient Http
 @inject IJSRuntime JS
 
-<h3>📦 Lista de Artículos</h3>
+<h3><i class="bi bi-box-seam-fill"></i>  Lista de Artículos</h3>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <button class="btn btn-success" @onclick="CreateNewArticulo">+ Nuevo Artículo</button>
@@ -17,7 +17,7 @@
                placeholder="Buscar por CÓDIGO o DESCRIPCIÓN..."
                @bind="searchTerm"
                @onkeydown="@(e => { if (e.Key == "Enter") _ = SearchArticulos(); })" />
-        <button class="btn btn-primary" @onclick="SearchArticulos">🔍 Buscar</button>
+        <button class="btn btn-primary" @onclick="SearchArticulos"><i class="bi bi-search"></i> Buscar</button>
     </div>
 </div>
 
@@ -73,10 +73,10 @@
                                 🎨 Var.
                             </button>
                             <button @onclick="() => EditArticulo(a.IdArticulo)" class="btn btn-warning btn-sm me-1">
-                                ✏️ Editar
+                                <i class="bi bi-pencil-square"></i> Editar
                             </button>
                             <button @onclick="() => ConfirmDeleteArticulo(a.IdArticulo, a.Descripcion)" class="btn btn-danger btn-sm">
-                                🗑 Eliminar
+                                <i class="bi bi-trash"></i> Eliminar
                             </button>
                         </td>
                     </tr>
@@ -93,11 +93,11 @@
 <!-- Controles de paginación -->
 <div class="d-flex justify-content-between">
     <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(!CanPrev)">
-        ◀️ Anterior
+        <i class="bi bi-arrow-left"></i> Anterior
     </button>
     <span>Página @currentPage de @totalPages</span>
     <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanNext)">
-        Siguiente ▶️
+        Siguiente <i class="bi bi-arrow-right"></i>
     </button>
 </div>
 
@@ -377,7 +377,7 @@
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error al eliminar artículo: {ex.Message}");
+                Console.WriteLine($"Error al eliminar artículo: {ex.Message}");
             }
             isDeleting = false;
             CloseDeleteModal();

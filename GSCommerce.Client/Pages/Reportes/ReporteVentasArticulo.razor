@@ -22,7 +22,9 @@
         <label>Artículo:</label>
         <div class="input-group">
             <input type="text" class="form-control" placeholder="Buscar por nombre o código..." @bind="searchTerm" />
-            <button class="btn btn-primary" @onclick="BuscarArticulo">🔍</button>
+            <button class="btn btn-primary" @onclick="BuscarArticulo">
+                <i class="bi bi-search"></i>
+            </button>
         </div>
         @if (resultadosBusqueda.Any())
         {
@@ -38,8 +40,8 @@
     </div>
     <div class="col-md-3 d-flex align-items-end">
         <div class="d-flex flex-column gap-2 w-100">
-            <button class="btn btn-primary" @onclick="GenerarVistaPrevia">👁️ Vista previa</button>
-            <button class="btn btn-success" @onclick="ExportarExcel" disabled="@(!reportesVistaPrevia.Any())">📥 Exportar Excel</button>
+            <button class="btn btn-primary" @onclick="GenerarVistaPrevia"><i class="bi bi-eye-fill"></i> Vista previa</button>
+            <button class="btn btn-success" @onclick="ExportarExcel" disabled="@(!reportesVistaPrevia.Any())"><i class="bi bi-file-earmark-spreadsheet"></i> Exportar Excel</button>
         </div>
     </div>
 </div>

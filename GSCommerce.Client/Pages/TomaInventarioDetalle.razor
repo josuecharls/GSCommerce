@@ -5,7 +5,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
-<h3 class="mb-3">📄 Detalles Toma Inventario</h3>
+<h3 class="mb-3"><i class="bi bi-file-earmark-medical"></i> Detalles Toma Inventario</h3>
 
 <div class="mb-3 row">
     <div class="col-md-4">
@@ -51,7 +51,7 @@
                     <td class="text-end">@(d.Sobrante ?? 0)</td>
                     <td class="text-end">@(d.Faltante ?? 0)</td>
                     <td class="text-center">
-                        <button class="btn btn-sm btn-primary" @onclick="() => ActualizarDetalle(d)">💾</button>
+                        <button class="btn btn-sm btn-primary" @onclick="() => ActualizarDetalle(d)"><i class="bi bi-floppy2"></i> </button>
                     </td>
                 </tr>
             }

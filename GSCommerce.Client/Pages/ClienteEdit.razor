@@ -4,7 +4,7 @@
 @inject ClienteService ClienteService
 @inject NavigationManager Navigation
 
-<h3>✏️ Editar Cliente</h3>
+<h3><i class="bi bi-pencil-square"></i> Editar Cliente</h3>
 
 @if (cliente == null)
 {
@@ -66,7 +66,7 @@ else
                 </div>
             </div>
             <div class="text-center mt-3">
-                <button type="submit" class="btn btn-primary">💾 Guardar Cambios</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-floppy2"></i>  Guardar Cambios</button>
                 <button type="button" class="btn btn-secondary ms-2" @onclick="Volver">↩️ Cancelar</button>
             </div>
         </div>

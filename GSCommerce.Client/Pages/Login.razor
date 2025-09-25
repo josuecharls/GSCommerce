@@ -11,79 +11,108 @@
 
 <style>
     .login-header img {
-    width: 120px;
-    margin-bottom: 15px;
+        width: 120px;
+        margin-bottom: 15px;
     }
 
     .login-header h1 {
-    font-size: 24px;
-    font-weight: 700;
-    color: white;
-    margin-bottom: 10px;
+        font-size: 24px;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 10px;
     }
 
     .login-header p {
-    font-size: 16px;
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 20px;
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 20px;
     }
 
     .form-group {
-    margin-bottom: 15px;
-    text-align: left;
+        margin-bottom: 15px;
+        text-align: left;
     }
 
-    .form-group label {
-    font-weight: 500;
-    color: white;
-    display: block;
-    margin-bottom: 5px;
+        .form-group label {
+            font-weight: 500;
+            color: white;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+    .password-input-container {
+        position: relative;
     }
 
-    .form-group input {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 8px;
-    font-size: 16px;
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    transition: all 0.3s ease;
+        .password-input-container input {
+            padding-right: 48px;
+        }
+
+    .toggle-password {
+        position: absolute;
+        top: 50%;
+        right: 12px;
+        transform: translateY(-50%);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px;
     }
+
+        .toggle-password:hover,
+        .toggle-password:focus {
+            color: #ffffff;
+            outline: none;
+        }
 
     .form-group input:focus {
-    border-color: #4fc3f7;
-    outline: none;
+        border-color: #4fc3f7;
+        outline: none;
     }
 
     .btn-login {
-    width: 100%;
-    padding: 12px;
-    background: linear-gradient(135deg, #4fc3f7, #1e88e5);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #4fc3f7, #1e88e5);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
     }
 
-    .btn-login:hover {
-    background: linear-gradient(135deg, #1e88e5, #4fc3f7);
-    }
+        .btn-login:hover {
+            background: linear-gradient(135deg, #1e88e5, #4fc3f7);
+        }
 
     .error-message {
-    color: #ff6b6b;
-    margin-top: 10px;
-    font-size: 14px;
-    font-weight: 500;
+        color: #ff6b6b;
+        margin-top: 10px;
+        font-size: 14px;
+        font-weight: 500;
     }
 
     .footer-text {
-    margin-top: 20px;
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.8);
+        margin-top: 20px;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.8);
     }
 </style>
 
@@ -111,7 +140,25 @@ else
 
     <div class="form-group">
         <label>Contraseña</label>
-        <input type="password" @bind="loginRequest.Password" @bind:event="oninput" @onkeydown="OnKeyEnter" placeholder="Ingresa tu contraseña" />
+        <div class="password-input-container">
+            <input type="@(showPassword ? "text" : "password")" @bind="loginRequest.Password" @bind:event="oninput" @onkeydown="OnKeyEnter" placeholder="Ingresa tu contraseña" />
+            <button type="button" class="toggle-password" @onclick="TogglePasswordVisibility" aria-label="@(showPassword ? "Ocultar contraseña" : "Mostrar contraseña")">
+                @if (showPassword)
+                {
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-6.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.47 18.47 0 0 1-2.16 3.19" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                }
+                else
+                {
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s3-8 11-8 11 8 11 8-3 8-11 8S1 12 1 12z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                }
+            </button>
+        </div>
     </div>
 
     <button class="btn-login" @onclick="HandleLogin">Iniciar Sesión</button>
@@ -128,13 +175,14 @@ else
 @code {
     private bool mostrandoCarga = false;
     private LoginRequest loginRequest = new()
-        {
-            Usuario = string.Empty,
-            Password = string.Empty
-        };
+    {
+        Usuario = string.Empty,
+        Password = string.Empty
+    };
 
     private string? errorMessage;
     private bool isAuthenticated;
+    private bool showPassword;
 
     protected override async Task OnInitializedAsync()
     {
@@ -186,5 +234,10 @@ else
         {
             await HandleLogin();
         }
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
     }
 }

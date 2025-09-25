@@ -8,7 +8,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
-<h3 class="mb-3">📋 Toma de Inventarios</h3>
+<h3 class="mb-3"><i class="bi bi-check2-square"></i> Toma de Inventarios</h3>
 
 <div class="row mb-3">
     <div class="col-md-2">
@@ -26,7 +26,7 @@
         </select>
     </div>
     <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-primary" @onclick="CargarTomas">🔍 Buscar</button>
+        <button class="btn btn-primary" @onclick="CargarTomas"><i class="bi bi-search"></i> Buscar</button>
     </div>
     <div class="col-md-3 d-flex align-items-end justify-content-end">
         <button class="btn btn-success" @onclick="IniciarNueva">+ Nueva Toma</button>
@@ -54,7 +54,7 @@
                     <td>@t.EstadoToma</td>
                     <td>@t.Intervienen</td>
                     <td class="text-center">
-                        <button class="btn btn-sm btn-primary me-1" @onclick="() => VerDetalles(t.IdTomaInventario)">📄 Detalles</button>
+                        <button class="btn btn-sm btn-primary me-1" @onclick="() => VerDetalles(t.IdTomaInventario)"><i class="bi bi-file-earmark-medical"></i> Detalles</button>
                         @if (t.EstadoToma == "Iniciado")
                         {
                             <button class="btn btn-sm btn-success me-1" @onclick="() => Terminar(t.IdTomaInventario)">✅ Terminar</button>
@@ -62,7 +62,7 @@
                         }
                         else if (t.EstadoToma == "Terminado")
                         {
-                            <button class="btn btn-sm btn-warning me-1" @onclick="() => ReemplazarStock(t.IdTomaInventario)" disabled="@(aplicandoId == t.IdTomaInventario)">📦 Aplicar</button>
+                            <button class="btn btn-sm btn-warning me-1" @onclick="() => ReemplazarStock(t.IdTomaInventario)" disabled="@(aplicandoId == t.IdTomaInventario)"><i class="bi bi-box-seam-fill"></i>  Aplicar</button>
                         }
                     </td>
                 </tr>

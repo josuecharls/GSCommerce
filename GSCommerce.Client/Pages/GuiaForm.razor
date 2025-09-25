@@ -26,7 +26,7 @@ else
     <div class="card p-4 mb-3">
         <div class="row">
             <div class="col-md-4">
-                <label class="form-label">📦 Almacén</label>
+                <label class="form-label"><i class="bi bi-box-seam-fill"></i> Almacén</label>
                 <select class="form-control" @bind="guia.IdAlmacen">
                     <option disabled value="0">-- Seleccionar --</option>
                     @foreach (var a in almacenes)
@@ -39,7 +39,7 @@ else
             @if (mostrarDestino)
             {
                 <div class="col-md-4">
-                    <label class="form-label">🚚 Almacén Destino</label>
+                    <label class="form-label">Almacén Destino</label>
                     <select class="form-control" @bind="guia.IdAlmacenDestinoOrigen">
                         <option disabled value="0">-- Seleccionar --</option>
                         @foreach (var a in almacenes)
@@ -51,7 +51,7 @@ else
             }
 
             <div class="col-md-4">
-                <label class="form-label">🎯 Motivo</label>
+                <label class="form-label">Motivo</label>
                 <select class="form-control" @bind="guia.Motivo">
                     @foreach (var m in motivos)
                     {
@@ -65,7 +65,7 @@ else
         {
             <div class="row mt-3">
                 <div class="col-md-6">
-                    <label class="form-label">🏢 Proveedor</label>
+                    <label class="form-label">Proveedor</label>
                     <input class="form-control"
                            list="proveedoresList"
                            @bind="proveedorNombre"
@@ -84,12 +84,12 @@ else
 
         <div class="row mt-3">
             <div class="col-md-12">
-                <label class="form-label">📝 Descripción</label>
+                <label class="form-label">Descripción</label>
                 <textarea class="form-control" rows="2" @bind="guia.Descripcion"></textarea>
             </div>
         </div>
     </div>
-    <h5>📦 Detalle de Artículos</h5>
+    <h5><i class="bi bi-box-seam-fill"></i>  Detalle de Artículos</h5>
     <table class="table table-bordered">
         <thead class="table-light">
             <tr>
@@ -121,10 +121,10 @@ else
     </table>
     <button class="btn btn-outline-primary mb-3" @onclick="AgregarArticulo">+ Agregar Artículo</button>
 
-    <div class="alert alert-info">🔢 Total artículos: <strong>@totalArticulos</strong></div>
+    <div class="alert alert-info">Total artículos: <strong>@totalArticulos</strong></div>
     <div class="text-center mt-3">
-        <button class="btn btn-success" @onclick="Guardar">💾 Guardar</button>
-        <button class="btn btn-secondary" @onclick="Cancelar">❌ Cancelar</button>
+        <button class="btn btn-success" @onclick="Guardar"><i class="bi bi-floppy2"></i>  Guardar</button>
+        <button class="btn btn-secondary" @onclick="Cancelar"><i class="bi bi-x-lg"></i> Cancelar</button>
     </div>
 }
 

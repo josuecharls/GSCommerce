@@ -7,7 +7,7 @@
 @inject ProveedorService ProveedorService
 @using System.Linq
 
-<h3>✏️ Editar Guía</h3>
+<h3><i class="bi bi-pencil-square"></i> Editar Guía</h3>
 
 @if (isLoading)
 {
@@ -57,7 +57,7 @@ else
 
         <hr />
 
-        <h5>📦 Detalle de Artículos</h5>
+        <h5><i class="bi bi-box-seam-fill"></i>  Detalle de Artículos</h5>
         <table class="table table-bordered">
             <thead>
                 <tr>
@@ -87,8 +87,8 @@ else
         <button class="btn btn-secondary mb-3" @onclick="AgregarArticulo">+ Agregar Artículo</button>
 
         <div class="text-center">
-            <button class="btn btn-primary" @onclick="Guardar">💾 Guardar</button>
-            <button class="btn btn-secondary" @onclick="Cancelar">❌ Cancelar</button>
+            <button class="btn btn-primary" @onclick="Guardar"><i class="bi bi-floppy2"></i>  Guardar</button>
+            <button class="btn btn-secondary" @onclick="Cancelar"><i class="bi bi-x-lg"></i> Cancelar</button>
         </div>
     </div>
 }

@@ -6,14 +6,14 @@
 @inject ProveedorService ProveedorService
 @inject NavigationManager Navigation
 
-<h3>📦 Lista de Proveedores</h3>
+<h3><i class="bi bi-box-seam-fill"></i>  Lista de Proveedores</h3>
 
 <!-- Botón para agregar un nuevo proveedor -->
 <button @onclick="CreateNewProveedor" class="btn btn-success">➕ Nuevo Proveedor</button>
 
 <!-- Campo de búsqueda -->
 <input type="text" @bind="searchTerm" placeholder="🔍 Buscar proveedor..." class="form-control w-50 mt-2" />
-<button class="btn btn-primary mt-2" @onclick="SearchProveedor">🔍 Buscar</button>
+<button class="btn btn-primary mt-2" @onclick="SearchProveedor"><i class="bi bi-search"></i> Buscar</button>
 
 <!-- Tabla de proveedores -->
 <table class="table table-striped mt-3">
@@ -46,10 +46,10 @@
                     </td>
                     <td class="text-center">
                         <button @onclick="() => EditProveedor(p.IdProveedor)" class="btn btn-warning btn-sm me-1">
-                            ✏️ Editar
+                            <i class="bi bi-pencil-square"></i> Editar
                         </button>
                         <button @onclick="() => ConfirmDeleteProveedor(p.IdProveedor, p.Nombre)" class="btn btn-danger btn-sm">
-                            🗑️ Eliminar
+                            <i class="bi bi-trash"></i> Eliminar
                         </button>
                     </td>
                 </tr>
@@ -65,11 +65,11 @@
 <!-- Controles de paginación -->
 <div class="d-flex justify-content-between mt-3">
     <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(!CanPrev)">
-        ⬅️ Anterior
+        <i class="bi bi-arrow-left"></i> Anterior
     </button>
     <span>Página @currentPage de @totalPages</span>
     <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanNext)">
-        Siguiente ➡️
+        Siguiente <i class="bi bi-arrow-right"></i>
     </button>
 </div>
 
@@ -87,7 +87,7 @@
                     <p>¿Desea eliminar al proveedor <strong>@deleteProveedorName</strong> de la base de datos?</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-danger" @onclick="DeleteConfirmed">🗑️ Sí</button>
+                    <button class="btn btn-danger" @onclick="DeleteConfirmed"><i class="bi bi-trash-fill"></i> Sí</button>
                     <button class="btn btn-secondary" @onclick="CloseDeleteModal">❌ No</button>
                 </div>
             </div>

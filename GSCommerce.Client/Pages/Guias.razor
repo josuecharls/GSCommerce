@@ -10,7 +10,7 @@
 @inject AuxiliaresVariosService AuxiliaresVariosService
 @inject IJSRuntime JS
 
-<h3>📋 Guías de Movimiento</h3>
+<h3><i class="bi bi-file-earmark-ruled"></i> Guías de Movimiento</h3>
 
 <select class="form-select mb-2" @bind="tipoFiltro" @bind:event="onchange">
     <option value="Ingreso">Ingreso</option>
@@ -29,7 +29,7 @@
 <button @onclick="CreateNewGuia" class="btn btn-success mb-3">+ Nueva Guía</button>
 
 <input type="text" @bind="searchTerm" placeholder="Buscar por descripción o motivo..." class="form-control mb-2" />
-<button @onclick="SearchGuias" class="btn btn-primary">🔍 Buscar</button>
+<button @onclick="SearchGuias" class="btn btn-primary"><i class="bi bi-search"></i> Buscar</button>
 
 <table class="table table-striped">
     <thead>
@@ -68,7 +68,7 @@
                     </td>
                     <td class="text-center">
                         <button @onclick="() => EditGuia(g.IdMovimiento)" class="btn btn-warning btn-sm me-1" disabled="@(g.Estado == "A")">
-                            ✏️ Editar
+                            <i class="bi bi-pencil-square"></i> Editar
                         </button>
                         <button class="btn btn-danger btn-sm me-1" @onclick="() => AnularGuia(g.IdMovimiento)" disabled="@(g.Estado == "A")">
                             🛑 Anular
@@ -91,9 +91,9 @@
 
 <!-- Paginación -->
 <div class="d-flex justify-content-between">
-    <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(!CanPrev)">⬅️ Anterior</button>
+    <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(!CanPrev)"><i class="bi bi-arrow-left"></i> Anterior</button>
     <span>Página @currentPage de @totalPages</span>
-    <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanNext)">Siguiente ➡️</button>
+    <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanNext)">Siguiente <i class="bi bi-arrow-right"></i></button>
 </div>
 
 @code {

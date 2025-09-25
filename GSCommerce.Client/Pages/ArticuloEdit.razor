@@ -11,7 +11,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @inject IJSRuntime JS
 
-<h3>✏️ Editar Artículo</h3>
+<h3><i class="bi bi-pencil-square"></i> Editar Artículo</h3>
 
 @if (!isLoading)
 {
@@ -202,7 +202,7 @@
                     <label class="form-label">Proveedor</label>
                     <div class="input-group">
                         <input type="text" class="form-control" @bind="rucProveedor" @onblur="BuscarProveedorPorRuc" />
-                        <button class="btn btn-secondary" @onclick="() => mostrarProveedorModal = true">Buscar</button>
+                        <button class="btn btn-secondary" @onclick="() => mostrarProveedorModal = true"><i class="bi bi-search"></i>Buscar</button>
                     </div>
                     <div class="mt-1"><strong>@nombreProveedor</strong></div>
                 </div>
@@ -248,8 +248,8 @@
         </div> <!-- /row -->
         <!-- Botones -->
         <div class="text-center mt-3">
-            <button class="btn btn-primary" @onclick="SaveArticulo">💾 Guardar</button>
-            <button class="btn btn-danger" @onclick="Cancel">❌ Cancelar</button>
+            <button class="btn btn-primary" @onclick="SaveArticulo"><i class="bi bi-floppy2"></i>  Guardar</button>
+            <button class="btn btn-danger" @onclick="Cancel"><i class="bi bi-x-lg"></i> Cancelar</button>
         </div>
     </div>
 }

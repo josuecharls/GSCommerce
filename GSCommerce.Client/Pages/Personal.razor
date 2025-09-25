@@ -10,13 +10,13 @@
 @inject AuthService AuthService
 @using Microsoft.AspNetCore.Components.Forms
 
-<h3>🧑‍🤝‍🧑 Gestión de Personal</h3>
+<h3><i class="bi bi-person-arms-up"></i>  Gestión de Personal</h3>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <button @onclick="CreateNewPersonal" class="btn btn-success">+ Nuevo Empleado</button>
     <div class="input-group w-50">
         <input type="text" class="form-control" @bind="searchTerm" placeholder="Buscar por nombre..." />
-        <button class="btn btn-primary" @onclick="SearchPersonal">Buscar</button>
+        <button class="btn btn-primary" @onclick="SearchPersonal"><i class="bi bi-search"></i>Buscar</button>
     </div>
 </div>
 

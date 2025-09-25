@@ -4,12 +4,12 @@
 @inject ClienteService ClienteService
 @inject NavigationManager Navigation
 
-<h3>👥 Lista de Clientes</h3>
+<h3><i class="bi bi-person-fill"></i>  Lista de Clientes</h3>
 
 <button @onclick="CreateNewCliente" class="btn btn-success mb-3">+ Nuevo Cliente</button>
 
 <input type="text" @bind="searchTerm" placeholder="Buscar por nombre o DNI/RUC..." class="form-control mb-2" />
-<button @onclick="SearchCliente" class="btn btn-primary">🔍 Buscar</button>
+<button @onclick="SearchCliente" class="btn btn-primary"><i class="bi bi-search"></i> Buscar</button>
 
 <table class="table table-striped">
     <thead>
@@ -45,8 +45,8 @@
                         }
                     </td>
                     <td>
-                        <button class="btn btn-warning btn-sm me-1" @onclick="() => EditCliente(c.IdCliente)">🖊️ Editar</button>
-                        <button class="btn btn-danger btn-sm" @onclick="() => ConfirmDeleteCliente(c.IdCliente, c.Nombre)">🗑️ Eliminar</button>
+                        <button class="btn btn-warning btn-sm me-1" @onclick="() => EditCliente(c.IdCliente)"><i class="bi bi-pencil-square"></i> Editar</button>
+                        <button class="btn btn-danger btn-sm" @onclick="() => ConfirmDeleteCliente(c.IdCliente, c.Nombre)"><i class="bi bi-trash"></i> Eliminar</button>
                     </td>
                 </tr>
             }
@@ -62,9 +62,9 @@
 
 <!-- Paginación -->
 <div class="d-flex justify-content-between">
-    <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(!CanPrev)">⬅️ Anterior</button>
+    <button class="btn btn-secondary" @onclick="PrevPage" disabled="@(!CanPrev)"><i class="bi bi-arrow-left"></i> Anterior</button>
     <span>Página @currentPage de @totalPages</span>
-    <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanNext)">Siguiente ➡️</button>
+    <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanNext)">Siguiente <i class="bi bi-arrow-right"></i></button>
 </div>
 
 <!-- Modal Eliminar -->
@@ -81,7 +81,7 @@
                     <p>¿Desea eliminar al cliente <strong>@deleteClienteName</strong>?</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-danger" @onclick="DeleteConfirmed">🗑️ Sí</button>
+                    <button class="btn btn-danger" @onclick="DeleteConfirmed"><i class="bi bi-trash-fill"></i> Sí</button>
                     <button class="btn btn-secondary" @onclick="CloseDeleteModal">❌ No</button>
                 </div>
             </div>
