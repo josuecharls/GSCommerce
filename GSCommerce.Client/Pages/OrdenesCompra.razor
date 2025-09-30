@@ -64,7 +64,8 @@
                     <td>
                         <button class="btn btn-sm btn-info me-1" @onclick="() => VerDetalle(o.IdOc)">Ver</button>
                         <button class="btn btn-sm btn-warning me-1" @onclick="() => Editar(o.IdOc)" disabled="@(!PuedeEditar(o))">Editar</button>
-                        <button class="btn btn-sm btn-secondary" @onclick="() => GenerarIngreso(o.IdOc)" disabled="@(!PuedeGenerarIngreso(o))">Ingreso</button>
+                        <button class="btn btn-sm btn-secondary me-1" @onclick="() => GenerarIngreso(o.IdOc)" disabled="@(!PuedeGenerarIngreso(o))">Ingreso</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Anular(o.IdOc)" disabled="@(!PuedeAnular(o))">Anular</button>
                     </td>
                 </tr>
             }
@@ -216,6 +217,7 @@
     private decimal totalPagos => pagos.Sum(o => o.ImporteTotal);
 
     private HashSet<int> ingresoEnProceso = new();
+    private HashSet<int> anulacionEnProceso = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -226,14 +228,17 @@
     {
         var lista = await ocService.ListarAsync(desdeOc, hastaOc, idProveedorOc);
         ordenes = lista.Where(o => !o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
+        NormalizarEstados(ordenes);
         currentPageOc = 1;
         ingresoEnProceso.Clear();
+        anulacionEnProceso.Clear();
     }
 
     private async Task BuscarPagos()
     {
         var lista = await ocService.ListarAsync(desdePago, hastaPago, idProveedorPago);
         pagos = lista.Where(o => o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
+        NormalizarEstados(pagos);
         currentPagePagos = 1;
     }
 
@@ -293,7 +298,7 @@
                 var orden = ordenes.FirstOrDefault(o => o.IdOc == id);
                 if (orden != null)
                 {
-                    orden.Estado = resultado.Estado ?? "INGRESADO";
+                    orden.Estado = NormalizarEstado(resultado.Estado) ?? "INGRESADO";
                 }
             }
             else
@@ -307,12 +312,80 @@
         }
     }
 
+    private async Task Anular(int id)
+    {
+        if (!anulacionEnProceso.Add(id))
+            return;
+
+        try
+        {
+            var resultado = await ocService.AnularAsync(id);
+            if (resultado.Success)
+            {
+                await JS.InvokeVoidAsync("alert", resultado.Message ?? "Orden anulada");
+                var orden = ordenes.FirstOrDefault(o => o.IdOc == id);
+                if (orden != null)
+                {
+                    orden.Estado = "ANULADO";
+                    orden.FechaAnulado = DateTime.Now;
+                }
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", resultado.Message ?? "No se pudo anular la orden");
+            }
+        }
+        finally
+        {
+            anulacionEnProceso.Remove(id);
+        }
+    }
+
     private static bool PuedeEditar(OrdenCompraConsultaDTO o) =>
         string.IsNullOrEmpty(o.Estado) || o.Estado.Equals("PENDIENTE", StringComparison.OrdinalIgnoreCase);
 
     private bool PuedeGenerarIngreso(OrdenCompraConsultaDTO o) =>
         PuedeEditar(o) && !ingresoEnProceso.Contains(o.IdOc);
 
+    private bool PuedeAnular(OrdenCompraConsultaDTO o)
+    {
+        if (anulacionEnProceso.Contains(o.IdOc))
+        {
+            return false;
+        }
+
+        return string.Equals(NormalizarEstado(o.Estado), "INGRESADO", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void NormalizarEstados(IEnumerable<OrdenCompraConsultaDTO> items)
+    {
+        foreach (var item in items)
+        {
+            item.Estado = NormalizarEstado(item.Estado);
+        }
+    }
+
+    private static string? NormalizarEstado(string? estado)
+    {
+        if (string.IsNullOrWhiteSpace(estado))
+        {
+            return estado;
+        }
+
+        var valor = estado.Trim();
+
+        if (valor.Equals("IN", StringComparison.OrdinalIgnoreCase))
+        {
+            return "INGRESADO";
+        }
+
+        if (valor.Equals("AN", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ANULADO";
+        }
+
+        return valor;
+    }
 
     private Task SeleccionarProveedorOc(ProveedorDTO p)
     {

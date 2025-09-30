@@ -80,5 +80,46 @@ namespace GSCommerce.Client.Services
                 ErrorMessage = string.IsNullOrWhiteSpace(mensaje) ? resp.ReasonPhrase : mensaje
             };
         }
+
+
+        public async Task<OperacionResult> AnularAsync(int idOc)
+        {
+            try
+            {
+                var resp = await _httpClient.PostAsync($"api/ordenes-compra/{idOc}/anular", null);
+                if (resp.IsSuccessStatusCode)
+                {
+                    var data = await resp.Content.ReadFromJsonAsync<OperacionResponse>();
+                    return new OperacionResult
+                    {
+                        Success = true,
+                        Message = data?.Message ?? "Orden anulada correctamente",
+                        Estado = data?.Estado
+                    };
+                }
+
+                var mensaje = await resp.Content.ReadAsStringAsync();
+                return new OperacionResult
+                {
+                    Success = false,
+                    Message = string.IsNullOrWhiteSpace(mensaje) ? resp.ReasonPhrase : mensaje
+                };
+            }
+            catch (Exception ex)
+            {
+                return new OperacionResult
+                {
+                    Success = false,
+                    Message = ex.Message
+                };
+            }
+        }
+
+        private class OperacionResponse
+        {
+            public string? Estado { get; set; }
+
+            public string? Message { get; set; }
+        }
     }
 }

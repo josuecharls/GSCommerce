@@ -107,10 +107,17 @@ namespace GSCommerceAPI.Controllers
                 foreach (var item in lista)
                 {
                     if (estados.TryGetValue(item.IdOc, out var estadoAtencion) &&
-                        !string.IsNullOrEmpty(estadoAtencion) &&
-                        estadoAtencion.Equals("IN", StringComparison.OrdinalIgnoreCase))
+                        !string.IsNullOrEmpty(estadoAtencion))
                     {
-                        item.Estado = "INGRESADO";
+                        var estadoNormalizado = estadoAtencion.Trim();
+                        if (estadoNormalizado.Equals("IN", StringComparison.OrdinalIgnoreCase))
+                        {
+                            item.Estado = "INGRESADO";
+                        }
+                        else if (estadoNormalizado.Equals("AN", StringComparison.OrdinalIgnoreCase))
+                        {
+                            item.Estado = "ANULADO";
+                        }
                     }
                 }
             }
@@ -372,6 +379,100 @@ namespace GSCommerceAPI.Controllers
             {
                 await tx.RollbackAsync();
                 return StatusCode(500, $"Error al generar ingreso: {ex.Message}");
+            }
+        }
+
+        [HttpPost("{id}/anular")]
+        public async Task<IActionResult> Anular(int id)
+        {
+            var orden = await _context.OrdenDeCompraCabeceras
+                .Include(o => o.OrdenDeCompraDetalles)
+                .FirstOrDefaultAsync(o => o.IdOc == id);
+
+            if (orden == null)
+                return NotFound();
+
+            var estadoActual = orden.EstadoAtencion?.Trim() ?? string.Empty;
+
+            if (string.Equals(estadoActual, "AN", StringComparison.OrdinalIgnoreCase))
+                return BadRequest("La orden ya fue anulada.");
+
+            if (!string.Equals(estadoActual, "IN", StringComparison.OrdinalIgnoreCase))
+                return BadRequest("Solo se pueden anular órdenes ingresadas.");
+
+            var movimientos = await _context.MovimientosCabeceras
+                .Include(m => m.MovimientosDetalles)
+                .Where(m => m.IdOc == id)
+                .ToListAsync();
+
+            if (!movimientos.Any())
+                return BadRequest("No se encontró un movimiento de ingreso asociado a la orden.");
+
+            using var tx = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var fecha = DateTime.Now;
+                var ajustesRealizados = false;
+
+                foreach (var mov in movimientos)
+                {
+                    var estadoMovimiento = mov.Estado?.Trim() ?? string.Empty;
+                    if (string.Equals(estadoMovimiento, "A", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    ajustesRealizados = true;
+                    mov.Estado = "A";
+
+                    foreach (var det in mov.MovimientosDetalles)
+                    {
+                        var stock = await _context.StockAlmacens
+                            .FirstOrDefaultAsync(s => s.IdAlmacen == mov.IdAlmacen && s.IdArticulo == det.IdArticulo);
+
+                        if (stock == null || stock.Stock < det.Cantidad)
+                        {
+                            await tx.RollbackAsync();
+                            return BadRequest($"Stock insuficiente para el artículo {det.IdArticulo} en el almacén {mov.IdAlmacen}.");
+                        }
+
+                        var saldoInicial = stock.Stock;
+                        stock.Stock -= det.Cantidad;
+
+                        _context.Kardices.Add(new Kardex
+                        {
+                            IdAlmacen = mov.IdAlmacen,
+                            IdArticulo = det.IdArticulo,
+                            TipoMovimiento = "E",
+                            Fecha = fecha,
+                            SaldoInicial = saldoInicial,
+                            Cantidad = det.Cantidad,
+                            SaldoFinal = stock.Stock,
+                            Valor = det.Valor,
+                            Origen = $"ANULACIÓN OC {orden.NumeroOc}",
+                            NoKardexGeneral = false
+                        });
+                    }
+                }
+
+                if (!ajustesRealizados)
+                {
+                    await tx.RollbackAsync();
+                    return BadRequest("El movimiento de ingreso ya se encuentra anulado.");
+                }
+
+                orden.EstadoAtencion = "AN";
+                orden.FechaAnulado = fecha;
+                orden.FechaAtencionTotal = null;
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Ok(new { Estado = "ANULADO" });
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                return StatusCode(500, $"Error al anular la orden: {ex.Message}");
             }
         }
 
