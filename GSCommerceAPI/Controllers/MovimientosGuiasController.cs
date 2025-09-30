@@ -201,8 +201,14 @@ namespace GSCommerceAPI.Controllers
                     Origen = $"TRANSFERENCIA EGRESO Nro: {egreso.IdMovimiento}"
                 });
 
-                var stockDestino = await _context.StockAlmacens
-                    .FirstOrDefaultAsync(s => s.IdAlmacen == ingreso.IdAlmacen && s.IdArticulo == detalle.IdArticulo);
+                var stockDestino = _context.StockAlmacens.Local
+                    .FirstOrDefault(s => s.IdAlmacen == ingreso.IdAlmacen && s.IdArticulo == detalle.IdArticulo);
+
+                if (stockDestino == null)
+                {
+                    stockDestino = await _context.StockAlmacens
+                        .FirstOrDefaultAsync(s => s.IdAlmacen == ingreso.IdAlmacen && s.IdArticulo == detalle.IdArticulo);
+                }
 
                 var saldoInicialDestino = stockDestino?.Stock ?? 0;
 
