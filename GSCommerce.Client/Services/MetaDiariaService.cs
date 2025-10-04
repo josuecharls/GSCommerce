@@ -111,3 +111,4 @@ namespace GSCommerce.Client.Services
         public string Descripcion { get; set; } = string.Empty;
     }
 }
+
