@@ -614,7 +614,9 @@ namespace GSCommerceAPI.Controllers
             {
                 var idsAnulados = await _context.MovimientosCabeceras
                     .AsNoTracking()
-                    .Where(m => movimientoIds.Contains(m.IdMovimiento) && m.Estado != "E")
+                    .Where(m => movimientoIds.Contains(m.IdMovimiento)
+                                && m.Estado != null
+                                && m.Estado.Trim().ToUpper() == "A")
                     .Select(m => m.IdMovimiento)
                     .ToListAsync();
 
@@ -2464,5 +2466,231 @@ namespace GSCommerceAPI.Controllers
 
             return letras.Trim();
         }
+
+        // Endpoint temporal para debuggear claims
+        [HttpGet("debug-claims")]
+        [Authorize]
+        public IActionResult DebugClaims()
+        {
+            var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
+            return Ok(claims);
+        }
+
+        // Endpoints para manejo de metas diarias usando tabla Configuracion
+        [HttpGet("meta-diaria")]
+        [Authorize]
+        public async Task<ActionResult<decimal>> ObtenerMetaDiaria([FromQuery] int idAlmacen, [FromQuery] DateOnly fecha)
+        {
+            try
+            {
+                var clave = $"META_DIARIA_{idAlmacen}_{fecha:yyyyMMdd}";
+                var configuracion = await _context.Configuracions
+                    .FirstOrDefaultAsync(c => c.Configuracion1 == clave);
+
+                if (configuracion != null && decimal.TryParse(configuracion.Valor, out var meta))
+                {
+                    return Ok(meta);
+                }
+
+                return Ok(0m); // Meta predeterminada si no existe
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error al obtener meta diaria: {ex.Message}");
+            }
+        }
+
+        [HttpPost("meta-diaria")]
+        [Authorize]
+        public async Task<IActionResult> GuardarMetaDiaria([FromBody] MetaDiariaRequest request)
+        {
+            try
+            {
+                var cargo = User.FindFirst("Cargo")?.Value;
+                var idUsuarioClaim = User.FindFirst("IdUsuario")?.Value ?? User.FindFirst("UserId")?.Value ?? "0";
+                
+                if (!int.TryParse(idUsuarioClaim, out var idUsuario))
+                {
+                    return Unauthorized("Usuario no válido - ID de usuario no encontrado");
+                }
+
+                if (string.IsNullOrEmpty(cargo))
+                {
+                    return Unauthorized("Usuario no válido - Cargo no encontrado");
+                }
+
+                var clave = $"META_DIARIA_{request.IdAlmacen}_{request.Fecha:yyyyMMdd}";
+                
+                // Verificar si ya existe una configuración para esta meta
+                var configuracionExistente = await _context.Configuracions
+                    .FirstOrDefaultAsync(c => c.Configuracion1 == clave);
+
+                if (configuracionExistente != null)
+                {
+                    // Actualizar meta existente
+                    configuracionExistente.Valor = request.Meta.ToString("F2");
+                    configuracionExistente.Descripcion = $"Meta diaria para almacén {request.IdAlmacen} - {request.Fecha:dd/MM/yyyy} - Usuario: {idUsuario}";
+                }
+                else
+                {
+                    // Crear nueva configuración
+                    var nuevaConfiguracion = new Configuracion
+                    {
+                        Configuracion1 = clave,
+                        Valor = request.Meta.ToString("F2"),
+                        Descripcion = $"Meta diaria para almacén {request.IdAlmacen} - {request.Fecha:dd/MM/yyyy} - Usuario: {idUsuario}"
+                    };
+
+                    _context.Configuracions.Add(nuevaConfiguracion);
+                }
+
+                await _context.SaveChangesAsync();
+                return Ok("Meta guardada exitosamente");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error al guardar meta diaria: {ex.Message}");
+            }
+        }
+
+        [HttpPost("meta-diaria-multiple")]
+        [Authorize]
+        public async Task<IActionResult> GuardarMetaDiariaMultiple([FromBody] MetaDiariaMultipleRequest request)
+        {
+            try
+            {
+                var cargo = User.FindFirst("Cargo")?.Value;
+                var idUsuarioClaim = User.FindFirst("IdUsuario")?.Value ?? User.FindFirst("UserId")?.Value ?? "0";
+                
+                if (!int.TryParse(idUsuarioClaim, out var idUsuario))
+                {
+                    return Unauthorized("Usuario no válido - ID de usuario no encontrado");
+                }
+
+                if (string.IsNullOrEmpty(cargo))
+                {
+                    return Unauthorized("Usuario no válido - Cargo no encontrado");
+                }
+
+                if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Forbid("Solo los administradores pueden establecer metas para múltiples almacenes");
+                }
+
+                foreach (var idAlmacen in request.IdAlmacenes)
+                {
+                    var clave = $"META_DIARIA_{idAlmacen}_{request.Fecha:yyyyMMdd}";
+                    
+                    // Verificar si ya existe una configuración para esta meta
+                    var configuracionExistente = await _context.Configuracions
+                        .FirstOrDefaultAsync(c => c.Configuracion1 == clave);
+
+                    if (configuracionExistente != null)
+                    {
+                        // Actualizar meta existente
+                        configuracionExistente.Valor = request.Meta.ToString("F2");
+                        configuracionExistente.Descripcion = $"Meta diaria para almacén {idAlmacen} - {request.Fecha:dd/MM/yyyy} - Usuario: {idUsuario}";
+                    }
+                    else
+                    {
+                        // Crear nueva configuración
+                        var nuevaConfiguracion = new Configuracion
+                        {
+                            Configuracion1 = clave,
+                            Valor = request.Meta.ToString("F2"),
+                            Descripcion = $"Meta diaria para almacén {idAlmacen} - {request.Fecha:dd/MM/yyyy} - Usuario: {idUsuario}"
+                        };
+
+                        _context.Configuracions.Add(nuevaConfiguracion);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                return Ok($"Meta guardada exitosamente para {request.IdAlmacenes.Length} almacenes");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error al guardar metas diarias: {ex.Message}");
+            }
+        }
+
+        [HttpGet("metas-diarias")]
+        [Authorize]
+        public async Task<ActionResult<List<MetaDiariaResponse>>> ObtenerMetasDiarias([FromQuery] DateOnly fecha, [FromQuery] int? idAlmacen = null)
+        {
+            try
+            {
+                var cargo = User.FindFirst("Cargo")?.Value;
+                var idAlmacenUsuario = User.FindFirst("IdAlmacen")?.Value;
+
+                var fechaStr = fecha.ToString("yyyyMMdd");
+                var configuraciones = await _context.Configuracions
+                    .Where(c => c.Configuracion1.StartsWith("META_DIARIA_") && c.Configuracion1.EndsWith($"_{fechaStr}"))
+                    .ToListAsync();
+
+                var metas = new List<MetaDiariaResponse>();
+
+                foreach (var config in configuraciones)
+                {
+                    // Extraer ID de almacén de la clave: META_DIARIA_{idAlmacen}_{fecha}
+                    var partes = config.Configuracion1.Split('_');
+                    if (partes.Length >= 3 && int.TryParse(partes[2], out var idAlm))
+                    {
+                        // Si no es administrador, solo puede ver su almacén
+                        if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (int.TryParse(idAlmacenUsuario, out var idAlmUsuario) && idAlm != idAlmUsuario)
+                            {
+                                continue;
+                            }
+                        }
+                        else if (idAlmacen.HasValue && idAlm != idAlmacen.Value)
+                        {
+                            continue;
+                        }
+
+                        if (decimal.TryParse(config.Valor, out var meta))
+                        {
+                            metas.Add(new MetaDiariaResponse
+                            {
+                                IdAlmacen = idAlm,
+                                Fecha = fecha,
+                                Meta = meta,
+                                Descripcion = config.Descripcion ?? string.Empty
+                            });
+                        }
+                    }
+                }
+
+                return Ok(metas);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error al obtener metas diarias: {ex.Message}");
+            }
+        }
+    }
+
+    // DTOs para las metas
+    public class MetaDiariaRequest
+    {
+        public int IdAlmacen { get; set; }
+        public DateOnly Fecha { get; set; }
+        public decimal Meta { get; set; }
+    }
+
+    public class MetaDiariaMultipleRequest
+    {
+        public int[] IdAlmacenes { get; set; } = Array.Empty<int>();
+        public DateOnly Fecha { get; set; }
+        public decimal Meta { get; set; }
+    }
+
+    public class MetaDiariaResponse
+    {
+        public int IdAlmacen { get; set; }
+        public DateOnly Fecha { get; set; }
+        public decimal Meta { get; set; }
+        public string Descripcion { get; set; } = string.Empty;
     }
 }

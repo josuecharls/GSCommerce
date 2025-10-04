@@ -660,14 +660,18 @@ public class CajaController : ControllerBase
                 .Select(g => new { Detalle = g.Key, Monto = g.Sum(x => x.Soles) })
                 .ToList();
 
+            // Agrupar notas de crédito por serie y crear rangos
             var notasCreditoDetalle = ventas
                 .Where(v => v.Descripcion.StartsWith("N.C."))
-                .Select(v => new ResumenCierreDeCaja
+                .GroupBy(v => v.Serie)
+                .Select(g => new ResumenCierreDeCaja
                 {
                     IdGrupo = 1,
                     Grupo = "VENTA POR N.C.",
-                    Detalle = $"N.C. - {v.Serie}-{v.Numero:D8}",
-                    Monto = v.Soles
+                    Detalle = g.Count() == 1 
+                        ? $"N.C. - {g.Key}-{g.First().Numero:D8}"
+                        : $"DEL {g.Key}-{g.Min(x => x.Numero):D8} AL {g.Key}-{g.Max(x => x.Numero):D8}",
+                    Monto = g.Sum(x => x.Soles)
                 })
                 .ToList();
 

@@ -403,61 +403,52 @@ namespace GSCommerceAPI.Controllers
             var movimientos = await _context.MovimientosCabeceras
                 .Include(m => m.MovimientosDetalles)
                 .Where(m => m.IdOc == id)
+                .OrderByDescending(m => m.FechaHoraRegistro)
                 .ToListAsync();
 
             if (!movimientos.Any())
                 return BadRequest("No se encontró un movimiento de ingreso asociado a la orden.");
+
+            var movimientoActivo = movimientos
+                .FirstOrDefault(m => !string.Equals(m.Estado?.Trim(), "A", StringComparison.OrdinalIgnoreCase));
+
+            if (movimientoActivo == null)
+                return BadRequest("El movimiento de ingreso ya se encuentra anulado.");
 
             using var tx = await _context.Database.BeginTransactionAsync();
 
             try
             {
                 var fecha = DateTime.Now;
-                var ajustesRealizados = false;
+                movimientoActivo.Estado = "A";
 
-                foreach (var mov in movimientos)
+                foreach (var det in movimientoActivo.MovimientosDetalles)
                 {
-                    var estadoMovimiento = mov.Estado?.Trim() ?? string.Empty;
-                    if (string.Equals(estadoMovimiento, "A", StringComparison.OrdinalIgnoreCase))
-                        continue;
+                    var stock = await _context.StockAlmacens
+                        .FirstOrDefaultAsync(s => s.IdAlmacen == movimientoActivo.IdAlmacen && s.IdArticulo == det.IdArticulo);
 
-                    ajustesRealizados = true;
-                    mov.Estado = "A";
-
-                    foreach (var det in mov.MovimientosDetalles)
+                    if (stock == null || stock.Stock < det.Cantidad)
                     {
-                        var stock = await _context.StockAlmacens
-                            .FirstOrDefaultAsync(s => s.IdAlmacen == mov.IdAlmacen && s.IdArticulo == det.IdArticulo);
-
-                        if (stock == null || stock.Stock < det.Cantidad)
-                        {
-                            await tx.RollbackAsync();
-                            return BadRequest($"Stock insuficiente para el artículo {det.IdArticulo} en el almacén {mov.IdAlmacen}.");
-                        }
-
-                        var saldoInicial = stock.Stock;
-                        stock.Stock -= det.Cantidad;
-
-                        _context.Kardices.Add(new Kardex
-                        {
-                            IdAlmacen = mov.IdAlmacen,
-                            IdArticulo = det.IdArticulo,
-                            TipoMovimiento = "E",
-                            Fecha = fecha,
-                            SaldoInicial = saldoInicial,
-                            Cantidad = det.Cantidad,
-                            SaldoFinal = stock.Stock,
-                            Valor = det.Valor,
-                            Origen = $"ANULACIÓN OC {orden.NumeroOc}",
-                            NoKardexGeneral = false
-                        });
+                        await tx.RollbackAsync();
+                        return BadRequest($"Stock insuficiente para el artículo {det.IdArticulo} en el almacén {movimientoActivo.IdAlmacen}.");
                     }
-                }
 
-                if (!ajustesRealizados)
-                {
-                    await tx.RollbackAsync();
-                    return BadRequest("El movimiento de ingreso ya se encuentra anulado.");
+                    var saldoInicial = stock.Stock;
+                    stock.Stock -= det.Cantidad;
+
+                    _context.Kardices.Add(new Kardex
+                    {
+                        IdAlmacen = movimientoActivo.IdAlmacen,
+                        IdArticulo = det.IdArticulo,
+                        TipoMovimiento = "E",
+                        Fecha = fecha,
+                        SaldoInicial = saldoInicial,
+                        Cantidad = det.Cantidad,
+                        SaldoFinal = stock.Stock,
+                        Valor = det.Valor,
+                        Origen = $"ANULACIÓN OC {orden.NumeroOc}",
+                        NoKardexGeneral = false
+                    });
                 }
 
                 orden.EstadoAtencion = "AN";

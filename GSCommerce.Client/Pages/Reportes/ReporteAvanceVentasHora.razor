@@ -8,6 +8,7 @@
 @inject ReporteService ReporteService
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService
+@inject MetaDiariaService MetaDiariaService
 @inject IJSRuntime JS
 @inject ILocalStorageService LocalStorage
 
@@ -29,7 +30,7 @@
     </div>
     <div class="col-md-3">
         <label>Meta diaria (S/):</label>
-        <InputNumber @bind-Value="Meta" class="form-control" step="0.01" min="0" disabled="@(!PuedeEditarMeta)" />
+        <InputNumber @bind-Value="Meta" class="form-control" step="0.01" min="0" disabled/>
     </div>
     @if (cargo == "ADMINISTRADOR")
     {
@@ -60,6 +61,12 @@
     <div class="col-md-3 d-flex align-items-end">
         <button class="btn btn-success w-100" @onclick="ExportarExcel" disabled="@cargando"><i class="bi bi-file-earmark-spreadsheet"></i> Exportar Excel</button>
     </div>
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-warning w-100" @onclick="MostrarModalMetaMultiple" disabled="@cargando"><i class="bi bi-gear"></i> Meta Múltiple</button>
+        </div>
+    }
 </div>
 
 @if (!string.IsNullOrWhiteSpace(mensajeError))
@@ -158,11 +165,59 @@ else
     }
 }
 
+<!-- Modal para establecer meta múltiple -->
+@if (mostrarModalMetaMultiple)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Establecer Meta para Múltiples Almacenes</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalMetaMultiple"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Fecha:</label>
+                        <InputDate @bind-Value="fechaMetaMultiple" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Meta (S/):</label>
+                        <InputNumber @bind-Value="metaMultiple" class="form-control" step="0.01" min="0" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Almacenes:</label>
+                        <div style="max-height: 200px; overflow-y: auto;">
+                            @foreach (var almacen in almacenes)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" 
+                                           @onchange="@((e) => ToggleAlmacenSeleccionado(almacen.IdAlmacen, (bool)e.Value!))"
+                                           checked="@almacenesSeleccionados.Contains(almacen.IdAlmacen)" />
+                                    <label class="form-check-label">@almacen.Nombre</label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalMetaMultiple">Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="GuardarMetaMultiple" disabled="@guardandoMetaMultiple">
+                        @if (guardandoMetaMultiple)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Guardar Meta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
 @code {
     private readonly List<int> horas = Enumerable.Range(0, 24).ToList();
     private const decimal MetaPredeterminada = 4500m;
-    private const string MetaStorageKeyPrefix = "ReporteAvanceHoraMeta_";
-    private readonly Dictionary<int, decimal> metasPorAlmacen = new();
     private DateTime fechaSeleccionada = DateTime.Today;
     private int horaSeleccionada = DateTime.Now.Hour;
     private List<AlmacenDTO> almacenes = new();
@@ -174,6 +229,13 @@ else
     private decimal metaActual = MetaPredeterminada;
     private bool suprimirGuardadoMeta;
     private bool PuedeEditarMeta => cargo == "ADMINISTRADOR";
+    
+    // Variables para modal de meta múltiple
+    private bool mostrarModalMetaMultiple = false;
+    private DateTime fechaMetaMultiple = DateTime.Today;
+    private decimal metaMultiple = MetaPredeterminada;
+    private HashSet<int> almacenesSeleccionados = new();
+    private bool guardandoMetaMultiple = false;
 
     private decimal Meta
     {
@@ -189,7 +251,7 @@ else
 
             if (!suprimirGuardadoMeta && PuedeEditarMeta)
             {
-                _ = InvokeAsync(() => GuardarMetaSeleccionadaAsync(value));
+                _ = InvokeAsync(() => GuardarMetaEnServidorAsync(value));
             }
         }
     }
@@ -216,7 +278,7 @@ else
             }
         }
 
-        await CargarMetaSeleccionadaAsync();
+        await CargarMetaDelServidorAsync();
         await Buscar();
     }
 
@@ -319,65 +381,58 @@ else
             if (selectedAlmacen != nuevoAlmacen)
             {
                 selectedAlmacen = nuevoAlmacen;
-                await CargarMetaSeleccionadaAsync();
+                await CargarMetaDelServidorAsync();
             }
         }
     }
 
-    private async Task CargarMetaSeleccionadaAsync()
+    private async Task CargarMetaDelServidorAsync()
     {
-        var idMeta = ObtenerIdAlmacenParaMeta();
-        var metaAlmacen = await ObtenerMetaAsync(idMeta);
-
-        suprimirGuardadoMeta = true;
-        Meta = metaAlmacen;
-        suprimirGuardadoMeta = false;
-    }
-
-    private async Task<decimal> ObtenerMetaAsync(int almacenId)
-    {
-        if (metasPorAlmacen.TryGetValue(almacenId, out var metaGuardada))
-        {
-            return metaGuardada;
-        }
-
         try
         {
-            var storageKey = ObtenerMetaStorageKey(almacenId);
-            if (await LocalStorage.ContainKeyAsync(storageKey))
+            var idAlmacen = ObtenerIdAlmacenParaMeta();
+            if (idAlmacen > 0)
             {
-                var almacenMeta = await LocalStorage.GetItemAsync<decimal>(storageKey);
-                metasPorAlmacen[almacenId] = almacenMeta;
-                return almacenMeta;
+                var meta = await MetaDiariaService.ObtenerMetaDiaria(idAlmacen, DateOnly.FromDateTime(fechaSeleccionada));
+                
+                suprimirGuardadoMeta = true;
+                Meta = meta > 0 ? meta : MetaPredeterminada;
+                suprimirGuardadoMeta = false;
             }
         }
         catch
         {
-            // Si no se puede acceder al almacenamiento local, se utilizará la meta predeterminada.
+            // Si hay error, usar meta predeterminada
+            suprimirGuardadoMeta = true;
+            Meta = MetaPredeterminada;
+            suprimirGuardadoMeta = false;
         }
-
-        metasPorAlmacen[almacenId] = MetaPredeterminada;
-        return MetaPredeterminada;
     }
 
-    private async Task GuardarMetaSeleccionadaAsync(decimal valor)
+    private async Task GuardarMetaEnServidorAsync(decimal valor)
     {
-        var idMeta = ObtenerIdAlmacenParaMeta();
-        metasPorAlmacen[idMeta] = valor;
-
         try
         {
-            await LocalStorage.SetItemAsync(ObtenerMetaStorageKey(idMeta), valor);
+            var idAlmacen = ObtenerIdAlmacenParaMeta();
+            if (idAlmacen > 0)
+            {
+                var fecha = DateOnly.FromDateTime(fechaSeleccionada);
+                var exito = await MetaDiariaService.GuardarMetaDiaria(idAlmacen, fecha, valor);
+                
+                if (!exito)
+                {
+                    // Si falla el guardado, mostrar mensaje de error
+                    mensajeError = "Error al guardar la meta. Inténtelo nuevamente.";
+                }
+            }
         }
         catch
         {
-            // Si no se puede guardar la meta no se lanza una excepción para no interrumpir el flujo del reporte.
+            mensajeError = "Error al guardar la meta. Inténtelo nuevamente.";
         }
     }
 
     private int ObtenerIdAlmacenParaMeta() => selectedAlmacen;
-
-    private static string ObtenerMetaStorageKey(int almacenId) => $"{MetaStorageKeyPrefix}{almacenId}";
 
     private (DateTime Inicio, DateTime Fin) ObtenerIntervaloSeleccionado()
     {
@@ -492,4 +547,87 @@ else
     }
 
     private string GetDifferenceTextClass() => DiferenciaMonto < 0 ? "text-danger" : "text-success";
+
+    // Métodos para modal de meta múltiple
+    private void MostrarModalMetaMultiple()
+    {
+        mostrarModalMetaMultiple = true;
+        fechaMetaMultiple = fechaSeleccionada;
+        metaMultiple = Meta;
+        almacenesSeleccionados.Clear();
+        
+        // Seleccionar todos los almacenes por defecto
+        foreach (var almacen in almacenes)
+        {
+            almacenesSeleccionados.Add(almacen.IdAlmacen);
+        }
+    }
+
+    private void CerrarModalMetaMultiple()
+    {
+        mostrarModalMetaMultiple = false;
+        almacenesSeleccionados.Clear();
+    }
+
+    private void ToggleAlmacenSeleccionado(int idAlmacen, bool seleccionado)
+    {
+        if (seleccionado)
+        {
+            almacenesSeleccionados.Add(idAlmacen);
+        }
+        else
+        {
+            almacenesSeleccionados.Remove(idAlmacen);
+        }
+    }
+
+    private async Task GuardarMetaMultiple()
+    {
+        if (almacenesSeleccionados.Count == 0)
+        {
+            mensajeError = "Debe seleccionar al menos un almacén.";
+            return;
+        }
+
+        if (metaMultiple <= 0)
+        {
+            mensajeError = "La meta debe ser mayor a 0.";
+            return;
+        }
+
+        guardandoMetaMultiple = true;
+        mensajeError = null;
+
+        try
+        {
+            var fecha = DateOnly.FromDateTime(fechaMetaMultiple);
+            var idAlmacenes = almacenesSeleccionados.ToArray();
+            
+            var exito = await MetaDiariaService.GuardarMetaDiariaMultiple(idAlmacenes, fecha, metaMultiple);
+            
+            if (exito)
+            {
+                mensajeError = null;
+                CerrarModalMetaMultiple();
+                
+                // Si la fecha seleccionada es la misma que la fecha del modal, recargar la meta actual
+                if (fechaMetaMultiple.Date == fechaSeleccionada.Date)
+                {
+                    await CargarMetaDelServidorAsync();
+                }
+            }
+            else
+            {
+                mensajeError = "Error al guardar las metas. Inténtelo nuevamente.";
+            }
+        }
+        catch
+        {
+            mensajeError = "Error al guardar las metas. Inténtelo nuevamente.";
+        }
+        finally
+        {
+            guardandoMetaMultiple = false;
+        }
+    }
 }

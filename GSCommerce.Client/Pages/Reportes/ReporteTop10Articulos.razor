@@ -113,8 +113,8 @@ else
     protected override async Task OnInitializedAsync()
     {
         esAdmin = (await AuthService.GetUserCargo() ?? string.Empty).ToUpperInvariant() == "ADMINISTRADOR";
-        lineas = await ComplementoService.GetByTipo("LINEA") ?? new();
-        familias = await ComplementoService.GetByTipo("FAMILIA") ?? new();
+        lineas = FiltrarComplementosDuplicados(await ComplementoService.GetByTipo("LINEA") ?? new());
+        familias = FiltrarComplementosDuplicados(await ComplementoService.GetByTipo("FAMILIA") ?? new());
         if (esAdmin)
         {
             almacenes = await AlmacenService.GetAlmacenes() ?? new();
@@ -203,5 +203,34 @@ else
         public string Descripcion { get; set; } = "";
         public decimal Cantidad { get; set; }
         public decimal Importe { get; set; }
+    }
+
+    private static List<ComplementoDTO> FiltrarComplementosDuplicados(IEnumerable<ComplementoDTO> complementos)
+    {
+        var resultado = new List<ComplementoDTO>();
+        var descripciones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (complementos is null)
+        {
+            return resultado;
+        }
+
+        foreach (var complemento in complementos)
+        {
+            if (complemento is null)
+            {
+                continue;
+            }
+
+            var descripcionNormalizada = (complemento.Descripcion ?? string.Empty).Trim();
+
+            if (descripciones.Add(descripcionNormalizada))
+            {
+                complemento.Descripcion = descripcionNormalizada;
+                resultado.Add(complemento);
+            }
+        }
+
+        return resultado;
     }
 }
