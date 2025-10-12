@@ -29,7 +29,8 @@ namespace GSCommerceAPI.Controllers
             [FromQuery] DateTime? desde = null,
             [FromQuery] DateTime? hasta = null,
             [FromQuery] string? familia = null,
-            [FromQuery] string? linea = null)
+            [FromQuery] string? linea = null,
+            [FromQuery] string? ordenAlmacen = null)
         {
             var query = _context.VKardex3s.AsQueryable();
 
@@ -88,9 +89,12 @@ namespace GSCommerceAPI.Controllers
             }
 
             var resultado = await query
-                .OrderBy(k => k.Codigo)
-                .ThenBy(k => k.Fecha)
+                .OrderBy(k => k.Fecha)
+                .ThenBy(k => k.IdAlmacen)
+                .ThenBy(k => k.Codigo)
+                .ThenBy(k => k.IdKardex)
                 .ToListAsync();
+
 
             var calculado = resultado
                 .GroupBy(k => new { k.IdAlmacen, k.Codigo })
@@ -128,11 +132,27 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToList();
 
-            return Ok(calculado
-                .OrderBy(k => k.Codigo)
-                .ThenBy(k => k.IdAlmacen)
-                .ThenBy(k => k.Fecha)
-                .ThenBy(k => k.IdKardex));
+            var comparador = StringComparer.OrdinalIgnoreCase;
+
+            var resultadoOrdenado = string.Equals(ordenAlmacen, "desc", StringComparison.OrdinalIgnoreCase)
+                ? calculado
+                    .OrderByDescending(k => k.Almacen ?? string.Empty, comparador)
+                    .ThenBy(k => k.Fecha ?? DateOnly.MinValue)
+                    .ThenBy(k => k.Codigo, comparador)
+                    .ThenBy(k => k.IdKardex)
+                : string.Equals(ordenAlmacen, "asc", StringComparison.OrdinalIgnoreCase)
+                    ? calculado
+                        .OrderBy(k => k.Almacen ?? string.Empty, comparador)
+                        .ThenBy(k => k.Fecha ?? DateOnly.MinValue)
+                        .ThenBy(k => k.Codigo, comparador)
+                        .ThenBy(k => k.IdKardex)
+                    : calculado
+                        .OrderBy(k => k.Fecha ?? DateOnly.MinValue)
+                        .ThenBy(k => k.Almacen ?? string.Empty, comparador)
+                        .ThenBy(k => k.Codigo, comparador)
+                        .ThenBy(k => k.IdKardex);
+
+            return Ok(resultadoOrdenado);
         }
     }
 }

@@ -8,6 +8,8 @@
 @inject NavigationManager Navigation
 @inject AlmacenService AlmacenService
 @inject UsuarioService UsuarioService
+@inject IJSRuntime JS
+
 
 <h3>Registrar @tituloNaturaleza</h3>
 
@@ -228,6 +230,13 @@
     private async Task Guardar()
     {
         if (guardando) return;
+
+        if (registro.Tipo == "PAGO PROVEEDORES" && !registro.IdProveedor.HasValue)
+        {
+            await JS.InvokeVoidAsync("alert", "Debe seleccionar un proveedor antes de guardar.");
+            return;
+        }
+
         guardando = true;
         try
         {

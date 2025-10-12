@@ -65,6 +65,7 @@ namespace GSCommerceAPI.Controllers
                     IdPersonal = p.IdPersonal,
                     Nombres = p.Nombres,
                     Apellidos = p.Apellidos,
+                    Estado = p.Estado,
                     Cargo = p.Cargo,
                     IdAlmacen = p.IdAlmacen,
                     IdAlmacenNavigation = p.IdAlmacenNavigation == null ? null : new AlmacenDTO

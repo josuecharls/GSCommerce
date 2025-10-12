@@ -21,7 +21,8 @@ namespace GSCommerce.Client.Services
             DateTime fechaDesde,
             DateTime fechaHasta,
             string? familia = null,
-            string? linea = null)
+            string? linea = null,
+            string? ordenAlmacen = null)
         {
             try
             {
@@ -36,7 +37,11 @@ namespace GSCommerce.Client.Services
                 if (!string.IsNullOrWhiteSpace(linea))
                     url += $"&linea={Uri.EscapeDataString(linea)}";
 
+                if (!string.IsNullOrWhiteSpace(ordenAlmacen))
+                    url += $"&ordenAlmacen={Uri.EscapeDataString(ordenAlmacen)}";
+
                 var result = await _httpClient.GetFromJsonAsync<List<KardexDetalladoDTO>>(url);
+
                 return result ?? new List<KardexDetalladoDTO>();
             }
             catch (Exception ex)

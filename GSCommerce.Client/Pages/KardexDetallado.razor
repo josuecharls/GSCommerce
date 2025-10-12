@@ -2,6 +2,7 @@
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using System.Linq
+@using System
 @inject KardexDetalladoService KardexDetalladoService
 @inject AlmacenService AlmacenService
 @inject AuthService AuthService
@@ -25,15 +26,15 @@
                 }
             </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label>Desde</label>
             <input type="date" class="form-control" @bind="fechaDesde" />
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label>Hasta</label>
             <input type="date" class="form-control" @bind="fechaHasta" />
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label>Código o Nombre</label>
             <input type="text" class="form-control" @bind="textoBusqueda" @onkeypress="OnKeyEnter" />
         </div>
@@ -75,7 +76,9 @@
                 <table class="table table-striped table-bordered">
                     <thead class="table-light">
                         <tr>
-                            <th>Almacén</th>
+                            <th @onclick="ToggleOrdenAlmacen" style="cursor: pointer;">
+                                <i class="bi @(GetOrdenAlmacenIcon()) me-1"></i>Almacén
+                            </th>
                             <th>Familia</th>
                             <th>Línea</th>
                             <th>Código</th>
@@ -115,7 +118,9 @@
                 <table class="table table-striped table-bordered">
                     <thead class="table-light">
                         <tr>
-                            <th>Almacén</th>
+                            <th @onclick="ToggleOrdenAlmacen" style="cursor: pointer;">
+                                <i class="bi @(GetOrdenAlmacenIcon()) me-1"></i>Almacén
+                            </th>
                             <th>Familia</th>
                             <th>Línea</th>
                             <th>Código</th>
@@ -230,6 +235,7 @@
     private bool valorizado = false;
     private bool showPhotoModal = false;
     private string? photoUrl;
+    private string ordenAlmacen = "asc";
 
     protected override async Task OnInitializedAsync()
     {
@@ -247,20 +253,62 @@
     private async Task BuscarKardex()
     {
         isLoading = true;
-        kardexData = await KardexDetalladoService.ObtenerKardexDetallado(
-            textoBusqueda,
-            idAlmacen == 0 ? null : idAlmacen,
-            fechaDesde,
-            fechaHasta,
-            familia,
-            linea
-        );
-        kardexData = kardexData
-            .OrderBy(k => k.Codigo)
-            .ThenBy(k => k.Fecha)
-            .ToList();
-        isLoading = false;
+        try
+        {
+            kardexData = await KardexDetalladoService.ObtenerKardexDetallado(
+                textoBusqueda,
+                idAlmacen == 0 ? null : idAlmacen,
+                fechaDesde,
+                fechaHasta,
+                familia,
+                linea,
+                ordenAlmacen
+            );
+
+            ApplyAlmacenOrdering();
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
+
+    private void ToggleOrdenAlmacen()
+    {
+        if (isLoading)
+        {
+            return;
+        }
+
+        ordenAlmacen = ordenAlmacen.Equals("asc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
+        ApplyAlmacenOrdering();
+    }
+
+    private void ApplyAlmacenOrdering()
+    {
+        var comparador = StringComparer.OrdinalIgnoreCase;
+
+        kardexData = (ordenAlmacen.Equals("desc", StringComparison.OrdinalIgnoreCase)
+                ? kardexData
+                    .OrderByDescending(k => k.Almacen ?? string.Empty, comparador)
+                    .ThenBy(k => k.Fecha ?? DateTime.MinValue)
+                    .ThenBy(k => k.Codigo, comparador)
+                    .ThenBy(k => k.IdKardex)
+                : kardexData
+                    .OrderBy(k => k.Almacen ?? string.Empty, comparador)
+                    .ThenBy(k => k.Fecha ?? DateTime.MinValue)
+                    .ThenBy(k => k.Codigo, comparador)
+                    .ThenBy(k => k.IdKardex))
+            .ToList();
+    }
+
+    private string GetOrdenAlmacenIcon()
+    {
+        return ordenAlmacen.Equals("desc", StringComparison.OrdinalIgnoreCase)
+            ? "bi-arrow-down"
+            : "bi-arrow-up";
+    }
+
 
     private async Task ExportarAExcel()
     {
