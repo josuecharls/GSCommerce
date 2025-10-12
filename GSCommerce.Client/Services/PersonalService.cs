@@ -16,10 +16,15 @@ namespace GSCommerce.Client.Services
             _httpClient = httpClient;
         }
 
-        public async Task<PersonalResponse> GetPersonalList(int page, int pageSize, string search = "")
+        public async Task<PersonalResponse> GetPersonalList(int page, int pageSize, string search = "", bool incluirInactivos = false)
         {
-            var response = await _httpClient.GetFromJsonAsync<PersonalResponse>(
-                $"api/personal?page={page}&pageSize={pageSize}&search={search}");
+            var url = $"api/personal?page={page}&pageSize={pageSize}&search={search}";
+            if (incluirInactivos)
+            {
+                url += "&incluirInactivos=true";
+            }
+            
+            var response = await _httpClient.GetFromJsonAsync<PersonalResponse>(url);
 
             return response ?? new PersonalResponse
             {
@@ -72,6 +77,12 @@ namespace GSCommerce.Client.Services
         public async Task<bool> DeletePersonal(int id)
         {
             var response = await _httpClient.DeleteAsync($"api/personal/{id}");
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> HabilitarPersonal(int id)
+        {
+            var response = await _httpClient.PutAsync($"api/personal/{id}/habilitar", null);
             return response.IsSuccessStatusCode;
         }
 

@@ -54,13 +54,10 @@
     }
 </div>
 <div class="row mb-3">
-    <div class="col d-flex justify-content-end">
-        @if (cargo == "CAJERO")
+    <div class="col d-flex justify-content-end gap-2">
+        @if (cargo == "CAJERO" || cargo == "ADMINISTRADOR")
         {
             <button class="btn btn-success" @onclick="ExportarExcel"><i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel</button>
-        }
-        else if (cargo == "ADMINISTRADOR")
-        {
             <button class="btn btn-danger" @onclick="ExportarPDF"><i class="bi bi-filetype-pdf"></i> Descargar PDF</button>
         }
     </div>

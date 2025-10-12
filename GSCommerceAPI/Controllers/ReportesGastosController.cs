@@ -42,6 +42,19 @@ public class ReportesGastosController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<ReporteGastosInversionDTO>>> Obtener([FromQuery] int anio, [FromQuery] int mes, [FromQuery] int? idAlmacen)
     {
+        // Restricción: Solo usuarios específicos pueden acceder a este reporte
+        var userIdClaim = User.FindFirst("userId")?.Value;
+        if (!int.TryParse(userIdClaim, out var userId))
+        {
+            return Forbid("Usuario no válido.");
+        }
+
+        var usuariosAutorizados = new[] { 4033, 4004, 4027, 4023 };
+        if (!usuariosAutorizados.Contains(userId))
+        {
+            return Forbid("No tiene permisos para acceder a este reporte.");
+        }
+
         if (mes is < 1 or > 12)
         {
             return BadRequest("Mes inválido.");
@@ -54,6 +67,19 @@ public class ReportesGastosController : ControllerBase
     [HttpPost("detalles")]
     public async Task<IActionResult> GuardarDetalles([FromBody] GuardarReporteGastosRequest request)
     {
+        // Restricción: Solo usuarios específicos pueden acceder a este reporte
+        var userIdClaim = User.FindFirst("userId")?.Value;
+        if (!int.TryParse(userIdClaim, out var userId))
+        {
+            return Forbid("Usuario no válido.");
+        }
+
+        var usuariosAutorizados = new[] { 4033, 4004, 4027, 4023 };
+        if (!usuariosAutorizados.Contains(userId))
+        {
+            return Forbid("No tiene permisos para acceder a este reporte.");
+        }
+
         if (request is null)
         {
             return BadRequest("Datos inválidos.");
@@ -103,6 +129,19 @@ public class ReportesGastosController : ControllerBase
     [HttpPost("alquiler")]
     public async Task<IActionResult> GuardarAlquiler([FromBody] GuardarReporteGastosAlquilerRequest request)
     {
+        // Restricción: Solo usuarios específicos pueden acceder a este reporte
+        var userIdClaim = User.FindFirst("userId")?.Value;
+        if (!int.TryParse(userIdClaim, out var userId))
+        {
+            return Forbid("Usuario no válido.");
+        }
+
+        var usuariosAutorizados = new[] { 4033, 4004, 4027, 4023 };
+        if (!usuariosAutorizados.Contains(userId))
+        {
+            return Forbid("No tiene permisos para acceder a este reporte.");
+        }
+
         if (request is null)
         {
             return BadRequest("Datos inválidos.");
@@ -139,6 +178,19 @@ public class ReportesGastosController : ControllerBase
     [HttpGet("exportar")]
     public async Task<IActionResult> Exportar([FromQuery] int anio, [FromQuery] int mes, [FromQuery] int? idAlmacen)
     {
+        // Restricción: Solo usuarios específicos pueden acceder a este reporte
+        var userIdClaim = User.FindFirst("userId")?.Value;
+        if (!int.TryParse(userIdClaim, out var userId))
+        {
+            return Forbid("Usuario no válido.");
+        }
+
+        var usuariosAutorizados = new[] { 4033, 4004, 4027, 4023 };
+        if (!usuariosAutorizados.Contains(userId))
+        {
+            return Forbid("No tiene permisos para acceder a este reporte.");
+        }
+
         if (mes is < 1 or > 12)
         {
             return BadRequest("Mes inválido.");

@@ -1,11 +1,13 @@
 ﻿@page "/descuentos"
 @**@
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.WebUtilities
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject DescuentoService DescuentoService
 @inject AlmacenService AlmacenService
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <h3>Gestión de Descuentos</h3>
 
@@ -80,6 +82,17 @@ else
     protected override async Task OnInitializedAsync()
     {
         tiendas = await AlmacenService.GetAlmacenes() ?? new List<AlmacenDTO>();
+        
+        // Leer el parámetro de almacén de la URL
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("almacen", out var almacenParam))
+        {
+            if (int.TryParse(almacenParam, out var almacenId))
+            {
+                idAlmacen = almacenId;
+                await CargarDescuentos();
+            }
+        }
     }
 
     private async Task CargarDescuentos()

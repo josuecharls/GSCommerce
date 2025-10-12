@@ -82,7 +82,7 @@ else
 
     private async Task AgregarDetalle()
     {
-        if (!string.IsNullOrWhiteSpace(nuevo.IdArticulo) && nuevo.Cantidad > 0)
+        if (!string.IsNullOrWhiteSpace(nuevo.IdArticulo) && nuevo.Cantidad >= 0)
         {
             var ok = await TIService.AgregarDetalleAsync(id, nuevo);
             if (ok)
@@ -99,7 +99,7 @@ else
 
     private async Task ActualizarDetalle(TomaInventarioDetalleDTO item)
     {
-        if (item.Cantidad > 0)
+        if (item.Cantidad >= 0)
         {
             var ok = await TIService.ActualizarDetalleAsync(id, item);
             if (ok)

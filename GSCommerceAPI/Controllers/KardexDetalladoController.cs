@@ -130,6 +130,7 @@ namespace GSCommerceAPI.Controllers
 
             return Ok(calculado
                 .OrderBy(k => k.Codigo)
+                .ThenBy(k => k.IdAlmacen)
                 .ThenBy(k => k.Fecha)
                 .ThenBy(k => k.IdKardex));
         }

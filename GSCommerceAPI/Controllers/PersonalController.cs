@@ -27,12 +27,19 @@ namespace GSCommerceAPI.Controllers
         public async Task<IActionResult> GetPersonals(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
-            [FromQuery] string? search = null)
+            [FromQuery] string? search = null,
+            [FromQuery] bool? incluirInactivos = null)
         {
             var query = _context.Personals
                 .Include(p => p.IdAlmacenNavigation)
-                .Where(p => p.Estado)
                 .AsQueryable();
+
+            // Si no se especifica incluirInactivos, por defecto solo mostrar activos
+            // Si se especifica true, mostrar todos (activos e inactivos)
+            if (incluirInactivos != true)
+            {
+                query = query.Where(p => p.Estado);
+            }
 
             if (!string.IsNullOrEmpty(search))
             {
@@ -312,7 +319,7 @@ namespace GSCommerceAPI.Controllers
             return NoContent();
         }
 
-        // DELETE: api/personal/5 (Eliminar un registro)
+        // DELETE: api/personal/5 (Inhabilitar un registro)
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePersonal(int id)
         {
@@ -328,6 +335,28 @@ namespace GSCommerceAPI.Controllers
             }
 
             personal.Estado = false;
+            _context.Entry(personal).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        // PUT: api/personal/5/habilitar (Habilitar un registro)
+        [HttpPut("{id}/habilitar")]
+        public async Task<IActionResult> HabilitarPersonal(int id)
+        {
+            if (User.IsInRole("CAJERO"))
+            {
+                return Forbid();
+            }
+
+            var personal = await _context.Personals.FindAsync(id);
+            if (personal == null)
+            {
+                return NotFound();
+            }
+
+            personal.Estado = true;
             _context.Entry(personal).State = EntityState.Modified;
             await _context.SaveChangesAsync();
 

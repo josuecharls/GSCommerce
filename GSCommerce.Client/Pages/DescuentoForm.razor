@@ -121,8 +121,8 @@ else
             await DescuentoService.ModificarDescuento(idAlmacen, codigo, porcentaje);
         }
 
-        Navigation.NavigateTo("/descuentos");
+        Navigation.NavigateTo($"/descuentos?almacen={idAlmacen}");
     }
 
-    private void Cancelar() => Navigation.NavigateTo("/descuentos");
+    private void Cancelar() => Navigation.NavigateTo($"/descuentos?almacen={idAlmacen}");
 }

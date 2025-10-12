@@ -227,6 +227,6 @@
         photoUrl = null;
     }
 
-    private decimal TotalMonto => lista.Sum(item => item.Monto);
+    private decimal TotalMonto => lista.Where(item => item.Estado == "E").Sum(item => item.Monto);
 
 }

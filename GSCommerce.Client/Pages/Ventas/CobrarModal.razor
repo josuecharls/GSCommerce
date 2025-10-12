@@ -4,6 +4,7 @@
 @using System
 @inject TipoPagoVentaService TipoPagoVentaService
 @inject NotaCreditoService NotaCreditoService
+@inject IJSRuntime JS
 
 
 <div class="modal fade @(Mostrar ? "show d-block" : "")" tabindex="-1" role="dialog">
@@ -322,7 +323,23 @@
         notasCreditoDisponibles = notas
             .Where(n => n.Empleada != true && string.IsNullOrEmpty(n.Comprobante))
             .ToList();
+
+        // Restricción: Si es TICKET, no permitir notas de crédito de BOLETAS
+        if (TipoDocumento == "TICKET")
+        {
+            notasCreditoDisponibles = notasCreditoDisponibles
+                .Where(n => !EsNotaCreditoDeBoleta(n))
+                .ToList();
+        }
+
         await InvokeAsync(StateHasChanged);
+    }
+
+    private bool EsNotaCreditoDeBoleta(NotaCreditoConsultaDTO nota)
+    {
+        // Las notas de crédito de boletas tienen serie que empieza con "B"
+        // y no son de tipo TICKET (ID 4)
+        return nota.Serie.StartsWith("B", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task BuscarNotaCredito()
@@ -339,6 +356,13 @@
             var nota = await NotaCreditoService.BuscarPorDocumentoAsync(partes[0], numero);
             if (nota != null && nota.Empleada != true && string.IsNullOrEmpty(nota.Comprobante))
             {
+                // Restricción: Si es TICKET, no permitir notas de crédito de BOLETAS
+                if (TipoDocumento == "TICKET" && EsNotaCreditoDeBoleta(nota))
+                {
+                    await JS.InvokeVoidAsync("alert", "No se puede usar una nota de crédito de boleta en un ticket.");
+                    return;
+                }
+
                 notaCreditoSeleccionada = nota;
                 var restante = MontoTotal - TotalPagado;
                 montoPago = Math.Min(nota.Total, restante > 0 ? restante : 0);
