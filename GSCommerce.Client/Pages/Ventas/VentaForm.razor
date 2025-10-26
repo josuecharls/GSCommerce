@@ -37,63 +37,93 @@
         <button class="btn btn-outline-secondary" @onclick="() => mostrarArticuloModal = true"><i class="bi bi-search"></i> Buscar</button>
     </div>
 
+    <div class="row g-3 align-items-start">
+        <div class="col-lg-8">
+            <div class="mb-3">
+                <label>Tipo de Documento:</label>
+                <select class="form-select" @onchange="OnTipoDocumentoChanged">
+                    @if (EsVentaNormal)
+                    {
+                        <option>BOLETA</option>
+                        <option>FACTURA</option>
+                    }
+                    else if (EsCajaManual)
+                    {
+                        <option>TICKET</option>
+                        <option>BOLETA M</option>
+                        <option>FACTURA M</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label>Vendedor:</label>
+                <select class="form-select" @onchange="OnVendedorChanged">
+                    <option value="">-- Seleccione --</option>
+                    @foreach (var v in vendedores)
+                    {
+                        <option value="@v.IdPersonal">@($"{v.Nombres} {v.Apellidos}")</option>
+                    }
+                </select>
+            </div>
 
-    <div class="mb-3">
-        <label>Tipo de Documento:</label>
-        <select class="form-select" @onchange="OnTipoDocumentoChanged">
-            @if (EsVentaNormal)
-            {
-                <option>BOLETA</option>
-                <option>FACTURA</option>
-            }
-            else if (EsCajaManual)
-            {
-                <option>TICKET</option>
-                <option>BOLETA M</option>
-                <option>FACTURA M</option>
-            }
-        </select>
-    </div>
-    <div class="mb-3">
-        <label>Vendedor:</label>
-        <select class="form-select" @onchange="OnVendedorChanged">
-            <option value="">-- Seleccione --</option>
-            @foreach (var v in vendedores)
-            {
-                <option value="@v.IdPersonal">@($"{v.Nombres} {v.Apellidos}")</option>
-            }
-        </select>
-    </div>
+            <div class="mb-3">
+                <label>Serie:</label>
+                <input class="form-control" disabled
+                       value="@ObtenerSerieConPrefijo()" />
+            </div>
+            <div class="mb-3">
+                <label>Número:</label>
+                <input class="form-control" value="@venta.Numero.ToString("D8")" disabled />
+            </div>
 
-    <div class="mb-3">
-        <label>Serie:</label>
-        <input class="form-control" disabled
-               value="@ObtenerSerieConPrefijo()" />
-    </div>
-    <div class="mb-3">
-        <label>Número:</label>
-        <input class="form-control" value="@venta.Numero.ToString("D8")" disabled />
-    </div>
-
-    @if (RequiereCliente)
-    {
-        <div class="mb-3">
-            <label>Cliente (DNI o RUC):</label>
-            <InputText class="form-control" @bind-Value="venta.DocumentoCliente" @onblur="BuscarClientePorDocumento" />
-
-            @if (!string.IsNullOrEmpty(ValidarDocumentoCliente()))
+            @if (RequiereCliente)
             {
-                <div class="text-danger">@ValidarDocumentoCliente()</div>
+                <div class="mb-3">
+                    <label>Cliente (DNI o RUC):</label>
+                    <InputText class="form-control" @bind-Value="venta.DocumentoCliente" @onblur="BuscarClientePorDocumento" />
+
+                    @if (!string.IsNullOrEmpty(ValidarDocumentoCliente()))
+                    {
+                        <div class="text-danger">@ValidarDocumentoCliente()</div>
+                    }
+                </div>
+
+                <div class="mb-3">
+                    <label>Nombre Cliente:</label>
+                    <InputText class="form-control" @bind-Value="venta.NombreCliente" />
+                </div>
             }
+
+            <button class="btn btn-primary mb-3" @onclick="AgregarProducto">+ Agregar Producto</button>
         </div>
-
-        <div class="mb-3">
-            <label>Nombre Cliente:</label>
-            <InputText class="form-control" @bind-Value="venta.NombreCliente" />
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">Foto del artículo</div>
+                @if (!string.IsNullOrWhiteSpace(fotoArticuloSeleccionada))
+                {
+                    <img src="@fotoArticuloSeleccionada" alt="@descripcionArticuloSeleccionada" class="card-img-top" style="object-fit: contain; max-height: 280px;" />
+                    <div class="card-body">
+                        <p class="card-text small mb-0 text-muted">@descripcionArticuloSeleccionada</p>
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(descripcionArticuloSeleccionada))
+                {
+                    <div class="card-body text-center text-muted d-flex flex-column justify-content-center align-items-center" style="min-height: 200px;">
+                        <i class="bi bi-image fs-2 mb-2"></i>
+                        <span>No hay foto disponible para este artículo.</span>
+                        <span class="small mt-2">@descripcionArticuloSeleccionada</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="card-body text-center text-muted d-flex flex-column justify-content-center align-items-center" style="min-height: 200px;">
+                        <i class="bi bi-image fs-2 mb-2"></i>
+                        <span>Selecciona un artículo para ver su foto.</span>
+                    </div>
+                }
+            </div>
         </div>
-    }
-
-    <button class="btn btn-primary mb-3" @onclick="AgregarProducto">+ Agregar Producto</button>
+    </div>
 
     <table class="table">
         <thead>
@@ -111,8 +141,15 @@
         <tbody>
             @foreach (var detalle in venta.Detalles)
             {
-                <tr>
-                    <td>@detalle.Item</td>
+                <tr class="@ObtenerClaseFila(detalle)">
+                    <td>
+                        <button type="button"
+                                class="btn btn-link p-0 text-decoration-none"
+                                title="Ver foto del artículo"
+                                @onclick="() => SeleccionarDetalleAsync(detalle)">
+                            @detalle.Item
+                        </button>
+                    </td>
                     <td><input class="form-control" @bind="detalle.CodigoItem" disabled /></td>
                     <td><input class="form-control" @bind="detalle.DescripcionItem" disabled /></td>
                     <td>
@@ -184,6 +221,9 @@ else
     private List<DetallePagoDTO> pagosRealizados = new();
     private bool ventaCobrada = false;
     private bool mostrarArticuloModal = false;
+    private string? fotoArticuloSeleccionada;
+    private string? descripcionArticuloSeleccionada;
+    private int? itemSeleccionado;
 
     private DateTime ultimaEntrada = DateTime.MinValue;
     private bool entradaManual = false;
@@ -325,6 +365,33 @@ else
         await BuscarCodigoAsync();
     }
 
+    private void ActualizarArticuloSeleccionado(ArticuloDTO articulo, string descripcionMostrada)
+    {
+        descripcionArticuloSeleccionada = descripcionMostrada;
+
+        if (!string.IsNullOrWhiteSpace(articulo.Foto))
+        {
+            var foto = articulo.Foto.Trim();
+
+            if (foto.StartsWith("data:", System.StringComparison.OrdinalIgnoreCase))
+            {
+                fotoArticuloSeleccionada = foto;
+            }
+            else
+            {
+                var base64Data = foto.Contains(',')
+                    ? foto.Substring(foto.IndexOf(',') + 1)
+                    : foto;
+
+                fotoArticuloSeleccionada = $"data:image/jpeg;base64,{base64Data}";
+            }
+        }
+        else
+        {
+            fotoArticuloSeleccionada = null;
+        }
+    }
+
     private async Task OnTipoDocumentoChanged(ChangeEventArgs e)
     {
         venta.TipoDocumento = e.Value?.ToString() ?? "";
@@ -378,11 +445,23 @@ else
 
     private void EliminarProducto(VentaDetalleDTO detalle)
     {
+        int itemEliminado = detalle.Item;
         venta.Detalles.Remove(detalle);
         int item = 1;
         foreach (var d in venta.Detalles)
         {
             d.Item = item++;
+        }
+
+        if (itemSeleccionado.HasValue)
+        {
+            bool itemSigueExistiendo = venta.Detalles.Any(d => d.Item == itemSeleccionado);
+            if (!itemSigueExistiendo || itemSeleccionado == itemEliminado)
+            {
+                itemSeleccionado = null;
+                fotoArticuloSeleccionada = null;
+                descripcionArticuloSeleccionada = null;
+            }
         }
         RecalcularTotales();
     }
@@ -515,7 +594,10 @@ else
             descripcion = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {vsel.Color} {vsel.Talla}";
         }
 
+        ActualizarArticuloSeleccionado(articulo, descripcion);
+
         var existente = venta.Detalles.FirstOrDefault(d => d.CodigoItem == codigo && d.DescripcionItem == descripcion);
+        VentaDetalleDTO? detalleSeleccionado = null;
 
         if (existente != null)
         {
@@ -526,13 +608,16 @@ else
             }
             existente.Cantidad += 1;
             existente.PrecioUnitario = precioUnitario;
+            existente.DescripcionItem = descripcion;
+
 
             // si el precio ya es promocional, no aplicar % otra vez
             if (esPromo) existente.PorcentajeDescuento = 0m;
+            detalleSeleccionado = existente;
         }
         else
         {
-            venta.Detalles.Add(new VentaDetalleDTO
+            var nuevoDetalle = new VentaDetalleDTO
             {
                 Item = venta.Detalles.Count + 1,
                 CodigoItem = articulo.IdArticulo,
@@ -541,10 +626,58 @@ else
                 PrecioUnitario = precioUnitario,
                 // no aplicar % adicional cuando viene precio promo
                 PorcentajeDescuento = esPromo ? 0m : 0m
-            });
+            };
+            venta.Detalles.Add(nuevoDetalle);
+            detalleSeleccionado = nuevoDetalle;
         }
 
         RecalcularTotales();
+
+        if (detalleSeleccionado != null)
+        {
+            itemSeleccionado = detalleSeleccionado.Item;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private string ObtenerClaseFila(VentaDetalleDTO detalle)
+    {
+        return itemSeleccionado == detalle.Item ? "table-active" : string.Empty;
+    }
+
+    private async Task SeleccionarDetalleAsync(VentaDetalleDTO detalle)
+    {
+        itemSeleccionado = detalle.Item;
+
+        if (string.IsNullOrWhiteSpace(detalle.CodigoItem))
+        {
+            fotoArticuloSeleccionada = null;
+            descripcionArticuloSeleccionada = string.IsNullOrWhiteSpace(detalle.DescripcionItem)
+                ? "Este ítem aún no tiene un artículo asignado."
+                : detalle.DescripcionItem;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        var articulo = await articuloService.BuscarPorCodigoAsync(detalle.CodigoItem);
+        if (articulo != null)
+        {
+            var descripcion = string.IsNullOrWhiteSpace(detalle.DescripcionItem)
+                ? articulo.Descripcion
+                : detalle.DescripcionItem;
+
+            ActualizarArticuloSeleccionado(articulo, descripcion);
+        }
+        else
+        {
+            fotoArticuloSeleccionada = null;
+            descripcionArticuloSeleccionada = string.IsNullOrWhiteSpace(detalle.DescripcionItem)
+                ? "No se encontró información del artículo seleccionado."
+                : detalle.DescripcionItem;
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task AbrirCobrar(bool enDolares)
@@ -1005,6 +1138,9 @@ else
 
         pagosRealizados.Clear();
         ventaCobrada = false;
+        fotoArticuloSeleccionada = null;
+        descripcionArticuloSeleccionada = null;
+        itemSeleccionado = null;
 
         await CargarSeriePorTipoYAlmacen();
         await Task.Delay(50);

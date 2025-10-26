@@ -23,21 +23,21 @@
     @if (cargo == "ADMINISTRADOR")
     {
         <div class="col-md-3">
-            <label>Almacén:</label>
-            <select class="form-select" @bind="selectedAlmacen">
-                <option value="0">Todos</option>
-                @foreach (var alm in almacenes)
+            <label>Razón social:</label>
+            <select class="form-select" @bind="selectedRazonSocial">
+                <option value="">Todas</option>
+                @foreach (var razon in razonesSociales)
                 {
-                    <option value="@alm.IdAlmacen">@alm.Nombre</option>
+                    <option value="@razon">@razon</option>
                 }
             </select>
         </div>
     }
-    else if (almacenes.Any())
+    else if (!string.IsNullOrWhiteSpace(razonSocialUsuarioDisplay))
     {
         <div class="col-md-3">
-            <label>Almacén:</label>
-            <input class="form-control" value="@almacenes.First().Nombre" disabled />
+            <label>Razón social:</label>
+            <input class="form-control" value="@razonSocialUsuarioDisplay" disabled />
         </div>
     }
     <div class="col-md-3 d-flex align-items-end">
@@ -168,8 +168,10 @@ else
     private DateTime hasta = DateTime.Today;
     private List<PagoTarjetaOnlineResumenDTO> totales = new();
     private List<PagoTarjetaOnlineDetalleDTO> detalles = new();
-    private List<AlmacenDTO> almacenes = new();
-    private int selectedAlmacen;
+    private List<string> razonesSociales = new();
+    private string selectedRazonSocial = string.Empty;
+    private string razonSocialUsuarioFiltro = string.Empty;
+    private string razonSocialUsuarioDisplay = string.Empty;
     private string cargo = string.Empty;
     private bool cargando;
 
@@ -185,16 +187,24 @@ else
 
         if (cargo == "ADMINISTRADOR")
         {
-            almacenes = await AlmacenService.GetAlmacenes() ?? new();
-            selectedAlmacen = 0;
+            var almacenes = await AlmacenService.GetAlmacenes() ?? new();
+            razonesSociales = almacenes
+                .Select(a => a.RazonSocial?.Trim())
+                .Where(rs => !string.IsNullOrWhiteSpace(rs))
+                .Distinct(System.StringComparer.OrdinalIgnoreCase)
+                .OrderBy(rs => rs)
+                .ToList();
         }
         else if (almacenUsuario.HasValue)
         {
-            selectedAlmacen = almacenUsuario.Value;
-            var almacen = await AlmacenService.GetAlmacenById(selectedAlmacen);
+            var almacen = await AlmacenService.GetAlmacenById(almacenUsuario.Value);
             if (almacen != null)
             {
-                almacenes = new List<AlmacenDTO> { almacen };
+                razonSocialUsuarioFiltro = almacen.RazonSocial?.Trim() ?? string.Empty;
+                razonSocialUsuarioDisplay = !string.IsNullOrWhiteSpace(almacen.RazonSocial)
+                    ? almacen.RazonSocial.Trim()
+                    : (almacen.Nombre ?? string.Empty);
+                selectedRazonSocial = razonSocialUsuarioFiltro;
             }
         }
 
@@ -206,11 +216,11 @@ else
         cargando = true;
         try
         {
-            int? filtroAlmacen = cargo == "ADMINISTRADOR"
-                ? (selectedAlmacen > 0 ? selectedAlmacen : (int?)null)
-                : (selectedAlmacen > 0 ? selectedAlmacen : (int?)null);
+            string? filtroRazonSocial = cargo == "ADMINISTRADOR"
+                ? (string.IsNullOrWhiteSpace(selectedRazonSocial) ? null : selectedRazonSocial)
+                : (string.IsNullOrWhiteSpace(razonSocialUsuarioFiltro) ? null : razonSocialUsuarioFiltro);
 
-            var resultado = await ReporteService.ObtenerPagosTarjetaOnline(desde, hasta, filtroAlmacen);
+            var resultado = await ReporteService.ObtenerPagosTarjetaOnline(desde, hasta, filtroRazonSocial);
             totales = resultado.Totales?.OrderBy(t => t.Tipo).ThenBy(t => t.Descripcion).ToList() ?? new();
             detalles = resultado.Detalles?.OrderBy(d => d.Fecha).ThenBy(d => d.Serie).ThenBy(d => d.Numero).ToList() ?? new();
         }

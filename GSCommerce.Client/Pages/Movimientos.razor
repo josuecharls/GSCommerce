@@ -7,7 +7,7 @@
 
 <div class="d-flex gap-4 flex-wrap">
 
-    @if (cargo == "ADMINISTRADOR" || cargo == "CAJERO")
+    @if (cargo == "ADMINISTRADOR" || cargo == "CAJERO" || cargo == "ALMACEN")
     {
         <div class="card text-center shadow-lg p-3"
              style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
@@ -45,7 +45,7 @@
         </div>
     }
 
-    @if (cargo == "ADMINISTRADOR")
+    @if (cargo == "ADMINISTRADOR" || cargo == "ALMACEN")
     {
         <div class="card text-center shadow-lg p-3"
              style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"

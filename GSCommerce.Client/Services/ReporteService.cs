@@ -151,11 +151,11 @@ public class ReporteService
         var resp = await _http.GetFromJsonAsync<List<ReporteUtilidadTiendasDTO>>(url);
         return resp ?? new();
     }
-    public async Task<ReportePagosTarjetaOnlineResponseDTO> ObtenerPagosTarjetaOnline(DateTime desde, DateTime hasta, int? idAlmacen = null)
+    public async Task<ReportePagosTarjetaOnlineResponseDTO> ObtenerPagosTarjetaOnline(DateTime desde, DateTime hasta, string? razonSocial = null)
     {
         var url = $"api/ventas/reporte-pagos-tarjeta-online?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
-        if (idAlmacen.HasValue && idAlmacen.Value > 0)
-            url += $"&idAlmacen={idAlmacen.Value}";
+        if (!string.IsNullOrWhiteSpace(razonSocial))
+            url += $"&razonSocial={System.Uri.EscapeDataString(razonSocial)}";
 
         var resp = await _http.GetFromJsonAsync<ReportePagosTarjetaOnlineResponseDTO>(url);
         return resp ?? new ReportePagosTarjetaOnlineResponseDTO();
