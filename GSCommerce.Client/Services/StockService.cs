@@ -78,5 +78,31 @@ namespace GSCommerce.Client.Services
             var lista = await GetStock(idAlmacen, false, codigoArticulo, 1, 1, 1);
             return lista.Items.FirstOrDefault()?.Stock ?? 0;
         }
+
+        public async Task<List<RepositionAlertDTO>> GetRepositionAlerts(int? idAlmacen = null, int threshold = 10)
+        {
+            try
+            {
+                string url = $"api/stock/reposition-alert?threshold={threshold}";
+                
+                if (idAlmacen.HasValue)
+                {
+                    url += $"&idAlmacen={idAlmacen.Value}";
+                }
+
+                var resultado = await _httpClient.GetFromJsonAsync<List<RepositionAlertDTO>>(url);
+                return resultado ?? new List<RepositionAlertDTO>();
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                Console.WriteLine("Acceso no autorizado al obtener alertas de reposición.");
+                return new List<RepositionAlertDTO>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al obtener alertas de reposición: {ex.Message}");
+                return new List<RepositionAlertDTO>();
+            }
+        }
     }
 }

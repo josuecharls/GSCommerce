@@ -169,6 +169,73 @@ namespace GSCommerceAPI.Controllers
             return Ok(articulos);
         }
 
+        // ✅ GET: api/stock/reposition-alert
+        [HttpGet("reposition-alert")]
+        public async Task<IActionResult> GetRepositionAlert(
+            [FromQuery] int? idAlmacen = null,
+            [FromQuery] int threshold = LowStockThreshold)
+        {
+            var cargo = User.FindFirst("Cargo")?.Value;
+            var esAdministrador = string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
+            
+            if (!esAdministrador)
+            {
+                return Ok(new List<RepositionAlertDTO>());
+            }
+
+            // Buscar almacén PRINCIPAL
+            var almacenPrincipal = await _context.Almacens
+                .FirstOrDefaultAsync(a => a.Nombre.ToUpper().Contains("PRINCIPAL"));
+
+            if (almacenPrincipal == null)
+            {
+                return Ok(new List<RepositionAlertDTO>());
+            }
+
+            var umbral = threshold > 0 ? threshold : LowStockThreshold;
+
+            // Obtener artículos con stock bajo en almacén PRINCIPAL
+            var articulosStockBajo = await _context.VStockXalmacen1s
+                .Where(s => s.IdAlmacen == almacenPrincipal.IdAlmacen && 
+                           s.Stock > 0 && 
+                           (s.Stock <= umbral || 
+                            (s.StockMinimo.HasValue && s.StockMinimo.Value > 0 && s.Stock <= s.StockMinimo.Value)))
+                .Select(s => new { s.IdArticulo, s.Descripcion, s.Stock })
+                .ToListAsync();
+
+            var alertas = new List<RepositionAlertDTO>();
+
+            foreach (var articulo in articulosStockBajo)
+            {
+                // Buscar stock disponible en otros almacenes
+                var stockEnOtrosAlmacenes = await _context.VStockXalmacen1s
+                    .Where(s => s.IdArticulo == articulo.IdArticulo && 
+                               s.IdAlmacen != almacenPrincipal.IdAlmacen && 
+                               s.Stock > 0)
+                    .Select(s => new { s.IdAlmacen, s.Almacen, s.Stock })
+                    .ToListAsync();
+
+                if (stockEnOtrosAlmacenes.Any())
+                {
+                    alertas.Add(new RepositionAlertDTO
+                    {
+                        IdArticulo = articulo.IdArticulo,
+                        Descripcion = articulo.Descripcion,
+                        StockPrincipal = articulo.Stock,
+                        AlmacenesConStock = stockEnOtrosAlmacenes.Select(a => 
+                            new AlmacenStockDTO 
+                            { 
+                                IdAlmacen = a.IdAlmacen, 
+                                Nombre = a.Almacen, 
+                                Stock = a.Stock 
+                            }).ToList()
+                    });
+                }
+            }
+
+            return Ok(alertas);
+        }
+
         private async Task<int?> ResolverIdAlmacenAsync(string? cargo, string? userIdClaim, int? idAlmacenParametro)
         {
             if (EsCajero(cargo))

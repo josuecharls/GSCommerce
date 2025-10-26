@@ -170,10 +170,10 @@ public class ReporteAvanceHoraEmailService : IReporteAvanceHoraEmailService
             var etiquetaAlmacen = ObtenerEtiquetaAlmacen(entrada);
 
             sb.AppendLine($"Almacén: {etiquetaAlmacen}");
-            sb.AppendLine($"Avance en la hora: S/ {entrada.Reporte.TotalVentas.ToString("N2", culture)}");
+            //sb.AppendLine($"Avance en la hora: S/ {entrada.Reporte.TotalVentas.ToString("N2", culture)}");
             sb.AppendLine($"Avance acumulado del día: S/ {entrada.Reporte.TotalVentasDia.ToString("N2", culture)}");
-            sb.AppendLine($"Tickets en la hora: {entrada.Reporte.Tickets}");
-            sb.AppendLine($"Tickets acumulados del día: {entrada.Reporte.TicketsDia}");
+            //sb.AppendLine($"Tickets en la hora: {entrada.Reporte.Tickets}");
+            //sb.AppendLine($"Tickets acumulados del día: {entrada.Reporte.TicketsDia}");
 
             if (index < entradas.Count - 1)
             {

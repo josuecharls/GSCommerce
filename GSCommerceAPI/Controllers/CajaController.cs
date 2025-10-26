@@ -281,6 +281,8 @@ public class CajaController : ControllerBase
         actual.ObservacionCierre = cierre.ObservacionCierre;
         actual.Estado = "C";
 
+        await RecalcularSaldosPosterioresAsync(actual);
+
         await _context.SaveChangesAsync();
         return Ok();
     }
@@ -668,7 +670,7 @@ public class CajaController : ControllerBase
                 {
                     IdGrupo = 1,
                     Grupo = "VENTA POR N.C.",
-                    Detalle = g.Count() == 1 
+                    Detalle = g.Count() == 1
                         ? $"N.C. - {g.Key}-{g.First().Numero:D8}"
                         : $"DEL {g.Key}-{g.Min(x => x.Numero):D8} AL {g.Key}-{g.Max(x => x.Numero):D8}",
                     Monto = g.Sum(x => x.Soles)
@@ -878,7 +880,34 @@ public class CajaController : ControllerBase
         apertura.SaldoFinal = apertura.SaldoInicial;
         apertura.ObservacionCierre = null;
 
+        await RecalcularSaldosPosterioresAsync(apertura);
+
         await _context.SaveChangesAsync();
         return Ok();
+    }
+
+    private async Task RecalcularSaldosPosterioresAsync(AperturaCierreCaja apertura)
+    {
+        var posteriores = await _context.AperturaCierreCajas
+            .Where(c => c.IdUsuario == apertura.IdUsuario &&
+                        c.IdAlmacen == apertura.IdAlmacen &&
+                        c.Fecha > apertura.Fecha)
+            .OrderBy(c => c.Fecha)
+            .ToListAsync();
+
+        var saldoAnterior = apertura.SaldoFinal;
+
+        foreach (var caja in posteriores)
+        {
+            var saldoCalculado = saldoAnterior + caja.VentaDia + caja.Ingresos - caja.Egresos;
+
+            if (caja.SaldoInicial != saldoAnterior || caja.SaldoFinal != saldoCalculado)
+            {
+                caja.SaldoInicial = saldoAnterior;
+                caja.SaldoFinal = saldoCalculado;
+            }
+
+            saldoAnterior = caja.SaldoFinal;
+        }
     }
 }

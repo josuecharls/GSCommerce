@@ -328,12 +328,30 @@ namespace GSCommerceAPI.Controllers
                 await _context.SaveChangesAsync();
 
                 // Si es una transferencia, registrar también el ingreso en el almacén destino
-                if (dto.Motivo == "TRANSFERENCIA EGRESO" && dto.IdAlmacenDestinoOrigen.HasValue)
+                var motivoNormalizado = dto.Motivo?.Trim() ?? string.Empty;
+                var esTransferencia = string.Equals(dto.Tipo?.Trim(), "T", StringComparison.OrdinalIgnoreCase);
+                var motivoTransferenciaEgreso = "TRANSFERENCIA EGRESO";
+                var esTransferenciaEgreso = esTransferencia
+                    && string.Equals(motivoNormalizado, motivoTransferenciaEgreso, StringComparison.OrdinalIgnoreCase);
+
+                if (esTransferencia && (!dto.IdAlmacenDestinoOrigen.HasValue || dto.IdAlmacenDestinoOrigen.Value <= 0))
                 {
+                    await transaction.RollbackAsync();
+                    return BadRequest(new { mensaje = "Debe indicar el almacén destino para registrar una transferencia." });
+                }
+
+                if (esTransferencia)
+                {
+                    if (!esTransferenciaEgreso)
+                    {
+                        motivoNormalizado = motivoTransferenciaEgreso;
+                        dto.Motivo = motivoTransferenciaEgreso;
+                    }
+
                     var ingreso = new MovimientosCabecera
                     {
                         IdAlmacen = dto.IdAlmacenDestinoOrigen.Value,
-                        Tipo = dto.Tipo,
+                        Tipo = "T",
                         Motivo = "TRANSFERENCIA INGRESO",
                         Fecha = DateOnly.FromDateTime(dto.Fecha == default ? DateTime.Now : dto.Fecha),
                         Descripcion = dto.Descripcion,

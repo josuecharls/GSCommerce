@@ -53,6 +53,7 @@
                 </div>
             </div>
 
+            @* Alerta de Stock Crítico para CAJEROS *@
             @if (mostrarAlertaStockCritico && articulosStockCritico.Any())
             {
                 <div class="px-3 pt-3">
@@ -82,6 +83,42 @@
                 </div>
             }
 
+            @* Nueva Alerta de Reposición para ADMINISTRADORES *@
+            @if (mostrarAlertaReposicion && articulosReposicion.Any())
+            {
+                <div class="px-3 pt-3">
+                    <div class="alert alert-info alert-dismissible fade show d-flex align-items-start" role="alert">
+                        <i class="bi bi-arrow-repeat fs-4 me-2 mt-1"></i>
+                        <div class="flex-grow-1">
+                            <strong>Alerta de Reposición - Almacén PRINCIPAL</strong>
+                            <ul class="mb-0 mt-2 ps-3">
+                                @foreach (var articulo in articulosReposicion.Take(MaxArticulosAlert))
+                                {
+                                    <li>
+                                        <strong>@articulo.Descripcion</strong> (Stock: @articulo.StockPrincipal)
+                                        <br>
+                                        <small class="text-muted">
+                                            Disponible en: @string.Join(", ", articulo.AlmacenesConStock.Select(a => $"{a.Nombre} ({a.Stock})"))
+                                        </small>
+                                    </li>
+                                }
+                            </ul>
+                            @if (articulosReposicion.Count > MaxArticulosAlert)
+                            {
+                                <small class="d-block mt-2">Y @((articulosReposicion.Count - MaxArticulosAlert)) artículo(s) más para reposición.</small>
+                            }
+                            <small class="d-block mt-2">Considera transferir stock desde otros almacenes.</small>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-light mt-3"
+                                    @onclick="SuprimirAlertaReposicionHastaNuevoInicioAsync">
+                                No volver a mostrar hasta el próximo inicio de sesión
+                            </button>
+                        </div>
+                        <button type="button" class="btn-close ms-2" aria-label="Cerrar" @onclick="CerrarAlertaReposicion"></button>
+                    </div>
+                </div>
+            }
+
             <div class="content px-4">
                 @Body
             </div>
@@ -97,16 +134,27 @@
     [Inject] ILocalStorageService LocalStorage { get; set; } = null!;
 
     private string? cargo;
+
+    // Variables para alerta de stock crítico (CAJEROS)
     private List<StockDTO> articulosStockCritico = new();
     private bool mostrarAlertaStockCritico;
     private bool consultandoStockCritico;
     private int? idAlmacenUsuario;
-    private bool disposed;
-    private const int StockCriticoUmbral = 10;
-    private const int MaxArticulosAlert = 5;
     private bool suprimirAlertaStockCriticoHastaNuevoInicio;
     private string? claveSupresionAlertaStockCritico;
     private const string ClaveSupresionAlertaStockCriticoPrefix = "stockAlertSuppressed_";
+
+    // Variables para alerta de reposición (ADMINISTRADORES)
+    private List<RepositionAlertDTO> articulosReposicion = new();
+    private bool mostrarAlertaReposicion;
+    private bool consultandoAlertaReposicion;
+    private bool suprimirAlertaReposicionHastaNuevoInicio;
+    private string? claveSupresionAlertaReposicion;
+    private const string ClaveSupresionAlertaReposicionPrefix = "repositionAlertSuppressed_";
+
+    private bool disposed;
+    private const int StockCriticoUmbral = 10;
+    private const int MaxArticulosAlert = 5;
 
     protected override async Task OnInitializedAsync()
     {
@@ -121,8 +169,17 @@
             Navigation.LocationChanged += HandleLocationChanged;
             await ConsultarStockCriticoAsync();
         }
+        else if (cargo == "ADMINISTRADOR")
+        {
+            var idUsuario = await AuthService.GetUserId();
+            claveSupresionAlertaReposicion = ConstruirClaveSupresionReposicion(idUsuario);
+            suprimirAlertaReposicionHastaNuevoInicio = await CargarPreferenciaSupresionReposicionAsync();
+            Navigation.LocationChanged += HandleLocationChanged;
+            await ConsultarAlertaReposicionAsync();
+        }
     }
 
+    // Métodos para alerta de stock crítico (CAJEROS)
     private async Task ConsultarStockCriticoAsync()
     {
         if (cargo != "CAJERO" || consultandoStockCritico)
@@ -142,7 +199,6 @@
                     await InvokeAsync(StateHasChanged);
                 }
             }
-
             return;
         }
 
@@ -187,23 +243,96 @@
         }
     }
 
+    // Métodos para alerta de reposición (ADMINISTRADORES)
+    private async Task ConsultarAlertaReposicionAsync()
+    {
+        if (cargo != "ADMINISTRADOR" || consultandoAlertaReposicion)
+        {
+            return;
+        }
+
+        if (suprimirAlertaReposicionHastaNuevoInicio)
+        {
+            if (mostrarAlertaReposicion)
+            {
+                mostrarAlertaReposicion = false;
+                articulosReposicion.Clear();
+
+                if (!disposed)
+                {
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            return;
+        }
+
+        consultandoAlertaReposicion = true;
+
+        try
+        {
+            var articulos = await StockService.GetRepositionAlerts(null, StockCriticoUmbral);
+
+            articulosReposicion = articulos
+                .OrderBy(a => a.StockPrincipal)
+                .ThenBy(a => a.Descripcion)
+                .ToList();
+
+            if (suprimirAlertaReposicionHastaNuevoInicio)
+            {
+                mostrarAlertaReposicion = false;
+                articulosReposicion.Clear();
+            }
+            else
+            {
+                mostrarAlertaReposicion = articulosReposicion.Any();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error al consultar alerta de reposición: {ex.Message}");
+        }
+        finally
+        {
+            consultandoAlertaReposicion = false;
+        }
+
+        if (!disposed)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     private async void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         try
         {
-            await ConsultarStockCriticoAsync();
+            if (cargo == "CAJERO")
+            {
+                await ConsultarStockCriticoAsync();
+            }
+            else if (cargo == "ADMINISTRADOR")
+            {
+                await ConsultarAlertaReposicionAsync();
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Error al actualizar alerta de stock crítico: {ex.Message}");
+            Console.WriteLine($"❌ Error al actualizar alertas: {ex.Message}");
         }
     }
 
+    // Métodos para cerrar alertas
     private void CerrarAlertaStockCritico()
     {
         mostrarAlertaStockCritico = false;
     }
 
+    private void CerrarAlertaReposicion()
+    {
+        mostrarAlertaReposicion = false;
+    }
+
+    // Métodos para suprimir alertas
     private async Task SuprimirAlertaStockCriticoHastaNuevoInicioAsync()
     {
         suprimirAlertaStockCriticoHastaNuevoInicio = true;
@@ -211,6 +340,18 @@
         articulosStockCritico.Clear();
 
         await GuardarPreferenciaSupresionAsync(true);
+    }
+
+    private async Task SuprimirAlertaReposicionHastaNuevoInicioAsync()
+    {
+        if (claveSupresionAlertaReposicion != null)
+        {
+            await LocalStorage.SetItemAsync(claveSupresionAlertaReposicion, true);
+            suprimirAlertaReposicionHastaNuevoInicio = true;
+            mostrarAlertaReposicion = false;
+            articulosReposicion.Clear();
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task Logout()
@@ -226,24 +367,33 @@
         Navigation.LocationChanged -= HandleLocationChanged;
     }
 
+    // Métodos auxiliares
     private static int? NormalizarIdAlmacen(int? idAlmacen)
     {
         if (!idAlmacen.HasValue || idAlmacen.Value <= 0)
         {
             return null;
         }
-
         return idAlmacen;
     }
 
+    // Métodos para stock crítico
     private string ConstruirClaveSupresionStockCritico(int? usuarioId)
     {
         if (usuarioId.HasValue && usuarioId.Value > 0)
         {
             return $"{ClaveSupresionAlertaStockCriticoPrefix}{usuarioId.Value}";
         }
-
         return $"{ClaveSupresionAlertaStockCriticoPrefix}anon";
+    }
+
+    private string ConstruirClaveSupresionReposicion(int? usuarioId)
+    {
+        if (usuarioId.HasValue && usuarioId.Value > 0)
+        {
+            return $"{ClaveSupresionAlertaReposicionPrefix}{usuarioId.Value}";
+        }
+        return $"{ClaveSupresionAlertaReposicionPrefix}anon";
     }
 
     private async Task<bool> CargarPreferenciaSupresionAsync()
@@ -262,6 +412,15 @@
             Console.WriteLine($"❌ Error al recuperar la preferencia de alerta de stock crítico: {ex.Message}");
             return false;
         }
+    }
+
+    private async Task<bool> CargarPreferenciaSupresionReposicionAsync()
+    {
+        if (claveSupresionAlertaReposicion != null)
+        {
+            return await LocalStorage.GetItemAsync<bool>(claveSupresionAlertaReposicion);
+        }
+        return false;
     }
 
     private async Task GuardarPreferenciaSupresionAsync(bool suprimir)

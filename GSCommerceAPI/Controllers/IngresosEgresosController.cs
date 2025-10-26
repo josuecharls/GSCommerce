@@ -122,36 +122,8 @@ namespace GSCommerceAPI.Controllers
 
             await _context.SaveChangesAsync();
 
-            var apertura = await _context.AperturaCierreCajas
-                .FirstOrDefaultAsync(a => a.IdUsuario == dto.IdUsuario &&
-                                          a.IdAlmacen == dto.IdAlmacen &&
-                                          a.Fecha == DateOnly.FromDateTime(dto.Fecha));
-
-            if (apertura != null)
-            {
-                var fecha = DateOnly.FromDateTime(dto.Fecha);
-
-                var ingresos = await _context.IngresosEgresosCabeceras
-                    .Where(i => i.IdUsuario == dto.IdUsuario &&
-                                i.IdAlmacen == dto.IdAlmacen &&
-                                DateOnly.FromDateTime(i.Fecha) == fecha &&
-                                i.Naturaleza == "I" &&
-                                i.Estado == "E")
-                    .SumAsync(i => (decimal?)i.Monto) ?? 0;
-
-                var egresos = await _context.IngresosEgresosCabeceras
-                    .Where(i => i.IdUsuario == dto.IdUsuario &&
-                                i.IdAlmacen == dto.IdAlmacen &&
-                                DateOnly.FromDateTime(i.Fecha) == fecha &&
-                                i.Naturaleza == "E" &&
-                                i.Estado == "E")
-                    .SumAsync(i => (decimal?)i.Monto) ?? 0;
-
-                apertura.Ingresos = ingresos;
-                apertura.Egresos = egresos;
-                apertura.SaldoFinal = apertura.SaldoInicial + apertura.VentaDia + ingresos - egresos;
-                await _context.SaveChangesAsync();
-            }
+            // Actualizar saldos de caja para la fecha del egreso/ingreso
+            await ActualizarSaldosCajaAsync(dto.IdUsuario, dto.IdAlmacen, dto.Fecha);
 
             // Registrar también como Orden de Compra si es un egreso de pago a proveedores
             if (cabecera.Naturaleza == "E" &&
@@ -224,38 +196,105 @@ namespace GSCommerceAPI.Controllers
             registro.Estado = "A";
             await _context.SaveChangesAsync();
 
-            var fecha = DateOnly.FromDateTime(registro.Fecha);
+            // Actualizar saldos de caja para la fecha del egreso/ingreso anulado
+            await ActualizarSaldosCajaAsync(registro.IdUsuario, registro.IdAlmacen, registro.Fecha);
 
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Actualiza los saldos de caja para una fecha específica y recalcula todos los saldos posteriores
+        /// </summary>
+        private async Task ActualizarSaldosCajaAsync(int idUsuario, int idAlmacen, DateTime fecha)
+        {
+            var fechaDate = DateOnly.FromDateTime(fecha);
+            
+            // Buscar la apertura de caja para la fecha específica
             var apertura = await _context.AperturaCierreCajas
-                .FirstOrDefaultAsync(a => a.IdUsuario == registro.IdUsuario &&
-                                          a.IdAlmacen == registro.IdAlmacen &&
-                                          a.Fecha == fecha);
+                .FirstOrDefaultAsync(a => a.IdUsuario == idUsuario &&
+                                          a.IdAlmacen == idAlmacen &&
+                                          a.Fecha == fechaDate);
 
             if (apertura != null)
             {
+                // Recalcular ingresos y egresos para esta fecha
                 var ingresos = await _context.IngresosEgresosCabeceras
-                    .Where(i => i.IdUsuario == registro.IdUsuario &&
-                                i.IdAlmacen == registro.IdAlmacen &&
-                                DateOnly.FromDateTime(i.Fecha) == fecha &&
+                    .Where(i => i.IdUsuario == idUsuario &&
+                                i.IdAlmacen == idAlmacen &&
+                                DateOnly.FromDateTime(i.Fecha) == fechaDate &&
                                 i.Naturaleza == "I" &&
                                 i.Estado == "E")
                     .SumAsync(i => (decimal?)i.Monto) ?? 0;
 
                 var egresos = await _context.IngresosEgresosCabeceras
-                    .Where(i => i.IdUsuario == registro.IdUsuario &&
-                                i.IdAlmacen == registro.IdAlmacen &&
-                                DateOnly.FromDateTime(i.Fecha) == fecha &&
+                    .Where(i => i.IdUsuario == idUsuario &&
+                                i.IdAlmacen == idAlmacen &&
+                                DateOnly.FromDateTime(i.Fecha) == fechaDate &&
                                 i.Naturaleza == "E" &&
                                 i.Estado == "E")
                     .SumAsync(i => (decimal?)i.Monto) ?? 0;
 
+                // Actualizar los valores de la caja
                 apertura.Ingresos = ingresos;
                 apertura.Egresos = egresos;
                 apertura.SaldoFinal = apertura.SaldoInicial + apertura.VentaDia + ingresos - egresos;
+
+                // Recalcular todos los saldos posteriores
+                await RecalcularSaldosPosterioresAsync(apertura);
                 await _context.SaveChangesAsync();
             }
+            else
+            {
+                // Si no existe una caja para esta fecha, pero se registró un ingreso/egreso,
+                // necesitamos recalcular los saldos de las cajas posteriores
+                await RecalcularSaldosDesdeFechaAsync(idUsuario, idAlmacen, fechaDate);
+            }
+        }
 
-            return NoContent();
+        /// <summary>
+        /// Recalcula los saldos de todas las cajas posteriores a una fecha específica
+        /// </summary>
+        private async Task RecalcularSaldosDesdeFechaAsync(int idUsuario, int idAlmacen, DateOnly fecha)
+        {
+            // Buscar la última caja cerrada antes de la fecha
+            var ultimaCajaAnterior = await _context.AperturaCierreCajas
+                .Where(c => c.IdUsuario == idUsuario &&
+                            c.IdAlmacen == idAlmacen &&
+                            c.Fecha < fecha)
+                .OrderByDescending(c => c.Fecha)
+                .FirstOrDefaultAsync();
+
+            if (ultimaCajaAnterior != null)
+            {
+                // Recalcular todos los saldos posteriores a partir de la última caja anterior
+                await RecalcularSaldosPosterioresAsync(ultimaCajaAnterior);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private async Task RecalcularSaldosPosterioresAsync(AperturaCierreCaja apertura)
+        {
+            var posteriores = await _context.AperturaCierreCajas
+                .Where(c => c.IdUsuario == apertura.IdUsuario &&
+                            c.IdAlmacen == apertura.IdAlmacen &&
+                            c.Fecha > apertura.Fecha)
+                .OrderBy(c => c.Fecha)
+                .ToListAsync();
+
+            var saldoAnterior = apertura.SaldoFinal;
+
+            foreach (var caja in posteriores)
+            {
+                var saldoCalculado = saldoAnterior + caja.VentaDia + caja.Ingresos - caja.Egresos;
+
+                if (caja.SaldoInicial != saldoAnterior || caja.SaldoFinal != saldoCalculado)
+                {
+                    caja.SaldoInicial = saldoAnterior;
+                    caja.SaldoFinal = saldoCalculado;
+                }
+
+                saldoAnterior = caja.SaldoFinal;
+            }
         }
     }
 }
