@@ -1,7 +1,6 @@
 ﻿@page "/ordenes-compra"
 @**@
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.WebUtilities
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using System.Linq
@@ -16,22 +15,22 @@
 <div class="row mb-3">
     <div class="col-md-3">
         <label>Desde:</label>
-        <input type="date" class="form-control" @bind-value="desde" @bind-value:event="oninput" />
+        <input type="date" class="form-control" @bind-value="desdeOc" @bind-value:event="oninput" />
     </div>
     <div class="col-md-3">
         <label>Hasta:</label>
-        <input type="date" class="form-control" @bind-value="hasta" @bind-value:event="oninput" />
+        <input type="date" class="form-control" @bind-value="hastaOc" @bind-value:event="oninput" />
     </div>
     <div class="col-md-4">
         <label>Proveedor:</label>
         <div class="input-group">
-            <input class="form-control" value="@nombreProveedor" readonly />
-            <button class="btn btn-secondary" @onclick="() => mostrarProveedorModal = true"><i class="bi bi-search"></i> Buscar</button>
-            <button class="btn btn-outline-secondary" @onclick="LimpiarProveedor">X</button>
+            <input class="form-control" value="@nombreProveedorOc" readonly />
+            <button class="btn btn-secondary" @onclick="() => mostrarProveedorModalOc = true"><i class="bi bi-search"></i> Buscar</button>
+            <button class="btn btn-outline-secondary" @onclick="LimpiarProveedorOc">X</button>
         </div>
     </div>
     <div class="col-md-2 d-flex align-items-end">
-        <button class="btn btn-primary w-100" @onclick="Buscar"><i class="bi bi-search"></i> Buscar</button>
+        <button class="btn btn-primary w-100" @onclick="BuscarOc"><i class="bi bi-search"></i> Buscar</button>
     </div>
 </div>
 
@@ -88,6 +87,27 @@
 
 <h3 class="mt-5">Pago Proveedores</h3>
 
+<div class="row mb-3">
+    <div class="col-md-3">
+        <label>Desde:</label>
+        <input type="date" class="form-control" @bind-value="desdePago" @bind-value:event="oninput" />
+    </div>
+    <div class="col-md-3">
+        <label>Hasta:</label>
+        <input type="date" class="form-control" @bind-value="hastaPago" @bind-value:event="oninput" />
+    </div>
+    <div class="col-md-4">
+        <label>Proveedor:</label>
+        <div class="input-group">
+            <input class="form-control" value="@nombreProveedorPago" readonly />
+            <button class="btn btn-secondary" @onclick="() => mostrarProveedorModalPago = true"><i class="bi bi-search"></i> Buscar</button>
+            <button class="btn btn-outline-secondary" @onclick="LimpiarProveedorPago">X</button>
+        </div>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="BuscarPagos"><i class="bi bi-search"></i> Buscar</button>
+    </div>
+</div>
 <div class="mb-2 text-end">
     <button class="btn btn-outline-success" @onclick="ExportarPagosExcel">Exportar Excel</button>
 </div>
@@ -162,17 +182,23 @@
     </div>
 }
 
-<ProveedorBuscarModal Mostrar="mostrarProveedorModal" MostrarChanged="(v) => mostrarProveedorModal = v" OnSeleccionado="SeleccionarProveedor" />
+<ProveedorBuscarModal Mostrar="mostrarProveedorModalOc" MostrarChanged="(v) => mostrarProveedorModalOc = v" OnSeleccionado="SeleccionarProveedorOc" />
+<ProveedorBuscarModal Mostrar="mostrarProveedorModalPago" MostrarChanged="(v) => mostrarProveedorModalPago = v" OnSeleccionado="SeleccionarProveedorPago" />
 
 @code {
-    private DateTime desde = DateTime.Today;
-    private DateTime hasta = DateTime.Today;
+    private DateTime desdeOc = DateTime.Today;
+    private DateTime hastaOc = DateTime.Today;
     private List<OrdenCompraConsultaDTO> ordenes = new();
-    private bool mostrarProveedorModal = false;
-    private int? idProveedor;
-    private string nombreProveedor = string.Empty;
+    private bool mostrarProveedorModalOc = false;
+    private int? idProveedorOc;
+    private string nombreProveedorOc = string.Empty;
 
+    private DateTime desdePago = DateTime.Today;
+    private DateTime hastaPago = DateTime.Today;
     private List<OrdenCompraConsultaDTO> pagos = new();
+    private bool mostrarProveedorModalPago = false;
+    private int? idProveedorPago;
+    private string nombreProveedorPago = string.Empty;
 
     private bool showPhotoModal = false;
     private string? photoUrl;
@@ -192,38 +218,15 @@
 
     private HashSet<int> ingresoEnProceso = new();
     private HashSet<int> anulacionEnProceso = new();
-    private DateTime desdeOc, hastaOc, desdePago, hastaPago;
 
     protected override async Task OnInitializedAsync()
     {
-        // Leer parámetros de la URL para mantener el estado de búsqueda
-        var uri = Nav.ToAbsoluteUri(Nav.Uri);
-        var query = QueryHelpers.ParseQuery(uri.Query);
-        
-        if (query.TryGetValue("desde", out var desdeParam) && DateTime.TryParse(desdeParam, out var desdeDate))
-            desde = desdeDate;
-            
-        if (query.TryGetValue("hasta", out var hastaParam) && DateTime.TryParse(hastaParam, out var hastaDate))
-            hasta = hastaDate;
-            
-        if (query.TryGetValue("proveedor", out var proveedorParam) && int.TryParse(proveedorParam, out var proveedorId))
-            idProveedor = proveedorId;
-            
-        if (query.TryGetValue("nombreProveedor", out var nombreParam))
-            nombreProveedor = nombreParam;
-
-        desdeOc = desdePago = desde;
-        hastaOc = hastaPago = hasta;
-
-        await Task.WhenAll(Buscar(), BuscarPagos());
+        await Task.WhenAll(BuscarOc(), BuscarPagos());
     }
 
-    private async Task Buscar()
+    private async Task BuscarOc()
     {
-        // Actualizar la URL para mantener el estado de búsqueda
-        ActualizarUrl();
-        
-        var lista = await ocService.ListarAsync(desde, hasta, idProveedor);
+        var lista = await ocService.ListarAsync(desdeOc, hastaOc, idProveedorOc);
         ordenes = lista.Where(o => !o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
         NormalizarEstados(ordenes);
         currentPageOc = 1;
@@ -231,31 +234,9 @@
         anulacionEnProceso.Clear();
     }
 
-    private void ActualizarUrl()
-    {
-        var queryParams = new List<string>();
-        
-        if (desde != DateTime.Today)
-            queryParams.Add($"desde={desde:yyyy-MM-dd}");
-            
-        if (hasta != DateTime.Today)
-            queryParams.Add($"hasta={hasta:yyyy-MM-dd}");
-            
-        if (idProveedor.HasValue)
-        {
-            queryParams.Add($"proveedor={idProveedor.Value}");
-            queryParams.Add($"nombreProveedor={Uri.EscapeDataString(nombreProveedor)}");
-        }
-        
-        var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
-        var newUrl = $"/ordenes-compra{queryString}";
-        
-        Nav.NavigateTo(newUrl, replace: true);
-    }
-
     private async Task BuscarPagos()
     {
-        var lista = await ocService.ListarAsync(desde, hasta, idProveedor);
+        var lista = await ocService.ListarAsync(desdePago, hastaPago, idProveedorPago);
         pagos = lista.Where(o => o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
         NormalizarEstados(pagos);
         currentPagePagos = 1;
@@ -406,20 +387,30 @@
         return valor;
     }
 
-    private Task SeleccionarProveedor(ProveedorDTO p)
+    private Task SeleccionarProveedorOc(ProveedorDTO p)
     {
-        idProveedor = p.IdProveedor;
-        nombreProveedor = p.Nombre;
-        mostrarProveedorModal = false;
-        _ = Task.WhenAll(Buscar(), BuscarPagos());
+        idProveedorOc = p.IdProveedor;
+        nombreProveedorOc = p.Nombre;
         return Task.CompletedTask;
     }
 
-    private void LimpiarProveedor()
+    private Task SeleccionarProveedorPago(ProveedorDTO p)
     {
-        idProveedor = null;
-        nombreProveedor = string.Empty;
-        _ = Task.WhenAll(Buscar(), BuscarPagos());
+        idProveedorPago = p.IdProveedor;
+        nombreProveedorPago = p.Nombre;
+        return Task.CompletedTask;
+    }
+
+    private void LimpiarProveedorOc()
+    {
+        idProveedorOc = null;
+        nombreProveedorOc = string.Empty;
+    }
+
+    private void LimpiarProveedorPago()
+    {
+        idProveedorPago = null;
+        nombreProveedorPago = string.Empty;
     }
 
     private void PrevPageOc()

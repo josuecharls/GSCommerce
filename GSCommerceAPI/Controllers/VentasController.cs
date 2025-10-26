@@ -423,13 +423,14 @@ namespace GSCommerceAPI.Controllers
         public async Task<IActionResult> ReportePagosTarjetaOnline(
             [FromQuery] DateTime? desde,
             [FromQuery] DateTime? hasta,
-            [FromQuery] int? idAlmacen)
+            [FromQuery] string? razonSocial)
         {
             var fechaInicio = (desde ?? DateTime.Today).Date;
             var fechaFin = (hasta ?? DateTime.Today).Date;
             if (fechaFin < fechaInicio)
                 fechaFin = fechaInicio;
             var fechaFinExclusiva = fechaFin.AddDays(1);
+            var razonSocialFiltro = string.IsNullOrWhiteSpace(razonSocial) ? null : razonSocial.Trim();
 
             var registros = await (from cabecera in _context.ComprobanteDeVentaCabeceras.AsNoTracking()
                                    join pago in _context.VDetallePagoVenta1s.AsNoTracking()
@@ -443,7 +444,7 @@ namespace GSCommerceAPI.Controllers
                                    from usuario in usuariosJoin.DefaultIfEmpty()
                                    where cabecera.Fecha >= fechaInicio
                                          && cabecera.Fecha < fechaFinExclusiva
-                                         && (idAlmacen == null || cabecera.IdAlmacen == idAlmacen.Value)
+                                         && (razonSocialFiltro == null || almacen.RazonSocial == razonSocialFiltro)
                                          && (cabecera.Estado != "A" || cabecera.GeneroNc != null)
                                          && (tipo.Tipo == "Tarjeta" || tipo.Tipo == "Online")
                                    select new
