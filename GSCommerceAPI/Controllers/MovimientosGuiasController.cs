@@ -12,7 +12,7 @@ namespace GSCommerceAPI.Controllers
 {
     [ApiController]
     [Route("api/movimientos-guias")]
-    [Authorize(Roles = "ADMINISTRADOR,CAJERO")]
+    [Authorize(Roles = "ADMINISTRADOR,CAJERO,ALMACEN")]
     public class MovimientosGuiasController : ControllerBase
     {
         private readonly SyscharlesContext _context;

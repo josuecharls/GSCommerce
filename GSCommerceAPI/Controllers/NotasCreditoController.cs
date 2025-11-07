@@ -152,7 +152,7 @@ namespace GSCommerceAPI.Controllers
                     IdTipoDocumento = dto.Cabecera.IdTipoDocumento,
                     Serie = dto.Cabecera.Serie,
                     Numero = dto.Cabecera.Numero,
-                    Fecha = dto.Cabecera.Fecha.Date,
+                    Fecha = DateTime.Now,
                     Referencia = dto.Cabecera.Referencia,
                     IdMotivo = dto.Cabecera.IdMotivo,
                     IdCliente = dto.Cabecera.IdCliente,

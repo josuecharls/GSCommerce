@@ -3,8 +3,10 @@
 @using Microsoft.AspNetCore.Authorization
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using System.Linq
 @inject OrdenCompraService ocService
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <h3>Detalle Orden de Compra</h3>
 
@@ -61,5 +63,10 @@ else
         orden = await ocService.ObtenerOrdenPorId(id);
     }
 
-    private void Volver() => Nav.NavigateTo("/ordenes-compra");
+    private void Volver() 
+    {
+        // Las fechas se mantienen automáticamente en localStorage
+        // Solo navegar de vuelta a la página principal
+        Nav.NavigateTo("/ordenes-compra");
+    }
 }

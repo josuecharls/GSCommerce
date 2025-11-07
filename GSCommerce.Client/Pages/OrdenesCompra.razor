@@ -10,35 +10,45 @@
 @inject IJSRuntime JS
 @inject HttpClient Http
 
-<h3>Ordenes de Compra</h3>
+<h3>Ordenes de Compra y Pago Proveedores</h3>
 
 <div class="row mb-3">
-    <div class="col-md-3">
+    <div class="col-md-2">
         <label>Desde:</label>
-        <input type="date" class="form-control" @bind-value="desdeOc" @bind-value:event="oninput" />
+        <input type="date" class="form-control" @bind-value="desde" @bind-value:event="oninput" />
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <label>Hasta:</label>
-        <input type="date" class="form-control" @bind-value="hastaOc" @bind-value:event="oninput" />
+        <input type="date" class="form-control" @bind-value="hasta" @bind-value:event="oninput" />
     </div>
     <div class="col-md-4">
         <label>Proveedor:</label>
         <div class="input-group">
-            <input class="form-control" value="@nombreProveedorOc" readonly />
-            <button class="btn btn-secondary" @onclick="() => mostrarProveedorModalOc = true"><i class="bi bi-search"></i> Buscar</button>
-            <button class="btn btn-outline-secondary" @onclick="LimpiarProveedorOc">X</button>
+            <input class="form-control" value="@nombreProveedor" readonly />
+            <button class="btn btn-secondary" @onclick="() => mostrarProveedorModal = true"><i class="bi bi-search"></i> Buscar</button>
+            <button class="btn btn-outline-secondary" @onclick="LimpiarProveedor">X</button>
         </div>
     </div>
+    <div class="col-md-2">
+        <label>Tipo:</label>
+        <select class="form-control" @bind-value="tipoFiltro" @bind-value:event="oninput">
+            <option value="todos">Todos</option>
+            <option value="ordenes">Órdenes de Compra</option>
+            <option value="pagos">Pago Proveedores</option>
+        </select>
+    </div>
     <div class="col-md-2 d-flex align-items-end">
-        <button class="btn btn-primary w-100" @onclick="BuscarOc"><i class="bi bi-search"></i> Buscar</button>
+        <button class="btn btn-primary w-100" @onclick="Buscar"><i class="bi bi-search"></i> Buscar</button>
     </div>
 </div>
 
 <div class="mb-2 text-end">
-    <button class="btn btn-outline-success me-2" @onclick="ExportarOrdenesExcel">Exportar Excel</button>
+    <button class="btn btn-outline-success me-2" @onclick="ExportarOrdenesExcel">Exportar Órdenes</button>
+    <button class="btn btn-outline-info me-2" @onclick="ExportarPagosExcel">Exportar Pagos</button>
     <button class="btn btn-success" @onclick="Nuevo">+ Nueva OC</button>
 </div>
 
+<h4>Órdenes de Compra</h4>
 <table class="table table-bordered">
     <thead>
         <tr>
@@ -83,34 +93,9 @@
     <button class="btn btn-secondary" @onclick="NextPageOc" disabled="@(currentPageOc >= totalPagesOc)">Siguiente</button>
 </div>
 
-<div class="mt-2 text-end"><strong>Total: @totalOrdenes.ToString("C")</strong></div>
+<div class="mt-2 text-end"><strong>Total Órdenes: @totalOrdenes.ToString("C")</strong></div>
 
-<h3 class="mt-5">Pago Proveedores</h3>
-
-<div class="row mb-3">
-    <div class="col-md-3">
-        <label>Desde:</label>
-        <input type="date" class="form-control" @bind-value="desdePago" @bind-value:event="oninput" />
-    </div>
-    <div class="col-md-3">
-        <label>Hasta:</label>
-        <input type="date" class="form-control" @bind-value="hastaPago" @bind-value:event="oninput" />
-    </div>
-    <div class="col-md-4">
-        <label>Proveedor:</label>
-        <div class="input-group">
-            <input class="form-control" value="@nombreProveedorPago" readonly />
-            <button class="btn btn-secondary" @onclick="() => mostrarProveedorModalPago = true"><i class="bi bi-search"></i> Buscar</button>
-            <button class="btn btn-outline-secondary" @onclick="LimpiarProveedorPago">X</button>
-        </div>
-    </div>
-    <div class="col-md-2 d-flex align-items-end">
-        <button class="btn btn-primary w-100" @onclick="BuscarPagos"><i class="bi bi-search"></i> Buscar</button>
-    </div>
-</div>
-<div class="mb-2 text-end">
-    <button class="btn btn-outline-success" @onclick="ExportarPagosExcel">Exportar Excel</button>
-</div>
+<h4 class="mt-5">Pago Proveedores</h4>
 <table class="table table-bordered">
     <thead>
         <tr>
@@ -153,7 +138,7 @@
     <button class="btn btn-secondary" @onclick="NextPagePagos" disabled="@(currentPagePagos >= totalPagesPagos)">Siguiente</button>
 </div>
 
-<div class="mt-2 text-end"><strong>Total: @totalPagos.ToString("C")</strong></div>
+<div class="mt-2 text-end"><strong>Total Pagos: @totalPagos.ToString("C")</strong></div>
 
 @if (showPhotoModal)
 {
@@ -182,23 +167,17 @@
     </div>
 }
 
-<ProveedorBuscarModal Mostrar="mostrarProveedorModalOc" MostrarChanged="(v) => mostrarProveedorModalOc = v" OnSeleccionado="SeleccionarProveedorOc" />
-<ProveedorBuscarModal Mostrar="mostrarProveedorModalPago" MostrarChanged="(v) => mostrarProveedorModalPago = v" OnSeleccionado="SeleccionarProveedorPago" />
+<ProveedorBuscarModal Mostrar="mostrarProveedorModal" MostrarChanged="(v) => mostrarProveedorModal = v" OnSeleccionado="SeleccionarProveedor" />
 
 @code {
-    private DateTime desdeOc = DateTime.Today;
-    private DateTime hastaOc = DateTime.Today;
+    private DateTime desde = DateTime.Today;
+    private DateTime hasta = DateTime.Today;
     private List<OrdenCompraConsultaDTO> ordenes = new();
-    private bool mostrarProveedorModalOc = false;
-    private int? idProveedorOc;
-    private string nombreProveedorOc = string.Empty;
-
-    private DateTime desdePago = DateTime.Today;
-    private DateTime hastaPago = DateTime.Today;
     private List<OrdenCompraConsultaDTO> pagos = new();
-    private bool mostrarProveedorModalPago = false;
-    private int? idProveedorPago;
-    private string nombreProveedorPago = string.Empty;
+    private bool mostrarProveedorModal = false;
+    private int? idProveedor;
+    private string nombreProveedor = string.Empty;
+    private string tipoFiltro = "todos";
 
     private bool showPhotoModal = false;
     private string? photoUrl;
@@ -221,25 +200,77 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await Task.WhenAll(BuscarOc(), BuscarPagos());
+        // Cargar fechas desde localStorage
+        await CargarFechasDesdeStorage();
+        await Buscar();
     }
 
-    private async Task BuscarOc()
+    private async Task CargarFechasDesdeStorage()
     {
-        var lista = await ocService.ListarAsync(desdeOc, hastaOc, idProveedorOc);
-        ordenes = lista.Where(o => !o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
+        try
+        {
+            var desdeStr = await JS.InvokeAsync<string>("localStorage.getItem", "ordenesCompra_desde");
+            var hastaStr = await JS.InvokeAsync<string>("localStorage.getItem", "ordenesCompra_hasta");
+            var tipoStr = await JS.InvokeAsync<string>("localStorage.getItem", "ordenesCompra_tipo");
+
+            if (!string.IsNullOrEmpty(desdeStr) && DateTime.TryParse(desdeStr, out var desdeDate))
+                desde = desdeDate;
+
+            if (!string.IsNullOrEmpty(hastaStr) && DateTime.TryParse(hastaStr, out var hastaDate))
+                hasta = hastaDate;
+
+            if (!string.IsNullOrEmpty(tipoStr))
+                tipoFiltro = tipoStr;
+        }
+        catch
+        {
+            // Si hay error, usar valores por defecto
+        }
+    }
+
+    private async Task GuardarFechasEnStorage()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", "ordenesCompra_desde", desde.ToString("yyyy-MM-dd"));
+            await JS.InvokeVoidAsync("localStorage.setItem", "ordenesCompra_hasta", hasta.ToString("yyyy-MM-dd"));
+            await JS.InvokeVoidAsync("localStorage.setItem", "ordenesCompra_tipo", tipoFiltro);
+        }
+        catch
+        {
+            // Si hay error, continuar sin guardar
+        }
+    }
+
+    private async Task Buscar()
+    {
+        await GuardarFechasEnStorage();
+        
+        var lista = await ocService.ListarAsync(desde, hasta, idProveedor);
+        
+        // Filtrar según el tipo seleccionado
+        switch (tipoFiltro)
+        {
+            case "ordenes":
+                ordenes = lista.Where(o => !o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
+                pagos = new List<OrdenCompraConsultaDTO>();
+                break;
+            case "pagos":
+                ordenes = new List<OrdenCompraConsultaDTO>();
+                pagos = lista.Where(o => o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
+                break;
+            default: // "todos"
+                ordenes = lista.Where(o => !o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
+                pagos = lista.Where(o => o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
+                break;
+        }
+        
         NormalizarEstados(ordenes);
+        NormalizarEstados(pagos);
         currentPageOc = 1;
+        currentPagePagos = 1;
         ingresoEnProceso.Clear();
         anulacionEnProceso.Clear();
-    }
-
-    private async Task BuscarPagos()
-    {
-        var lista = await ocService.ListarAsync(desdePago, hastaPago, idProveedorPago);
-        pagos = lista.Where(o => o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
-        NormalizarEstados(pagos);
-        currentPagePagos = 1;
     }
 
     private async Task ExportarOrdenesExcel()
@@ -257,7 +288,7 @@
             o.Estado ?? string.Empty
         }).ToArray();
 
-        await JS.InvokeVoidAsync("exportToExcel", headers, rows, $"OrdenesCompra_{desdeOc:yyyyMMdd}_{hastaOc:yyyyMMdd}");
+        await JS.InvokeVoidAsync("exportToExcel", headers, rows, $"OrdenesCompra_{desde:yyyyMMdd}_{hasta:yyyyMMdd}");
     }
 
     private async Task ExportarPagosExcel()
@@ -275,7 +306,7 @@
             o.Estado ?? string.Empty
         }).ToArray();
 
-        await JS.InvokeVoidAsync("exportToExcel", headers, rows, $"PagosProveedores_{desdePago:yyyyMMdd}_{hastaPago:yyyyMMdd}");
+        await JS.InvokeVoidAsync("exportToExcel", headers, rows, $"PagosProveedores_{desde:yyyyMMdd}_{hasta:yyyyMMdd}");
     }
 
     private void Nuevo() => Nav.NavigateTo("/ordenes-compra/nuevo");
@@ -387,30 +418,17 @@
         return valor;
     }
 
-    private Task SeleccionarProveedorOc(ProveedorDTO p)
+    private Task SeleccionarProveedor(ProveedorDTO p)
     {
-        idProveedorOc = p.IdProveedor;
-        nombreProveedorOc = p.Nombre;
+        idProveedor = p.IdProveedor;
+        nombreProveedor = p.Nombre;
         return Task.CompletedTask;
     }
 
-    private Task SeleccionarProveedorPago(ProveedorDTO p)
+    private void LimpiarProveedor()
     {
-        idProveedorPago = p.IdProveedor;
-        nombreProveedorPago = p.Nombre;
-        return Task.CompletedTask;
-    }
-
-    private void LimpiarProveedorOc()
-    {
-        idProveedorOc = null;
-        nombreProveedorOc = string.Empty;
-    }
-
-    private void LimpiarProveedorPago()
-    {
-        idProveedorPago = null;
-        nombreProveedorPago = string.Empty;
+        idProveedor = null;
+        nombreProveedor = string.Empty;
     }
 
     private void PrevPageOc()
