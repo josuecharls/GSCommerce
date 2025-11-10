@@ -36,24 +36,45 @@ namespace GSCommerce.Client.Services
 
             return resultado?.Numero;
         }
+        /// <summary>
+        /// Registra una venta en el servidor y valida que se haya guardado correctamente.
+        /// </summary>
+        /// <param name="venta">Datos de la venta a registrar</param>
+        /// <returns>Tupla con éxito (true/false) y mensaje de error si aplica</returns>
         public async Task<(bool Success, string? ErrorMessage)> RegistrarVentaAsync(VentaRegistroDTO venta)
         {
-            var response = await _httpClient.PostAsJsonAsync("api/ventas", venta);
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                var msg = await response.Content.ReadAsStringAsync();
-                return (false, msg);
+                var response = await _httpClient.PostAsJsonAsync("api/ventas", venta);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var msg = await response.Content.ReadAsStringAsync();
+                    return (false, msg);
+                }
+
+                var resultado = await response.Content.ReadFromJsonAsync<VentaResponseDTO>();
+                
+                // Validar que la respuesta contiene datos válidos
+                if (resultado == null)
+                    return (false, "Respuesta inválida del servidor");
+
+                // Validar que el IdComprobante es válido (debe ser mayor a 0)
+                if (resultado.IdComprobante <= 0)
+                    return (false, "El servidor no generó un IdComprobante válido");
+
+                // Asignar los valores de la respuesta a la venta local
+                venta.Cabecera.IdComprobante = resultado.IdComprobante;
+                venta.Cabecera.Numero = resultado.Numero;
+                venta.Cabecera.PendienteSunat = resultado.PendienteSunat;
+
+                return (true, null);
             }
-
-            var resultado = await response.Content.ReadFromJsonAsync<VentaResponseDTO>();
-            if (resultado == null)
-                return (false, "Respuesta inválida");
-
-            venta.Cabecera.IdComprobante = resultado.IdComprobante;
-            venta.Cabecera.Numero = resultado.Numero;
-            venta.Cabecera.PendienteSunat = resultado.PendienteSunat;
-
-            return (true, null);
+            catch (Exception ex)
+            {
+                // Capturar cualquier excepción durante la comunicación con el servidor
+                return (false, $"Error de comunicación: {ex.Message}");
+            }
         }
 
         public async Task<List<ReporteVentasVendedorDTO>> ObtenerReportePorVendedor(DateTime desde, DateTime hasta)

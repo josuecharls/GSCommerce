@@ -869,6 +869,7 @@ else
             TipoDocumento = tipoDoc!
         });
 
+        // Validar que la venta se registró correctamente
         if (!resultadoRegistro.Success)
         {
             await JS.InvokeVoidAsync("console.log", "Error al registrar la venta:", resultadoRegistro.ErrorMessage);
@@ -876,7 +877,15 @@ else
             return;
         }
 
-        // +1 al correlativo si la venta fue exitosa
+        // Verificación adicional: asegurar que el IdComprobante es válido antes de imprimir
+        // Esto previene imprimir boletas cuando la transacción falló en la base de datos
+        if (venta.IdComprobante <= 0)
+        {
+            await JS.InvokeVoidAsync("alert", "❌ Error: La venta no se registró correctamente en la base de datos. No se imprimirá la boleta.");
+            return;
+        }
+
+        // Incrementar correlativo solo si la venta fue exitosa y tiene IdComprobante válido
         if (idAlmacenActual.HasValue)
         {
             await SerieCorrelativoService.IncrementarCorrelativo(
@@ -886,7 +895,8 @@ else
             );
         }
 
-        // Impresion de ticket
+        // Imprimir boleta solo después de confirmar que la venta se guardó correctamente
+        // Esto garantiza que no se impriman boletas de ventas que no existen en la BD
         var textoTicket = GenerarHtmlDelTicket();
         await JS.InvokeVoidAsync("imprimirTicket", textoTicket);
         //await JS.InvokeVoidAsync("alert", "Venta registrada. Pendiente de envío a SUNAT.");
