@@ -1104,6 +1104,8 @@ namespace GSCommerceAPI.Controllers
                 }
             }
 
+            // Iniciar transacción para asegurar atomicidad: todo o nada
+            // Si cualquier paso falla, se hace rollback completo y no se guarda nada
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             var nuevoNumero = await ObtenerNuevoNumeroSerieAsync(
@@ -1257,8 +1259,13 @@ namespace GSCommerceAPI.Controllers
                 _context.Comprobantes.Add(compFe);
 
                 await _context.SaveChangesAsync(); // Guardar detalles, pagos y estado SUNAT
+                
+                // Confirmar la transacción: solo aquí se garantiza que todo se guardó en BD
+                // Si llegamos aquí sin excepciones, la venta está completamente registrada
                 await transaction.CommitAsync();
 
+                // Retornar respuesta exitosa con los datos de la venta registrada
+                // El frontend usará IdComprobante para validar antes de imprimir
                 return Ok(new VentaResponseDTO
                 {
                     Numero = cabecera.Numero,
@@ -1274,6 +1281,13 @@ namespace GSCommerceAPI.Controllers
             }
             catch (Exception ex)
             {
+                // Realizar rollback explícito de la transacción para asegurar integridad de datos
+                // Esto previene que se impriman boletas cuando la venta no se guardó correctamente
+                await transaction.RollbackAsync();
+                
+                // Registrar el error para diagnóstico (opcional, si tienes un logger)
+                // _logger.LogError(ex, "Error al registrar venta en almacén {AlmacenId}", idAlmacen);
+                
                 return StatusCode(500, $"💥 Error general: {ex.Message}");
             }
         }
