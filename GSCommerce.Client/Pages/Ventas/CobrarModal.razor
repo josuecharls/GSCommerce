@@ -353,7 +353,7 @@
 
         try
         {
-            var nota = await NotaCreditoService.BuscarPorDocumentoAsync(partes[0], numero);
+            var nota = await NotaCreditoService.BuscarPorDocumentoAsync(partes[0], numero, IdAlmacen);
             if (nota != null && nota.Empleada != true && string.IsNullOrEmpty(nota.Comprobante))
             {
                 // Restricción: Si es TICKET, no permitir notas de crédito de BOLETAS

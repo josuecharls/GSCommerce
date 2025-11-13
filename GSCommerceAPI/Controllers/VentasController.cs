@@ -2295,27 +2295,43 @@ namespace GSCommerceAPI.Controllers
                 .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
             // if (comp == null || string.IsNullOrWhiteSpace(comp.RespuestaSunat))
             //   return BadRequest("El comprobante no ha sido rechazado por SUNAT.");
+            // Verificar si el rechazo anterior fue código "-2" (error al leer XML, no llegó a SUNAT)
+            bool esErrorLecturaXml = false;
+            if (comp != null && !string.IsNullOrWhiteSpace(comp.RespuestaSunat))
+            {
+                // El formato es: "SUNAT respondió: [-2] Error al leer XML: ..."
+                esErrorLecturaXml = comp.RespuestaSunat.Contains("[-2]") ||
+                                   comp.RespuestaSunat.Contains("\"-2\"");
+            }
 
-            // Obtener correlativo actual y asignar nuevo número
-            var serieCorr = await _context.SerieCorrelativos
+            // Solo cambiar el correlativo si NO es error de lectura XML
+            if (!esErrorLecturaXml)
+            {
+                // Obtener correlativo actual y asignar nuevo número
+                var serieCorr = await _context.SerieCorrelativos
                 .FirstOrDefaultAsync(s => s.IdAlmacen == cab.IdAlmacen &&
                                           s.IdTipoDocumentoVenta == cab.IdTipoDocumento &&
                                           s.Serie == cab.Serie);
 
-            int nuevoNumero = serieCorr != null ? serieCorr.Correlativo + 1 : cab.Numero + 1;
-            cab.Numero = nuevoNumero;
-            if (serieCorr != null)
-                serieCorr.Correlativo = nuevoNumero;
+                int nuevoNumero = serieCorr != null ? serieCorr.Correlativo + 1 : cab.Numero + 1;
+                cab.Numero = nuevoNumero;
+                if (serieCorr != null)
+                    serieCorr.Correlativo = nuevoNumero;
+
+            }
 
             // Reiniciar estado SUNAT
-            comp.EnviadoSunat = false;
-            comp.Estado = false;
-            comp.RespuestaSunat = null;
-            comp.TicketSunat = null;
-            comp.FechaEnvio = null;
-            comp.FechaRespuestaSunat = null;
-            comp.Hash = string.Empty;
-            comp.Xml = null;
+            if (comp != null)
+            {
+                comp.EnviadoSunat = false;
+                comp.Estado = false;
+                comp.RespuestaSunat = null;
+                comp.TicketSunat = null;
+                comp.FechaEnvio = null;
+                comp.FechaRespuestaSunat = null;
+                comp.Hash = string.Empty;
+                comp.Xml = null;
+            }
 
             await _context.SaveChangesAsync();
 
