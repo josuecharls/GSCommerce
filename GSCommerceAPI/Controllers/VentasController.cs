@@ -1259,7 +1259,7 @@ namespace GSCommerceAPI.Controllers
                 _context.Comprobantes.Add(compFe);
 
                 await _context.SaveChangesAsync(); // Guardar detalles, pagos y estado SUNAT
-                
+
                 // Confirmar la transacción: solo aquí se garantiza que todo se guardó en BD
                 // Si llegamos aquí sin excepciones, la venta está completamente registrada
                 await transaction.CommitAsync();
@@ -1284,10 +1284,10 @@ namespace GSCommerceAPI.Controllers
                 // Realizar rollback explícito de la transacción para asegurar integridad de datos
                 // Esto previene que se impriman boletas cuando la venta no se guardó correctamente
                 await transaction.RollbackAsync();
-                
+
                 // Registrar el error para diagnóstico (opcional, si tienes un logger)
                 // _logger.LogError(ex, "Error al registrar venta en almacén {AlmacenId}", idAlmacen);
-                
+
                 return StatusCode(500, $"💥 Error general: {ex.Message}");
             }
         }
@@ -2523,7 +2523,7 @@ namespace GSCommerceAPI.Controllers
             {
                 var cargo = User.FindFirst("Cargo")?.Value;
                 var idUsuarioClaim = User.FindFirst("IdUsuario")?.Value ?? User.FindFirst("UserId")?.Value ?? "0";
-                
+
                 if (!int.TryParse(idUsuarioClaim, out var idUsuario))
                 {
                     return Unauthorized("Usuario no válido - ID de usuario no encontrado");
@@ -2535,7 +2535,7 @@ namespace GSCommerceAPI.Controllers
                 }
 
                 var clave = $"META_DIARIA_{request.IdAlmacen}_{request.Fecha:yyyyMMdd}";
-                
+
                 // Verificar si ya existe una configuración para esta meta
                 var configuracionExistente = await _context.Configuracions
                     .FirstOrDefaultAsync(c => c.Configuracion1 == clave);
@@ -2576,7 +2576,7 @@ namespace GSCommerceAPI.Controllers
             {
                 var cargo = User.FindFirst("Cargo")?.Value;
                 var idUsuarioClaim = User.FindFirst("IdUsuario")?.Value ?? User.FindFirst("UserId")?.Value ?? "0";
-                
+
                 if (!int.TryParse(idUsuarioClaim, out var idUsuario))
                 {
                     return Unauthorized("Usuario no válido - ID de usuario no encontrado");
@@ -2595,7 +2595,7 @@ namespace GSCommerceAPI.Controllers
                 foreach (var idAlmacen in request.IdAlmacenes)
                 {
                     var clave = $"META_DIARIA_{idAlmacen}_{request.Fecha:yyyyMMdd}";
-                    
+
                     // Verificar si ya existe una configuración para esta meta
                     var configuracionExistente = await _context.Configuracions
                         .FirstOrDefaultAsync(c => c.Configuracion1 == clave);
