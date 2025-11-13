@@ -380,12 +380,20 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("buscar")]
-        public async Task<IActionResult> BuscarNotaCredito([FromQuery] string serie, [FromQuery] int numero)
+        public async Task<IActionResult> BuscarNotaCredito([FromQuery] string serie, [FromQuery] int numero, [FromQuery] int? idAlmacen = null)
         {
             if (string.IsNullOrWhiteSpace(serie))
                 return BadRequest("Serie requerida");
 
-            var nota = await _context.NotaDeCreditoCabeceras.FirstOrDefaultAsync(n => n.Serie == serie && n.Numero == numero);
+            var query = _context.NotaDeCreditoCabeceras.Where(n => n.Serie == serie && n.Numero == numero);
+
+            // Filtrar por almacén si se proporciona
+            if (idAlmacen.HasValue && idAlmacen.Value > 0)
+            {
+                query = query.Where(n => n.IdAlmacen == idAlmacen.Value);
+            }
+
+            var nota = await query.FirstOrDefaultAsync();
 
             if (nota == null)
                 return NotFound("Nota de crédito no encontrada.");

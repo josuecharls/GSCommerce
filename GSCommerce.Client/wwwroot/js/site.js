@@ -1,36 +1,62 @@
 ﻿function showConsoleWarning() {
     console.log(
-        "%c¡Detente!\nEsta función del navegador está pensada para desarrolladores. Si alguien te ha indicado que copiaras y pegaras algo aquí para habilitar una función o para \\\"hackear\\\" la cuenta de alguien, se trata de un fraude.",
-        "color:red; font-size:40px; font-weight:bold;"
+        "%c⚠️ ADVERTENCIA DE SEGURIDAD\n" +
+        "Esta función del navegador está pensada para desarrolladores.\n" +
+        "No ingreses código aquí a menos que sepas exactamente lo que estás haciendo.",
+        "color: orange; font-size: 16px; font-weight: bold; line-height: 1.5;"
     );
 }
 
 if (window.location.hostname !== "localhost") {
-    showConsoleWarning();
+    let warningShown = false;
 
-    (function () {
-        let devtoolsOpen = false;
+    const showWarningOnce = () => {
+        if (!warningShown) {
+            showConsoleWarning();
+            warningShown = true;
+
+            // Opcional: Mostrar solo una vez cada 30 segundos si siguen abriendo consola
+            setTimeout(() => { warningShown = false; }, 30000);
+        }
+    };
+
+    // Detección mejorada sin spam
+    const detector = () => {
         const element = new Image();
+        let devtoolsOpen = false;
+
         Object.defineProperty(element, "id", {
             get() {
-                devtoolsOpen = true;
-                showConsoleWarning();
+                if (!devtoolsOpen) {
+                    devtoolsOpen = true;
+                    showWarningOnce();
+                }
                 return "";
             }
         });
 
+        // Verificar cada 2 segundos (menos intrusivo)
         setInterval(() => {
             devtoolsOpen = false;
             console.log(element);
-        }, 1000);
-    })();
+        }, 2000);
+    };
+
+    // Iniciar detección después de un breve delay
+    setTimeout(detector, 1000);
+
+    // Event listeners para métodos comunes de abrir consola
+    const shortcuts = ['F12', 'Ctrl+Shift+I', 'Ctrl+Shift+J', 'Ctrl+Shift+C'];
 
     window.addEventListener("keydown", event => {
-        if (
-            event.key === "F12" ||
-            (event.ctrlKey && event.shiftKey && (event.key === "I" || event.key === "J"))
-        ) {
-            showConsoleWarning();
+        const keyCombo = [
+            event.ctrlKey ? 'Ctrl+' : '',
+            event.shiftKey ? 'Shift+' : '',
+            event.key
+        ].join('');
+
+        if (shortcuts.includes(keyCombo) || shortcuts.includes(event.key)) {
+            showWarningOnce();
         }
     });
 }
