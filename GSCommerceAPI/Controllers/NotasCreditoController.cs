@@ -199,7 +199,7 @@ namespace GSCommerceAPI.Controllers
 
                 // Registrar ingreso a almacén si corresponde
                 if ((tipoLower == "electronica" || tipoLower == "interna" || tipoLower == "manual") &&
-                    (dto.Cabecera.IdMotivo == "01" || dto.Cabecera.IdMotivo == "07"))
+                    (dto.Cabecera.IdMotivo == "01" || dto.Cabecera.IdMotivo == "07" || dto.Cabecera.IdMotivo == "09"))
                 {
                     var mov = new MovimientosCabecera
                     {
@@ -207,7 +207,9 @@ namespace GSCommerceAPI.Controllers
                         Tipo = "I",
                         Motivo = "NC",
                         Fecha = DateOnly.FromDateTime(cabecera.Fecha),
-                        Descripcion = $"Ingreso por NC {cabecera.Serie}-{cabecera.Numero:D8}",
+                        Descripcion = dto.Cabecera.IdMotivo == "09"
+                            ? $"Ingreso por NC Anulacion POS {cabecera.Serie}-{cabecera.Numero:D8}"
+                            : $"Ingreso por NC {cabecera.Serie}-{cabecera.Numero:D8}",
                         IdUsuario = cabecera.IdUsuario,
                         FechaHoraRegistro = DateTime.Now,
                         Estado = "A"
@@ -272,8 +274,9 @@ namespace GSCommerceAPI.Controllers
 
                 // Marcar en el comprobante original que ya tiene NC
                 comprobante.GeneroNc = $"{cabecera.Serie}-{cabecera.Numero.ToString("D8")}";
-                if (dto.Cabecera.IdMotivo == "01")
+                if (dto.Cabecera.IdMotivo == "01" || dto.Cabecera.IdMotivo == "09")
                 {
+                    // Motivo "01" (Devolución Total) y "09" (Anulación de Operación) anulan el comprobante
                     comprobante.Estado = "A";
                     // El usuario que emite la NC es quien anula el comprobante
                     comprobante.IdUsuarioAnula = usuarioEmisorNc;
@@ -303,6 +306,7 @@ namespace GSCommerceAPI.Controllers
                         {
                             "01" => "DEVOLUCIÓN TOTAL",
                             "07" => "DEVOLUCIÓN POR ÍTEM",
+                            "09" => "ANULACIÓN DE LA OPERACIÓN",
                             _ => "OTROS"
                         };
 
@@ -401,6 +405,9 @@ namespace GSCommerceAPI.Controllers
             if (nota.Empleada == true)
                 return BadRequest("Nota de crédito ya utilizada.");
 
+            if (nota.IdMotivo == "09")
+                return BadRequest("Esta nota de crédito no es canjeable (Anulación de Operación).");
+
             var almacenNombre = await _context.Almacens
                 .Where(a => a.IdAlmacen == nota.IdAlmacen)
                 .Select(a => a.Nombre)
@@ -417,7 +424,8 @@ namespace GSCommerceAPI.Controllers
                 Almacen = almacenNombre ?? string.Empty,
                 Total = nota.Total,
                 Estado = nota.Estado,
-                Empleada = nota.Empleada
+                Empleada = nota.Empleada,
+                IdMotivo = nota.IdMotivo
             };
 
             return Ok(dto);
@@ -532,7 +540,8 @@ namespace GSCommerceAPI.Controllers
                     Total = n.Total,
                     Estado = n.Estado,
                     Empleada = n.Empleada,
-                    Comprobante = n.Comprobante
+                    Comprobante = n.Comprobante,
+                    IdMotivo = n.IdMotivo
                 })
                 .ToListAsync();
 

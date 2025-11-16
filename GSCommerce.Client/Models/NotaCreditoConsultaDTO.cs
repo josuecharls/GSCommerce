@@ -13,5 +13,6 @@
         public string Estado { get; set; } = string.Empty;
         public bool? Empleada { get; set; }
         public string? Comprobante { get; set; }
+        public string IdMotivo { get; set; } = string.Empty;
     }
 }

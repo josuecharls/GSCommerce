@@ -128,6 +128,36 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script src="js/export.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script>
+        window.generateBarcode = function(elementId, code) {
+            try {
+                const element = document.getElementById(elementId);
+                if (!element) return;
+                
+                // Limpiar contenido previo
+                element.innerHTML = '';
+                
+                // Generar código de barras Code128 con alta calidad para impresión
+                JsBarcode(element, code, {
+                    format: "CODE128",
+                    width: 2.5,        // Ancho de las barras (más ancho = más legible)
+                    height: 50,        // Altura de las barras
+                    displayValue: false,  // No mostrar el texto debajo (se mantiene el estilo actual)
+                    margin: 5,         // Margen alrededor
+                    background: "#ffffff",
+                    lineColor: "#000000",
+                    valid: function(valid) {
+                        if (!valid) {
+                            console.error("Código de barras inválido:", code);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Error generando código de barras:", error);
+            }
+        };
+    </script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 

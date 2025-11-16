@@ -321,7 +321,7 @@
     {
         var notas = await NotaCreditoService.ObtenerNotasAsync(DateTime.Today.AddYears(-1), DateTime.Today, null, IdAlmacen);
         notasCreditoDisponibles = notas
-            .Where(n => n.Empleada != true && string.IsNullOrEmpty(n.Comprobante))
+            .Where(n => n.Empleada != true && string.IsNullOrEmpty(n.Comprobante) && n.IdMotivo != "09")
             .ToList();
 
         // Restricción: Si es TICKET, no permitir notas de crédito de BOLETAS
@@ -354,7 +354,7 @@
         try
         {
             var nota = await NotaCreditoService.BuscarPorDocumentoAsync(partes[0], numero, IdAlmacen);
-            if (nota != null && nota.Empleada != true && string.IsNullOrEmpty(nota.Comprobante))
+            if (nota != null && nota.Empleada != true && string.IsNullOrEmpty(nota.Comprobante) && nota.IdMotivo != "09")
             {
                 // Restricción: Si es TICKET, no permitir notas de crédito de BOLETAS
                 if (TipoDocumento == "TICKET" && EsNotaCreditoDeBoleta(nota))

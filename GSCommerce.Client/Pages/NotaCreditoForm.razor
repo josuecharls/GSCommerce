@@ -34,6 +34,10 @@ else if (cabecera != null)
             <option value="">-- Seleccione --</option>
             <option value="01">DEVOLUCIÓN TOTAL</option>
             <option value="07">DEVOLUCIÓN POR ITEM</option>
+            @if (esPagoTarjetaOnline)
+            {
+                <option value="09">ANULACIÓN DE LA OPERACIÓN</option>
+            }
         </select>
     </div>
 
@@ -129,6 +133,7 @@ else
     private string serieOriginal = string.Empty;
     private int idTipoDocumentoOriginal;
     private decimal tasaIgv = 0m;
+    private bool esPagoTarjetaOnline = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -152,6 +157,13 @@ else
         }
         serieOriginal = venta.Serie;
         idTipoDocumentoOriginal = venta.IdTipoDocumento;
+
+        // Verificar si la venta fue pagada con tarjeta u online
+        // Tarjetas: 4, 5, 6, 7 (Visa, MasterCard, American Express, Dinners Club)
+        // Online: 9, 10 (Yape, Transferencia)
+        esPagoTarjetaOnline = venta.Pagos != null && venta.Pagos.Any(p => 
+            p.IdTipoPagoVenta >= 4 && p.IdTipoPagoVenta <= 7 || 
+            p.IdTipoPagoVenta == 9 || p.IdTipoPagoVenta == 10);
 
         cabecera = new NotaCreditoCabeceraDTO
         {
@@ -220,6 +232,12 @@ else
         {
             foreach (var d in detalles)
                 d.Cantidad = 0;
+        }
+        else if (cabecera.IdMotivo == "09")
+        {
+            // Anulación de operación: todas las cantidades al 100% (no editable)
+            foreach (var d in detalles)
+                d.Cantidad = d.CantidadOriginal;
         }
 
         RecalcularTotales();
