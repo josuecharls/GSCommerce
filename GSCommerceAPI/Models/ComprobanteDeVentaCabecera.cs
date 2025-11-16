@@ -51,6 +51,8 @@ public partial class ComprobanteDeVentaCabecera
 
     public string? GeneroNc { get; set; }
 
+    public bool ExcluirDeEstadisticas { get; set; } = false;
+
     public virtual ICollection<ComprobanteDeVentaDetalle> ComprobanteDeVentaDetalles { get; set; } = new List<ComprobanteDeVentaDetalle>();
 
     public virtual ICollection<DetallePagoVentum> DetallePagoVenta { get; set; } = new List<DetallePagoVentum>();

@@ -770,6 +770,9 @@ public partial class SyscharlesContext : DbContext
                 .HasMaxLength(13)
                 .IsUnicode(false)
                 .HasColumnName("GeneroNC");
+            entity.Property(e => e.ExcluirDeEstadisticas)
+                .HasColumnName("ExcluirDeEstadisticas")
+                .HasDefaultValue(false);
             entity.Property(e => e.Igv)
                 .HasColumnType("decimal(18, 2)")
                 .HasColumnName("IGV");

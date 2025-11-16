@@ -294,11 +294,8 @@ namespace GSCommerceAPI.Controllers
                           join c in _context.ComprobanteDeVentaCabeceras
                               on new { v.IdAlmacen, v.Serie, v.Numero }
                               equals new { c.IdAlmacen, c.Serie, c.Numero }
-                          join nc in _context.NotaDeCreditoCabeceras
-                              on c.GeneroNc equals (nc.Serie + "-" + nc.Numero.ToString("D8")) into ncJoin
-                          from nc in ncJoin.DefaultIfEmpty()
                           where !(c.Estado == "A" &&
-                                  (string.IsNullOrEmpty(c.GeneroNc) || (nc != null && nc.IdMotivo == "09")) &&
+                                  (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
                                   c.FechaHoraUsuarioAnula.HasValue &&
                                   c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
                           select v;
@@ -445,13 +442,10 @@ namespace GSCommerceAPI.Controllers
                                    join usuario in _context.Usuarios.AsNoTracking()
                                        on cabecera.IdCajero equals usuario.IdUsuario into usuariosJoin
                                    from usuario in usuariosJoin.DefaultIfEmpty()
-                                   join nc in _context.NotaDeCreditoCabeceras
-                                       on cabecera.GeneroNc equals (nc.Serie + "-" + nc.Numero.ToString("D8")) into ncJoin
-                                   from nc in ncJoin.DefaultIfEmpty()
                                    where cabecera.Fecha >= fechaInicio
                                          && cabecera.Fecha < fechaFinExclusiva
                                          && (razonSocialFiltro == null || almacen.RazonSocial == razonSocialFiltro)
-                                         && !(cabecera.Estado == "A" && (cabecera.GeneroNc == null || (nc != null && nc.IdMotivo == "09")))
+                                         && !(cabecera.Estado == "A" && (cabecera.GeneroNc == null || cabecera.ExcluirDeEstadisticas))
                                          && (tipo.Tipo == "Tarjeta" || tipo.Tipo == "Online")
                                    select new
                                    {
@@ -1020,11 +1014,8 @@ namespace GSCommerceAPI.Controllers
                           join c in _context.ComprobanteDeVentaCabeceras
                               on new { v.IdAlmacen, v.Serie, v.Numero }
                               equals new { c.IdAlmacen, c.Serie, c.Numero }
-                          join nc in _context.NotaDeCreditoCabeceras
-                              on c.GeneroNc equals (nc.Serie + "-" + nc.Numero.ToString("D8")) into ncJoin
-                          from nc in ncJoin.DefaultIfEmpty()
                           where !(c.Estado == "A" &&
-                                  (string.IsNullOrEmpty(c.GeneroNc) || (nc != null && nc.IdMotivo == "09")) &&
+                                  (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
                                   c.FechaHoraUsuarioAnula.HasValue &&
                                   c.FechaHoraUsuarioAnula.Value >= inicio &&
                                   c.FechaHoraUsuarioAnula.Value <= fin)
