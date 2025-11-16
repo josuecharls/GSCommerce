@@ -68,7 +68,7 @@
                     <td>@n.Nombre</td>
                     <td>@n.Total.ToString("C")</td>
                     <td>@n.Estado</td>
-                    <td>@(n.Empleada == true ? "✔" : "✖")</td>
+                    <td>@(n.IdMotivo == "09" ? "NO CANJEABLE" : (n.Empleada == true ? "✔" : "✖"))</td>
                 </tr>
             }
         }
