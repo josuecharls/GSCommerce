@@ -444,11 +444,8 @@ public class ReportesGastosController : ControllerBase
             from v in ventasQuery
             join c in _context.ComprobanteDeVentaCabeceras.AsNoTracking()
                 on new { v.IdAlmacen, v.Serie, v.Numero } equals new { c.IdAlmacen, c.Serie, c.Numero }
-            join nc in _context.NotaDeCreditoCabeceras.AsNoTracking()
-                on c.GeneroNc equals (nc.Serie + "-" + nc.Numero.ToString("D8")) into ncJoin
-            from nc in ncJoin.DefaultIfEmpty()
             where !(c.Estado == "A" && 
-                    (string.IsNullOrEmpty(c.GeneroNc) || (nc != null && nc.IdMotivo == "09")) && 
+                    (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) && 
                     c.FechaHoraUsuarioAnula.HasValue &&
                     c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
             select v;

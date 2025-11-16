@@ -240,11 +240,8 @@ public class CajaController : ControllerBase
                           join c in _context.ComprobanteDeVentaCabeceras
                               on new { v.IdAlmacen, v.Serie, v.Numero }
                               equals new { c.IdAlmacen, c.Serie, c.Numero }
-                          join nc in _context.NotaDeCreditoCabeceras
-                              on c.GeneroNc equals (nc.Serie + "-" + nc.Numero.ToString("D8")) into ncJoin
-                          from nc in ncJoin.DefaultIfEmpty()
                           where !(c.Estado == "A" &&
-                                  (string.IsNullOrEmpty(c.GeneroNc) || (nc != null && nc.IdMotivo == "09")) &&
+                                  (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
                                   c.FechaHoraUsuarioAnula.HasValue &&
                                   c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
                                   c.FechaHoraUsuarioAnula.Value <= fechaFin)
@@ -321,11 +318,8 @@ public class CajaController : ControllerBase
                          join c in _context.ComprobanteDeVentaCabeceras
                              on new { v.IdAlmacen, v.Serie, v.Numero }
                              equals new { c.IdAlmacen, c.Serie, c.Numero }
-                         join nc in _context.NotaDeCreditoCabeceras
-                             on c.GeneroNc equals (nc.Serie + "-" + nc.Numero.ToString("D8")) into ncJoin
-                         from nc in ncJoin.DefaultIfEmpty()
                          where !(c.Estado == "A" &&
-                                 (string.IsNullOrEmpty(c.GeneroNc) || (nc != null && nc.IdMotivo == "09")) &&
+                                 (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
                                  c.FechaHoraUsuarioAnula.HasValue &&
                                  c.FechaHoraUsuarioAnula.Value >= dayStart &&
                                  c.FechaHoraUsuarioAnula.Value <= dayEnd)
@@ -438,7 +432,7 @@ public class CajaController : ControllerBase
                     on new { v.IdAlmacen, v.Serie, v.Numero }
                     equals new { c.IdAlmacen, c.Serie, c.Numero }
                 where !(c.Estado == "A" &&
-                        string.IsNullOrEmpty(c.GeneroNc) &&
+                        (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
                         c.FechaHoraUsuarioAnula.HasValue &&
                         c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
                         c.FechaHoraUsuarioAnula.Value <= fechaFin)
@@ -631,11 +625,8 @@ public class CajaController : ControllerBase
                           join c in _context.ComprobanteDeVentaCabeceras
                               on new { v.IdAlmacen, v.Serie, v.Numero }
                               equals new { c.IdAlmacen, c.Serie, c.Numero }
-                          join nc in _context.NotaDeCreditoCabeceras
-                              on c.GeneroNc equals (nc.Serie + "-" + nc.Numero.ToString("D8")) into ncJoin
-                          from nc in ncJoin.DefaultIfEmpty()
                           where !(c.Estado == "A" &&
-                                  (string.IsNullOrEmpty(c.GeneroNc) || (nc != null && nc.IdMotivo == "09")) &&
+                                  (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
                                   c.FechaHoraUsuarioAnula.HasValue &&
                                   c.FechaHoraUsuarioAnula.Value >= dayStart &&
                                   c.FechaHoraUsuarioAnula.Value <= dayEnd)

@@ -282,6 +282,11 @@ namespace GSCommerceAPI.Controllers
                     comprobante.IdUsuarioAnula = usuarioEmisorNc;
                     comprobante.FechaHoraUsuarioAnula = DateTime.Now;
                 }
+                // Motivo "09" (Anulación de Operación) debe excluirse de estadísticas
+                if (dto.Cabecera.IdMotivo == "09")
+                {
+                    comprobante.ExcluirDeEstadisticas = true;
+                }
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
