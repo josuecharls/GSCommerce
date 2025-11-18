@@ -5,6 +5,7 @@
 @inject VentaService ventaService
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService
+@inject UsuarioService UsuarioService
 @inject IJSRuntime JS
 @using System.Linq
 @inject TipoPagoVentaService TipoPagoVentaService
@@ -31,7 +32,7 @@
     {
         <div class="col-md-3">
             <label>Almacén:</label>
-            <select class="form-control" @bind="selectedAlmacen">
+            <select class="form-control" @bind="selectedAlmacen" @bind:event="onchange" @onchange="OnAlmacenChanged">
                 <option value="0">General</option>
                 @foreach (var a in almacenes)
                 {
@@ -39,17 +40,33 @@
                 }
             </select>
         </div>
+        @if (selectedAlmacen > 0)
+        {
+            <div class="col-md-3">
+                <label>Cajero:</label>
+                <select class="form-control" @bind="selectedCajero">
+                    <option value="0">Todos</option>
+                    @if (cajeros != null)
+                    {
+                        @foreach (var c in cajeros)
+                        {
+                            <option value="@c.IdUsuario">@c.Nombre</option>
+                        }
+                    }
+                </select>
+            </div>
+        }
     }
-    <div class="@(cargo == "ADMINISTRADOR" ? "col-md-3" : "col-md-4")">
+    <div class="@(cargo == "ADMINISTRADOR" ? (selectedAlmacen > 0 ? "col-md-2" : "col-md-3") : "col-md-4")">
         <label>Desde:</label>
         <input type="date" class="form-control" @bind-value="desde" @bind-value:event="oninput" />
     </div>
-    <div class="@(cargo == "ADMINISTRADOR" ? "col-md-3" : "col-md-4")">
+    <div class="@(cargo == "ADMINISTRADOR" ? (selectedAlmacen > 0 ? "col-md-2" : "col-md-3") : "col-md-4")">
         <label>Hasta:</label>
         <input type="date" class="form-control" @bind-value="hasta" @bind-value:event="oninput" />
     </div>
 
-    <div class="col-md-3">
+    <div class="@(cargo == "ADMINISTRADOR" ? (selectedAlmacen > 0 ? "col-md-2" : "col-md-3") : "col-md-4")">
         <label>Tipo Doc:</label>
         <select class="form-control" @bind="selectedTipoDoc">
             <option value="0">Todos</option>
@@ -61,7 +78,7 @@
         </select>
     </div>
 
-    <div class="@(cargo == "ADMINISTRADOR" ? "col-md-12 col-lg-3" : "col-md-4") d-flex align-items-end">
+    <div class="@(cargo == "ADMINISTRADOR" ? (selectedAlmacen > 0 ? "col-md-12 col-lg-1" : "col-md-12 col-lg-3") : "col-md-4") d-flex align-items-end">
         <button class="btn btn-primary w-100" @onclick="BuscarVentas"><i class="bi bi-search"></i> Buscar</button>
     </div>
 </div>
@@ -279,6 +296,9 @@
     private List<AlmacenDTO> almacenes = new();
     private int selectedAlmacen;
     private int selectedTipoDoc = 0; // 0 = todos
+    private int selectedCajero = 0; // 0 = todos
+    private List<UsuarioDTO> cajeros = new();
+    private int? idUsuarioActual;
     private decimal efectivoSoles;
     private decimal efectivoDolares;
     private decimal tarjetaOnline;
@@ -308,17 +328,52 @@
         else
         {
             selectedAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
+            idUsuarioActual = await AuthService.GetUserId();
         }
 
         await BuscarVentas();
+    }
+    
+    private async Task OnAlmacenChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var idAlmacen))
+        {
+            selectedAlmacen = idAlmacen;
+            selectedCajero = 0; // Resetear selección de cajero
+            
+            if (idAlmacen > 0)
+            {
+                // Cargar cajeros del almacén seleccionado
+                cajeros = await UsuarioService.ObjetenerCajerosConUserAsync(idAlmacen);
+            }
+            else
+            {
+                cajeros = new();
+            }
+        }
     }
 
     private async Task BuscarVentas()
     {
         int? filtroAlmacen = cargo == "ADMINISTRADOR" && selectedAlmacen == 0 ? (int?)null : selectedAlmacen;
         int? filtroTipoDoc = selectedTipoDoc == 0 ? (int?)null : selectedTipoDoc;
+        int? filtroCajero = null;
+        
+        if (cargo == "ADMINISTRADOR")
+        {
+            // Si se seleccionó un cajero específico, usar ese
+            if (selectedCajero > 0)
+            {
+                filtroCajero = selectedCajero;
+            }
+        }
+        else if (cargo == "CAJERO")
+        {
+            // Para CAJERO, filtrar automáticamente por su IdUsuario
+            filtroCajero = idUsuarioActual;
+        }
 
-        ventas = await ventaService.ObtenerVentasAsync(desde, hasta, filtroAlmacen, filtroTipoDoc);
+        ventas = await ventaService.ObtenerVentasAsync(desde, hasta, filtroAlmacen, filtroTipoDoc, filtroCajero);
         CalcularResumen();
     }
 

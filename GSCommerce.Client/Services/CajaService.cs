@@ -170,11 +170,15 @@ namespace GSCommerce.Client.Services
         }
 
         // Obtener ventas del día
-        public async Task<List<VCierreVentaDiaria1DTO>?> ObtenerVentasDiariasAsync(int idAlmacen, DateOnly fecha)
+        public async Task<List<VCierreVentaDiaria1DTO>?> ObtenerVentasDiariasAsync(int idAlmacen, DateOnly fecha, int? idUsuario = null)
         {
             string fechaStr = fecha.ToString("yyyy-MM-dd");
-            return await _http.GetFromJsonAsync<List<VCierreVentaDiaria1DTO>>(
-                $"api/caja/ventas/{idAlmacen}/{fechaStr}");
+            string url = $"api/caja/ventas/{idAlmacen}/{fechaStr}";
+            if (idUsuario.HasValue && idUsuario.Value > 0)
+            {
+                url += $"?idUsuario={idUsuario.Value}";
+            }
+            return await _http.GetFromJsonAsync<List<VCierreVentaDiaria1DTO>>(url);
         }
 
         // Liquidar caja

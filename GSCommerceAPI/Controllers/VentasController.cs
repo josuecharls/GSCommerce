@@ -766,7 +766,9 @@ namespace GSCommerceAPI.Controllers
             [FromQuery(Name = "tipoDoc")] int? tipoDoc,
             [FromQuery(Name = "idTipoDoc")] int? idTipoDocAlias,
             // opcional: buscar por documento del cliente
-            [FromQuery] string? dniruc
+            [FromQuery] string? dniruc,
+            // opcional: filtrar por cajero (IdUsuario)
+            [FromQuery] int? idUsuario
         )
         {
             var inicio = (desde?.Date) ?? DateTime.Today;
@@ -788,6 +790,9 @@ namespace GSCommerceAPI.Controllers
 
                     if (!userAlmacen.HasValue) return Ok(new List<VentaConsultaDTO>());
                     query = query.Where(v => v.IdAlmacen == userAlmacen.Value);
+                    
+                    // Para CAJERO: filtrar automáticamente por su IdUsuario
+                    query = query.Where(v => v.IdCajero == userId);
                 }
                 else
                 {
@@ -797,6 +802,12 @@ namespace GSCommerceAPI.Controllers
             else if (idAlmacen.HasValue && idAlmacen.Value > 0)
             {
                 query = query.Where(v => v.IdAlmacen == idAlmacen.Value);
+            }
+            
+            // Filtro opcional por cajero (solo para ADMINISTRADOR)
+            if (string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase) && idUsuario.HasValue && idUsuario.Value > 0)
+            {
+                query = query.Where(v => v.IdCajero == idUsuario.Value);
             }
 
             // Filtro por tipo de documento
