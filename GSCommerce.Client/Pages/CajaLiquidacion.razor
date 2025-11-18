@@ -152,7 +152,7 @@ else
         usuario = apertura.NombreUsuario ?? "";
         cajero = apertura.NombreCajero ?? "";
 
-        ventas = await CajaService.ObtenerVentasDiariasAsync(idAlmacen, fechaSeleccionada) ?? new();
+        ventas = await CajaService.ObtenerVentasDiariasAsync(idAlmacen, fechaSeleccionada, idUsuario) ?? new();
 
         foreach (var venta in ventas)
         {

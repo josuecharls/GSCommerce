@@ -352,10 +352,13 @@ public class CajaController : ControllerBase
 
         foreach (var ap in aperturas)
         {
-            // saldo del día anterior (o saldo inicial de la apertura si no hay cierre previo)
+            // saldo del día anterior (o saldo inicial de la apertura si no hay cierre previo) - del mismo cajero
             var saldoDiaAnterior = await _context.AperturaCierreCajas
                 .AsNoTracking()
-                .Where(a => a.IdAlmacen == ap.IdAlmacen && a.Fecha < ap.Fecha && a.Estado == "C")
+                .Where(a => a.IdAlmacen == ap.IdAlmacen 
+                         && a.IdUsuario == ap.IdUsuario 
+                         && a.Fecha < ap.Fecha 
+                         && a.Estado == "C")
                 .OrderByDescending(a => a.Fecha)
                 .Select(a => (decimal?)a.SaldoFinal)
                 .FirstOrDefaultAsync() ?? ap.SaldoInicial;
@@ -416,7 +419,7 @@ public class CajaController : ControllerBase
 
     // 11. Obtener ventas diarias para un almacén y fecha
     [HttpGet("ventas/{idAlmacen}/{fecha}")]
-    public async Task<ActionResult<IEnumerable<VCierreVentaDiaria1>>> GetVentasDiarias(int idAlmacen, string fecha)
+    public async Task<ActionResult<IEnumerable<VCierreVentaDiaria1>>> GetVentasDiarias(int idAlmacen, string fecha, [FromQuery] int? idUsuario = null)
     {
         if (!DateOnly.TryParseExact(fecha, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaParsed))
             return BadRequest("Fecha inválida");
@@ -426,6 +429,12 @@ public class CajaController : ControllerBase
 
         var query = _context.VCierreVentaDiaria1s
             .Where(v => v.IdAlmacen == idAlmacen && v.Fecha >= fechaInicio && v.Fecha <= fechaFin);
+        
+        // Filtrar por cajero si se proporciona
+        if (idUsuario.HasValue && idUsuario.Value > 0)
+        {
+            query = query.Where(v => v.IdCajero == idUsuario.Value);
+        }
 
         query = from v in query
                 join c in _context.ComprobanteDeVentaCabeceras
@@ -716,10 +725,13 @@ public class CajaController : ControllerBase
                 })
                 .ToListAsync();
 
-            // 5) SALDO DEL DÍA ANTERIOR
+            // 5) SALDO DEL DÍA ANTERIOR (del mismo cajero)
             var saldoDiaAnterior = await _context.AperturaCierreCajas
                 .AsNoTracking()
-                .Where(a => a.IdAlmacen == apertura.IdAlmacen && a.Fecha < apertura.Fecha && a.Estado == "C")
+                .Where(a => a.IdAlmacen == apertura.IdAlmacen 
+                         && a.IdUsuario == apertura.IdUsuario 
+                         && a.Fecha < apertura.Fecha 
+                         && a.Estado == "C")
                 .OrderByDescending(a => a.Fecha)
                 .Select(a => (decimal?)a.SaldoFinal)
                 .FirstOrDefaultAsync() ?? apertura.SaldoInicial;
