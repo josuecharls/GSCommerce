@@ -261,8 +261,8 @@ else
         NormalizarCodigoArticulo(d);
         var codigoNormalizado = d.IdArticulo;
 
-        // Validar que el almacén esté seleccionado para transferencias y egresos
-        if ((tipo == "Transferencia" || tipo == "Egreso") && guia.IdAlmacen <= 0)
+        // Validar que el almacén esté seleccionado (necesario para validar stock)
+        if (guia.IdAlmacen <= 0)
         {
             await MostrarAlerta("❌ Debe seleccionar un almacén antes de buscar artículos.");
             d.IdArticulo = string.Empty;
@@ -278,13 +278,14 @@ else
         {
             d.DescripcionArticulo = art.Descripcion;
 
-            // Validar stock en el almacén (para transferencias y egresos)
-            if (tipo == "Transferencia" || tipo == "Egreso")
-            {
-                var idAlmacen = guia.IdAlmacen;
-                var stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, idAlmacen);
+            // Validar stock en el almacén para TODOS los tipos de movimiento
+            var idAlmacen = guia.IdAlmacen;
+            var stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, idAlmacen);
 
-                if (stockDisponible <= 0)
+            if (stockDisponible <= 0)
+            {
+                // Para transferencias y egresos: bloquear si no hay stock
+                if (tipo == "Transferencia" || tipo == "Egreso")
                 {
                     await MostrarAlerta($"⚠️ El artículo '{codigoNormalizado}' no tiene stock en el almacén seleccionado.");
                     // Limpiar el código y descripción para no permitir continuar
@@ -292,6 +293,11 @@ else
                     d.DescripcionArticulo = string.Empty;
                     StateHasChanged();
                     return;
+                }
+                // Para ingresos: mostrar advertencia pero permitir continuar (puede ser un ingreso nuevo)
+                else
+                {
+                    await MostrarAlerta($"⚠️ Advertencia: El artículo '{codigoNormalizado}' no tiene stock en el almacén seleccionado. Puede continuar si está ingresando nuevo stock.");
                 }
             }
         }

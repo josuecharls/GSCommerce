@@ -224,6 +224,7 @@ else
     private string? fotoArticuloSeleccionada;
     private string? descripcionArticuloSeleccionada;
     private int? itemSeleccionado;
+    private bool debeEnfocarCodigo = true;
 
     private DateTime ultimaEntrada = DateTime.MinValue;
     private bool entradaManual = false;
@@ -308,6 +309,31 @@ else
         {
             Console.WriteLine($"Error en OnInitializedAsync: {ex.Message}");
             await JS.InvokeVoidAsync("alert", "Error al cargar el formulario de venta.");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || debeEnfocarCodigo)
+        {
+            // Esperar un poco para asegurar que el DOM esté completamente renderizado
+            await Task.Delay(100);
+            try
+            {
+                await inputCodigoRef.FocusAsync();
+                debeEnfocarCodigo = false; // Solo enfocar una vez
+            }
+            catch
+            {
+                // Si falla, intentar con JavaScript como respaldo
+                await JS.InvokeVoidAsync("eval", @"
+                    setTimeout(function() {
+                        var input = document.querySelector('input[value=""], input[type=""text""]');
+                        if (input && input.value === '') input.focus();
+                    }, 200);
+                ");
+                debeEnfocarCodigo = false;
+            }
         }
     }
 
@@ -1151,10 +1177,11 @@ else
         fotoArticuloSeleccionada = null;
         descripcionArticuloSeleccionada = null;
         itemSeleccionado = null;
+        codigoBusqueda = string.Empty;
+        debeEnfocarCodigo = true;
 
         await CargarSeriePorTipoYAlmacen();
         await Task.Delay(50);
-        await inputCodigoRef.FocusAsync();
         await InvokeAsync(StateHasChanged);
     }
 
