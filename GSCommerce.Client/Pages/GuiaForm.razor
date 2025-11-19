@@ -2,6 +2,7 @@
 @page "/guias-form/{tipo}/{idOC:int?}"
 @**@
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Web
 @inject NavigationManager Navigation
 @inject MovimientoGuiaService MovimientoGuiaService
 @inject AlmacenService AlmacenService
@@ -109,9 +110,10 @@ else
                     <td><input class="form-control"
                @bind="d.IdArticulo"
                @bind:after="() => NormalizarCodigoArticulo(d)"
-               @onblur="() => BuscarArticulo(d)" /></td>
+               @onblur="() => BuscarArticulo(d)"
+               data-item="@d.Item" /></td>
                     <td><input class="form-control" value="@d.DescripcionArticulo" readonly /></td>
-                    <td><input class="form-control text-end" type="number" @bind="d.Cantidad" @bind:after="CalcularTotalArticulos" /></td>
+                    <td><input class="form-control text-end" type="number" @bind="d.Cantidad" @bind:after="() => OnCantidadChange(d)" @onkeydown="@((e) => OnCantidadKeyDown(e, d))" /></td>
                     <td><input class="form-control text-end" type="number" step="0.01" @bind="d.Valor" /></td>
                     <td>
                         <button class="btn btn-danger btn-sm" @onclick="@(() => QuitarArticulo(d))">❌</button>
@@ -144,6 +146,8 @@ else
     private int totalArticulos = 0;
     private string tipoMovimiento = ""; // I, E, T
     private string proveedorNombre = string.Empty;
+    // Diccionario para almacenar el stock disponible de cada artículo
+    private Dictionary<string, int> stockPorArticulo = new Dictionary<string, int>();
 
     private bool mostrarDestino => tipo == "Transferencia" || tipo == "IngresoXOC";
     private bool mostrarProveedor => tipo == "Ingreso" || tipo == "IngresoXOC" || guia.Motivo == "DEVOLUCION A PROVEEDOR";
@@ -282,6 +286,9 @@ else
             var idAlmacen = guia.IdAlmacen;
             var stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, idAlmacen);
 
+            // Guardar el stock disponible para validar cantidad después
+            stockPorArticulo[codigoNormalizado] = stockDisponible;
+
             if (stockDisponible <= 0)
             {
                 // Para transferencias y egresos: bloquear si no hay stock
@@ -291,6 +298,7 @@ else
                     // Limpiar el código y descripción para no permitir continuar
                     d.IdArticulo = string.Empty;
                     d.DescripcionArticulo = string.Empty;
+                    stockPorArticulo.Remove(codigoNormalizado);
                     StateHasChanged();
                     return;
                 }
@@ -307,6 +315,11 @@ else
             await MostrarAlerta($"❌ Artículo '{codigoNormalizado}' no encontrado.");
             // Limpiar el código si no se encuentra
             d.IdArticulo = string.Empty;
+            // Remover del diccionario de stock si existe
+            if (stockPorArticulo.ContainsKey(codigoNormalizado))
+            {
+                stockPorArticulo.Remove(codigoNormalizado);
+            }
             StateHasChanged();
         }
     }
@@ -424,6 +437,95 @@ else
     private void CalcularTotalArticulos()
     {
         totalArticulos = guia.Detalles.Sum(d => d.Cantidad);
+    }
+
+    // Validar cantidad vs stock disponible
+    private async Task OnCantidadChange(MovimientoDetalleDTO d)
+    {
+        CalcularTotalArticulos();
+        StateHasChanged();
+
+        // Solo validar stock para transferencias y egresos
+        if ((tipo == "Transferencia" || tipo == "Egreso") && !string.IsNullOrWhiteSpace(d.IdArticulo))
+        {
+            var codigoNormalizado = d.IdArticulo.Trim();
+            
+            // Si tenemos el stock almacenado, validar
+            if (stockPorArticulo.ContainsKey(codigoNormalizado))
+            {
+                var stockDisponible = stockPorArticulo[codigoNormalizado];
+                
+                if (d.Cantidad > stockDisponible)
+                {
+                    await MostrarAlerta($"❌ No hay stock suficiente ({stockDisponible} en total) para el artículo '{codigoNormalizado}'. Cantidad solicitada: {d.Cantidad}.");
+                    // Restaurar cantidad al stock disponible
+                    d.Cantidad = stockDisponible;
+                    CalcularTotalArticulos();
+                    StateHasChanged();
+                }
+            }
+            else
+            {
+                // Si no tenemos el stock almacenado, consultarlo
+                if (guia.IdAlmacen > 0)
+                {
+                    var stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, guia.IdAlmacen);
+                    stockPorArticulo[codigoNormalizado] = stockDisponible;
+                    
+                    if (d.Cantidad > stockDisponible)
+                    {
+                        await MostrarAlerta($"❌ No hay stock suficiente ({stockDisponible} en total) para el artículo '{codigoNormalizado}'. Cantidad solicitada: {d.Cantidad}.");
+                        // Restaurar cantidad al stock disponible
+                        d.Cantidad = stockDisponible;
+                        CalcularTotalArticulos();
+                        StateHasChanged();
+                    }
+                }
+            }
+        }
+    }
+
+    // Manejar tecla Enter en el campo cantidad para agregar nuevo artículo
+    private async Task OnCantidadKeyDown(KeyboardEventArgs e, MovimientoDetalleDTO d)
+    {
+        if (e.Key == "Enter")
+        {
+            // Validar cantidad antes de agregar
+            await OnCantidadChange(d);
+            // Agregar nuevo artículo
+            var nuevoItem = guia.Detalles.Count + 1;
+            AgregarArticulo();
+            StateHasChanged();
+            
+            // Esperar un poco para que el DOM se actualice y luego enfocar el nuevo campo código
+            await Task.Delay(100);
+            await EnfocarInputCodigo(nuevoItem);
+        }
+    }
+
+    // Enfocar el input de código de un artículo específico usando JavaScript
+    private async Task EnfocarInputCodigo(int item)
+    {
+        await JS.InvokeVoidAsync("eval", $@"
+            setTimeout(function() {{
+                var input = document.querySelector('input[data-item=""{item}""]');
+                if (input) {{
+                    input.focus();
+                    input.select();
+                }} else {{
+                    // Fallback: buscar por posición en la tabla
+                    var rows = document.querySelectorAll('tbody tr');
+                    if (rows.length >= {item}) {{
+                        var targetRow = rows[{item} - 1];
+                        var codigoInput = targetRow.querySelector('td:nth-child(2) input');
+                        if (codigoInput) {{
+                            codigoInput.focus();
+                            codigoInput.select();
+                        }}
+                    }}
+                }}
+            }}, 50);
+        ");
     }
 
     private async Task CargarMotivos()
