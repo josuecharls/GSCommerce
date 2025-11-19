@@ -6,6 +6,7 @@
 @inject IngresosEgresosService IngresosEgresosService
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService
+@inject UsuarioService UsuarioService
 @inject NavigationManager Navigation
 @inject HttpClient Http
 
@@ -14,7 +15,7 @@
 <div class="row mb-3">
     <div class="col-md-2">
         <label>Almacén</label>
-        <select class="form-select" @bind="idAlmacen" disabled="@soloLecturaAlmacen">
+        <select class="form-select" @bind="idAlmacen" @bind:after="OnAlmacenChange" disabled="@soloLecturaAlmacen">
             @if (!soloLecturaAlmacen)
             {
                 <option value="0">General</option>
@@ -25,6 +26,19 @@
             }
         </select>
     </div>
+    @if (esAdmin)
+    {
+        <div class="col-md-2">
+            <label>Cajero</label>
+            <select class="form-select" @bind="idCajeroSeleccionado">
+                <option value="0">General</option>
+                @foreach (var cajero in cajeros)
+                {
+                    <option value="@cajero.IdUsuario">@cajero.Nombre</option>
+                }
+            </select>
+        </div>
+    }
     <div class="col-md-2">
         <label>Naturaleza</label>
         <select class="form-select" @bind="naturaleza" @bind:after="OnNaturalezaChange">
@@ -140,9 +154,11 @@
     private List<IngresoEgresoDTO> lista = new();
     private string naturaleza = "EGRESO";
     private List<AlmacenDTO> almacenes = new();
+    private List<UsuarioDTO> cajeros = new();
     private DateTime fechaInicio = DateTime.Today;
     private DateTime fechaFin = DateTime.Today;
     private int idAlmacen;
+    private int idCajeroSeleccionado = 0;
     private int? idUsuario;
     private bool soloLecturaAlmacen = false;
     private bool esAdmin = false;
@@ -181,18 +197,83 @@
         {
             almacenes = almacenes.Where(a => a.IdAlmacen == idAlmacen).ToList();
             soloLecturaAlmacen = true;
+            // Para cajero, siempre filtrar por su propio idUsuario
+            idUsuario = await AuthService.GetUserId();
         }
         else
         {
             idUsuario = null;
+            // Cargar cajeros del almacén seleccionado (o todos si es General)
+            await CargarCajeros();
         }
 
         await Buscar();
     }
 
+    private async Task OnAlmacenChange()
+    {
+        if (esAdmin)
+        {
+            await CargarCajeros();
+            idCajeroSeleccionado = 0; // Resetear selección de cajero
+        }
+    }
+
+    private async Task CargarCajeros()
+    {
+        if (esAdmin)
+        {
+            if (idAlmacen > 0)
+            {
+                // Cargar cajeros del almacén seleccionado
+                cajeros = await UsuarioService.ObtenerCajerosAsync(idAlmacen);
+            }
+            else
+            {
+                // Si es "General", cargar cajeros de todos los almacenes
+                cajeros = new List<UsuarioDTO>();
+                foreach (var almacen in almacenes)
+                {
+                    var cajerosAlmacen = await UsuarioService.ObtenerCajerosAsync(almacen.IdAlmacen);
+                    cajeros.AddRange(cajerosAlmacen);
+                }
+                // Eliminar duplicados si un cajero está en múltiples almacenes
+                cajeros = cajeros.GroupBy(c => c.IdUsuario).Select(g => g.First()).ToList();
+            }
+        }
+        else
+        {
+            cajeros.Clear();
+        }
+    }
+
     private async Task Buscar()
     {
-        lista = await IngresosEgresosService.Listar(idAlmacen == 0 ? null : idAlmacen, idUsuario, fechaInicio, fechaFin, naturaleza, tipo) ?? new List<IngresoEgresoDTO>();
+        // Determinar el idUsuario a usar en la búsqueda
+        int? filtroUsuario = null;
+        
+        if (esAdmin)
+        {
+            // Para administrador: usar el cajero seleccionado (0 = General = null)
+            if (idCajeroSeleccionado > 0)
+            {
+                filtroUsuario = idCajeroSeleccionado;
+            }
+            // Si es 0 (General), filtroUsuario queda null y verá todos los cajeros
+        }
+        else
+        {
+            // Para cajero: siempre filtrar por su propio idUsuario
+            filtroUsuario = idUsuario;
+        }
+
+        lista = await IngresosEgresosService.Listar(
+            idAlmacen == 0 ? null : idAlmacen, 
+            filtroUsuario, 
+            fechaInicio, 
+            fechaFin, 
+            naturaleza, 
+            tipo) ?? new List<IngresoEgresoDTO>();
     }
 
     private void Nuevo()

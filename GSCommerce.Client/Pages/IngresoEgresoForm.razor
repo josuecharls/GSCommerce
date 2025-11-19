@@ -3,6 +3,7 @@
 @using GSCommerce.Client.Services
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Forms
+@using System.Linq
 @inject IngresosEgresosService IngresosEgresosService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
@@ -48,26 +49,52 @@
 
         @if (registro.Tipo == "TRANSFERENCIA")
         {
-            <div class="mb-3">
-                <label>Almacén Destino</label>
-                <InputSelect class="form-select" @bind-Value="registro.IdAlmacenDestino" @onchange="OnAlmacenDestinoChange">
-                    <option value="">-- Seleccione --</option>
-                    @foreach (var a in almacenes)
-                    {
-                        <option value="@a.IdAlmacen">@a.Nombre</option>
-                    }
-                </InputSelect>
-            </div>
-            <div class="mb-3">
-                <label>Cajero Destino</label>
-                <InputSelect class="form-select" @bind-Value="registro.IdCajeroDestino">
-                    <option value="">-- Seleccione --</option>
-                    @foreach (var c in cajerosDestino)
-                    {
-                        <option value="@c.IdUsuario">@c.Nombre</option>
-                    }
-                </InputSelect>
-            </div>
+            @if (esAdministrador)
+            {
+                <div class="mb-3">
+                    <label>Almacén</label>
+                    <InputSelect class="form-select" @bind-Value="idAlmacenSeleccionado" @onchange="OnAlmacenSeleccionadoChange">
+                        <option value="0">-- Seleccione --</option>
+                        @foreach (var a in almacenes)
+                        {
+                            <option value="@a.IdAlmacen">@a.Nombre</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="mb-3">
+                    <label>Cajero Origen</label>
+                    <InputSelect class="form-select" @bind-Value="idCajeroOrigen" @onchange="OnCajeroOrigenChange">
+                        <option value="0">-- Seleccione --</option>
+                        @foreach (var c in cajerosOrigen)
+                        {
+                            <option value="@c.IdUsuario">@c.Nombre</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="mb-3">
+                    <label>Cajero Destino</label>
+                    <InputSelect class="form-select" @bind-Value="registro.IdCajeroDestino">
+                        <option value="">-- Seleccione --</option>
+                        @foreach (var c in cajerosDestino)
+                        {
+                            <option value="@c.IdUsuario">@c.Nombre</option>
+                        }
+                    </InputSelect>
+                </div>
+            }
+            else
+            {
+                <div class="mb-3">
+                    <label>Cajero Destino</label>
+                    <InputSelect class="form-select" @bind-Value="registro.IdCajeroDestino">
+                        <option value="">-- Seleccione --</option>
+                        @foreach (var c in cajerosDestino)
+                        {
+                            <option value="@c.IdUsuario">@c.Nombre</option>
+                        }
+                    </InputSelect>
+                </div>
+            }
         }
     }
 
@@ -142,6 +169,10 @@
     private bool mostrarProveedorModal;
     private string proveedorNombre = string.Empty;
     private bool guardando;
+    private string? cargo;
+    private bool esAdministrador;
+    private int idAlmacenSeleccionado;
+    private int idCajeroOrigen;
 
     private List<string> tiposEgreso = new()
     {
@@ -165,6 +196,7 @@
 
     private List<AlmacenDTO> almacenes = new();
     private List<UsuarioDTO> cajerosDestino = new();
+    private List<UsuarioDTO> cajerosOrigen = new();
 
     private decimal MontoDetalle
     {
@@ -180,6 +212,8 @@
     {
         idUsuario = await AuthService.GetUserId() ?? 0;
         idAlmacen = await AuthService.GetUserAlmacenId() ?? 0;
+        cargo = await AuthService.GetUserCargo();
+        esAdministrador = cargo == "ADMINISTRADOR";
         tituloNaturaleza = naturaleza ?? "Egreso";
         esIngreso = tituloNaturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase);
         registro.Naturaleza = esIngreso ? "I" : "E";
@@ -188,26 +222,86 @@
         if (!esIngreso)
         {
             almacenes = await AlmacenService.GetAlmacenes() ?? new();
+            if (registro.Tipo == "TRANSFERENCIA")
+            {
+                await CargarCajerosParaTransferencia();
+            }
         }
     }
 
-    private void OnTipoChange(ChangeEventArgs e)
+    private async Task OnTipoChange(ChangeEventArgs e)
     {
         registro.IdProveedor = null;
         registro.IdAlmacenDestino = null;
         registro.IdCajeroDestino = null;
+        idCajeroOrigen = 0;
+        idAlmacenSeleccionado = 0;
         proveedorNombre = string.Empty;
+        cajerosDestino.Clear();
+        cajerosOrigen.Clear();
+        
+        if (registro.Tipo == "TRANSFERENCIA")
+        {
+            await CargarCajerosParaTransferencia();
+            StateHasChanged();
+        }
     }
 
-    private async Task OnAlmacenDestinoChange(ChangeEventArgs e)
+    private async Task CargarCajerosParaTransferencia()
     {
-        if (registro.IdAlmacenDestino.HasValue)
+        if (esAdministrador)
         {
-            cajerosDestino = await UsuarioService.ObtenerCajerosAsync(registro.IdAlmacenDestino.Value);
+            // Para administrador, los cajeros se cargan cuando selecciona el almacén
+            cajerosDestino.Clear();
+            cajerosOrigen.Clear();
         }
         else
         {
-            cajerosDestino.Clear();
+            // Para cajero, cargar solo los cajeros del mismo almacén excluyendo al logueado
+            var todosCajeros = await UsuarioService.ObtenerCajerosAsync(idAlmacen);
+            cajerosDestino = todosCajeros.Where(c => c.IdUsuario != idUsuario).ToList();
+            registro.IdAlmacenDestino = idAlmacen; // El almacén destino es el mismo del cajero logueado
+        }
+    }
+
+    private async Task OnAlmacenSeleccionadoChange(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var idAlmacen))
+        {
+            idAlmacenSeleccionado = idAlmacen;
+            registro.IdAlmacenDestino = idAlmacen;
+            
+            if (idAlmacen > 0)
+            {
+                var todosCajeros = await UsuarioService.ObtenerCajerosAsync(idAlmacen);
+                cajerosOrigen = todosCajeros.ToList();
+                cajerosDestino = todosCajeros.ToList();
+            }
+            else
+            {
+                cajerosOrigen.Clear();
+                cajerosDestino.Clear();
+            }
+            
+            idCajeroOrigen = 0;
+            registro.IdCajeroDestino = null;
+            StateHasChanged();
+        }
+    }
+
+    private void OnCajeroOrigenChange(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var idCajero))
+        {
+            idCajeroOrigen = idCajero;
+            // Filtrar cajeros destino para excluir al cajero origen seleccionado
+            if (idAlmacenSeleccionado > 0)
+            {
+                var todosCajeros = cajerosOrigen.Where(c => c.IdUsuario != idCajero).ToList();
+                cajerosDestino = todosCajeros;
+            }
+            registro.IdCajeroDestino = null;
+            StateHasChanged();
         }
     }
 
@@ -237,12 +331,43 @@
             return;
         }
 
+        if (registro.Tipo == "TRANSFERENCIA" && !registro.IdCajeroDestino.HasValue)
+        {
+            await JS.InvokeVoidAsync("alert", "Debe seleccionar un cajero destino antes de guardar.");
+            return;
+        }
+
+        if (registro.Tipo == "TRANSFERENCIA" && esAdministrador)
+        {
+            if (idAlmacenSeleccionado == 0)
+            {
+                await JS.InvokeVoidAsync("alert", "Debe seleccionar un almacén antes de guardar.");
+                return;
+            }
+            if (idCajeroOrigen == 0)
+            {
+                await JS.InvokeVoidAsync("alert", "Debe seleccionar un cajero origen antes de guardar.");
+                return;
+            }
+        }
+
         guardando = true;
         try
         {
-            registro.IdUsuario = idUsuario;
-            registro.IdAlmacen = idAlmacen;
-            registro.IdAlmacenGasto = idAlmacen;
+            // Para administrador en transferencia, usar el cajero origen seleccionado como IdUsuario
+            if (registro.Tipo == "TRANSFERENCIA" && esAdministrador && idCajeroOrigen > 0)
+            {
+                registro.IdUsuario = idCajeroOrigen;
+                registro.IdAlmacen = idAlmacenSeleccionado;
+                registro.IdAlmacenGasto = idAlmacenSeleccionado;
+            }
+            else
+            {
+                registro.IdUsuario = idUsuario;
+                registro.IdAlmacen = idAlmacen;
+                registro.IdAlmacenGasto = idAlmacen;
+            }
+            
             registro.Detalles = new List<IngresoEgresoDetalleDTO> { detalle };
             var ok = await IngresosEgresosService.Registrar(registro);
             if (ok)

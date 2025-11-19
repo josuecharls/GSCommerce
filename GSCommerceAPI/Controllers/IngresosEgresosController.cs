@@ -122,6 +122,86 @@ namespace GSCommerceAPI.Controllers
 
             await _context.SaveChangesAsync();
 
+            // Si es un Egreso tipo TRANSFERENCIA con cajero destino, crear automáticamente el Ingreso para el cajero destino
+            if (cabecera.Naturaleza == "E" && 
+                cabecera.Tipo.Equals("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase) &&
+                cabecera.IdCajeroDestino.HasValue)
+            {
+                // Obtener el almacén del cajero destino
+                var cajeroDestino = await _context.Usuarios
+                    .Include(u => u.IdPersonalNavigation)
+                    .FirstOrDefaultAsync(u => u.IdUsuario == cabecera.IdCajeroDestino.Value);
+
+                if (cajeroDestino?.IdPersonalNavigation != null)
+                {
+                    var idAlmacenDestino = cabecera.IdAlmacenDestino ?? cajeroDestino.IdPersonalNavigation.IdAlmacen;
+                    
+                    // Obtener el nombre del cajero origen para la glosa
+                    var cajeroOrigen = await _context.Usuarios
+                        .Include(u => u.IdPersonalNavigation)
+                        .FirstOrDefaultAsync(u => u.IdUsuario == cabecera.IdUsuario);
+                    
+                    var nombreCajeroOrigen = cajeroOrigen?.IdPersonalNavigation != null
+                        ? $"{cajeroOrigen.IdPersonalNavigation.Nombres} {cajeroOrigen.IdPersonalNavigation.Apellidos}".Trim()
+                        : "Cajero Origen";
+
+                    // Crear el ingreso para el cajero destino
+                    var ingresoDestino = new IngresosEgresosCabecera
+                    {
+                        IdUsuario = cabecera.IdCajeroDestino.Value,
+                        IdAlmacen = idAlmacenDestino,
+                        Naturaleza = "I",
+                        Tipo = "TRANSFERENCIA",
+                        Fecha = cabecera.Fecha,
+                        Glosa = $"Transferencia recibida de {nombreCajeroOrigen}",
+                        Monto = cabecera.Monto,
+                        IdProveedor = null,
+                        IdAlmacenDestino = cabecera.IdAlmacen,
+                        IdCajeroDestino = null,
+                        IdAlmacenGasto = null,
+                        FechaRegistro = DateTime.Now,
+                        Estado = "E"
+                    };
+
+                    _context.IngresosEgresosCabeceras.Add(ingresoDestino);
+                    await _context.SaveChangesAsync();
+
+                    // Copiar los detalles al ingreso destino
+                    foreach (var det in dto.Detalles)
+                    {
+                        byte[]? imagenDestino = null;
+                        if (!string.IsNullOrEmpty(det.ImagenBase64))
+                        {
+                            try
+                            {
+                                imagenDestino = Convert.FromBase64String(det.ImagenBase64);
+                            }
+                            catch (FormatException)
+                            {
+                                // Si hay error con la imagen, continuar sin ella
+                            }
+                        }
+
+                        var detalleDestino = new IngresosEgresosDetalle
+                        {
+                            IdIngresoEgreso = ingresoDestino.IdIngresoEgreso,
+                            Forma = det.Forma,
+                            Detalle = det.Detalle,
+                            Monto = det.Monto,
+                            Banco = det.Banco,
+                            Cuenta = det.Cuenta,
+                            Imagen = imagenDestino
+                        };
+                        _context.IngresosEgresosDetalles.Add(detalleDestino);
+                    }
+
+                    await _context.SaveChangesAsync();
+
+                    // Actualizar saldos de caja para el cajero destino
+                    await ActualizarSaldosCajaAsync(cabecera.IdCajeroDestino.Value, idAlmacenDestino, dto.Fecha);
+                }
+            }
+
             // Actualizar saldos de caja para la fecha del egreso/ingreso
             await ActualizarSaldosCajaAsync(dto.IdUsuario, dto.IdAlmacen, dto.Fecha);
 
@@ -195,6 +275,33 @@ namespace GSCommerceAPI.Controllers
 
             registro.Estado = "A";
             await _context.SaveChangesAsync();
+
+            // Si es un Egreso tipo TRANSFERENCIA, buscar y anular el Ingreso correspondiente del cajero destino
+            if (registro.Naturaleza == "E" && 
+                registro.Tipo.Equals("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase) &&
+                registro.IdCajeroDestino.HasValue)
+            {
+                // Buscar el ingreso de transferencia del cajero destino que corresponda
+                var ingresoDestino = await _context.IngresosEgresosCabeceras
+                    .Where(i => i.Naturaleza == "I" &&
+                                i.Tipo.Equals("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase) &&
+                                i.IdUsuario == registro.IdCajeroDestino.Value &&
+                                i.IdAlmacenDestino == registro.IdAlmacen &&
+                                DateOnly.FromDateTime(i.Fecha) == DateOnly.FromDateTime(registro.Fecha) &&
+                                i.Monto == registro.Monto &&
+                                i.Estado == "E")
+                    .OrderByDescending(i => i.IdIngresoEgreso)
+                    .FirstOrDefaultAsync();
+
+                if (ingresoDestino != null)
+                {
+                    ingresoDestino.Estado = "A";
+                    await _context.SaveChangesAsync();
+                    
+                    // Actualizar saldos de caja para el cajero destino
+                    await ActualizarSaldosCajaAsync(ingresoDestino.IdUsuario, ingresoDestino.IdAlmacen, ingresoDestino.Fecha);
+                }
+            }
 
             // Actualizar saldos de caja para la fecha del egreso/ingreso anulado
             await ActualizarSaldosCajaAsync(registro.IdUsuario, registro.IdAlmacen, registro.Fecha);
