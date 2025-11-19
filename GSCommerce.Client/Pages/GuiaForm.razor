@@ -108,9 +108,10 @@ else
                     <td>@d.Item</td>
                     <td><input class="form-control"
                @bind="d.IdArticulo"
+               @bind:after="() => NormalizarCodigoArticulo(d)"
                @onblur="() => BuscarArticulo(d)" /></td>
-                    <td><input class="form-control" @bind="d.DescripcionArticulo" /></td>
-                    <td><input class="form-control text-end" type="number" @bind="d.Cantidad" /></td>
+                    <td><input class="form-control" value="@d.DescripcionArticulo" readonly /></td>
+                    <td><input class="form-control text-end" type="number" @bind="d.Cantidad" @bind:after="CalcularTotalArticulos" /></td>
                     <td><input class="form-control text-end" type="number" step="0.01" @bind="d.Valor" /></td>
                     <td>
                         <button class="btn btn-danger btn-sm" @onclick="@(() => QuitarArticulo(d))">❌</button>
@@ -225,22 +226,82 @@ else
 
     }
 
+    // Normalizar código de artículo a 6 dígitos con ceros a la izquierda
+    private void NormalizarCodigoArticulo(MovimientoDetalleDTO d)
+    {
+        if (string.IsNullOrWhiteSpace(d.IdArticulo))
+            return;
+
+        var codigo = d.IdArticulo.Trim();
+
+        // Si es un número, normalizar a 6 dígitos
+        if (int.TryParse(codigo, out int numero))
+        {
+            d.IdArticulo = numero.ToString("D6"); // D6 = 6 dígitos con ceros a la izquierda
+        }
+        else if (codigo.Length < 6)
+        {
+            // Si no es numérico pero tiene menos de 6 caracteres, rellenar con ceros a la izquierda
+            d.IdArticulo = codigo.PadLeft(6, '0');
+        }
+        else if (codigo.Length > 6)
+        {
+            // Si tiene más de 6 caracteres, truncar
+            d.IdArticulo = codigo.Substring(0, 6);
+        }
+    }
+
     //PARA BUSCAR EL ARTICULO
     private async Task BuscarArticulo(MovimientoDetalleDTO d)
     {
         if (string.IsNullOrWhiteSpace(d.IdArticulo))
             return;
 
-        var art = await ArticuloService.GetArticuloById(d.IdArticulo);
+        // Normalizar el código antes de buscar
+        NormalizarCodigoArticulo(d);
+        var codigoNormalizado = d.IdArticulo;
+
+        // Validar que el almacén esté seleccionado para transferencias y egresos
+        if ((tipo == "Transferencia" || tipo == "Egreso") && guia.IdAlmacen <= 0)
+        {
+            await MostrarAlerta("❌ Debe seleccionar un almacén antes de buscar artículos.");
+            d.IdArticulo = string.Empty;
+            d.DescripcionArticulo = string.Empty;
+            StateHasChanged();
+            return;
+        }
+
+        // Buscar el artículo
+        var art = await ArticuloService.GetArticuloById(codigoNormalizado);
 
         if (art != null)
         {
             d.DescripcionArticulo = art.Descripcion;
+
+            // Validar stock en el almacén (para transferencias y egresos)
+            if (tipo == "Transferencia" || tipo == "Egreso")
+            {
+                var idAlmacen = guia.IdAlmacen;
+                var stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, idAlmacen);
+
+                if (stockDisponible <= 0)
+                {
+                    await MostrarAlerta($"⚠️ El artículo '{codigoNormalizado}' no tiene stock en el almacén seleccionado.");
+                    // Limpiar el código y descripción para no permitir continuar
+                    d.IdArticulo = string.Empty;
+                    d.DescripcionArticulo = string.Empty;
+                    StateHasChanged();
+                    return;
+                }
+            }
         }
         else
         {
-            d.DescripcionArticulo = "";
-            await MostrarAlerta($"❌ Artículo '{d.IdArticulo}' no encontrado.");
+            d.DescripcionArticulo = string.Empty;
+            await MostrarAlerta($"❌ Artículo '{codigoNormalizado}' no encontrado.");
+            // Limpiar el código si no se encuentra
+            d.IdArticulo = string.Empty;
+            StateHasChanged();
         }
     }
 
