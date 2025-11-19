@@ -136,6 +136,12 @@ namespace GSCommerceAPI.Controllers
                 {
                     var idAlmacenDestino = cabecera.IdAlmacenDestino ?? cajeroDestino.IdPersonalNavigation.IdAlmacen;
                     
+                    // Validar que tenemos un almacén válido
+                    if (!idAlmacenDestino.HasValue)
+                    {
+                        return BadRequest("No se pudo determinar el almacén del cajero destino.");
+                    }
+                    
                     // Obtener el nombre del cajero origen para la glosa
                     var cajeroOrigen = await _context.Usuarios
                         .Include(u => u.IdPersonalNavigation)
@@ -149,7 +155,7 @@ namespace GSCommerceAPI.Controllers
                     var ingresoDestino = new IngresosEgresosCabecera
                     {
                         IdUsuario = cabecera.IdCajeroDestino.Value,
-                        IdAlmacen = idAlmacenDestino,
+                        IdAlmacen = idAlmacenDestino.Value,
                         Naturaleza = "I",
                         Tipo = "TRANSFERENCIA",
                         Fecha = cabecera.Fecha,
@@ -198,7 +204,7 @@ namespace GSCommerceAPI.Controllers
                     await _context.SaveChangesAsync();
 
                     // Actualizar saldos de caja para el cajero destino
-                    await ActualizarSaldosCajaAsync(cabecera.IdCajeroDestino.Value, idAlmacenDestino, dto.Fecha);
+                    await ActualizarSaldosCajaAsync(cabecera.IdCajeroDestino.Value, idAlmacenDestino.Value, dto.Fecha);
                 }
             }
 
