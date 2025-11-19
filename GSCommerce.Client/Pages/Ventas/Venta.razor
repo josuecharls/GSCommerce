@@ -32,7 +32,7 @@
     {
         <div class="col-md-3">
             <label>Almacén:</label>
-            <select class="form-control" @bind="selectedAlmacen" @bind:event="onchange" @onchange="OnAlmacenChanged">
+            <select class="form-control" @bind="selectedAlmacen" @bind:after="OnAlmacenChanged">
                 <option value="0">General</option>
                 @foreach (var a in almacenes)
                 {
@@ -334,23 +334,18 @@
         await BuscarVentas();
     }
     
-    private async Task OnAlmacenChanged(ChangeEventArgs e)
+    private async Task OnAlmacenChanged()
     {
-        if (int.TryParse(e.Value?.ToString(), out var idAlmacen))
+        selectedCajero = 0; // resetear cajero
+        if (selectedAlmacen > 0)
         {
-            selectedAlmacen = idAlmacen;
-            selectedCajero = 0; // Resetear selección de cajero
-            
-            if (idAlmacen > 0)
-            {
-                // Cargar cajeros del almacén seleccionado
-                cajeros = await UsuarioService.ObjetenerCajerosConUserAsync(idAlmacen);
-            }
-            else
-            {
-                cajeros = new();
-            }
+            cajeros = await UsuarioService.ObjetenerCajerosConUserAsync(selectedAlmacen);
         }
+        else
+        {
+            cajeros = new();
+        }
+        StateHasChanged();
     }
 
     private async Task BuscarVentas()
