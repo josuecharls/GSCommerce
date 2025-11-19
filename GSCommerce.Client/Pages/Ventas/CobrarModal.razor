@@ -281,11 +281,22 @@
         }
     }
 
-    private void HandleMontoKeyDown(KeyboardEventArgs e)
+    private async Task HandleMontoKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
-            AgregarPago();
+            // Si hay un monto válido, agregar el pago
+            if (montoPago > 0)
+            {
+                AgregarPago();
+                // Actualizar el estado para reflejar el nuevo pago
+                await InvokeAsync(StateHasChanged);
+            }
+            // Si no hay monto (o es 0) pero el total ya está cubierto, confirmar el pago
+            else if (PuedeConfirmar)
+            {
+                await ConfirmarPago();
+            }
         }
     }
 
