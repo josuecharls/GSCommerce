@@ -30,7 +30,7 @@
     {
         <div class="col-md-2">
             <label>Cajero</label>
-            <select class="form-select" @bind="idCajeroSeleccionado">
+            <select class="form-select" @bind="idCajeroSeleccionado" @bind:after="Buscar">
                 <option value="0">General</option>
                 @foreach (var cajero in cajeros)
                 {
@@ -197,12 +197,12 @@
         {
             almacenes = almacenes.Where(a => a.IdAlmacen == idAlmacen).ToList();
             soloLecturaAlmacen = true;
-            // Para cajero, siempre filtrar por su propio idUsuario
-            idUsuario = await AuthService.GetUserId();
+            // Para cajero, siempre filtrar por su propio idUsuario y almacén
+            // idUsuario e idAlmacen ya están asignados arriba
         }
         else
         {
-            idUsuario = null;
+            idUsuario = null; // Administrador puede ver todos los cajeros
             // Cargar cajeros del almacén seleccionado (o todos si es General)
             await CargarCajeros();
         }
@@ -216,6 +216,7 @@
         {
             await CargarCajeros();
             idCajeroSeleccionado = 0; // Resetear selección de cajero
+            await Buscar(); // Buscar automáticamente cuando cambia el almacén
         }
     }
 
@@ -251,6 +252,7 @@
     {
         // Determinar el idUsuario a usar en la búsqueda
         int? filtroUsuario = null;
+        int? filtroAlmacen = null;
         
         if (esAdmin)
         {
@@ -260,15 +262,27 @@
                 filtroUsuario = idCajeroSeleccionado;
             }
             // Si es 0 (General), filtroUsuario queda null y verá todos los cajeros
+            
+            // Para administrador, usar el almacén seleccionado
+            filtroAlmacen = idAlmacen == 0 ? null : idAlmacen;
         }
         else
         {
-            // Para cajero: siempre filtrar por su propio idUsuario
+            // Para cajero: siempre filtrar por su propio idUsuario y almacén
             filtroUsuario = idUsuario;
+            filtroAlmacen = idAlmacen > 0 ? idAlmacen : null;
+            
+            // Validar que tenga los datos necesarios
+            if (!filtroUsuario.HasValue || !filtroAlmacen.HasValue)
+            {
+                // Si no tiene usuario o almacén, no mostrar nada
+                lista = new List<IngresoEgresoDTO>();
+                return;
+            }
         }
 
         lista = await IngresosEgresosService.Listar(
-            idAlmacen == 0 ? null : idAlmacen, 
+            filtroAlmacen, 
             filtroUsuario, 
             fechaInicio, 
             fechaFin, 
