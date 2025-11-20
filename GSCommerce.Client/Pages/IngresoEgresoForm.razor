@@ -53,23 +53,23 @@
             {
                 <div class="mb-3">
                     <label>Almacén</label>
-                    <InputSelect class="form-select" @bind-Value="idAlmacenSeleccionado" @bind:after="OnAlmacenSeleccionadoChange">
+                    <select class="form-select" @bind="idAlmacenSeleccionado" @bind:after="OnAlmacenSeleccionadoChange">
                         <option value="0">-- Seleccione --</option>
                         @foreach (var a in almacenes)
                         {
                             <option value="@a.IdAlmacen">@a.Nombre</option>
                         }
-                    </InputSelect>
+                    </select>
                 </div>
                 <div class="mb-3">
                     <label>Cajero Origen</label>
-                    <InputSelect class="form-select" @bind-Value="idCajeroOrigen" @bind:after="OnCajeroOrigenChange">
+                    <select class="form-select" @bind="idCajeroOrigen" @bind:after="OnCajeroOrigenChange">
                         <option value="0">-- Seleccione --</option>
                         @foreach (var c in cajerosOrigen)
                         {
                             <option value="@c.IdUsuario">@c.Nombre</option>
                         }
-                    </InputSelect>
+                    </select>
                 </div>
                 <div class="mb-3">
                     <label>Cajero Destino</label>
