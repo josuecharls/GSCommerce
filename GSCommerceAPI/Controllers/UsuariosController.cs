@@ -168,14 +168,23 @@ namespace GSCommerceAPI.Controllers
         {
             var cajeros = await _context.Personals
                 .Where(p => p.Cargo == "CAJERO" && p.IdAlmacen == idAlmacen && p.Estado == true)
-                .Select(p => new UsuarioDTO
+                .Select(p => new
                 {
-                    IdPersonal = p.IdPersonal,
-                    Nombre = $"{p.Nombres} {p.Apellidos}"   
+                    p.IdPersonal,
+                    Nombre = p.Nombres + " " + p.Apellidos,
+                    Usuario = _context.Usuarios.FirstOrDefault(u => u.IdPersonal == p.IdPersonal)
                 })
                 .ToListAsync();
 
-            return Ok(cajeros);
+            var resultado = cajeros.Select(c => new UsuarioDTO
+            {
+                IdUsuario = c.Usuario != null ? c.Usuario.IdUsuario : 0,
+                Nombre = c.Nombre,
+                IdPersonal = c.IdPersonal,
+                Estado = c.Usuario != null ? c.Usuario.Estado : false
+            }).Where(u => u.IdUsuario > 0).ToList(); // Solo devolver cajeros que tengan usuario
+
+            return Ok(resultado);
         }
 
         [HttpPost("generar-credenciales")]

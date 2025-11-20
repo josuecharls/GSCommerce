@@ -53,7 +53,7 @@
             {
                 <div class="mb-3">
                     <label>Almacén</label>
-                    <InputSelect class="form-select" @bind-Value="idAlmacenSeleccionado" @onchange="OnAlmacenSeleccionadoChange">
+                    <InputSelect class="form-select" @bind-Value="idAlmacenSeleccionado" @bind:after="OnAlmacenSeleccionadoChange">
                         <option value="0">-- Seleccione --</option>
                         @foreach (var a in almacenes)
                         {
@@ -63,7 +63,7 @@
                 </div>
                 <div class="mb-3">
                     <label>Cajero Origen</label>
-                    <InputSelect class="form-select" @bind-Value="idCajeroOrigen" @onchange="OnCajeroOrigenChange">
+                    <InputSelect class="form-select" @bind-Value="idCajeroOrigen" @bind:after="OnCajeroOrigenChange">
                         <option value="0">-- Seleccione --</option>
                         @foreach (var c in cajerosOrigen)
                         {
@@ -259,50 +259,43 @@
         {
             // Para cajero, cargar solo los cajeros del mismo almacén excluyendo al logueado
             var todosCajeros = await UsuarioService.ObtenerCajerosAsync(idAlmacen);
-            cajerosDestino = todosCajeros.Where(c => c.IdUsuario != idUsuario).ToList();
+            cajerosDestino = todosCajeros.Where(c => c.IdUsuario > 0 && c.IdUsuario != idUsuario).ToList();
             registro.IdAlmacenDestino = idAlmacen; // El almacén destino es el mismo del cajero logueado
-        }
-    }
-
-    private async Task OnAlmacenSeleccionadoChange(ChangeEventArgs e)
-    {
-        if (int.TryParse(e.Value?.ToString(), out var idAlmacen))
-        {
-            idAlmacenSeleccionado = idAlmacen;
-            registro.IdAlmacenDestino = idAlmacen;
-            
-            if (idAlmacen > 0)
-            {
-                var todosCajeros = await UsuarioService.ObtenerCajerosAsync(idAlmacen);
-                cajerosOrigen = todosCajeros.ToList();
-                cajerosDestino = todosCajeros.ToList();
-            }
-            else
-            {
-                cajerosOrigen.Clear();
-                cajerosDestino.Clear();
-            }
-            
-            idCajeroOrigen = 0;
-            registro.IdCajeroDestino = null;
             StateHasChanged();
         }
     }
 
-    private void OnCajeroOrigenChange(ChangeEventArgs e)
+    private async Task OnAlmacenSeleccionadoChange()
     {
-        if (int.TryParse(e.Value?.ToString(), out var idCajero))
+        registro.IdAlmacenDestino = idAlmacenSeleccionado;
+        
+        if (idAlmacenSeleccionado > 0)
         {
-            idCajeroOrigen = idCajero;
-            // Filtrar cajeros destino para excluir al cajero origen seleccionado
-            if (idAlmacenSeleccionado > 0)
-            {
-                var todosCajeros = cajerosOrigen.Where(c => c.IdUsuario != idCajero).ToList();
-                cajerosDestino = todosCajeros;
-            }
-            registro.IdCajeroDestino = null;
-            StateHasChanged();
+            var todosCajeros = await UsuarioService.ObtenerCajerosAsync(idAlmacenSeleccionado);
+            cajerosOrigen = todosCajeros.Where(c => c.IdUsuario > 0).ToList();
+            cajerosDestino = todosCajeros.Where(c => c.IdUsuario > 0).ToList();
         }
+        else
+        {
+            cajerosOrigen.Clear();
+            cajerosDestino.Clear();
+        }
+        
+        idCajeroOrigen = 0;
+        registro.IdCajeroDestino = null;
+        StateHasChanged();
+    }
+
+    private void OnCajeroOrigenChange()
+    {
+        // Filtrar cajeros destino para excluir al cajero origen seleccionado
+        if (idAlmacenSeleccionado > 0 && idCajeroOrigen > 0)
+        {
+            var todosCajeros = cajerosOrigen.Where(c => c.IdUsuario != idCajeroOrigen && c.IdUsuario > 0).ToList();
+            cajerosDestino = todosCajeros;
+        }
+        registro.IdCajeroDestino = null;
+        StateHasChanged();
     }
 
     private void SeleccionarProveedor(ProveedorDTO prov)
