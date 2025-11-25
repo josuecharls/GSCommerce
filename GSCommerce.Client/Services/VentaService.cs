@@ -46,7 +46,7 @@ namespace GSCommerce.Client.Services
             try
             {
                 var response = await _httpClient.PostAsJsonAsync("api/ventas", venta);
-                
+
                 if (!response.IsSuccessStatusCode)
                 {
                     var msg = await response.Content.ReadAsStringAsync();
@@ -54,7 +54,7 @@ namespace GSCommerce.Client.Services
                 }
 
                 var resultado = await response.Content.ReadFromJsonAsync<VentaResponseDTO>();
-                
+
                 // Validar que la respuesta contiene datos válidos
                 if (resultado == null)
                     return (false, "Respuesta inválida del servidor");
@@ -128,8 +128,8 @@ namespace GSCommerce.Client.Services
 
             return true;
         }
-        
-        
+
+
         public async Task<bool> EnviarASUNATAsync(VentaCabeceraDTO cabecera, List<VentaDetalleDTO> detalles, TipoDocumentoVentaDTO tipoDoc)
         {
             if (_authService == null)
@@ -246,7 +246,7 @@ namespace GSCommerce.Client.Services
             Console.WriteLine($"SUNAT respuesta: {contenido}");
             return response.IsSuccessStatusCode;
         }
-        
+
         public async Task<VentaDTO?> ObtenerVentaPorId(int id)
         {
             try
@@ -342,7 +342,7 @@ namespace GSCommerce.Client.Services
 
             return letras.Trim();
         }
-        
+
 
         private class NumeroVentaResponse
         {
