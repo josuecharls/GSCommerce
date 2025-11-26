@@ -24,6 +24,12 @@ namespace GSCommerce.Client.Services
             var response = await _httpClient.GetFromJsonAsync<List<ArticuloDTO>>("api/articulos/todos");
             return response ?? new List<ArticuloDTO>();
         }
+
+        public async Task<List<FamiliaLineaDTO>> ObtenerFamilias()
+        {
+            var response = await _httpClient.GetFromJsonAsync<List<FamiliaLineaDTO>>("api/articulos/familias");
+            return response ?? new List<FamiliaLineaDTO>();
+        }
         public async Task<ArticuloDTO?> BuscarPorCodigoAsync(string codigo)
         {
             try

@@ -224,4 +224,24 @@ public class ReporteService
 
         return await _http.GetAsync(url);
     }
+
+    public async Task<List<DistribucionPorFamiliaDTO>> CalcularDistribucionFamilias(CalculoDistribucionRequest request)
+    {
+        var response = await _http.PostAsJsonAsync("api/ventas/calculo-distribucion", request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var contenido = await response.Content.ReadAsStringAsync();
+            var mensaje = string.IsNullOrWhiteSpace(contenido)
+                ? "No se pudo calcular la distribución."
+                : contenido;
+            throw new HttpRequestException(mensaje);
+        }
+
+        return await response.Content.ReadFromJsonAsync<List<DistribucionPorFamiliaDTO>>() ?? new();
+    }
+
+    public async Task<HttpResponseMessage> ExportarDistribucionFamilias(CalculoDistribucionRequest request)
+    {
+        return await _http.PostAsJsonAsync("api/ventas/calculo-distribucion/export", request);
+    }
 }
