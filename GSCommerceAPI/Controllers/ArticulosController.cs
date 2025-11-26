@@ -40,6 +40,24 @@ namespace GSCommerceAPI.Controllers
             }
         }
 
+        [HttpGet("familias")]
+        public async Task<IActionResult> ObtenerFamilias()
+        {
+            var familias = await _context.Articulos
+                .Where(a => !string.IsNullOrWhiteSpace(a.Familia))
+                .GroupBy(a => a.Familia)
+                .Select(g => new FamiliaLineaDTO
+                {
+                    Familia = g.Key ?? string.Empty,
+                    Linea = g.Select(a => a.Linea).FirstOrDefault() ?? string.Empty
+                })
+                .OrderBy(f => f.Linea)
+                .ThenBy(f => f.Familia)
+                .ToListAsync();
+
+            return Ok(familias);
+        }
+
 
         // GET: api/articulos (Obtener todos los artículos con paginación y búsqueda)
         [HttpGet]

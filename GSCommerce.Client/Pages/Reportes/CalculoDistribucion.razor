@@ -1,0 +1,354 @@
+@page "/reportes/calculo-distribucion"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@using GSCommerce.Client.Pages.Reportes
+@using System.Linq
+@inject ArticuloService ArticuloService
+@inject ReporteService ReporteService
+@inject AuthService AuthService
+@inject IJSRuntime JS
+
+<h3 class="mb-3 fw-bold text-uppercase">Calculo de distribución de artículos</h3>
+
+@if (!accesoVerificado)
+{
+    <div class="alert alert-secondary">
+        <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+        Validando acceso...
+    </div>
+}
+else if (!accesoPermitido)
+{
+    <div class="alert alert-danger">@mensajeAcceso</div>
+}
+else
+{
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <p class="mb-1">
+                Este reporte calcula cómo distribuir las familias seleccionadas
+                desde el almacén principal hacia los demás almacenes según las ventas
+                de los últimos cinco meses.
+            </p>
+            <p class="text-muted mb-0">Selecciona las familias, indica la cantidad a distribuir y presiona "Calcular Distribución".</p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            @if (isCargandoFamilias)
+            {
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            }
+            else if (!familiasDisponibles.Any())
+            {
+                <div class="alert alert-warning mb-0">No se encontraron familias registradas.</div>
+            }
+            else
+            {
+                <label class="form-label fw-bold">Familias</label>
+                <MultiSelectDropdown Items="familiasDisponibles"
+                                     ValueSelector="item => item.Familia"
+                                     TextSelector="@((FamiliaLineaDTO item) => $"{item.Familia} ({item.Linea})")"
+                                     Placeholder="Seleccionar familias..."
+                                     EnableSearch="true"
+                                     ShowActions="true"
+                                     SelectedValues="familiasSeleccionadas"
+                                     SelectedValuesChanged="OnFamiliasSeleccionadasChanged" />
+            }
+        </div>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    @if (familiasSeleccionadas.Any())
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="mb-3">Cantidades a distribuir</h5>
+                <div class="row g-3">
+                    @foreach (var familia in FamiliasSeleccionadasDetalle)
+                    {
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 h-100">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong>@familia.Familia</strong>
+                                        <div class="text-muted small">@familia.Linea</div>
+                                    </div>
+                                    <span class="badge bg-secondary">
+                                        Stock principal: @GetStockDisponible(familia.Familia)
+                                    </span>
+                                </div>
+                                <label class="form-label mb-1">Cantidad total a distribuir</label>
+                                <input type="number"
+                                       min="0"
+                                       class="form-control"
+                                       value="@GetCantidad(familia.Familia)"
+                                       @onchange="@(e => OnCantidadChanged(familia.Familia, e))" />
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="d-flex gap-2 mb-3">
+        <button class="btn btn-primary"
+                disabled="@(!familiasSeleccionadas.Any() || calculando)"
+                @onclick="CalcularDistribucionAsync">
+            @if (calculando)
+            {
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            }
+            Calcular Distribución
+        </button>
+        <button class="btn btn-outline-success"
+                disabled="@(resultadoFinal.Any() != true || calculando)"
+                @onclick="ExportarExcelAsync">
+            Exportar a Excel
+        </button>
+    </div>
+
+    @if (calculando)
+    {
+        <div class="alert alert-info">
+            Haciendo los cálculos para darte el mejor diagnóstico...
+        </div>
+    }
+
+    @if (resultadoFinal.Any())
+    {
+        <div class="card">
+            <div class="card-body">
+                <h5 class="mb-3">Resultados</h5>
+                <div class="accordion" id="accordionResultado">
+                    @foreach (var familia in resultadoFinal)
+                    {
+                        var headerId = $"heading_{GetSafeId(familia.Familia)}";
+                        var collapseId = $"collapse_{GetSafeId(familia.Familia)}";
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="@headerId">
+                                <button class="accordion-button collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#@collapseId"
+                                        aria-expanded="false"
+                                        aria-controls="@collapseId">
+                                    <div class="d-flex flex-column">
+                                        <strong>@familia.Familia</strong>
+                                        <small class="text-muted">
+                                            Linea: @familia.Linea · Stock principal: @familia.StockDisponible · Solicitado: @familia.CantidadSolicitada
+                                        </small>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="@collapseId"
+                                 class="accordion-collapse collapse"
+                                 aria-labelledby="@headerId"
+                                 data-bs-parent="#accordionResultado">
+                                <div class="accordion-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Almacén</th>
+                                                    <th class="text-end">Cantidad</th>
+                                                    <th class="text-end">Porcentaje</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var destino in familia.Destinos)
+                                                {
+                                                    <tr>
+                                                        <td>@destino.Almacen</td>
+                                                        <td class="text-end">@destino.Cantidad</td>
+                                                        <td class="text-end">@destino.Porcentaje.ToString("N2")%</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<FamiliaLineaDTO> familiasDisponibles = new();
+    private List<string> familiasSeleccionadas = new();
+    private Dictionary<string, int> cantidades = new(StringComparer.OrdinalIgnoreCase);
+    private List<DistribucionPorFamiliaDTO> resultadoFinal = new();
+    private bool calculando;
+    private bool isCargandoFamilias = true;
+    private string? errorMessage;
+    private bool accesoPermitido;
+    private bool accesoVerificado;
+    private string? mensajeAcceso;
+    private const int AlmacenDistribucionId = 1009;
+    private CalculoDistribucionRequest? ultimoRequest;
+
+    private IEnumerable<FamiliaLineaDTO> FamiliasSeleccionadasDetalle =>
+        familiasDisponibles
+            .Where(f => familiasSeleccionadas.Contains(f.Familia))
+            .OrderBy(f => f.Linea)
+            .ThenBy(f => f.Familia);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await VerificarAccesoAsync();
+        if (accesoPermitido)
+        {
+            familiasDisponibles = await ArticuloService.ObtenerFamilias();
+        }
+        isCargandoFamilias = false;
+    }
+
+    private async Task VerificarAccesoAsync()
+    {
+        accesoPermitido = false;
+        accesoVerificado = false;
+        mensajeAcceso = null;
+
+        var cargo = await AuthService.GetUserCargo();
+        var almacen = await AuthService.GetUserAlmacenId();
+
+        accesoPermitido =
+            (string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(cargo, "ALMACEN", StringComparison.OrdinalIgnoreCase)) &&
+            almacen.HasValue &&
+            almacen.Value == AlmacenDistribucionId;
+
+        accesoVerificado = true;
+
+        if (!accesoPermitido)
+        {
+            mensajeAcceso = "No puede ingresar al Cálculo de Distribución";
+        }
+    }
+
+    private async Task OnFamiliasSeleccionadasChanged(List<string> nuevos)
+    {
+        var seleccionActual = new HashSet<string>(nuevos, StringComparer.OrdinalIgnoreCase);
+        foreach (var clave in cantidades.Keys.Where(k => !seleccionActual.Contains(k)).ToList())
+        {
+            cantidades.Remove(clave);
+        }
+
+        familiasSeleccionadas = nuevos;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private int GetCantidad(string familia)
+    {
+        return cantidades.TryGetValue(familia, out var valor) ? valor : 0;
+    }
+
+    private void OnCantidadChanged(string familia, ChangeEventArgs args)
+    {
+        var entrada = args.Value?.ToString() ?? "0";
+        if (int.TryParse(entrada, out var valor) && valor >= 0)
+        {
+            cantidades[familia] = valor;
+        }
+        else
+        {
+            cantidades[familia] = 0;
+        }
+    }
+
+    private int GetStockDisponible(string familia)
+    {
+        return resultadoFinal.FirstOrDefault(r => string.Equals(r.Familia, familia, StringComparison.OrdinalIgnoreCase))?.StockDisponible ?? 0;
+    }
+
+    private async Task CalcularDistribucionAsync()
+    {
+        errorMessage = null;
+        resultadoFinal.Clear();
+
+        if (!familiasSeleccionadas.Any())
+        {
+            errorMessage = "Selecciona al menos una familia para calcular la distribución.";
+            return;
+        }
+
+        var request = new CalculoDistribucionRequest
+        {
+            Familias = familiasSeleccionadas
+                .Select(f => new FamiliaDistribucionRequest
+                {
+                    Familia = f,
+                    Cantidad = GetCantidad(f)
+                })
+                .ToList()
+        };
+
+        calculando = true;
+        try
+        {
+            resultadoFinal = await ReporteService.CalcularDistribucionFamilias(request);
+            ultimoRequest = request;
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = $"❌ {ex.Message}";
+        }
+        finally
+        {
+            calculando = false;
+        }
+    }
+
+    private async Task ExportarExcelAsync()
+    {
+        if (resultadoFinal.Count == 0 || ultimoRequest == null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var response = await ReporteService.ExportarDistribucionFamilias(ultimoRequest);
+            if (!response.IsSuccessStatusCode)
+            {
+                await JS.InvokeVoidAsync("alert", "❌ No se pudo exportar el reporte.");
+                return;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var base64 = Convert.ToBase64String(bytes);
+            var fileName = $"CalculoDistribucion_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            await JS.InvokeVoidAsync("downloadFileFromBytes", fileName, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
+        }
+        catch (Exception)
+        {
+            await JS.InvokeVoidAsync("alert", "❌ Error inesperado al exportar el reporte.");
+        }
+    }
+
+    private static string GetSafeId(string value)
+    {
+        var cleaned = string.Concat(value.Where(char.IsLetterOrDigit));
+        if (string.IsNullOrWhiteSpace(cleaned))
+        {
+            cleaned = "familia";
+        }
+
+        var hash = Math.Abs(value.GetHashCode());
+        return $"{cleaned}_{hash}";
+    }
+}
+

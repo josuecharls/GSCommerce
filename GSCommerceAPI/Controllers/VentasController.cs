@@ -9,8 +9,10 @@ using GSCommerceAPI.Models.Reportes; // For VentaDiariaAlmacenDTO
 using GSCommerceAPI.Models.SUNAT.DTOs;
 using GSCommerceAPI.Services.SUNAT;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
@@ -25,6 +27,7 @@ namespace GSCommerceAPI.Controllers
         private readonly SyscharlesContext _context;
         private readonly IFacturacionElectronicaService _facturacionService;
         private readonly ReporteAvanceHoraProvider _reporteAvanceHoraProvider;
+        private const int IdAlmacenDistribucion = 1009;
 
         public VentasController(
             SyscharlesContext context,
@@ -791,7 +794,7 @@ namespace GSCommerceAPI.Controllers
 
                     if (!userAlmacen.HasValue) return Ok(new List<VentaConsultaDTO>());
                     query = query.Where(v => v.IdAlmacen == userAlmacen.Value);
-                    
+
                     // Para CAJERO: filtrar automáticamente por su IdUsuario
                     query = query.Where(v => v.IdCajero == userId);
                 }
@@ -804,7 +807,7 @@ namespace GSCommerceAPI.Controllers
             {
                 query = query.Where(v => v.IdAlmacen == idAlmacen.Value);
             }
-            
+
             // Filtro opcional por cajero (solo para ADMINISTRADOR)
             if (string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase) && idUsuario.HasValue && idUsuario.Value > 0)
             {
@@ -1701,6 +1704,74 @@ namespace GSCommerceAPI.Controllers
             return Ok(resultado);
         }
 
+    [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
+    [HttpPost("calculo-distribucion")]
+        public async Task<IActionResult> CalcularDistribucion([FromBody] CalculoDistribucionRequest request)
+    {
+        if (request?.Familias == null || request.Familias.Count == 0)
+        {
+            return BadRequest("Debes enviar al menos una familia con su cantidad.");
+        }
+
+        var almacenOrigen = await ObtenerAlmacenUsuarioAsync();
+        if (!almacenOrigen.HasValue)
+        {
+            return BadRequest("No se encontró el almacén asociado al usuario.");
+        }
+            if (almacenOrigen.Value != IdAlmacenDistribucion)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "No puede ingresar al Cálculo de Distribución");
+            }
+
+        var (resultados, errores) = await CalcularDistribucionInterno(almacenOrigen.Value, request);
+        if (errores.Any())
+        {
+            return BadRequest(string.Join(" ", errores));
+        }
+
+        return Ok(resultados);
+    }
+
+    [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
+    [HttpPost("calculo-distribucion/export")]
+        public async Task<IActionResult> ExportarCalculoDistribucion([FromBody] CalculoDistribucionRequest request)
+    {
+        if (request?.Familias == null || request.Familias.Count == 0)
+        {
+            return BadRequest("Debes enviar al menos una familia con su cantidad.");
+        }
+
+        var almacenOrigen = await ObtenerAlmacenUsuarioAsync();
+        if (!almacenOrigen.HasValue)
+        {
+            return BadRequest("No se encontró el almacén asociado al usuario.");
+        }
+            if (almacenOrigen.Value != IdAlmacenDistribucion)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "No puede ingresar al Cálculo de Distribución");
+            }
+
+        var (resultados, errores) = await CalcularDistribucionInterno(almacenOrigen.Value, request);
+        if (errores.Any())
+        {
+            return BadRequest(string.Join(" ", errores));
+        }
+
+        if (!resultados.Any())
+        {
+            return BadRequest("No se encontraron datos para exportar.");
+        }
+
+        using var workbook = CrearLibroCalculoDistribucion(resultados);
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        stream.Position = 0;
+
+        var fileName = $"CalculoDistribucion_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        var contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        return File(stream.ToArray(), contentType, fileName);
+    }
+
         [Authorize]
         [HttpGet("emisor")]
         public async Task<IActionResult> ObtenerDatosEmisor()
@@ -2509,6 +2580,283 @@ namespace GSCommerceAPI.Controllers
             }
 
             return letras.Trim();
+        }
+
+        private sealed class DistribucionState
+        {
+            public int IdAlmacen { get; set; }
+            public string Almacen { get; set; } = string.Empty;
+            public double PorcentajeDecimal { get; set; }
+            public double RawAmount { get; set; }
+            public int Cantidad { get; set; }
+            public double FractionalPart => RawAmount - Math.Floor(RawAmount);
+        }
+
+        private sealed class VentaPorFamiliaEntry
+        {
+            public string FamiliaNormalized { get; set; } = string.Empty;
+            public int IdAlmacen { get; set; }
+            public int Total { get; set; }
+        }
+
+        private async Task<(List<DistribucionPorFamiliaDTO> Resultados, List<string> Errores)> CalcularDistribucionInterno(int almacenOrigen, CalculoDistribucionRequest request)
+        {
+            var errores = new List<string>();
+            var resultados = new List<DistribucionPorFamiliaDTO>();
+            var solicitudes = new Dictionary<string, (string Original, int Cantidad)>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var familia in request.Familias)
+            {
+                if (string.IsNullOrWhiteSpace(familia?.Familia))
+                    continue;
+
+                var nombre = familia.Familia.Trim();
+                if (string.IsNullOrEmpty(nombre))
+                    continue;
+
+                var cantidad = Math.Max(0, familia.Cantidad);
+                var clave = nombre.ToUpperInvariant();
+                solicitudes[clave] = (nombre, cantidad);
+            }
+
+            if (solicitudes.Count == 0)
+            {
+                errores.Add("No se encontraron familias válidas.");
+                return (resultados, errores);
+            }
+
+            var familiasNormalizadas = solicitudes.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var destinos = await _context.Almacens
+                .Where(a => a.Estado && a.IdAlmacen != almacenOrigen && a.EsTienda)
+                .OrderBy(a => a.Nombre)
+                .Select(a => new { a.IdAlmacen, a.Nombre })
+                .ToListAsync();
+
+            if (destinos.Count == 0)
+            {
+                errores.Add("No se encontraron almacenes destino activos.");
+                return (resultados, errores);
+            }
+
+            var stockData = await (from s in _context.StockAlmacens.AsNoTracking()
+                                   join a in _context.Articulos.AsNoTracking() on s.IdArticulo equals a.IdArticulo
+                                   where s.IdAlmacen == almacenOrigen
+                                         && !string.IsNullOrWhiteSpace(a.Familia)
+                                         && familiasNormalizadas.Contains(a.Familia.ToUpper())
+                                   group s by a.Familia.ToUpper() into g
+                                   select new
+                                   {
+                                       FamiliaNormalized = g.Key,
+                                       StockTotal = g.Sum(x => x.Stock)
+                                   }).ToListAsync();
+            var stockPorFamilia = stockData.ToDictionary(x => x.FamiliaNormalized, x => x.StockTotal);
+
+            var lineaData = await _context.Articulos.AsNoTracking()
+                .Where(a => !string.IsNullOrWhiteSpace(a.Familia) && familiasNormalizadas.Contains(a.Familia.ToUpper()))
+                .GroupBy(a => a.Familia.ToUpper())
+                .Select(g => new
+                {
+                    FamiliaNormalized = g.Key,
+                    Linea = g.Select(a => a.Linea).FirstOrDefault() ?? string.Empty
+                })
+                .ToListAsync();
+            var lineaPorFamilia = lineaData.ToDictionary(x => x.FamiliaNormalized, x => x.Linea);
+
+            var fechaFin = DateTime.Now;
+            var fechaInicio = fechaFin.AddMonths(-5);
+            var destinosIds = destinos.Select(d => d.IdAlmacen).ToList();
+
+            var ventasRaw = await (from d in _context.ComprobanteDeVentaDetalles.AsNoTracking()
+                                   join c in _context.ComprobanteDeVentaCabeceras.AsNoTracking() on d.IdComprobante equals c.IdComprobante
+                                   join a in _context.Articulos.AsNoTracking() on d.IdArticulo equals a.IdArticulo
+                                   where c.Fecha >= fechaInicio
+                                         && c.Fecha <= fechaFin
+                                         && c.Estado == "E"
+                                         && destinosIds.Contains(c.IdAlmacen)
+                                         && !string.IsNullOrWhiteSpace(a.Familia)
+                                         && familiasNormalizadas.Contains(a.Familia.ToUpper())
+                                   group new { d.Cantidad, c.IdAlmacen, FamiliaNormalized = a.Familia.ToUpper() }
+                                   by new { FamiliaNormalized = a.Familia.ToUpper(), c.IdAlmacen } into g
+                                   select new VentaPorFamiliaEntry
+                                   {
+                                       FamiliaNormalized = g.Key.FamiliaNormalized,
+                                       IdAlmacen = g.Key.IdAlmacen,
+                                       Total = g.Sum(x => x.Cantidad)
+                                   }).ToListAsync();
+
+            var ventasPorFamilia = ventasRaw
+                .GroupBy(x => x.FamiliaNormalized)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var solicitud in solicitudes.OrderBy(k => k.Value.Original))
+            {
+                var cantidadSolicitada = solicitud.Value.Cantidad;
+                var stockDisponible = stockPorFamilia.TryGetValue(solicitud.Key, out var stock) ? stock : 0;
+
+                if (cantidadSolicitada > stockDisponible)
+                {
+                    errores.Add($"Te pasaste la cantidad de stock de la familia {solicitud.Value.Original}, stock disponible: {stockDisponible}.");
+                }
+            }
+
+            if (errores.Any())
+            {
+                return (resultados, errores);
+            }
+
+            foreach (var solicitud in solicitudes.OrderBy(k => k.Value.Original))
+            {
+                var cantidadSolicitada = solicitud.Value.Cantidad;
+                var stockDisponible = stockPorFamilia.TryGetValue(solicitud.Key, out var stock) ? stock : 0;
+                var linea = lineaPorFamilia.TryGetValue(solicitud.Key, out var valorLinea) ? valorLinea : string.Empty;
+
+                ventasPorFamilia.TryGetValue(solicitud.Key, out var ventasFamilia);
+                ventasFamilia ??= new List<VentaPorFamiliaEntry>();
+
+                var totalVentas = ventasFamilia.Sum(v => (double)v.Total);
+                var ventasPorAlmacen = ventasFamilia.ToDictionary(v => v.IdAlmacen, v => v.Total);
+
+                var estados = destinos
+                    .Select(dest =>
+                    {
+                        ventasPorAlmacen.TryGetValue(dest.IdAlmacen, out var vendidos);
+                        var porcentaje = totalVentas > 0 ? vendidos / totalVentas : 1.0 / destinos.Count;
+                        var raw = cantidadSolicitada * porcentaje;
+                        return new DistribucionState
+                        {
+                            IdAlmacen = dest.IdAlmacen,
+                            Almacen = dest.Nombre,
+                            PorcentajeDecimal = porcentaje,
+                            RawAmount = raw,
+                            Cantidad = (int)Math.Floor(raw)
+                        };
+                    })
+                    .ToList();
+
+                var asignados = estados.Sum(e => e.Cantidad);
+                var restante = cantidadSolicitada - asignados;
+                if (restante > 0)
+                {
+                    foreach (var estado in estados.OrderByDescending(e => e.FractionalPart).ThenByDescending(e => e.RawAmount))
+                    {
+                        if (restante <= 0)
+                            break;
+                        estado.Cantidad++;
+                        restante--;
+                    }
+                }
+
+                var destinosResultado = estados
+                    .Select(e => new DistribucionAlmacenDTO
+                    {
+                        IdAlmacen = e.IdAlmacen,
+                        Almacen = e.Almacen,
+                        Porcentaje = Math.Round(e.PorcentajeDecimal * 100, 2),
+                        Cantidad = e.Cantidad
+                    })
+                    .ToList();
+
+                resultados.Add(new DistribucionPorFamiliaDTO
+                {
+                    Familia = solicitud.Value.Original,
+                    Linea = linea,
+                    StockDisponible = stockDisponible,
+                    CantidadSolicitada = cantidadSolicitada,
+                    Destinos = destinosResultado
+                });
+            }
+
+            return (resultados, errores);
+        }
+
+        private static XLWorkbook CrearLibroCalculoDistribucion(List<DistribucionPorFamiliaDTO> familias)
+        {
+            var workbook = new XLWorkbook();
+            var hojasExistentes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var grupos = familias
+                .GroupBy(f => string.IsNullOrWhiteSpace(f.Linea) ? "Sin Línea" : f.Linea.Trim(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var grupo in grupos)
+            {
+                var nombreHoja = ConstruirNombreHoja(grupo.Key, hojasExistentes);
+                var hoja = workbook.Worksheets.Add(nombreHoja);
+                var fila = 1;
+
+                foreach (var familia in grupo)
+                {
+                    var columnas = Math.Max(familia.Destinos.Count, 1);
+                    hoja.Cell(fila, 1).Value = $"Familia: {familia.Familia}";
+                    hoja.Range(fila, 1, fila, columnas).Merge();
+                    fila++;
+
+                    var columnasInfo = Math.Max(columnas, 2);
+                    hoja.Cell(fila, 1).Value = $"Stock principal: {familia.StockDisponible}";
+                    hoja.Cell(fila, 2).Value = $"Cantidad solicitada: {familia.CantidadSolicitada}";
+                    hoja.Range(fila, 2, fila, columnasInfo).Merge();
+                    fila++;
+
+                    for (var index = 0; index < familia.Destinos.Count; index++)
+                    {
+                        hoja.Cell(fila, index + 1).Value = familia.Destinos[index].Almacen;
+                    }
+                    fila++;
+
+                    for (var index = 0; index < familia.Destinos.Count; index++)
+                    {
+                        hoja.Cell(fila, index + 1).Value = familia.Destinos[index].Cantidad;
+                    }
+                    fila += 2;
+                }
+
+                hoja.Columns().AdjustToContents();
+            }
+
+            return workbook;
+        }
+
+        private static string ConstruirNombreHoja(string linea, HashSet<string> existentes)
+        {
+            var valor = string.IsNullOrWhiteSpace(linea) ? "Sin Línea" : linea;
+            var invalido = new[] { '/', '\\', '*', '[', ']', ':', '?' };
+
+            foreach (var caracter in invalido)
+            {
+                valor = valor.Replace(caracter, '-');
+            }
+
+            if (valor.Length > 31)
+            {
+                valor = valor.Substring(0, 31);
+            }
+
+            var nombreBase = valor;
+            var contador = 1;
+            while (existentes.Contains(valor))
+            {
+                var sufijo = $"_{contador++}";
+                var permitido = 31 - sufijo.Length;
+                var truncado = nombreBase.Length > permitido ? nombreBase.Substring(0, permitido) : nombreBase;
+                valor = $"{truncado}{sufijo}";
+            }
+
+            existentes.Add(valor);
+            return valor;
+        }
+
+        private async Task<int?> ObtenerAlmacenUsuarioAsync()
+        {
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (!int.TryParse(userIdClaim, out var userId))
+            {
+                return null;
+            }
+
+            return await _context.Usuarios
+                .Where(u => u.IdUsuario == userId)
+                .Select(u => u.IdPersonalNavigation != null ? (int?)u.IdPersonalNavigation.IdAlmacen : null)
+                .FirstOrDefaultAsync();
         }
 
         // Endpoint temporal para debuggear claims
