@@ -5,9 +5,12 @@
 @inject NavigationManager Navigation
 @inject AlmacenService AlmacenService
 @inject ProveedorService ProveedorService
+@inject StockService StockService
+@inject ArticuloService ArticuloService
+@inject IJSRuntime JS
 @using System.Linq
 
-<h3><i class="bi bi-pencil-square"></i> Editar Guía</h3>
+<h3><i class="bi bi-pencil-square"></i> Editar Guía - @titulo</h3>
 
 @if (isLoading)
 {
@@ -19,7 +22,7 @@ else
         <div class="row">
             <div class="col-md-6">
                 <label>Motivo</label>
-                <input class="form-control" @bind="guia.Motivo" />
+                <input class="form-control" value="@guia.Motivo" readonly />
 
                 <label class="mt-3">Descripción</label>
                 <input class="form-control" @bind="guia.Descripcion" />
@@ -32,26 +35,28 @@ else
             </div>
             <div class="col-md-6">
                 <label>Almacén</label>
-                <select class="form-control" @bind="guia.IdAlmacen">
-                    @foreach (var a in almacenes)
-                    {
-                        <option value="@a.IdAlmacen">@a.Nombre</option>
-                    }
+                <select class="form-control" disabled>
+                    <option value="@guia.IdAlmacen">@(almacenes.FirstOrDefault(a => a.IdAlmacen == guia.IdAlmacen)?.Nombre ?? "N/A")</option>
                 </select>
 
-                <label class="mt-3">Proveedor</label>
-                <input class="form-control"
-                       list="proveedoresList"
-                       @bind="proveedorNombre"
-                       @bind:event="oninput"
-                       @bind:after="SincronizarProveedorEdit"
-                       placeholder="Buscar proveedor..." />
-                <datalist id="proveedoresList">
-                    @foreach (var p in proveedores)
-                    {
-                        <option value="@p.Nombre"></option>
-                    }
-                </datalist>
+                @if (mostrarProveedor)
+                {
+                    <label class="mt-3">Proveedor</label>
+                    <input class="form-control" value="@proveedorNombre" readonly />
+                }
+
+                @if (esTransferencia)
+                {
+                    <label class="mt-3">Almacén Origen</label>
+                    <select class="form-control" disabled>
+                        <option value="@almacenOrigenId">@almacenOrigenNombre</option>
+                    </select>
+
+                    <label class="mt-3">Almacén Destino</label>
+                    <select class="form-control" disabled>
+                        <option value="@almacenDestinoId">@almacenDestinoNombre</option>
+                    </select>
+                }
             </div>
         </div>
 
@@ -59,23 +64,59 @@ else
 
         <h5><i class="bi bi-box-seam-fill"></i>  Detalle de Artículos</h5>
         <table class="table table-bordered">
-            <thead>
+            <thead class="table-light">
                 <tr>
+                    <th>#</th>
                     <th>Código</th>
                     <th>Descripción</th>
-                    <th>Cantidad</th>
-                    <th>Valor</th>
+                    <th class="text-end">Cantidad</th>
+                    <th class="text-end">Valor</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var item in guia.Detalles)
                 {
+                    var esNuevo = articulosNuevos.Contains(item);
                     <tr>
-                        <td>@item.IdArticulo</td>
-                        <td>@item.DescripcionArticulo</td>
-                        <td><input type="number" class="form-control" @bind="item.Cantidad" /></td>
-                        <td><input type="number" step="0.01" class="form-control" @bind="item.Valor" /></td>
+                        <td>@item.Item</td>
+                        <td>
+                            @if (esNuevo)
+                            {
+                                <input class="form-control"
+                                       @bind="item.IdArticulo"
+                                       @bind:after="() => NormalizarCodigoArticulo(item)"
+                                       @onblur="() => BuscarArticulo(item)"
+                                       data-item="@item.Item" />
+                            }
+                            else
+                            {
+                                <input class="form-control" value="@item.IdArticulo" readonly />
+                            }
+                        </td>
+                        <td>
+                            @if (esNuevo)
+                            {
+                                <input class="form-control" value="@item.DescripcionArticulo" readonly />
+                            }
+                            else
+                            {
+                                <input class="form-control" value="@item.DescripcionArticulo" readonly />
+                            }
+                        </td>
+                        <td>
+                            <input type="number" 
+                                   class="form-control text-end" 
+                                   @bind="item.Cantidad" 
+                                   @bind:after="() => OnCantidadChange(item)"
+                                   @onkeydown="@((e) => OnCantidadKeyDown(e, item))" />
+                        </td>
+                        <td>
+                            <input type="number" 
+                                   step="0.01" 
+                                   class="form-control text-end" 
+                                   @bind="item.Valor" />
+                        </td>
                         <td>
                             <button class="btn btn-danger btn-sm" @onclick="() => RemoveDetalle(item)">❌</button>
                         </td>
@@ -84,11 +125,25 @@ else
             </tbody>
         </table>
 
-        <button class="btn btn-secondary mb-3" @onclick="AgregarArticulo">+ Agregar Artículo</button>
+        <button class="btn btn-outline-primary mb-3" @onclick="AgregarArticulo">+ Agregar Artículo</button>
 
-        <div class="text-center">
-            <button class="btn btn-primary" @onclick="Guardar"><i class="bi bi-floppy2"></i>  Guardar</button>
-            <button class="btn btn-secondary" @onclick="Cancelar"><i class="bi bi-x-lg"></i> Cancelar</button>
+        <div class="alert alert-info">Total artículos: <strong>@totalArticulos</strong></div>
+
+        <div class="text-center mt-3">
+            <button class="btn btn-success" @onclick="Guardar" disabled="@guardando">
+                @if (guardando)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                }
+                else
+                {
+                    <i class="bi bi-floppy2"></i>
+                }
+                Guardar
+            </button>
+            <button class="btn btn-secondary" @onclick="Cancelar" disabled="@guardando">
+                <i class="bi bi-x-lg"></i> Cancelar
+            </button>
         </div>
     </div>
 }
@@ -100,35 +155,192 @@ else
     private List<AlmacenDTO> almacenes = new();
     private List<ProveedorDTO> proveedores = new();
     private bool isLoading = true;
+    private bool guardando = false;
     private string proveedorNombre = string.Empty;
+    private string titulo = "Editar Guía";
+    private int totalArticulos = 0;
+    private HashSet<MovimientoDetalleDTO> articulosNuevos = new();
+    private Dictionary<string, int> stockPorArticulo = new();
+
+    // Propiedades para transferencias
+    private bool esTransferencia => guia.Tipo == "T";
+    private bool mostrarProveedor => guia.Tipo == "I" || guia.Motivo == "DEVOLUCION A PROVEEDOR";
+    
+    private int almacenOrigenId
+    {
+        get
+        {
+            if (!esTransferencia) return 0;
+            // Si es EGRESO, el almacén origen es IdAlmacen
+            // Si es INGRESO, el almacén origen es IdAlmacenDestinoOrigen
+            if (guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO")
+                return guia.IdAlmacen;
+            else if (guia.Motivo?.Trim() == "TRANSFERENCIA INGRESO")
+                return guia.IdAlmacenDestinoOrigen ?? 0;
+            return 0;
+        }
+    }
+    
+    private int almacenDestinoId
+    {
+        get
+        {
+            if (!esTransferencia) return 0;
+            // Si es EGRESO, el almacén destino es IdAlmacenDestinoOrigen
+            // Si es INGRESO, el almacén destino es IdAlmacen
+            if (guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO")
+                return guia.IdAlmacenDestinoOrigen ?? 0;
+            else if (guia.Motivo?.Trim() == "TRANSFERENCIA INGRESO")
+                return guia.IdAlmacen;
+            return 0;
+        }
+    }
+    
+    private string almacenOrigenNombre => almacenes.FirstOrDefault(a => a.IdAlmacen == almacenOrigenId)?.Nombre ?? "N/A";
+    private string almacenDestinoNombre => almacenes.FirstOrDefault(a => a.IdAlmacen == almacenDestinoId)?.Nombre ?? "N/A";
 
     protected override async Task OnInitializedAsync()
     {
         isLoading = true;
         guia = await MovimientoGuiaService.GetMovimientoById(id) ?? new();
+        
+        if (guia.IdMovimiento == 0)
+        {
+            await MostrarAlerta("❌ No se pudo cargar la guía.");
+            Navigation.NavigateTo("/guias");
+            return;
+        }
+
         almacenes = await AlmacenService.GetAlmacenes() ?? new();
         proveedores = await ProveedorService.GetProveedores() ?? new();
         proveedorNombre = proveedores.FirstOrDefault(p => p.IdProveedor == guia.IdProveedor)?.Nombre ?? string.Empty;
+
+        // Determinar título según tipo
+        titulo = guia.Tipo switch
+        {
+            "I" => "Guía de Ingreso",
+            "E" => "Guía de Egreso",
+            "T" => guia.Motivo == "TRANSFERENCIA EGRESO" ? "Transferencia - Egreso" : "Transferencia - Ingreso",
+            _ => "Guía"
+        };
+
+        CalcularTotalArticulos();
         isLoading = false;
+    }
+
+    private void NormalizarCodigoArticulo(MovimientoDetalleDTO d)
+    {
+        if (string.IsNullOrWhiteSpace(d.IdArticulo))
+            return;
+
+        var codigo = d.IdArticulo.Trim();
+
+        if (int.TryParse(codigo, out int numero))
+        {
+            d.IdArticulo = numero.ToString("D6");
+        }
+        else if (codigo.Length < 6)
+        {
+            d.IdArticulo = codigo.PadLeft(6, '0');
+        }
+        else if (codigo.Length > 6)
+        {
+            d.IdArticulo = codigo.Substring(0, 6);
+        }
+    }
+
+    private async Task BuscarArticulo(MovimientoDetalleDTO d)
+    {
+        if (string.IsNullOrWhiteSpace(d.IdArticulo))
+            return;
+
+        NormalizarCodigoArticulo(d);
+        var codigoNormalizado = d.IdArticulo;
+
+        if (guia.IdAlmacen <= 0)
+        {
+            await MostrarAlerta("❌ Debe seleccionar un almacén antes de buscar artículos.");
+            d.IdArticulo = string.Empty;
+            d.DescripcionArticulo = string.Empty;
+            StateHasChanged();
+            return;
+        }
+
+        var art = await ArticuloService.GetArticuloById(codigoNormalizado);
+
+        if (art != null)
+        {
+            d.DescripcionArticulo = art.Descripcion;
+
+            // Validar stock solo para transferencias de egreso y egresos
+            if ((esTransferencia && guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO") || guia.Tipo == "E")
+            {
+                var idAlmacen = esTransferencia ? almacenOrigenId : guia.IdAlmacen;
+                int stockDisponible;
+                
+                // Para transferencias, usar el método que considera transferencias pendientes (excluyendo la actual)
+                if (esTransferencia && guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO")
+                {
+                    stockDisponible = await StockService.GetStockDisponibleParaTransferencia(codigoNormalizado, idAlmacen, guia.IdMovimiento);
+                }
+                else
+                {
+                    stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, idAlmacen);
+                }
+                
+                stockPorArticulo[codigoNormalizado] = stockDisponible;
+
+                if (stockDisponible <= 0)
+                {
+                    await MostrarAlerta($"⚠️ El artículo '{codigoNormalizado}' no tiene stock en el almacén de origen.");
+                    d.IdArticulo = string.Empty;
+                    d.DescripcionArticulo = string.Empty;
+                    stockPorArticulo.Remove(codigoNormalizado);
+                    StateHasChanged();
+                    return;
+                }
+            }
+        }
+        else
+        {
+            d.DescripcionArticulo = string.Empty;
+            await MostrarAlerta($"❌ Artículo '{codigoNormalizado}' no encontrado.");
+            d.IdArticulo = string.Empty;
+            if (stockPorArticulo.ContainsKey(codigoNormalizado))
+            {
+                stockPorArticulo.Remove(codigoNormalizado);
+            }
+            StateHasChanged();
+        }
     }
 
     private void AgregarArticulo()
     {
-        guia.Detalles.Add(new MovimientoDetalleDTO
-            {
-                IdMovimiento = guia.IdMovimiento,
-                Item = guia.Detalles.Count + 1,
-                IdArticulo = "",
-                DescripcionArticulo = "",
-                Cantidad = 1,
-                Valor = 0
-            });
+        int nuevoItem = guia.Detalles.Count + 1;
+        var nuevoDetalle = new MovimientoDetalleDTO
+        {
+            IdMovimiento = guia.IdMovimiento,
+            Item = nuevoItem,
+            IdArticulo = "",
+            DescripcionArticulo = "",
+            Cantidad = 1,
+            Valor = 0
+        };
+        guia.Detalles.Add(nuevoDetalle);
+        articulosNuevos.Add(nuevoDetalle);
+        CalcularTotalArticulos();
     }
 
     private void RemoveDetalle(MovimientoDetalleDTO item)
     {
         guia.Detalles.Remove(item);
-        // Reordenar los Items
+        articulosNuevos.Remove(item);
+        ReordenarItems();
+        CalcularTotalArticulos();
+    }
+
+    private void ReordenarItems()
+    {
         int i = 1;
         foreach (var d in guia.Detalles)
         {
@@ -136,17 +348,140 @@ else
         }
     }
 
-    private void OnProveedorChanged(ChangeEventArgs e)
+    private void CalcularTotalArticulos()
     {
-        proveedorNombre = e.Value?.ToString() ?? string.Empty;
-        var prov = proveedores.FirstOrDefault(p => p.Nombre.Equals(proveedorNombre, System.StringComparison.OrdinalIgnoreCase));
-        guia.IdProveedor = prov?.IdProveedor;
+        totalArticulos = guia.Detalles.Sum(d => d.Cantidad);
+    }
+
+    private async Task OnCantidadChange(MovimientoDetalleDTO d)
+    {
+        CalcularTotalArticulos();
+        StateHasChanged();
+
+        // Validar stock para transferencias de egreso y egresos
+        if (((esTransferencia && guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO") || guia.Tipo == "E") 
+            && !string.IsNullOrWhiteSpace(d.IdArticulo))
+        {
+            var codigoNormalizado = d.IdArticulo.Trim();
+            var idAlmacen = esTransferencia ? almacenOrigenId : guia.IdAlmacen;
+
+            if (stockPorArticulo.ContainsKey(codigoNormalizado))
+            {
+                var stockDisponible = stockPorArticulo[codigoNormalizado];
+
+                if (d.Cantidad > stockDisponible)
+                {
+                    await MostrarAlerta($"❌ No hay stock suficiente ({stockDisponible} en total) para el artículo '{codigoNormalizado}'. Cantidad solicitada: {d.Cantidad}.");
+                    d.Cantidad = stockDisponible;
+                    CalcularTotalArticulos();
+                    StateHasChanged();
+                }
+            }
+            else if (idAlmacen > 0)
+            {
+                int stockDisponible;
+                
+                // Para transferencias de egreso, usar el método que considera transferencias pendientes (excluyendo la actual)
+                if (esTransferencia && guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO")
+                {
+                    stockDisponible = await StockService.GetStockDisponibleParaTransferencia(codigoNormalizado, idAlmacen, guia.IdMovimiento);
+                }
+                else
+                {
+                    stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, idAlmacen);
+                }
+                
+                stockPorArticulo[codigoNormalizado] = stockDisponible;
+
+                if (d.Cantidad > stockDisponible)
+                {
+                    await MostrarAlerta($"❌ No hay stock suficiente ({stockDisponible} en total) para el artículo '{codigoNormalizado}'. Cantidad solicitada: {d.Cantidad}.");
+                    d.Cantidad = stockDisponible;
+                    CalcularTotalArticulos();
+                    StateHasChanged();
+                }
+            }
+        }
+    }
+
+    private async Task OnCantidadKeyDown(KeyboardEventArgs e, MovimientoDetalleDTO d)
+    {
+        if (e.Key == "Enter")
+        {
+            await OnCantidadChange(d);
+            AgregarArticulo();
+            StateHasChanged();
+
+            await Task.Delay(100);
+            await EnfocarInputCodigo(guia.Detalles.Count);
+        }
+    }
+
+    private async Task EnfocarInputCodigo(int item)
+    {
+        await JS.InvokeVoidAsync("eval", $@"
+            setTimeout(function() {{
+                var input = document.querySelector('input[data-item=""{item}""]');
+                if (input) {{
+                    input.focus();
+                    input.select();
+                }}
+            }}, 50);
+        ");
     }
 
     private async Task Guardar()
     {
-        bool ok = await MovimientoGuiaService.UpdateMovimiento(guia.IdMovimiento, guia);
-        if (ok) Navigation.NavigateTo("/guias");
+        if (guardando) return;
+
+        // Limpiar detalles vacíos o inválidos
+        guia.Detalles = guia.Detalles
+            .Where(d => !string.IsNullOrWhiteSpace(d.IdArticulo) && d.Cantidad > 0)
+            .ToList();
+
+        if (!guia.Detalles.Any())
+        {
+            await MostrarAlerta("Debe ingresar al menos un artículo con cantidad válida.");
+            return;
+        }
+
+        // Validar stock para transferencias de egreso antes de guardar
+        if (esTransferencia && guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO")
+        {
+            foreach (var d in guia.Detalles)
+            {
+                if (string.IsNullOrWhiteSpace(d.IdArticulo)) continue;
+
+                // Usar el método que considera transferencias pendientes (excluyendo la actual)
+                var stockDisponible = await StockService.GetStockDisponibleParaTransferencia(d.IdArticulo, almacenOrigenId, guia.IdMovimiento);
+                if (stockDisponible < d.Cantidad)
+                {
+                    await MostrarAlerta($"❌ Stock insuficiente para el artículo '{d.IdArticulo}'. Disponible: {stockDisponible}, requerido: {d.Cantidad}.");
+                    return;
+                }
+            }
+        }
+
+        ReordenarItems();
+
+        guardando = true;
+        try
+        {
+            bool ok = await MovimientoGuiaService.UpdateMovimiento(guia.IdMovimiento, guia);
+            if (ok)
+            {
+                await MostrarAlerta("✅ Guía actualizada correctamente.");
+                Navigation.NavigateTo("/guias");
+            }
+            else
+            {
+                await MostrarAlerta("❌ Ocurrió un error al guardar la guía.");
+            }
+        }
+        finally
+        {
+            guardando = false;
+        }
     }
 
     private void SincronizarProveedorEdit()
@@ -159,5 +494,10 @@ else
     private void Cancelar()
     {
         Navigation.NavigateTo("/guias");
+    }
+
+    private async Task MostrarAlerta(string mensaje)
+    {
+        await JS.InvokeVoidAsync("alert", mensaje);
     }
 }

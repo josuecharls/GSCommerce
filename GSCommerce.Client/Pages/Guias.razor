@@ -67,7 +67,7 @@
                         }
                     </td>
                     <td class="text-center">
-                        <button @onclick="() => EditGuia(g.IdMovimiento)" class="btn btn-warning btn-sm me-1" disabled="@(g.Estado == "A")">
+                        <button @onclick="() => EditGuia(g.IdMovimiento)" class="btn btn-warning btn-sm me-1" disabled="@(g.Estado == "A" || EsTransferenciaConfirmada(g))">
                             <i class="bi bi-pencil-square"></i> Editar
                         </button>
                         <button class="btn btn-danger btn-sm me-1" @onclick="() => AnularGuia(g.IdMovimiento)" disabled="@(g.Estado == "A")">
@@ -181,6 +181,10 @@
         && string.Equals(g.Estado?.Trim(), "E", StringComparison.OrdinalIgnoreCase)
         && g.IdUsuarioConfirma == null
         && (idAlmacenUsuario == null || idAlmacenUsuario == 0 || g.IdAlmacen == idAlmacenUsuario);
+
+    private static bool EsTransferenciaConfirmada(MovimientoGuiaDTO g)
+        => g?.Tipo?.Equals("T", StringComparison.OrdinalIgnoreCase) == true
+        && g.IdUsuarioConfirma.HasValue;
 
     private async Task SearchGuias()
     {

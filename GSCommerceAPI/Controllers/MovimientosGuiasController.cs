@@ -619,13 +619,60 @@ namespace GSCommerceAPI.Controllers
 
                 if (movimiento == null) return NotFound();
 
-                // Actualizar cabecera
-                movimiento.Motivo = dto.Motivo;
+                // Si es transferencia, validar que no esté confirmada
+                var esTransferencia = movimiento.Tipo == "T";
+                if (esTransferencia && movimiento.IdUsuarioConfirma.HasValue)
+                {
+                    return BadRequest(new { mensaje = "No se puede editar una transferencia confirmada." });
+                }
+
+                // Si es transferencia, buscar la guía espejo
+                MovimientosCabecera? guiaEspejo = null;
+                if (esTransferencia)
+                {
+                    var motivoNormalizado = movimiento.Motivo?.Trim() ?? string.Empty;
+                    var esEgreso = string.Equals(motivoNormalizado, "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase);
+
+                    if (esEgreso)
+                    {
+                        // Buscar la guía de INGRESO (espejo)
+                        guiaEspejo = await _context.MovimientosCabeceras
+                            .Include(m => m.MovimientosDetalles)
+                            .Where(m =>
+                                m.Tipo == "T" &&
+                                m.Motivo.Trim() == "TRANSFERENCIA INGRESO" &&
+                                m.IdAlmacen == movimiento.IdAlmacenDestinoOrigen &&
+                                m.IdAlmacenDestinoOrigen == movimiento.IdAlmacen
+                            )
+                            .OrderByDescending(m => m.IdMovimiento)
+                            .FirstOrDefaultAsync();
+                    }
+                    else
+                    {
+                        // Buscar la guía de EGRESO (espejo)
+                        guiaEspejo = await _context.MovimientosCabeceras
+                            .Include(m => m.MovimientosDetalles)
+                            .Where(m =>
+                                m.Tipo == "T" &&
+                                m.Motivo.Trim() == "TRANSFERENCIA EGRESO" &&
+                                m.IdAlmacen == movimiento.IdAlmacenDestinoOrigen &&
+                                m.IdAlmacenDestinoOrigen == movimiento.IdAlmacen
+                            )
+                            .OrderByDescending(m => m.IdMovimiento)
+                            .FirstOrDefaultAsync();
+                    }
+
+                    // Validar que la guía espejo tampoco esté confirmada
+                    if (guiaEspejo != null && guiaEspejo.IdUsuarioConfirma.HasValue)
+                    {
+                        return BadRequest(new { mensaje = "No se puede editar una transferencia cuya guía espejo está confirmada." });
+                    }
+                }
+
+                // Actualizar cabecera (NO se permite cambiar Motivo, Almacén ni Proveedor)
                 movimiento.Descripcion = dto.Descripcion;
-                movimiento.IdProveedor = dto.IdProveedor;
-                movimiento.IdAlmacen = dto.IdAlmacen;
-                movimiento.IdAlmacenDestinoOrigen = dto.IdAlmacenDestinoOrigen;
                 movimiento.Estado = dto.Estado;
+                // Nota: Motivo, IdAlmacen, IdProveedor e IdAlmacenDestinoOrigen NO se actualizan
 
                 // Eliminar detalles anteriores
                 _context.MovimientosDetalles.RemoveRange(movimiento.MovimientosDetalles);
@@ -646,9 +693,37 @@ namespace GSCommerceAPI.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                // Si es transferencia y existe guía espejo, sincronizar
+                if (esTransferencia && guiaEspejo != null)
+                {
+                    // Actualizar descripción en la guía espejo
+                    guiaEspejo.Descripcion = dto.Descripcion;
+                    guiaEspejo.Estado = dto.Estado;
+
+                    // Eliminar detalles anteriores de la guía espejo
+                    _context.MovimientosDetalles.RemoveRange(guiaEspejo.MovimientosDetalles);
+
+                    // Agregar los mismos detalles a la guía espejo
+                    int itemEspejo = 1;
+                    foreach (var d in dto.Detalles)
+                    {
+                        _context.MovimientosDetalles.Add(new MovimientosDetalle
+                        {
+                            IdMovimiento = guiaEspejo.IdMovimiento,
+                            Item = itemEspejo++,
+                            IdArticulo = d.IdArticulo,
+                            DescripcionArticulo = d.DescripcionArticulo,
+                            Cantidad = d.Cantidad,
+                            Valor = d.Valor
+                        });
+                    }
+                }
+
+                await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return Ok(new { mensaje = "Movimiento actualizado" });
+                return Ok(new { mensaje = "Movimiento actualizado" + (esTransferencia && guiaEspejo != null ? " (guía espejo sincronizada)" : "") });
             }
             catch (Exception ex)
             {

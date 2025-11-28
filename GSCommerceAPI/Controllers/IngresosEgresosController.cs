@@ -282,6 +282,24 @@ namespace GSCommerceAPI.Controllers
             registro.Estado = "A";
             await _context.SaveChangesAsync();
 
+            // Si es un Egreso tipo PAGO PROVEEDORES, anular también la orden de compra asociada
+            if (registro.Naturaleza == "E" && 
+                registro.Tipo.Equals("PAGO PROVEEDORES", StringComparison.OrdinalIgnoreCase))
+            {
+                // Buscar la orden de compra asociada (formato PP-{IdIngresoEgreso})
+                var numeroOc = $"PP-{registro.IdIngresoEgreso}";
+                var ordenCompra = await _context.OrdenDeCompraCabeceras
+                    .FirstOrDefaultAsync(oc => oc.NumeroOc == numeroOc);
+                
+                if (ordenCompra != null && ordenCompra.EstadoAtencion != "AN")
+                {
+                    ordenCompra.EstadoAtencion = "AN";
+                    ordenCompra.FechaAnulado = DateTime.Now;
+                    ordenCompra.FechaAtencionTotal = null;
+                    await _context.SaveChangesAsync();
+                }
+            }
+            
             // Si es un Egreso tipo TRANSFERENCIA, buscar y anular el Ingreso correspondiente del cajero destino
             if (registro.Naturaleza == "E" && 
                 registro.Tipo.Equals("TRANSFERENCIA", StringComparison.OrdinalIgnoreCase) &&

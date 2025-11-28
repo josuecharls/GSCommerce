@@ -79,6 +79,32 @@ namespace GSCommerce.Client.Services
             return lista.Items.FirstOrDefault()?.Stock ?? 0;
         }
 
+        public async Task<int> GetStockDisponibleParaTransferencia(string codigoArticulo, int idAlmacen, int? idMovimientoExcluir = null)
+        {
+            try
+            {
+                var url = $"api/stock/disponible-para-transferencia?codigoArticulo={Uri.EscapeDataString(codigoArticulo)}&idAlmacen={idAlmacen}";
+                if (idMovimientoExcluir.HasValue)
+                {
+                    url += $"&idMovimientoExcluir={idMovimientoExcluir.Value}";
+                }
+
+                var response = await _httpClient.GetFromJsonAsync<StockDisponibleResponse>(url);
+                return response?.StockDisponible ?? 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error al obtener stock disponible para transferencia: {ex.Message}");
+                // Fallback al método anterior si hay error
+                return await GetStockDisponible(codigoArticulo, idAlmacen);
+            }
+        }
+
+        private class StockDisponibleResponse
+        {
+            public int StockDisponible { get; set; }
+        }
+
         public async Task<List<RepositionAlertDTO>> GetRepositionAlerts(int? idAlmacen = null, int threshold = 10)
         {
             try
