@@ -1,6 +1,6 @@
-﻿@page "/barcode-print/{codigo}/{descripcion}"
+@page "/barcode-print/{codigo}/{descripcion}"
 @page "/barcode-print/{codigo}/{descripcion}/{precio}"
-@page "/barcode-print/{codigo}/{descripcion}/{precio}/{talla?}"
+@page "/barcode-print/{codigo}/{descripcion}/{precio}/{color?}/{talla?}"
 
 @inject IJSRuntime JS
 
@@ -156,6 +156,23 @@
 
                     <div>
                         <div class="desc">@Descripcion</div>
+                        @if (!string.IsNullOrWhiteSpace(Color) || !string.IsNullOrWhiteSpace(Talla))
+                        {
+                            <div class="variante-info" style="font-size: 8pt; margin-top: 2px;">
+                                @if (!string.IsNullOrWhiteSpace(Color))
+                                {
+                                    <span><strong>Color: @Color</strong></span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(Color) && !string.IsNullOrWhiteSpace(Talla))
+                                {
+                                    <span> | </span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(Talla))
+                                {
+                                    <span><strong>Talla: @Talla</strong></span>
+                                }
+                            </div>
+                        }
                     </div>
 
                     <div class="bottom">
@@ -163,7 +180,6 @@
                             @if (!string.IsNullOrWhiteSpace(Talla))
                             {
                                 <span><strong>T/@Talla</strong> &nbsp;Talla</span>
-                                ;
                             }
                         </div>
                         <div class="price">
@@ -188,6 +204,7 @@ else
     [Parameter] public string? Codigo { get; set; }
     [Parameter] public string? Descripcion { get; set; }
     [Parameter] public string? Precio { get; set; }
+    [Parameter] public string? Color { get; set; }
     [Parameter] public string? Talla { get; set; }
 
     private decimal? PrecioDecimal;
