@@ -1,8 +1,9 @@
-﻿@page "/articulos"
+@page "/articulos"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using System.Globalization
 @inject ArticuloService ArticuloService
+@inject ArticuloVarianteService ArticuloVarianteService
 @inject NavigationManager Navigation
 @inject HttpClient Http
 @inject IJSRuntime JS
@@ -63,7 +64,7 @@
                             <button @onclick="() => ShowPhoto(a.IdArticulo)" class="btn btn-info btn-sm me-1">
                                 <i class="bi bi-image"></i>
                             </button>
-                            <button @onclick="() => ShowBarcode(a.IdArticulo)" class="btn btn-primary btn-sm me-1">
+                            <button @onclick="() => ShowBarcode(a.IdArticulo)" class="btn btn-primary btn-sm me-1" title="Ver código de barras">
                                 <i class="bi bi-upc"></i>
                             </button>
                             <button @onclick="() => ShowQr(a.IdArticulo)" class="btn btn-secondary btn-sm me-1">
@@ -230,11 +231,22 @@
                             <img src="https://barcodeapi.org/api/128/@barcodeArticulo?.IdArticulo" width="240" />
                             <div class="price">S/. @barcodeArticulo?.PrecioVenta.ToString("0.00")</div>
                         </div>
-                        <div style="font-weight:bold; margin-top:6px">@barcodeArticulo?.DescripcionCorta</div>
+                        <div style="font-weight:bold; margin-top:6px">@descripcionParaImpresion</div>
+                        @if (varianteSeleccionadaImpresion != null)
+                        {
+                            <div style="font-size:small; color: #666; margin-top: 4px;">
+                                Color: <strong>@varianteSeleccionadaImpresion.Color</strong> | Talla: <strong>@varianteSeleccionadaImpresion.Talla</strong>
+                            </div>
+                        }
                         <div style="font-size:small">Código: @barcodeArticulo?.IdArticulo</div>
                     </div>
                 </div>
                 <div class="modal-footer justify-content-center">
+                    <button class="btn btn-info me-2" 
+                            @onclick="AbrirModalSeleccionVarianteImpresion"
+                            disabled="@(!tieneVariantes)">
+                        <i class="bi bi-palette"></i> Elegir Variante
+                    </button>
                     <button class="btn btn-success" @onclick="PrintBarcode">Imprimir</button>
                     <button class="btn btn-secondary" @onclick="CloseBarcodeModal">Cerrar</button>
                 </div>
@@ -265,6 +277,46 @@
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" @onclick="ClosePhotoModal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal: Seleccionar Variante para Impresión -->
+@if (mostrarModalSeleccionVarianteImpresion)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Seleccionar Variante para Imprimir</h5>
+                    <button type="button" class="btn-close" @onclick="() => mostrarModalSeleccionVarianteImpresion = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Seleccione la variante que desea imprimir:</p>
+                    <div class="list-group">
+                        @foreach (var variante in variantesDisponiblesImpresion)
+                        {
+                            <button type="button" 
+                                    class="list-group-item list-group-item-action @(varianteSeleccionadaImpresion?.IdVariante == variante.IdVariante ? "active" : "")"
+                                    @onclick="() => SeleccionarVarianteParaImpresion(variante)">
+                                <strong>@variante.Color</strong> - <strong>@variante.Talla</strong>
+                            </button>
+                        }
+                    </div>
+                    @if (varianteSeleccionadaImpresion != null)
+                    {
+                        <div class="mt-3">
+                            <button class="btn btn-sm btn-outline-secondary w-100" @onclick="LimpiarVarianteSeleccionada">
+                                <i class="bi bi-x-circle"></i> Limpiar Selección
+                            </button>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => mostrarModalSeleccionVarianteImpresion = false">Cerrar</button>
                 </div>
             </div>
         </div>
@@ -451,11 +503,15 @@
         return sortAscending ? "bi-arrow-up" : "bi-arrow-down";
     }
 
-    private void ShowBarcode(string id)
+    private async Task ShowBarcode(string id)
     {
         barcodeArticulo = articuloList.FirstOrDefault(a => a.IdArticulo == id);
         if (barcodeArticulo != null)
         {
+            // Cargar variantes del artículo
+            variantesDisponiblesImpresion = await ArticuloVarianteService.ObtenerVariantesPorArticulo(barcodeArticulo.IdArticulo);
+            varianteSeleccionadaImpresion = null;
+            descripcionParaImpresion = barcodeArticulo.DescripcionCorta ?? barcodeArticulo.Descripcion;
             showBarcodeModal = true;
         }
     }
@@ -463,17 +519,68 @@
     private void CloseBarcodeModal()
     {
         showBarcodeModal = false;
+        varianteSeleccionadaImpresion = null;
+        variantesDisponiblesImpresion.Clear();
+        descripcionParaImpresion = string.Empty;
     }
 
     // Abre la página calibrada /barcode-print (dos etiquetas, 100x50mm)
     private void PrintBarcode()
     {
         if (barcodeArticulo is null) return;
-        var desc = Uri.EscapeDataString(barcodeArticulo.DescripcionCorta ?? "");
+        
+        var desc = Uri.EscapeDataString(descripcionParaImpresion);
         var precio = barcodeArticulo.PrecioVenta.ToString(CultureInfo.InvariantCulture);
-        Navigation.NavigateTo($"/barcode-print/{barcodeArticulo.IdArticulo}/{desc}/{precio}", true);
+        
+        if (varianteSeleccionadaImpresion != null)
+        {
+            var color = Uri.EscapeDataString(varianteSeleccionadaImpresion.Color);
+            var talla = Uri.EscapeDataString(varianteSeleccionadaImpresion.Talla);
+            Navigation.NavigateTo($"/barcode-print/{barcodeArticulo.IdArticulo}/{desc}/{precio}/{color}/{talla}", true);
+        }
+        else
+        {
+            Navigation.NavigateTo($"/barcode-print/{barcodeArticulo.IdArticulo}/{desc}/{precio}", true);
+        }
     }
 
     private bool CanPrev => currentPage > 1;
     private bool CanNext => currentPage < totalPages;
+
+    // Variables para manejo de variantes en impresión
+    private List<ArticuloVarianteDTO> variantesDisponiblesImpresion = new();
+    private ArticuloVarianteDTO? varianteSeleccionadaImpresion;
+    private string descripcionParaImpresion = string.Empty;
+    private bool mostrarModalSeleccionVarianteImpresion = false;
+    private bool tieneVariantes => variantesDisponiblesImpresion.Any();
+
+    private void AbrirModalSeleccionVarianteImpresion()
+    {
+        if (tieneVariantes)
+        {
+            mostrarModalSeleccionVarianteImpresion = true;
+        }
+    }
+
+    private void SeleccionarVarianteParaImpresion(ArticuloVarianteDTO variante)
+    {
+        varianteSeleccionadaImpresion = variante;
+        if (barcodeArticulo != null)
+        {
+            // Formato: "DESCRIPCION C/VAR T/TALLA" según el formato mostrado en las imágenes
+            descripcionParaImpresion = $"{barcodeArticulo.DescripcionCorta} C/VAR {variante.Color} T/{variante.Talla}";
+        }
+        mostrarModalSeleccionVarianteImpresion = false;
+        StateHasChanged();
+    }
+
+    private void LimpiarVarianteSeleccionada()
+    {
+        varianteSeleccionadaImpresion = null;
+        if (barcodeArticulo != null)
+        {
+            descripcionParaImpresion = barcodeArticulo.DescripcionCorta ?? barcodeArticulo.Descripcion;
+        }
+        StateHasChanged();
+    }
 }
