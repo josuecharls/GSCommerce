@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.IO;
 using GSCommerceAPI.Services;
 using GSCommerceAPI.Services.Reportes;
 using GSCommerceAPI.Services.SUNAT;
@@ -11,6 +12,23 @@ using ServicioSunat;
 
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+QuestPDF.Settings.FontDiscoveryPaths.Clear();
+QuestPDF.Settings.FontDiscoveryPaths.Add(Path.Combine(AppContext.BaseDirectory, "Fuentes"));
+
+var nombreFuente = "ARIAL.TTF";
+var rutaFuente = Path.Combine(AppContext.BaseDirectory, "Fuentes", nombreFuente);
+
+if (File.Exists(rutaFuente))
+{
+    using var stream = File.OpenRead(rutaFuente);
+    QuestPDF.Drawing.FontManager.RegisterFont(stream);
+    Console.WriteLine($"[INFO] Fuente cargada correctamente desde: {rutaFuente}");
+}
+else
+{
+    Console.WriteLine($"[PELIGRO] No se encontró el archivo de fuente en: {rutaFuente}");
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Configurar la conexión con SQL Server usando SyscharlesContext
@@ -72,8 +90,8 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-    app.UseSwagger();
-    app.UseSwaggerUI();
+app.UseSwagger();
+app.UseSwaggerUI();
 
 // Habilitar CORS
 app.UseCors("AllowBlazor");

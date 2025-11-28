@@ -1,0 +1,251 @@
+@page "/guias/detalle/{id:int}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.WebUtilities
+@inject MovimientoGuiaService MovimientoGuiaService
+@inject NavigationManager Navigation
+@inject AlmacenService AlmacenService
+@inject ProveedorService ProveedorService
+@inject IJSRuntime JS
+@using System.Linq
+
+<h3><i class="bi bi-eye"></i> Detalle de Guía - @titulo</h3>
+
+@if (isLoading)
+{
+    <p>Cargando...</p>
+}
+else
+{
+    <div class="card p-4">
+        <div class="row">
+            <div class="col-md-6">
+                <label><strong>Número de Guía</strong></label>
+                <p>#@guia.IdMovimiento</p>
+
+                <label class="mt-3"><strong>Motivo</strong></label>
+                <p>@guia.Motivo</p>
+
+                <label class="mt-3"><strong>Descripción</strong></label>
+                <p>@guia.Descripcion</p>
+
+                <label class="mt-3"><strong>Estado</strong></label>
+                <p>
+                    @if (guia.Estado == "A")
+                    {
+                        <span class="badge bg-danger">Anulado</span>
+                    }
+                    else if (guia.Estado == "C")
+                    {
+                        <span class="badge bg-success">Confirmado</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-primary">Emitido</span>
+                    }
+                </p>
+
+                @if (esTransferencia && guia.IdUsuarioConfirma.HasValue)
+                {
+                    <label class="mt-3"><strong>Confirmado por</strong></label>
+                    <p>Usuario ID: @guia.IdUsuarioConfirma</p>
+                    @if (guia.FechaHoraConfirma.HasValue)
+                    {
+                        <label class="mt-2"><strong>Fecha de Confirmación</strong></label>
+                        <p>@guia.FechaHoraConfirma.Value.ToString("dd/MM/yyyy HH:mm")</p>
+                    }
+                }
+            </div>
+            <div class="col-md-6">
+                <label><strong>Almacén</strong></label>
+                <p>@(almacenes.FirstOrDefault(a => a.IdAlmacen == guia.IdAlmacen)?.Nombre ?? "N/A")</p>
+
+                @if (mostrarProveedor)
+                {
+                    <label class="mt-3"><strong>Proveedor</strong></label>
+                    <p>@proveedorNombre</p>
+                }
+
+                @if (esTransferencia)
+                {
+                    <label class="mt-3"><strong>Almacén Origen</strong></label>
+                    <p>@almacenOrigenNombre</p>
+
+                    <label class="mt-3"><strong>Almacén Destino</strong></label>
+                    <p>@almacenDestinoNombre</p>
+                }
+
+                <label class="mt-3"><strong>Fecha</strong></label>
+                <p>@guia.Fecha.ToString("dd/MM/yyyy")</p>
+
+                <label class="mt-3"><strong>Fecha de Registro</strong></label>
+                <p>@guia.FechaHoraRegistro.ToString("dd/MM/yyyy HH:mm")</p>
+            </div>
+        </div>
+
+        <hr />
+
+        <h5><i class="bi bi-box-seam-fill"></i> Detalle de Artículos</h5>
+        <table class="table table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Código</th>
+                    <th>Descripción</th>
+                    <th class="text-end">Cantidad</th>
+                    <th class="text-end">Valor Unit.</th>
+                    <th class="text-end">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (guia.Detalles != null && guia.Detalles.Any())
+                {
+                    @foreach (var item in guia.Detalles.OrderBy(d => d.Item))
+                    {
+                        <tr>
+                            <td>@item.Item</td>
+                            <td>@item.IdArticulo</td>
+                            <td>@item.DescripcionArticulo</td>
+                            <td class="text-end">@item.Cantidad.ToString("N0")</td>
+                            <td class="text-end">@item.Valor.ToString("N2")</td>
+                            <td class="text-end">@((item.Cantidad * item.Valor).ToString("N2"))</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="text-center">No hay artículos registrados</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr class="table-light">
+                    <td colspan="5" class="text-end fw-bold">Total:</td>
+                    <td class="text-end fw-bold">@TotalArticulos.ToString("N2")</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="mt-3">
+            <button class="btn btn-secondary" @onclick="Volver">
+                <i class="bi bi-arrow-left"></i> Volver
+            </button>
+            @if (guia.Estado != "A" && !esTransferenciaConfirmada)
+            {
+                <button class="btn btn-warning ms-2" @onclick="Editar">
+                    <i class="bi bi-pencil-square"></i> Editar
+                </button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+    private MovimientoGuiaDTO guia = new();
+    private List<AlmacenDTO> almacenes = new();
+    private List<ProveedorDTO> proveedores = new();
+    private bool isLoading = true;
+    private string titulo = "Guía";
+    private string proveedorNombre = string.Empty;
+    private string? returnUrl = null;
+    private bool esTransferenciaConfirmada = false;
+
+    private bool esTransferencia => guia.Tipo == "T" && 
+        (guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO" || guia.Motivo?.Trim() == "TRANSFERENCIA INGRESO");
+    
+    private bool esIngresoEgreso => guia.Tipo == "I" || guia.Tipo == "E";
+    private bool mostrarProveedor => esIngresoEgreso && guia.IdProveedor.HasValue;
+
+    private int almacenOrigenId
+    {
+        get
+        {
+            if (!esTransferencia) return 0;
+            // Si es EGRESO, el almacén origen es IdAlmacen
+            // Si es INGRESO, el almacén origen es IdAlmacenDestinoOrigen
+            if (guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO")
+                return guia.IdAlmacen;
+            else if (guia.Motivo?.Trim() == "TRANSFERENCIA INGRESO")
+                return guia.IdAlmacenDestinoOrigen ?? 0;
+            return 0;
+        }
+    }
+    
+    private int almacenDestinoId
+    {
+        get
+        {
+            if (!esTransferencia) return 0;
+            // Si es EGRESO, el almacén destino es IdAlmacenDestinoOrigen
+            // Si es INGRESO, el almacén destino es IdAlmacen
+            if (guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO")
+                return guia.IdAlmacenDestinoOrigen ?? 0;
+            else if (guia.Motivo?.Trim() == "TRANSFERENCIA INGRESO")
+                return guia.IdAlmacen;
+            return 0;
+        }
+    }
+    
+    private string almacenOrigenNombre => almacenes.FirstOrDefault(a => a.IdAlmacen == almacenOrigenId)?.Nombre ?? "N/A";
+    private string almacenDestinoNombre => almacenes.FirstOrDefault(a => a.IdAlmacen == almacenDestinoId)?.Nombre ?? "N/A";
+
+    private decimal TotalArticulos => guia.Detalles?.Sum(d => d.Cantidad * d.Valor) ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        
+        // Obtener URL de retorno de los query parameters
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("returnUrl", out var returnUrlParam))
+        {
+            returnUrl = returnUrlParam;
+        }
+        if (string.IsNullOrWhiteSpace(returnUrl))
+        {
+            returnUrl = "/guias";
+        }
+        
+        guia = await MovimientoGuiaService.GetMovimientoById(id) ?? new();
+        
+        if (guia.IdMovimiento == 0)
+        {
+            await JS.InvokeVoidAsync("alert", "❌ No se pudo cargar la guía.");
+            Navigation.NavigateTo(returnUrl);
+            return;
+        }
+
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        proveedores = await ProveedorService.GetProveedores() ?? new();
+        proveedorNombre = proveedores.FirstOrDefault(p => p.IdProveedor == guia.IdProveedor)?.Nombre ?? string.Empty;
+
+        // Determinar título según tipo
+        titulo = guia.Tipo switch
+        {
+            "I" => "Guía de Ingreso",
+            "E" => "Guía de Egreso",
+            "T" => guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO" ? "Transferencia - Egreso" : "Transferencia - Ingreso",
+            _ => "Guía"
+        };
+
+        esTransferenciaConfirmada = guia.Tipo == "T" && guia.IdUsuarioConfirma.HasValue;
+        
+        isLoading = false;
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo(returnUrl ?? "/guias");
+    }
+
+    private void Editar()
+    {
+        var currentUrl = Navigation.Uri;
+        var returnUrlEdit = Uri.EscapeDataString(currentUrl);
+        Navigation.NavigateTo($"/guias/edit/{id}?returnUrl={returnUrlEdit}");
+    }
+}
+
+

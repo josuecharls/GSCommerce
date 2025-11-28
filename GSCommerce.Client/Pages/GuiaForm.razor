@@ -126,8 +126,18 @@ else
 
     <div class="alert alert-info">Total artículos: <strong>@totalArticulos</strong></div>
     <div class="text-center mt-3">
-        <button class="btn btn-success" @onclick="Guardar"><i class="bi bi-floppy2"></i>  Guardar</button>
-        <button class="btn btn-secondary" @onclick="Cancelar"><i class="bi bi-x-lg"></i> Cancelar</button>
+        <button class="btn btn-success" @onclick="Guardar" disabled="@guardando">
+            @if (guardando)
+            {
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            }
+            else
+            {
+                <i class="bi bi-floppy2"></i>
+            }
+            Guardar
+        </button>
+        <button class="btn btn-secondary" @onclick="Cancelar" disabled="@guardando"><i class="bi bi-x-lg"></i> Cancelar</button>
     </div>
 }
 
@@ -142,6 +152,7 @@ else
     private List<ProveedorDTO> proveedores = new();
     private List<string> motivos = new();
     private bool isLoading = true;
+    private bool guardando = false;
     private string titulo = "";
     private int totalArticulos = 0;
     private string tipoMovimiento = ""; // I, E, T
@@ -284,7 +295,17 @@ else
 
             // Validar stock en el almacén para TODOS los tipos de movimiento
             var idAlmacen = guia.IdAlmacen;
-            var stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, idAlmacen);
+            int stockDisponible;
+            
+            // Para transferencias, usar el método que considera transferencias pendientes
+            if (tipo == "Transferencia")
+            {
+                stockDisponible = await StockService.GetStockDisponibleParaTransferencia(codigoNormalizado, idAlmacen);
+            }
+            else
+            {
+                stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, idAlmacen);
+            }
 
             // Guardar el stock disponible para validar cantidad después
             stockPorArticulo[codigoNormalizado] = stockDisponible;
@@ -332,6 +353,8 @@ else
 
     private async Task Guardar()
     {
+        if (guardando) return; // Prevenir doble ejecución
+
         // Limpia detalles vacíos o inválidos
         guia.Detalles = guia.Detalles
             .Where(d => !string.IsNullOrWhiteSpace(d.IdArticulo) && d.Cantidad > 0)
@@ -357,7 +380,7 @@ else
             // Validar stock disponible en el almacén de origen
             foreach (var d in guia.Detalles)
             {
-                var stockDisponible = await StockService.GetStockDisponible(d.IdArticulo, guia.IdAlmacen);
+                var stockDisponible = await StockService.GetStockDisponibleParaTransferencia(d.IdArticulo, guia.IdAlmacen);
                 if (stockDisponible < d.Cantidad)
                 {
                     await MostrarAlerta($"❌ Stock insuficiente para el artículo '{d.IdArticulo}'. Disponible: {stockDisponible}, requerido: {d.Cantidad}.");
@@ -366,23 +389,31 @@ else
             }
         }
 
-        bool ok;
-        if (tipo == "Transferencia")
+        guardando = true;
+        try
         {
-            ok = await MovimientoGuiaService.CreateMovimiento(guia);
-        }
-        else
-        {
-            ok = await MovimientoGuiaService.CreateMovimientoConSP(guia);
-        }
+            bool ok;
+            if (tipo == "Transferencia")
+            {
+                ok = await MovimientoGuiaService.CreateMovimiento(guia);
+            }
+            else
+            {
+                ok = await MovimientoGuiaService.CreateMovimientoConSP(guia);
+            }
 
-        if (ok)
-        {
-            Navigation.NavigateTo("/guias?tipo=" + tipo);
+            if (ok)
+            {
+                Navigation.NavigateTo("/guias?tipo=" + tipo);
+            }
+            else
+            {
+                await MostrarAlerta("❌ Ocurrió un error al guardar la guía.");
+            }
         }
-        else
+        finally
         {
-            await MostrarAlerta("❌ Ocurrió un error al guardar la guía.");
+            guardando = false;
         }
     }
 
@@ -469,7 +500,16 @@ else
                 // Si no tenemos el stock almacenado, consultarlo
                 if (guia.IdAlmacen > 0)
                 {
-                    var stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, guia.IdAlmacen);
+                    int stockDisponible;
+                    // Para transferencias, usar el método que considera transferencias pendientes
+                    if (tipo == "Transferencia")
+                    {
+                        stockDisponible = await StockService.GetStockDisponibleParaTransferencia(codigoNormalizado, guia.IdAlmacen);
+                    }
+                    else
+                    {
+                        stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, guia.IdAlmacen);
+                    }
                     stockPorArticulo[codigoNormalizado] = stockDisponible;
                     
                     if (d.Cantidad > stockDisponible)

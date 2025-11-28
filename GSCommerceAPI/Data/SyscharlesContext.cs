@@ -136,6 +136,8 @@ public partial class SyscharlesContext : DbContext
 
     public virtual DbSet<Usuario> Usuarios { get; set; }
 
+    public virtual DbSet<Notificacion> Notificaciones { get; set; }
+
     public virtual DbSet<VAlmacen1> VAlmacen1s { get; set; }
 
     public virtual DbSet<VAlmacenesAperturaFecha1> VAlmacenesAperturaFecha1s { get; set; }
@@ -1835,6 +1837,29 @@ public partial class SyscharlesContext : DbContext
                 .HasForeignKey(d => d.IdPersonal)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Usuario_Personal");
+        });
+
+        modelBuilder.Entity<Notificacion>(entity =>
+        {
+            entity.HasKey(e => e.IdNotificacion);
+
+            entity.ToTable("Notificacion", "Maestros");
+
+            entity.Property(e => e.Tipo).HasMaxLength(50);
+            entity.Property(e => e.Mensaje).HasMaxLength(500);
+            entity.Property(e => e.FechaCreacion).HasDefaultValueSql("GETDATE()");
+
+            entity.HasOne(d => d.IdUsuarioNavigation)
+                .WithMany()
+                .HasForeignKey(d => d.IdUsuario)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Notificacion_Usuario");
+
+            entity.HasOne(d => d.IdMovimientoNavigation)
+                .WithMany()
+                .HasForeignKey(d => d.IdMovimiento)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Notificacion_Movimiento");
         });
 
         modelBuilder.Entity<VAlmacen1>(entity =>

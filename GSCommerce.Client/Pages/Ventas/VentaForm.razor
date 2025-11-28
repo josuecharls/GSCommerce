@@ -170,6 +170,7 @@
     </table>
 
     <div class="text-end">
+        <h5>Total de Productos: <strong>@TotalProductos.ToString("N0")</strong></h5>
         <h5>Subtotal: @SimboloMoneda@venta.SubTotal.ToString("N2")@EquivalenteSoles(venta.SubTotal)</h5>
         <h5>IGV (@porcentajeIgv%): @SimboloMoneda@venta.Igv.ToString("N2")@EquivalenteSoles(venta.Igv)</h5>
         <h5><strong>Total: @SimboloMoneda@venta.Total.ToString("N2")@EquivalenteSoles(venta.Total)</strong></h5>
@@ -720,6 +721,37 @@ else
             return;
         }
 
+        if (idAlmacenActual.HasValue && !string.IsNullOrWhiteSpace(venta.Serie))
+        {
+            var tipos = await TipoDocumentoVentaService.GetTiposDocumento();
+            var tipoDoc = tipos?.FirstOrDefault(t =>
+                t.Descripcion.ToUpper() == venta.TipoDocumento.ToUpper()
+                && (EsCajaManual ? t.Manual : !t.Manual));
+
+            if (tipoDoc != null)
+            {
+                try
+                {
+                    var nuevoNumero = await ventaService.ObtenerSiguienteCorrelativoDisponibleAsync(
+                        venta.Serie,
+                        idAlmacenActual.Value,
+                        tipoDoc.IdTipoDocumentoVenta);
+
+                    if (nuevoNumero > 0 && nuevoNumero != venta.Numero)
+                    {
+                        venta.Numero = nuevoNumero;
+                        await JS.InvokeVoidAsync("console.log", 
+                            $"🔄 Correlativo actualizado: {venta.Serie}-{nuevoNumero}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await JS.InvokeVoidAsync("console.log", 
+                        $"⚠️ Error al actualizar correlativo: {ex.Message}");
+                }
+            }
+        }
+
         if (monedaAlmacen == "USD")
         {
             if (enDolares)
@@ -1208,6 +1240,8 @@ else
 
         return $"{prefijo}{serie}";
     }
+
+    private decimal TotalProductos => venta.Detalles?.Sum(d => d.Cantidad) ?? 0m;
 
     private string? ValidarDocumentoCliente()
     {

@@ -169,6 +169,58 @@ namespace GSCommerceAPI.Controllers
             return Ok(articulos);
         }
 
+        // ✅ GET: api/stock/disponible-para-transferencia
+        [HttpGet("disponible-para-transferencia")]
+        public async Task<IActionResult> GetStockDisponibleParaTransferencia(
+            [FromQuery] string codigoArticulo,
+            [FromQuery] int idAlmacen,
+            [FromQuery] int? idMovimientoExcluir = null)
+        {
+            if (string.IsNullOrWhiteSpace(codigoArticulo))
+            {
+                return BadRequest(new { mensaje = "El código de artículo es requerido." });
+            }
+
+            try
+            {
+                // 1. Obtener stock actual del artículo en el almacén
+                var stockActual = await _context.VStockXalmacen1s
+                    .Where(s => s.IdArticulo == codigoArticulo.Trim() && s.IdAlmacen == idAlmacen)
+                    .Select(s => s.Stock)
+                    .FirstOrDefaultAsync();
+
+                if (stockActual == 0)
+                {
+                    return Ok(new { stockDisponible = 0 });
+                }
+
+                // 2. Calcular cantidad reservada en transferencias EGRESO pendientes
+                // (Estado = "E" y IdUsuarioConfirma == null)
+                // Suma las cantidades del artículo en todas las transferencias EGRESO pendientes
+                var cantidadReservada = await _context.MovimientosDetalles
+                    .Where(d =>
+                        d.IdArticulo == codigoArticulo.Trim() &&
+                        d.IdMovimientoNavigation.Tipo == "T" &&
+                        d.IdMovimientoNavigation.Motivo.Trim() == "TRANSFERENCIA EGRESO" &&
+                        d.IdMovimientoNavigation.Estado.Trim() == "E" &&
+                        d.IdMovimientoNavigation.IdUsuarioConfirma == null &&
+                        d.IdMovimientoNavigation.IdAlmacen == idAlmacen &&
+                        (idMovimientoExcluir == null || d.IdMovimiento != idMovimientoExcluir.Value)
+                    )
+                    .SumAsync(d => (int?)d.Cantidad) ?? 0;
+
+                // 3. Calcular stock disponible
+                var stockDisponible = Math.Max(0, stockActual - cantidadReservada);
+
+                return Ok(new { stockDisponible });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error al calcular stock disponible: {ex.Message}");
+                return StatusCode(500, new { mensaje = "Error al calcular stock disponible" });
+            }
+        }
+
         // ✅ GET: api/stock/reposition-alert
         [HttpGet("reposition-alert")]
         public async Task<IActionResult> GetRepositionAlert(

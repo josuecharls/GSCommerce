@@ -90,7 +90,12 @@
         {
             @foreach (var item in lista)
             {
-                <tr>
+                var esPagoProveedorAnulado = item.Naturaleza == "E" && 
+                    item.Estado == "A" && 
+                    (item.Tipo.Contains("PAGO", StringComparison.OrdinalIgnoreCase) && 
+                     item.Tipo.Contains("PROVEEDOR", StringComparison.OrdinalIgnoreCase));
+                
+                <tr class="@(esPagoProveedorAnulado ? "table-danger" : "")">
                     <td>@item.Fecha.ToString("yyyy-MM-dd")</td>
                     <td>@(item.Naturaleza == "I" ? "Ingreso" : "Egreso")</td>
                     <td>@item.Tipo</td>

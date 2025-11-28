@@ -67,7 +67,10 @@
                         }
                     </td>
                     <td class="text-center">
-                        <button @onclick="() => EditGuia(g.IdMovimiento)" class="btn btn-warning btn-sm me-1" disabled="@(g.Estado == "A")">
+                        <button @onclick="() => VerDetalle(g.IdMovimiento)" class="btn btn-info btn-sm me-1">
+                            <i class="bi bi-eye"></i> Ver Detalle
+                        </button>
+                        <button @onclick="() => EditGuia(g.IdMovimiento)" class="btn btn-warning btn-sm me-1" disabled="@(g.Estado == "A" || EsTransferenciaConfirmada(g))">
                             <i class="bi bi-pencil-square"></i> Editar
                         </button>
                         <button class="btn btn-danger btn-sm me-1" @onclick="() => AnularGuia(g.IdMovimiento)" disabled="@(g.Estado == "A")">
@@ -182,6 +185,10 @@
         && g.IdUsuarioConfirma == null
         && (idAlmacenUsuario == null || idAlmacenUsuario == 0 || g.IdAlmacen == idAlmacenUsuario);
 
+    private static bool EsTransferenciaConfirmada(MovimientoGuiaDTO g)
+        => g?.Tipo?.Equals("T", StringComparison.OrdinalIgnoreCase) == true
+        && g.IdUsuarioConfirma.HasValue;
+
     private async Task SearchGuias()
     {
         currentPage = 1;
@@ -193,9 +200,20 @@
         Navigation.NavigateTo($"/guias-form/{tipoFiltro}");
     }
 
+    private void VerDetalle(int id)
+    {
+        // Pasar la URL actual como returnUrl para volver a esta página después de ver el detalle
+        var currentUrl = Navigation.Uri;
+        var returnUrl = Uri.EscapeDataString(currentUrl);
+        Navigation.NavigateTo($"/guias/detalle/{id}?returnUrl={returnUrl}");
+    }
+
     private void EditGuia(int id)
     {
-        Navigation.NavigateTo($"/guias/edit/{id}");
+        // Pasar la URL actual como returnUrl para volver a esta página después de editar
+        var currentUrl = Navigation.Uri;
+        var returnUrl = Uri.EscapeDataString(currentUrl);
+        Navigation.NavigateTo($"/guias/edit/{id}?returnUrl={returnUrl}");
     }
 
     private async Task PrevPage()

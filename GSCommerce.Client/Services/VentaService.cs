@@ -263,6 +263,19 @@ namespace GSCommerce.Client.Services
             return await _httpClient.GetFromJsonAsync<int>($"api/ventas/nuevo-correlativo/{idComprobante}");
         }
 
+        public async Task<int> ObtenerSiguienteCorrelativoDisponibleAsync(string serie, int idAlmacen, int idTipoDocumento)
+        {
+            try
+            {
+                return await _httpClient.GetFromJsonAsync<int>(
+                    $"api/ventas/siguiente-correlativo-disponible?serie={serie}&idAlmacen={idAlmacen}&idTipoDocumento={idTipoDocumento}");
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
         public async Task<(bool Success, string? Message)> ReenviarSunatAsync(int idComprobante)
         {
             var response = await _httpClient.PostAsync($"api/ventas/reenviar-sunat/{idComprobante}", null);
