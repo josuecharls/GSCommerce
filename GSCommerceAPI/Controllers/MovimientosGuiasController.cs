@@ -524,8 +524,10 @@ namespace GSCommerceAPI.Controllers
             if (string.Equals(estadoOriginal, "A", StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { mensaje = "La guía ya está anulada" });
 
-            if (!string.Equals(estadoOriginal, "E", StringComparison.OrdinalIgnoreCase))
-                return BadRequest(new { mensaje = "Solo se pueden anular guías emitidas" });
+            // Permitir anular guías emitidas (E) o confirmadas (C)
+            if (!string.Equals(estadoOriginal, "E", StringComparison.OrdinalIgnoreCase) && 
+                !string.Equals(estadoOriginal, "C", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { mensaje = "Solo se pueden anular guías emitidas o confirmadas" });
 
             var esTransferencia = string.Equals(motivoNormalizado, "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(motivoNormalizado, "TRANSFERENCIA INGRESO", StringComparison.OrdinalIgnoreCase);
@@ -534,8 +536,14 @@ namespace GSCommerceAPI.Controllers
 
             var fecha = DateTime.Now;
 
+            // Revertir stock si:
+            // - No es transferencia (siempre revertir)
+            // - Es transferencia y el estado anterior era "E" (emitido) - revertir
+            // - Es transferencia y el estado anterior era "C" (confirmado) - revertir (nuevo)
             bool DebeRevertirStock(bool esTransferenciaMovimiento, string estadoAnterior)
-                => !esTransferenciaMovimiento || !string.Equals(estadoAnterior, "E", StringComparison.OrdinalIgnoreCase);
+                => !esTransferenciaMovimiento || 
+                   string.Equals(estadoAnterior, "E", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(estadoAnterior, "C", StringComparison.OrdinalIgnoreCase);
 
             async Task AjustarStockYkardex(MovimientosCabecera mov)
             {
@@ -611,12 +619,13 @@ namespace GSCommerceAPI.Controllers
                     ? "TRANSFERENCIA INGRESO"
                     : "TRANSFERENCIA EGRESO";
 
+                // Buscar guía espejo en estado "E" (Emitido) o "C" (Confirmado)
                 espejo = await _context.MovimientosCabeceras
                     .Include(m => m.MovimientosDetalles)
                     .Where(m =>
                         m.Tipo == "T" &&
                         m.Motivo.Trim() == motivoEspejo &&
-                        m.Estado.Trim() == "E" &&
+                        (m.Estado.Trim() == "E" || m.Estado.Trim() == "C") &&
                         m.IdAlmacen == movimiento.IdAlmacenDestinoOrigen &&
                         m.IdAlmacenDestinoOrigen == movimiento.IdAlmacen)
                     .OrderByDescending(m => m.IdMovimiento)

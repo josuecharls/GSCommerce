@@ -129,16 +129,26 @@ namespace GSCommerceAPI.Controllers
 
             if (idsPagos.Any())
             {
-                var almacenes = await _context.IngresosEgresosCabeceras
+                var egresosInfo = await _context.IngresosEgresosCabeceras
                     .Include(i => i.IdAlmacenNavigation)
                     .Where(i => idsPagos.Contains(i.IdIngresoEgreso))
-                    .ToDictionaryAsync(i => i.IdIngresoEgreso, i => i.IdAlmacenNavigation.Nombre);
+                    .Select(i => new { 
+                        i.IdIngresoEgreso, 
+                        Almacen = i.IdAlmacenNavigation.Nombre,
+                        i.Estado 
+                    })
+                    .ToDictionaryAsync(i => i.IdIngresoEgreso, i => new { i.Almacen, i.Estado });
 
                 foreach (var item in lista)
                 {
-                    if (item.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase) && int.TryParse(item.NumeroOc[3..], out var idIe) && almacenes.TryGetValue(idIe, out var nomAlmacen))
+                    if (item.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase) && int.TryParse(item.NumeroOc[3..], out var idIe) && egresosInfo.TryGetValue(idIe, out var info))
                     {
-                        item.Almacen = nomAlmacen;
+                        item.Almacen = info.Almacen;
+                        // Si el egreso está anulado, marcar el estado como ANULADO
+                        if (info.Estado == "A" && item.Estado != "ANULADO")
+                        {
+                            item.Estado = "ANULADO";
+                        }
                     }
                 }
             }

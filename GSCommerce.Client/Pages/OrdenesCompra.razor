@@ -257,11 +257,15 @@
                 break;
             case "pagos":
                 ordenes = new List<OrdenCompraConsultaDTO>();
-                pagos = lista.Where(o => o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
+                // Filtrar pagos anulados (Estado = "ANULADO")
+                pagos = lista.Where(o => o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase) 
+                    && o.Estado != "ANULADO").ToList();
                 break;
             default: // "todos"
                 ordenes = lista.Where(o => !o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
-                pagos = lista.Where(o => o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase)).ToList();
+                // Filtrar pagos anulados (Estado = "ANULADO")
+                pagos = lista.Where(o => o.NumeroOc.StartsWith("PP-", StringComparison.OrdinalIgnoreCase) 
+                    && o.Estado != "ANULADO").ToList();
                 break;
         }
         

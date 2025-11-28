@@ -214,7 +214,10 @@
         {
             await NotificacionService.MarcarComoLeida(notificacionActual.IdNotificacion);
             mostrarModal = false;
-            Navigation.NavigateTo($"/guias/edit/{notificacionActual.IdMovimiento}");
+            // Pasar la URL actual como returnUrl para volver después de editar
+            var currentUrl = Navigation.Uri;
+            var returnUrl = Uri.EscapeDataString(currentUrl);
+            Navigation.NavigateTo($"/guias/edit/{notificacionActual.IdMovimiento}?returnUrl={returnUrl}");
             notificacionActual = null;
         }
     }

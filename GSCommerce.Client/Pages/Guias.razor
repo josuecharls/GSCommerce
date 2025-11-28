@@ -199,7 +199,10 @@
 
     private void EditGuia(int id)
     {
-        Navigation.NavigateTo($"/guias/edit/{id}");
+        // Pasar la URL actual como returnUrl para volver a esta página después de editar
+        var currentUrl = Navigation.Uri;
+        var returnUrl = Uri.EscapeDataString(currentUrl);
+        Navigation.NavigateTo($"/guias/edit/{id}?returnUrl={returnUrl}");
     }
 
     private async Task PrevPage()
