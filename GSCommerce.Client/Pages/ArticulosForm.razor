@@ -1,4 +1,4 @@
-﻿@page "/articulo-form"
+@page "/articulo-form"
 @page "/articulo-form/{dummy}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
@@ -125,40 +125,24 @@
                     </div>
                 </div>
 
-                <!-- COLOR -->
+                <!-- VARIANTES COLOR/TALLA -->
                 <div class="mb-3">
-                    <label class="form-label">Color</label>
+                    <label class="form-label">Variantes Color/Talla</label>
                     <div class="input-group">
-                        <select class="form-control" @bind="articulo.Color" @bind:after="ActualizarDescripcion">
-                            <option value="">-- Seleccionar --</option>
-                            @foreach (var c in colores)
+                        <button class="btn btn-outline-primary w-100" type="button" 
+                                @onclick="AbrirModalVariantes"
+                                disabled="@string.IsNullOrEmpty(articulo.IdArticulo)">
+                            <i class="bi bi-palette"></i> Gestionar Variantes
+                            @if (variantes.Any())
                             {
-                                <option value="@c.Descripcion">@c.Descripcion</option>
+                                <span class="badge bg-success ms-2">@variantes.Count</span>
                             }
-                        </select>
-                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
-                                @onclick='() => OpenNuevoComplemento("COLOR")'>
-                            +
                         </button>
                     </div>
-                </div>
-
-                <!-- TALLA -->
-                <div class="mb-3">
-                    <label class="form-label">Talla</label>
-                    <div class="input-group">
-                        <select class="form-control" @bind="articulo.Talla" @bind:after="ActualizarDescripcion">
-                            <option value="">-- Seleccionar --</option>
-                            @foreach (var c in tallas)
-                            {
-                                <option value="@c.Descripcion">@c.Descripcion</option>
-                            }
-                        </select>
-                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
-                                @onclick='() => OpenNuevoComplemento("TALLA")'>
-                            +
-                        </button>
-                    </div>
+                    @if (!string.IsNullOrEmpty(articulo.IdArticulo) && variantes.Any())
+                    {
+                        <small class="text-muted">@variantes.Count variante(s) registrada(s)</small>
+                    }
                 </div>
 
                 <!-- ESTACION -->
@@ -254,6 +238,7 @@
                     <button class="btn btn-success mt-2 me-2" @onclick="PrintBarcode"><i class="bi bi-printer"></i> Imprimir</button>
                     <button class="btn btn-info mt-2" @onclick="() => mostrarModalQR = true">📱 QR</button>
                 </div>
+
             </div> <!-- /col-md-6 derecha -->
         </div> <!-- /row -->
         <!-- Botones -->
@@ -394,7 +379,126 @@ else
     </div>
 }
 
+<!-- Modal: Seleccionar Variante para Impresión -->
+@if (mostrarModalSeleccionVarianteImpresion)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Seleccionar Variante para Imprimir</h5>
+                    <button type="button" class="btn-close" @onclick="() => mostrarModalSeleccionVarianteImpresion = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Seleccione la variante que desea imprimir:</p>
+                    <div class="list-group">
+                        @foreach (var variante in variantes)
+                        {
+                            <button type="button" 
+                                    class="list-group-item list-group-item-action"
+                                    @onclick="() => ImprimirVariante(variante)">
+                                <strong>@variante.Color</strong> - <strong>@variante.Talla</strong>
+                            </button>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => mostrarModalSeleccionVarianteImpresion = false">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <ProveedorBuscarModal @bind-Mostrar="mostrarProveedorModal" OnSeleccionado="ProveedorSeleccionado" />
+
+<!-- Modal: Gestionar Variantes -->
+@if (mostrarModalVariantes)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal d-block" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🎨 Variantes de Color/Talla - @articulo.IdArticulo</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalVariantes"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Agregue las combinaciones de color y talla para este artículo</p>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-5">
+                            <label class="form-label">Color</label>
+                            <select class="form-select" @bind="nuevaVariante.Color">
+                                <option value="">-- Seleccionar Color --</option>
+                                @foreach (var c in colores)
+                                {
+                                    <option value="@c.Descripcion">@c.Descripcion</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">Talla</label>
+                            <select class="form-select" @bind="nuevaVariante.Talla">
+                                <option value="">-- Seleccionar Talla --</option>
+                                @foreach (var t in tallas)
+                                {
+                                    <option value="@t.Descripcion">@t.Descripcion</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-success w-100" @onclick="AgregarVariante">
+                                <i class="bi bi-plus-lg"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (variantes.Any())
+                    {
+                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Color</th>
+                                        <th>Talla</th>
+                                        <th style="width: 100px;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var v in variantes)
+                                    {
+                                        <tr>
+                                            <td>@v.Color</td>
+                                            <td>@v.Talla</td>
+                                            <td>
+                                                <button class="btn btn-danger btn-sm w-100" 
+                                                        @onclick="() => EliminarVariante(v.IdVariante)"
+                                                        title="Eliminar">
+                                                    <i class="bi bi-trash"></i> Eliminar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> No hay variantes registradas. Agregue combinaciones de color y talla arriba.
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CerrarModalVariantes">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
 
@@ -407,6 +511,8 @@ else
 
     private bool mostrarModalQR = false;
     private bool mostrarProveedorModal = false;
+    private bool mostrarModalVariantes = false;
+    private bool mostrarModalSeleccionVarianteImpresion = false;
 
     // Complementos
     private List<ComplementoDTO> familias = new();
@@ -532,10 +638,11 @@ else
 
     private void ActualizarDescripcion()
     {
+        // Color y Talla ahora se manejan con variantes, no se incluyen en la descripción base
         articulo.Descripcion =
-            $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Color} {articulo.Talla}".Trim();
+            $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo}".Trim();
         articulo.DescripcionCorta =
-            $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Color} {articulo.Talla}".Trim();
+            $"{articulo.Familia} {articulo.Marca} {articulo.Modelo}".Trim();
     }
 
     private async Task SaveArticulo()
@@ -545,7 +652,12 @@ else
             articulo.UnidadAlmacen = null;
 
         var creado = await ArticuloService.CreateArticulo(articulo);
-        if (creado) Navigation.NavigateTo("/articulos");
+        if (creado)
+        {
+            // Recargar variantes después de guardar
+            await CargarVariantes();
+            StateHasChanged();
+        }
     }
 
     private ArticuloVarianteDTO nuevaVariante = new();
@@ -579,17 +691,57 @@ else
             variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
     }
 
+    private async Task AbrirModalVariantes()
+    {
+        if (string.IsNullOrEmpty(articulo.IdArticulo))
+            return;
+        
+        await CargarVariantes();
+        nuevaVariante = new();
+        mostrarModalVariantes = true;
+    }
+
+    private void CerrarModalVariantes()
+    {
+        mostrarModalVariantes = false;
+        nuevaVariante = new();
+    }
+
     private void Cancel()
     {
         Navigation.NavigateTo("/articulos");
     }
 
-    private void PrintBarcode()
+    private async Task PrintBarcode()
     {
+        // Cargar variantes antes de verificar
+        if (!string.IsNullOrEmpty(articulo.IdArticulo))
+        {
+            await CargarVariantes();
+        }
+
+        // Si tiene variantes, mostrar selector
+        if (variantes.Any())
+        {
+            mostrarModalSeleccionVarianteImpresion = true;
+            StateHasChanged();
+            return;
+        }
+
+        // Si no tiene variantes, imprimir directamente
         var precio = articulo.PrecioVenta.ToString(CultureInfo.InvariantCulture);
         var desc = Uri.EscapeDataString(articulo.DescripcionCorta ?? string.Empty);
         Navigation.NavigateTo($"/barcode-print/{articulo.IdArticulo}/{desc}/{precio}", true);
+    }
 
+    private void ImprimirVariante(ArticuloVarianteDTO variante)
+    {
+        var precio = articulo.PrecioVenta.ToString(CultureInfo.InvariantCulture);
+        var desc = Uri.EscapeDataString($"{articulo.DescripcionCorta} {variante.Color} {variante.Talla}");
+        var color = Uri.EscapeDataString(variante.Color);
+        var talla = Uri.EscapeDataString(variante.Talla);
+        Navigation.NavigateTo($"/barcode-print/{articulo.IdArticulo}/{desc}/{precio}/{color}/{talla}", true);
+        mostrarModalSeleccionVarianteImpresion = false;
     }
 
     private async Task UploadImage(InputFileChangeEventArgs e)
