@@ -242,6 +242,22 @@ namespace GSCommerceAPI.Controllers
 
             await _context.SaveChangesAsync();
 
+            // 5) Marcar todas las notificaciones relacionadas con esta guía como leídas
+            var notificacionesRelacionadas = await _context.Notificaciones
+                .Where(n => n.IdMovimiento == ingreso.IdMovimiento && !n.Leida)
+                .ToListAsync();
+
+            foreach (var notificacion in notificacionesRelacionadas)
+            {
+                notificacion.Leida = true;
+                notificacion.FechaLectura = DateTime.Now;
+            }
+
+            if (notificacionesRelacionadas.Any())
+            {
+                await _context.SaveChangesAsync();
+            }
+
             await tx.CommitAsync();
             return Ok(new { mensaje = "✅ Transferencia confirmada: se descontó en ORIGEN y se ingresó en DESTINO." });
         }
@@ -377,6 +393,33 @@ namespace GSCommerceAPI.Controllers
                             DescripcionArticulo = d.DescripcionArticulo,
                             Cantidad = d.Cantidad,
                             Valor = d.Valor
+                        });
+                    }
+
+                    await _context.SaveChangesAsync();
+
+                    // Crear notificaciones para usuarios del almacén destino
+                    var usuariosDestino = await _context.Usuarios
+                        .Include(u => u.IdPersonalNavigation)
+                        .Where(u => 
+                            u.Estado == true &&
+                            u.IdPersonalNavigation != null &&
+                            u.IdPersonalNavigation.IdAlmacen == dto.IdAlmacenDestinoOrigen.Value &&
+                            (u.IdPersonalNavigation.Cargo == "ALMACEN" || 
+                             u.IdPersonalNavigation.Cargo == "ADMINISTRADOR" ||
+                             u.IdPersonalNavigation.Cargo == "CAJERO"))
+                        .ToListAsync();
+
+                    foreach (var usuario in usuariosDestino)
+                    {
+                        _context.Notificaciones.Add(new Notificacion
+                        {
+                            IdUsuario = usuario.IdUsuario,
+                            IdMovimiento = ingreso.IdMovimiento,
+                            Tipo = "TRANSFERENCIA",
+                            Mensaje = $"Se acaba de hacer una transferencia a su almacén (Guía #{ingreso.IdMovimiento}). Por favor verifique la lista y confirme para ingresar el stock.",
+                            Leida = false,
+                            FechaCreacion = DateTime.Now
                         });
                     }
 

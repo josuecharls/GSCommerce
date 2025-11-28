@@ -1,0 +1,229 @@
+@using GSCommerce.Client.Services
+@using GSCommerce.Client.Models
+@inject NotificacionService NotificacionService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IDisposable
+
+@if (notificacionActual != null && mostrarModal)
+{
+    <div class="modal-backdrop fade show" style="z-index: 1040;" @onclick="CerrarModal"></div>
+    
+    <div class="modal fade @(mostrarModal ? "show" : "") notification-modal" 
+         style="display: block; z-index: 1050;" 
+         tabindex="-1" 
+         role="dialog"
+         @onclick:stopPropagation="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-primary text-white">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-bell-fill me-2 fs-4"></i>
+                        <h5 class="modal-title mb-0">Nueva Transferencia</h5>
+                    </div>
+                    <button type="button" 
+                            class="btn-close btn-close-white" 
+                            aria-label="Cerrar" 
+                            @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-box-arrow-in-down-right text-primary fs-3"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <p class="mb-2 fs-6">@notificacionActual.Mensaje</p>
+                            <small class="text-muted">
+                                <i class="bi bi-clock"></i> 
+                                @notificacionActual.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" 
+                            class="btn btn-secondary" 
+                            @onclick="CerrarModal">
+                        <i class="bi bi-x-lg"></i> Cerrar
+                    </button>
+                    <button type="button" 
+                            class="btn btn-primary" 
+                            @onclick="IrAGuia">
+                        <i class="bi bi-eye"></i> Ver y Confirmar Guía
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .notification-modal {
+        animation: slideUpFromBottom 0.4s ease-out;
+    }
+
+    .notification-modal .modal-dialog {
+        animation: slideUpFromBottom 0.4s ease-out;
+    }
+
+    @@keyframes slideUpFromBottom {
+        from {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-backdrop {
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+</style>
+
+@code {
+    private NotificacionDTO? notificacionActual;
+    private bool mostrarModal = false;
+    private System.Threading.Timer? timer;
+    private bool disposed = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarNotificacionMasReciente();
+        
+        // Actualizar cada 30 segundos
+        timer = new System.Threading.Timer(async _ => await CargarNotificacionMasReciente(), 
+            null, TimeSpan.Zero, TimeSpan.FromSeconds(30));
+    }
+
+    private async Task CargarNotificacionMasReciente()
+    {
+        if (disposed) return;
+
+        try
+        {
+            var notificaciones = await NotificacionService.GetNotificaciones(true);
+            
+            var nuevaNotificacion = notificaciones
+                .OrderByDescending(n => n.FechaCreacion)
+                .FirstOrDefault();
+
+            if (nuevaNotificacion != null)
+            {
+                // Verificar que la guía no esté confirmada (estado "C")
+                // Si está confirmada, no mostrar la notificación
+                if (nuevaNotificacion.EstadoGuia == "C")
+                {
+                    // Si la guía está confirmada, marcar la notificación como leída automáticamente
+                    await NotificacionService.MarcarComoLeida(nuevaNotificacion.IdNotificacion);
+                    
+                    // Cerrar el modal si está abierto
+                    if (mostrarModal && notificacionActual?.IdNotificacion == nuevaNotificacion.IdNotificacion)
+                    {
+                        mostrarModal = false;
+                        notificacionActual = null;
+                        await InvokeAsync(StateHasChanged);
+                    }
+                    return;
+                }
+
+                // Solo mostrar si es diferente a la actual o si no hay ninguna mostrándose
+                if (notificacionActual == null || 
+                    notificacionActual.IdNotificacion != nuevaNotificacion.IdNotificacion)
+                {
+                    notificacionActual = nuevaNotificacion;
+                    mostrarModal = true;
+                    
+                    // Reproducir sonido
+                    await ReproducirSonido();
+                    
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            else
+            {
+                if (mostrarModal)
+                {
+                    mostrarModal = false;
+                    notificacionActual = null;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar notificaciones: {ex.Message}");
+        }
+    }
+
+    private async Task ReproducirSonido()
+    {
+        try
+        {
+            // Crear un sonido de notificación usando Web Audio API
+            await JS.InvokeVoidAsync("eval", @"
+                (function() {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    // Frecuencia de la campana (tono agradable)
+                    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                    oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+                    oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+                    
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                })();
+            ");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al reproducir sonido: {ex.Message}");
+        }
+    }
+
+    private async Task CerrarModal()
+    {
+        if (notificacionActual != null)
+        {
+            await NotificacionService.MarcarComoLeida(notificacionActual.IdNotificacion);
+        }
+        
+        mostrarModal = false;
+        notificacionActual = null;
+        await InvokeAsync(StateHasChanged);
+        
+        // Cargar la siguiente notificación después de un breve delay
+        await Task.Delay(500);
+        await CargarNotificacionMasReciente();
+    }
+
+    private async Task IrAGuia()
+    {
+        if (notificacionActual != null)
+        {
+            await NotificacionService.MarcarComoLeida(notificacionActual.IdNotificacion);
+            mostrarModal = false;
+            Navigation.NavigateTo($"/guias/edit/{notificacionActual.IdMovimiento}");
+            notificacionActual = null;
+        }
+    }
+
+    public void Dispose()
+    {
+        disposed = true;
+        timer?.Dispose();
+    }
+}
+
+

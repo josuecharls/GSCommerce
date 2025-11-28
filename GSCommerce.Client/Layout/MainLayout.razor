@@ -1,6 +1,7 @@
 ﻿@using Blazored.LocalStorage
 @using GSCommerce.Client.Services
 @using GSCommerce.Client.Models
+@using GSCommerce.Client.Components
 @using Microsoft.AspNetCore.Components.Routing
 @using System.Linq
 @using System
@@ -124,6 +125,9 @@
             </div>
         </div>
     </main>
+    
+    @* Modal de Notificación de Transferencias *@
+    <ModalNotificacionTransferencia />
 </div>
 
 @code {
