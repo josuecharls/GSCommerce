@@ -170,6 +170,7 @@
     </table>
 
     <div class="text-end">
+        <h5>Total de Productos: <strong>@TotalProductos.ToString("N0")</strong></h5>
         <h5>Subtotal: @SimboloMoneda@venta.SubTotal.ToString("N2")@EquivalenteSoles(venta.SubTotal)</h5>
         <h5>IGV (@porcentajeIgv%): @SimboloMoneda@venta.Igv.ToString("N2")@EquivalenteSoles(venta.Igv)</h5>
         <h5><strong>Total: @SimboloMoneda@venta.Total.ToString("N2")@EquivalenteSoles(venta.Total)</strong></h5>
@@ -1239,6 +1240,8 @@ else
 
         return $"{prefijo}{serie}";
     }
+
+    private decimal TotalProductos => venta.Detalles?.Sum(d => d.Cantidad) ?? 0m;
 
     private string? ValidarDocumentoCliente()
     {
