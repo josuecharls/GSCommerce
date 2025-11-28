@@ -720,6 +720,37 @@ else
             return;
         }
 
+        if (idAlmacenActual.HasValue && !string.IsNullOrWhiteSpace(venta.Serie))
+        {
+            var tipos = await TipoDocumentoVentaService.GetTiposDocumento();
+            var tipoDoc = tipos?.FirstOrDefault(t =>
+                t.Descripcion.ToUpper() == venta.TipoDocumento.ToUpper()
+                && (EsCajaManual ? t.Manual : !t.Manual));
+
+            if (tipoDoc != null)
+            {
+                try
+                {
+                    var nuevoNumero = await ventaService.ObtenerSiguienteCorrelativoDisponibleAsync(
+                        venta.Serie,
+                        idAlmacenActual.Value,
+                        tipoDoc.IdTipoDocumentoVenta);
+
+                    if (nuevoNumero > 0 && nuevoNumero != venta.Numero)
+                    {
+                        venta.Numero = nuevoNumero;
+                        await JS.InvokeVoidAsync("console.log", 
+                            $"🔄 Correlativo actualizado: {venta.Serie}-{nuevoNumero}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await JS.InvokeVoidAsync("console.log", 
+                        $"⚠️ Error al actualizar correlativo: {ex.Message}");
+                }
+            }
+        }
+
         if (monedaAlmacen == "USD")
         {
             if (enDolares)

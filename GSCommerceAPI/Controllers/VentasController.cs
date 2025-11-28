@@ -947,6 +947,50 @@ namespace GSCommerceAPI.Controllers
             return Ok(nuevoNumero);
         }
 
+        [HttpGet("siguiente-correlativo-disponible")]
+        [Authorize]
+        public async Task<IActionResult> ObtenerSiguienteCorrelativoDisponible(
+            [FromQuery] string serie, 
+            [FromQuery] int idAlmacen, 
+            [FromQuery] int idTipoDocumento)
+        {
+            // Obtener el correlativo actual
+            var serieCorr = await _context.SerieCorrelativos
+                .FirstOrDefaultAsync(s => s.Serie == serie && 
+                                         s.IdAlmacen == idAlmacen && 
+                                         s.IdTipoDocumentoVenta == idTipoDocumento);
+
+            int correlativoActual = serieCorr?.Correlativo ?? 0;
+            int siguienteNumero = correlativoActual + 1;
+
+            // Verificar si el número ya está en uso (ventas del día actual)
+            var fechaHoy = DateTime.Today;
+            var fechaFin = fechaHoy.AddDays(1).AddTicks(-1);
+
+            bool numeroEnUso = await _context.ComprobanteDeVentaCabeceras
+                .AnyAsync(c => c.IdAlmacen == idAlmacen &&
+                              c.Serie == serie &&
+                              c.Numero == siguienteNumero &&
+                              c.Fecha >= fechaHoy &&
+                              c.Fecha <= fechaFin &&
+                              c.Estado != "A"); // Excluir anuladas
+
+            // Si está en uso, buscar el siguiente disponible
+            while (numeroEnUso)
+            {
+                siguienteNumero++;
+                numeroEnUso = await _context.ComprobanteDeVentaCabeceras
+                    .AnyAsync(c => c.IdAlmacen == idAlmacen &&
+                                  c.Serie == serie &&
+                                  c.Numero == siguienteNumero &&
+                                  c.Fecha >= fechaHoy &&
+                                  c.Fecha <= fechaFin &&
+                                  c.Estado != "A");
+            }
+
+            return Ok(siguienteNumero);
+        }
+
         [HttpGet("resumen")]
         public async Task<IActionResult> ObtenerResumen([FromQuery] int idAlmacen, [FromQuery] int idUsuario)
         {
@@ -1482,8 +1526,35 @@ namespace GSCommerceAPI.Controllers
                 .Where(s => s.Serie == serie && s.IdAlmacen == idAlmacen && s.IdTipoDocumentoVenta == idTipoDocumento)
                 .Select(s => s.Correlativo)
                 .FirstOrDefaultAsync();
+                                                                                                                        
+            int siguienteNumero = correlativo + 1;
 
-            return correlativo + 1;
+            // Verificar si el número ya está en uso (ventas del día actual)
+            var fechaHoy = DateTime.Today;
+            var fechaFin = fechaHoy.AddDays(1).AddTicks(-1);
+
+            bool numeroEnUso = await _context.ComprobanteDeVentaCabeceras
+                .AnyAsync(c => c.IdAlmacen == idAlmacen &&
+                              c.Serie == serie &
+                              c.Numero == siguienteNumero &&
+                              c.Fecha >= fechaHoy &&
+                              c.Fecha <= fechaFin &&
+                              c.Estado != "A"); // Excluir anuladas
+
+            // Si está en uso, buscar el siguiente disponible
+            while (numeroEnUso)
+            {
+                siguienteNumero++;
+                numeroEnUso = await _context.ComprobanteDeVentaCabeceras
+                    .AnyAsync(c => c.IdAlmacen == idAlmacen &&
+                                  c.Serie == serie &&
+                                  c.Numero == siguienteNumero &&
+                                  c.Fecha >= fechaHoy &&
+                                  c.Fecha <= fechaFin &&
+                                  c.Estado != "A");
+            }
+
+            return siguienteNumero;
         }
 
         [Authorize]
