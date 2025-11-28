@@ -23,41 +23,73 @@ namespace GSCommerce.Client.Services
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
-            var token = await _localStorage.GetItemAsync<string>("authToken");
-            var cargo = await _localStorage.GetItemAsync<string>("Cargo");
-
-            if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(cargo))
+            try
             {
-                return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
-            }
+                var token = await _localStorage.GetItemAsync<string>("authToken");
+                var cargo = await _localStorage.GetItemAsync<string>("Cargo");
 
-            var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(token);
-
-            if (jwtToken.ValidTo <= DateTime.UtcNow)
-            {
-                var refreshed = await _authService.RefreshTokenAsync();
-                if (!refreshed)
+                if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(cargo))
                 {
+                    return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+                }
+
+                var handler = new JwtSecurityTokenHandler();
+                JwtSecurityToken jwtToken;
+                
+                try
+                {
+                    jwtToken = handler.ReadJwtToken(token);
+                }
+                catch (Exception ex)
+                {
+                    // Token inválido o corrompido
+                    Console.WriteLine($"Token inválido: {ex.Message}");
                     await MarkUserAsLoggedOut();
                     return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
                 }
 
-                token = await _localStorage.GetItemAsync<string>("authToken");
-                jwtToken = handler.ReadJwtToken(token);
-                cargo = await _localStorage.GetItemAsync<string>("Cargo");
-            }
+                // Verificar si el token está próximo a expirar (5 minutos antes)
+                var timeUntilExpiry = jwtToken.ValidTo - DateTime.UtcNow;
+                if (timeUntilExpiry <= TimeSpan.FromMinutes(5) || jwtToken.ValidTo <= DateTime.UtcNow)
+                {
+                    var refreshed = await _authService.RefreshTokenAsync();
+                    if (!refreshed)
+                    {
+                        await MarkUserAsLoggedOut();
+                        return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+                    }
 
-            var claims = jwtToken.Claims.ToList();
-            if (!string.IsNullOrEmpty(cargo))
+                    token = await _localStorage.GetItemAsync<string>("authToken");
+                    if (string.IsNullOrEmpty(token))
+                    {
+                        return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+                    }
+                    jwtToken = handler.ReadJwtToken(token);
+                    cargo = await _localStorage.GetItemAsync<string>("Cargo");
+                }
+
+                var claims = jwtToken.Claims.ToList();
+                if (!string.IsNullOrEmpty(cargo))
+                {
+                    claims.Add(new Claim("Cargo", cargo));
+                }
+
+                var identity = new ClaimsIdentity(claims, "jwt");
+                _currentUser = new ClaimsPrincipal(identity);
+
+                return new AuthenticationState(_currentUser);
+            }
+            catch (Exception ex)
             {
-                claims.Add(new Claim("Cargo", cargo));
+                Console.WriteLine($"Error en GetAuthenticationStateAsync: {ex.Message}");
+                // En caso de error, intentar limpiar y retornar estado no autenticado
+                try
+                {
+                    await MarkUserAsLoggedOut();
+                }
+                catch { }
+                return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
             }
-
-            var identity = new ClaimsIdentity(claims, "jwt");
-            _currentUser = new ClaimsPrincipal(identity);
-
-            return new AuthenticationState(_currentUser);
         }
 
         public async Task MarkUserAsAuthenticated(string token, string cargo)

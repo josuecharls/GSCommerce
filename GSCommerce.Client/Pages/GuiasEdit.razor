@@ -1,7 +1,6 @@
 ﻿@page "/guias/edit/{id:int}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
-@using Microsoft.AspNetCore.WebUtilities
 @inject MovimientoGuiaService MovimientoGuiaService
 @inject NavigationManager Navigation
 @inject AlmacenService AlmacenService
@@ -162,7 +161,6 @@ else
     private int totalArticulos = 0;
     private HashSet<MovimientoDetalleDTO> articulosNuevos = new();
     private Dictionary<string, int> stockPorArticulo = new();
-    private string? returnUrl = null;
 
     // Propiedades para transferencias
     private bool esTransferencia => guia.Tipo == "T";
@@ -204,25 +202,12 @@ else
     protected override async Task OnInitializedAsync()
     {
         isLoading = true;
-        
-        // Obtener URL de retorno de los query parameters
-        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("returnUrl", out var returnUrlParam))
-        {
-            returnUrl = returnUrlParam;
-        }
-        // Si no hay returnUrl, usar la página de guías por defecto
-        if (string.IsNullOrWhiteSpace(returnUrl))
-        {
-            returnUrl = "/guias";
-        }
-        
         guia = await MovimientoGuiaService.GetMovimientoById(id) ?? new();
         
         if (guia.IdMovimiento == 0)
         {
             await MostrarAlerta("❌ No se pudo cargar la guía.");
-            Navigation.NavigateTo(returnUrl);
+            Navigation.NavigateTo("/guias");
             return;
         }
 
@@ -486,7 +471,7 @@ else
             if (ok)
             {
                 await MostrarAlerta("✅ Guía actualizada correctamente.");
-                Navigation.NavigateTo(returnUrl ?? "/guias");
+                Navigation.NavigateTo("/guias");
             }
             else
             {
@@ -508,7 +493,7 @@ else
 
     private void Cancelar()
     {
-        Navigation.NavigateTo(returnUrl ?? "/guias");
+        Navigation.NavigateTo("/guias");
     }
 
     private async Task MostrarAlerta(string mensaje)

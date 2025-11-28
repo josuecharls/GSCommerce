@@ -4,6 +4,9 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>GSCommerce Sistema</title>
     <base href="/" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -159,6 +162,59 @@
         };
     </script>
     <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        // Verificar conexión periódicamente y limpiar cache si es necesario
+        let lastConnectionCheck = Date.now();
+        const CONNECTION_CHECK_INTERVAL = 30000; // 30 segundos
+        
+        async function checkConnection() {
+            try {
+                const response = await fetch('/_framework/blazor.boot.json', {
+                    method: 'HEAD',
+                    cache: 'no-store'
+                });
+                lastConnectionCheck = Date.now();
+            } catch (error) {
+                console.warn('Problema de conexión detectado:', error);
+                // Si hay problemas de conexión, forzar recarga limpia
+                if (Date.now() - lastConnectionCheck > 60000) {
+                    // Si no hay conexión por más de 1 minuto, limpiar cache y recargar
+                    if ('caches' in window) {
+                        caches.keys().then(names => {
+                            names.forEach(name => caches.delete(name));
+                        });
+                    }
+                    // Limpiar LocalStorage si está corrompido
+                    try {
+                        localStorage.getItem('authToken');
+                    } catch (e) {
+                        console.error('LocalStorage corrompido, limpiando...');
+                        localStorage.clear();
+                    }
+                }
+            }
+        }
+        
+        // Verificar conexión cada 30 segundos
+        setInterval(checkConnection, CONNECTION_CHECK_INTERVAL);
+        
+        // Manejar eventos de visibilidad para verificar cuando la página vuelve a estar activa
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                checkConnection();
+            }
+        });
+        
+        // Manejar errores de carga de Blazor
+        window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('blazor')) {
+                console.error('Error de Blazor detectado, recargando...');
+                setTimeout(() => {
+                    window.location.reload(true);
+                }, 1000);
+            }
+        });
+    </script>
 </body>
 
 </html>
