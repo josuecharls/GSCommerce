@@ -49,6 +49,7 @@ builder.Services.AddScoped<IngresosEgresosService>();
 builder.Services.AddScoped<ComplementoService>();
 builder.Services.AddScoped<MetaDiariaService>();
 builder.Services.AddScoped<NotificacionService>();
+builder.Services.AddScoped<MetaMensualService>();
 builder.Services.AddAuthorizationCore();
 
 // Configurar HttpClient para conectarse al backend

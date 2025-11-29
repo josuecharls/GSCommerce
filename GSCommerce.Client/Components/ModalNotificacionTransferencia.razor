@@ -217,7 +217,7 @@
             // Pasar la URL actual como returnUrl para volver después de editar
             var currentUrl = Navigation.Uri;
             var returnUrl = Uri.EscapeDataString(currentUrl);
-            Navigation.NavigateTo($"/guias/edit/{notificacionActual.IdMovimiento}?returnUrl={returnUrl}");
+            Navigation.NavigateTo($"/guias/detalle/{notificacionActual.IdMovimiento}?returnUrl={returnUrl}");
             notificacionActual = null;
         }
     }
