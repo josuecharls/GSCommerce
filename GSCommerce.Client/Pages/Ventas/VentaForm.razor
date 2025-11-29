@@ -224,7 +224,7 @@ else
                     {
                         var idx = i;
                         var variante = variantesPendientes[i];
-                        <button type="button" 
+                        <button type="button"
                                 class="btn btn-outline-primary variante-btn @(idx == indiceVarianteSeleccionada ? "active" : "")"
                                 @onclick="() => SeleccionarVarianteRapida(idx)">
                             <span class="variante-numero">@(idx + 1)</span>
@@ -298,16 +298,16 @@ else
         transition: all 0.2s;
     }
 
-    .variante-btn:hover {
-        transform: scale(1.05);
-        z-index: 1;
-    }
+        .variante-btn:hover {
+            transform: scale(1.05);
+            z-index: 1;
+        }
 
-    .variante-btn.active {
-        background-color: #0d6efd;
-        color: white;
-        border-color: #0d6efd;
-    }
+        .variante-btn.active {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
 
     .variante-numero {
         position: absolute;
@@ -756,7 +756,7 @@ else
             indiceVarianteSeleccionada = 0;
             mostrarSeleccionVariante = true;
             await InvokeAsync(StateHasChanged);
-            
+
             // Enfocar el popup para capturar teclas usando JavaScript
             await Task.Delay(150);
             try
@@ -853,13 +853,13 @@ else
                     if (nuevoNumero > 0 && nuevoNumero != venta.Numero)
                     {
                         venta.Numero = nuevoNumero;
-                        await JS.InvokeVoidAsync("console.log", 
+                        await JS.InvokeVoidAsync("console.log",
                             $"🔄 Correlativo actualizado: {venta.Serie}-{nuevoNumero}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    await JS.InvokeVoidAsync("console.log", 
+                    await JS.InvokeVoidAsync("console.log",
                         $"⚠️ Error al actualizar correlativo: {ex.Message}");
                 }
             }
@@ -1405,7 +1405,7 @@ else
     private async Task OnKeyDownVariante(KeyboardEventArgs e)
     {
         if (!mostrarSeleccionVariante) return;
-        
+
         if (e.Key == "Escape")
         {
             CancelarSeleccionVariante();

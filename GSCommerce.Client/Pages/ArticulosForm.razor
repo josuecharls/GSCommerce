@@ -3,6 +3,7 @@
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using System.Globalization
+@using System.Linq
 @inject ArticuloService ArticuloService
 @inject ProveedorService ProveedorService
 @inject ComplementoService ComplementoService
@@ -129,7 +130,7 @@
                 <div class="mb-3">
                     <label class="form-label">Variantes Color/Talla</label>
                     <div class="input-group">
-                        <button class="btn btn-outline-primary w-100" type="button" 
+                        <button class="btn btn-outline-primary w-100" type="button"
                                 @onclick="AbrirModalVariantes"
                                 disabled="@string.IsNullOrEmpty(articulo.IdArticulo)">
                             <i class="bi bi-palette"></i> Gestionar Variantes
@@ -348,8 +349,8 @@ else
 <!-- Modal: Nuevo Complemento -->
 @if (mostrarNuevoComplemento)
 {
-    <div class="modal-backdrop fade show"></div>
-    <div class="modal d-block" tabindex="-1">
+    <div class="modal-backdrop fade show" style="z-index: @(vieneDelModalVariantes ? "10002" : "1050");"></div>
+    <div class="modal d-block" tabindex="-1" style="z-index: @(vieneDelModalVariantes ? "10003" : "1051");">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -395,7 +396,7 @@ else
                     <div class="list-group">
                         @foreach (var variante in variantes)
                         {
-                            <button type="button" 
+                            <button type="button"
                                     class="list-group-item list-group-item-action"
                                     @onclick="() => ImprimirVariante(variante)">
                                 <strong>@variante.Color</strong> - <strong>@variante.Talla</strong>
@@ -416,8 +417,8 @@ else
 <!-- Modal: Gestionar Variantes -->
 @if (mostrarModalVariantes)
 {
-    <div class="modal-backdrop fade show"></div>
-    <div class="modal d-block" tabindex="-1">
+    <div class="modal-backdrop fade show" style="z-index: 10000;"></div>
+    <div class="modal d-block" tabindex="-1" style="z-index: 10001;">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -426,27 +427,39 @@ else
                 </div>
                 <div class="modal-body">
                     <p class="text-muted small mb-3">Agregue las combinaciones de color y talla para este artículo</p>
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-5">
                             <label class="form-label">Color</label>
-                            <select class="form-select" @bind="nuevaVariante.Color">
-                                <option value="">-- Seleccionar Color --</option>
-                                @foreach (var c in colores)
-                                {
-                                    <option value="@c.Descripcion">@c.Descripcion</option>
-                                }
-                            </select>
+                            <div class="input-group">
+                                <select class="form-select" @bind="nuevaVariante.Color">
+                                    <option value="">-- Seleccionar Color --</option>
+                                    @foreach (var c in colores)
+                                    {
+                                        <option value="@c.Descripcion">@c.Descripcion</option>
+                                    }
+                                </select>
+                                <button class="btn btn-outline-primary" type="button" title="Nuevo Color"
+                                        @onclick='() => OpenNuevoComplementoDesdeModal("COLOR")'>
+                                    +
+                                </button>
+                            </div>
                         </div>
                         <div class="col-md-5">
                             <label class="form-label">Talla</label>
-                            <select class="form-select" @bind="nuevaVariante.Talla">
-                                <option value="">-- Seleccionar Talla --</option>
-                                @foreach (var t in tallas)
-                                {
-                                    <option value="@t.Descripcion">@t.Descripcion</option>
-                                }
-                            </select>
+                            <div class="input-group">
+                                <select class="form-select" @bind="nuevaVariante.Talla">
+                                    <option value="">-- Seleccionar Talla --</option>
+                                    @foreach (var t in tallas)
+                                    {
+                                        <option value="@t.Descripcion">@t.Descripcion</option>
+                                    }
+                                </select>
+                                <button class="btn btn-outline-primary" type="button" title="Nueva Talla"
+                                        @onclick='() => OpenNuevoComplementoDesdeModal("TALLA")'>
+                                    +
+                                </button>
+                            </div>
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
                             <button class="btn btn-success w-100" @onclick="AgregarVariante">
@@ -470,10 +483,16 @@ else
                                     @foreach (var v in variantes)
                                     {
                                         <tr>
-                                            <td>@v.Color</td>
+                                            <td>
+                                                @v.Color
+                                                @if (v.IdVariante < 0)
+                                                {
+                                                    <span class="badge bg-warning text-dark ms-1" title="Pendiente de guardar">⏳</span>
+                                                }
+                                            </td>
                                             <td>@v.Talla</td>
                                             <td>
-                                                <button class="btn btn-danger btn-sm w-100" 
+                                                <button class="btn btn-danger btn-sm w-100"
                                                         @onclick="() => EliminarVariante(v.IdVariante)"
                                                         title="Eliminar">
                                                     <i class="bi bi-trash"></i> Eliminar
@@ -530,6 +549,7 @@ else
     private string nuevoTipo = string.Empty;
     private string nuevoDescripcion = string.Empty;
     private string? nuevoAlias = string.Empty;
+    private bool vieneDelModalVariantes = false;
 
     [Inject] private IJSRuntime JS { get; set; } = default!;
 
@@ -542,7 +562,9 @@ else
             isLoading = true;
 
             articulo = new ArticuloDTO();
-            articulo.IdArticulo = await ArticuloService.GetNuevoIdArticulo();
+            var nuevoId = await ArticuloService.GetNuevoIdArticulo();
+            // Asegurar formato de 6 caracteres
+            articulo.IdArticulo = nuevoId?.PadLeft(6, '0') ?? nuevoId;
             articulo.CodigoBarra = articulo.IdArticulo;
 
             proveedores = await ProveedorService.GetProveedores();
@@ -593,11 +615,22 @@ else
         nuevoDescripcion = string.Empty;
         nuevoAlias = string.Empty;
         mostrarNuevoComplemento = true;
+        vieneDelModalVariantes = false;
+    }
+
+    private void OpenNuevoComplementoDesdeModal(string tipo)
+    {
+        nuevoTipo = tipo;
+        nuevoDescripcion = string.Empty;
+        nuevoAlias = string.Empty;
+        mostrarNuevoComplemento = true;
+        vieneDelModalVariantes = true;
     }
 
     private void CloseNuevoComplemento()
     {
         mostrarNuevoComplemento = false;
+        vieneDelModalVariantes = false;
     }
 
     private async Task CrearNuevoComplemento()
@@ -609,9 +642,28 @@ else
         if (creado is not null)
         {
             await ReloadTipo(nuevoTipo);
-            SetArticuloProp(nuevoTipo, creado.Descripcion);
-            ActualizarDescripcion();
+
+            // Si viene del modal de variantes, actualizar el campo correspondiente
+            if (vieneDelModalVariantes)
+            {
+                if (nuevoTipo == "COLOR")
+                {
+                    nuevaVariante.Color = creado.Descripcion;
+                }
+                else if (nuevoTipo == "TALLA")
+                {
+                    nuevaVariante.Talla = creado.Descripcion;
+                }
+                vieneDelModalVariantes = false;
+            }
+            else
+            {
+                SetArticuloProp(nuevoTipo, creado.Descripcion);
+                ActualizarDescripcion();
+            }
+
             mostrarNuevoComplemento = false;
+            StateHasChanged();
         }
     }
 
@@ -647,55 +699,211 @@ else
 
     private async Task SaveArticulo()
     {
-
         if (articulo.UnidadAlmacen == "string")
             articulo.UnidadAlmacen = null;
+
+        // Asegurar formato de 6 caracteres para IdArticulo antes de guardar
+        articulo.IdArticulo = articulo.IdArticulo?.PadLeft(6, '0') ?? articulo.IdArticulo;
+        var idArticuloFormateado = articulo.IdArticulo;
 
         var creado = await ArticuloService.CreateArticulo(articulo);
         if (creado)
         {
-            // Recargar variantes después de guardar
-            await CargarVariantes();
-            StateHasChanged();
+            // Si el artículo se guardó exitosamente, asumir que existe
+            // Esperar un momento para asegurar que la transacción se complete
+            await Task.Delay(1000); // Aumentar delay a 1 segundo para dar más tiempo
+
+            // Guardar todas las variantes pendientes directamente
+            // No verificar existencia porque puede dar 404 por timing o caché
+            var variantesGuardadas = 0;
+            var variantesConError = 0;
+            var erroresDetalle = new List<string>();
+
+            if (variantesPendientes.Any())
+            {
+                foreach (var variantePendiente in variantesPendientes.ToList())
+                {
+                    // Asegurar que el IdArticulo esté en formato correcto
+                    variantePendiente.IdArticulo = idArticuloFormateado;
+
+                    // Asegurar que IdVariante sea 0 (para que EF lo genere automáticamente)
+                    // Las variantes pendientes tienen IdVariante negativo, debemos resetearlo
+                    variantePendiente.IdVariante = 0;
+
+                    var (exito, mensajeError) = await ArticuloVarianteService.RegistrarVariante(variantePendiente);
+                    if (exito)
+                    {
+                        variantesGuardadas++;
+                    }
+                    else
+                    {
+                        variantesConError++;
+                        if (!string.IsNullOrEmpty(mensajeError))
+                        {
+                            erroresDetalle.Add(mensajeError);
+                        }
+                    }
+                }
+
+                variantesPendientes.Clear();
+            }
+
+            // Mostrar mensaje y redirigir
+            string mensaje;
+            if (variantesConError > 0)
+            {
+                var mensajeError = erroresDetalle.Any()
+                    ? $"\nDetalle: {string.Join("; ", erroresDetalle.Take(2))}"
+                    : "";
+                mensaje = $"✅ Artículo guardado correctamente.\n⚠️ {variantesConError} variante(s) no se pudieron guardar.{mensajeError}\nPuede agregarlas manualmente desde el menú de edición.";
+            }
+            else if (variantesGuardadas > 0)
+            {
+                mensaje = $"✅ Artículo guardado correctamente.\n✅ {variantesGuardadas} variante(s) guardada(s).";
+            }
+            else
+            {
+                mensaje = "✅ Artículo guardado correctamente.";
+            }
+
+            await JS.InvokeVoidAsync("alert", mensaje);
+
+            // Redirigir al listado de artículos después de guardar
+            Navigation.NavigateTo("/articulos");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "❌ Error al guardar el artículo. Verifique los datos e intente nuevamente.");
         }
     }
 
     private ArticuloVarianteDTO nuevaVariante = new();
     private List<ArticuloVarianteDTO> variantes = new();
+    private List<ArticuloVarianteDTO> variantesPendientes = new(); // Variantes que se guardarán cuando se guarde el artículo
+    private int contadorVariantesPendientes = -1; // Contador negativo para identificar variantes pendientes
 
     private async Task AgregarVariante()
     {
         if (string.IsNullOrWhiteSpace(nuevaVariante.Color) || string.IsNullOrWhiteSpace(nuevaVariante.Talla))
-            return;
-
-        nuevaVariante.IdArticulo = articulo.IdArticulo;
-
-        var exito = await ArticuloVarianteService.RegistrarVariante(nuevaVariante);
-        if (exito)
         {
-            await CargarVariantes();
+            await JS.InvokeVoidAsync("alert", "⚠️ Debe seleccionar Color y Talla.");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(articulo.IdArticulo))
+        {
+            await JS.InvokeVoidAsync("alert", "⚠️ El artículo debe tener un código.");
+            return;
+        }
+
+        // Verificar si el artículo ya está guardado en la BD
+        // Asegurar formato de 6 caracteres antes de verificar
+        var idArticuloFormateado = articulo.IdArticulo?.PadLeft(6, '0') ?? articulo.IdArticulo;
+        var articuloExiste = false;
+        try
+        {
+            var articuloVerificado = await ArticuloService.GetArticuloById(idArticuloFormateado);
+            articuloExiste = articuloVerificado != null;
+        }
+        catch
+        {
+            // Si hay error, asumir que no existe (esto evita mostrar errores 404 innecesarios)
+            articuloExiste = false;
+        }
+
+        if (!articuloExiste)
+        {
+            // El artículo aún no está guardado, agregar a lista temporal
+            var varianteTemp = new ArticuloVarianteDTO
+            {
+                IdArticulo = idArticuloFormateado, // Ya está formateado arriba
+                Color = nuevaVariante.Color,
+                Talla = nuevaVariante.Talla,
+                IdVariante = contadorVariantesPendientes-- // ID negativo temporal
+            };
+
+            // Verificar que no se duplique
+            if (variantes.Any(v => v.Color == varianteTemp.Color && v.Talla == varianteTemp.Talla))
+            {
+                await JS.InvokeVoidAsync("alert", "⚠️ Esta combinación de Color y Talla ya está en la lista.");
+                return;
+            }
+
+            variantesPendientes.Add(varianteTemp);
+            variantes.Add(varianteTemp); // Agregar también a la lista visible
             nuevaVariante = new();
+            await JS.InvokeVoidAsync("alert", "✅ Variante agregada (se guardará al guardar el artículo).");
+            StateHasChanged();
+        }
+        else
+        {
+            // El artículo ya está guardado, guardar inmediatamente
+            nuevaVariante.IdArticulo = idArticuloFormateado; // Ya está formateado arriba
+
+            var (exito, mensajeError) = await ArticuloVarianteService.RegistrarVariante(nuevaVariante);
+            if (exito)
+            {
+                await JS.InvokeVoidAsync("alert", "✅ Variante agregada correctamente.");
+                await CargarVariantes();
+                nuevaVariante = new();
+                StateHasChanged();
+            }
+            else
+            {
+                var mensaje = !string.IsNullOrEmpty(mensajeError)
+                    ? $"❌ Error al agregar la variante: {mensajeError}"
+                    : "❌ Error al agregar la variante. Verifique que el artículo esté guardado correctamente.";
+                await JS.InvokeVoidAsync("alert", mensaje);
+            }
         }
     }
 
     private async Task EliminarVariante(int id)
     {
-        var exito = await ArticuloVarianteService.EliminarVariante(id);
-        if (exito)
-            await CargarVariantes();
+        // Si el ID es negativo, es una variante pendiente
+        if (id < 0)
+        {
+            var varianteAEliminar = variantes.FirstOrDefault(v => v.IdVariante == id);
+            if (varianteAEliminar != null)
+            {
+                variantes.Remove(varianteAEliminar);
+                variantesPendientes.RemoveAll(v => v.IdVariante == id);
+                StateHasChanged();
+            }
+        }
+        else
+        {
+            // Variante guardada en BD, eliminar de BD
+            var exito = await ArticuloVarianteService.EliminarVariante(id);
+            if (exito)
+            {
+                await CargarVariantes();
+                StateHasChanged();
+            }
+        }
     }
 
     private async Task CargarVariantes()
     {
         if (!string.IsNullOrEmpty(articulo.IdArticulo))
-            variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
+        {
+            var variantesGuardadas = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
+            // Combinar variantes guardadas con las pendientes
+            variantes = variantesGuardadas.Concat(variantesPendientes).ToList();
+        }
     }
 
     private async Task AbrirModalVariantes()
     {
         if (string.IsNullOrEmpty(articulo.IdArticulo))
             return;
-        
+
+        // Asegurar que colores y tallas estén cargados
+        if (!colores.Any())
+            colores = await ComplementoService.GetByTipo("COLOR");
+        if (!tallas.Any())
+            tallas = await ComplementoService.GetByTipo("TALLA");
+
         await CargarVariantes();
         nuevaVariante = new();
         mostrarModalVariantes = true;

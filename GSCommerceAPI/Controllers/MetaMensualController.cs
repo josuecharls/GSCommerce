@@ -1,0 +1,1005 @@
+﻿using System.Globalization;
+using ClosedXML.Excel;
+using GSCommerce.Client.Models;
+using GSCommerceAPI.Data;
+using GSCommerceAPI.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace GSCommerceAPI.Controllers;
+
+[ApiController]
+[Route("api/metas-mensuales")]
+[Authorize]
+public class MetaMensualController : ControllerBase
+{
+    private readonly SyscharlesContext _context;
+
+    public MetaMensualController(SyscharlesContext context)
+    {
+        _context = context;
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<List<MetaMensualDTO>>> ObtenerMetas(
+        [FromQuery] int? anio = null,
+        [FromQuery] int? mes = null,
+        [FromQuery] int? idAlmacen = null)
+    {
+        var query = _context.MetaMensuals
+            .Include(m => m.IdAlmacenNavigation)
+            .Include(m => m.MetaMensualDetalles)
+            .AsQueryable();
+
+        if (anio.HasValue)
+            query = query.Where(m => m.Anio == anio.Value);
+        if (mes.HasValue)
+            query = query.Where(m => m.Mes == mes.Value);
+        if (idAlmacen.HasValue)
+            query = query.Where(m => m.IdAlmacen == idAlmacen.Value);
+
+        var metas = await query
+            .OrderByDescending(m => m.Anio)
+            .ThenByDescending(m => m.Mes)
+            .ThenBy(m => m.IdAlmacen)
+            .ToListAsync();
+
+        var resultado = new List<MetaMensualDTO>();
+
+        foreach (var meta in metas)
+        {
+            // Actualizar ventas reales antes de retornar
+            await ActualizarVentasReales(meta);
+
+            var ventaAcumulada = meta.MetaMensualDetalles
+                .Where(d => d.VentaReal.HasValue)
+                .Sum(d => d.VentaReal.Value);
+
+            var porcentajeCumplimiento = meta.Meta > 0
+                ? (ventaAcumulada / meta.Meta) * 100
+                : 0;
+
+            resultado.Add(new MetaMensualDTO
+            {
+                IdMetaMensual = meta.IdMetaMensual,
+                IdAlmacen = meta.IdAlmacen,
+                NombreAlmacen = meta.IdAlmacenNavigation.Nombre,
+                Anio = meta.Anio,
+                Mes = meta.Mes,
+                MetaMensual = meta.Meta,
+                Estado = meta.Estado,
+                FechaCreacion = meta.FechaCreacion,
+                FechaEnvio = meta.FechaEnvio,
+                FechaAprobacion = meta.FechaAprobacion,
+                Observaciones = meta.Observaciones,
+                VentaAcumulada = ventaAcumulada,
+                PorcentajeCumplimiento = porcentajeCumplimiento,
+                Detalles = meta.MetaMensualDetalles
+                    .OrderBy(d => d.Fecha)
+                    .Select(d => new MetaMensualDetalleDTO
+                    {
+                        IdMetaMensualDetalle = d.IdMetaMensualDetalle,
+                        Fecha = d.Fecha,
+                        MetaDiaria = d.MetaDiaria,
+                        VentaReal = d.VentaReal,
+                        PorcentajeCumplimiento = d.PorcentajeCumplimiento,
+                        DiaSemana = (int)d.Fecha.DayOfWeek,
+                        NumeroSemana = GetNumeroSemanaFromDateOnly(d.Fecha),
+                        NumeroQuincena = d.Fecha.Day <= 15 ? 1 : 2
+                    })
+                    .ToList()
+            });
+        }
+
+        return Ok(resultado);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<MetaMensualDTO>> ObtenerMetaPorId(int id)
+    {
+        var meta = await _context.MetaMensuals
+            .Include(m => m.IdAlmacenNavigation)
+            .Include(m => m.MetaMensualDetalles)
+            .FirstOrDefaultAsync(m => m.IdMetaMensual == id);
+
+        if (meta == null)
+            return NotFound();
+
+        await ActualizarVentasReales(meta);
+
+        var ventaAcumulada = meta.MetaMensualDetalles
+            .Where(d => d.VentaReal.HasValue)
+            .Sum(d => d.VentaReal.Value);
+
+        var porcentajeCumplimiento = meta.Meta > 0
+            ? (ventaAcumulada / meta.Meta) * 100
+            : 0;
+
+        var dto = new MetaMensualDTO
+        {
+            IdMetaMensual = meta.IdMetaMensual,
+            IdAlmacen = meta.IdAlmacen,
+            NombreAlmacen = meta.IdAlmacenNavigation.Nombre,
+            Anio = meta.Anio,
+            Mes = meta.Mes,
+            MetaMensual = meta.Meta,
+            Estado = meta.Estado,
+            FechaCreacion = meta.FechaCreacion,
+            FechaEnvio = meta.FechaEnvio,
+            FechaAprobacion = meta.FechaAprobacion,
+            Observaciones = meta.Observaciones,
+            VentaAcumulada = ventaAcumulada,
+            PorcentajeCumplimiento = porcentajeCumplimiento,
+            Detalles = meta.MetaMensualDetalles
+                .OrderBy(d => d.Fecha)
+                .Select(d => new MetaMensualDetalleDTO
+                {
+                    IdMetaMensualDetalle = d.IdMetaMensualDetalle,
+                    Fecha = d.Fecha,
+                    MetaDiaria = d.MetaDiaria,
+                    VentaReal = d.VentaReal,
+                    PorcentajeCumplimiento = d.PorcentajeCumplimiento,
+                    DiaSemana = (int)d.Fecha.DayOfWeek,
+                    NumeroSemana = GetNumeroSemanaFromDateOnly(d.Fecha),
+                    NumeroQuincena = d.Fecha.Day <= 15 ? 1 : 2
+                })
+                .ToList()
+        };
+
+        return Ok(dto);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CrearMeta([FromBody] CrearMetaMensualRequest request)
+    {
+        if (request == null)
+            return BadRequest("Datos inválidos");
+
+        if (request.Mes < 1 || request.Mes > 12)
+            return BadRequest("Mes inválido");
+
+        // Validar que no exista ya una meta para ese almacén/mes/año
+        var existe = await _context.MetaMensuals
+            .AnyAsync(m => m.IdAlmacen == request.IdAlmacen &&
+                          m.Anio == request.Anio &&
+                          m.Mes == request.Mes);
+        if (existe)
+            return BadRequest("Ya existe una meta para este almacén y período");
+
+        // Validar que el almacén existe
+        var almacen = await _context.Almacens.FindAsync(request.IdAlmacen);
+        if (almacen == null)
+            return NotFound("Almacén no encontrado");
+
+        // Obtener ID del usuario actual
+        var userIdClaim = User.FindFirst("userId")?.Value;
+        if (!int.TryParse(userIdClaim, out var userId))
+            return Unauthorized("Usuario no válido");
+
+        // Calcular meta mensual automáticamente desde datos históricos
+        var metaMensualCalculada = await CalcularMetaMensual(
+            request.IdAlmacen,
+            request.Anio,
+            request.Mes,
+            request.MesesHistoricos);
+
+        // Calcular distribución diaria
+        var detalles = await CalcularDistribucionDiaria(
+            request.IdAlmacen,
+            request.Anio,
+            request.Mes,
+            metaMensualCalculada,
+            request.MesesHistoricos);
+
+        var meta = new MetaMensual
+        {
+            IdAlmacen = request.IdAlmacen,
+            Anio = request.Anio,
+            Mes = request.Mes,
+            Meta = metaMensualCalculada,
+            Estado = "PENDIENTE",
+            FechaCreacion = DateTime.Now,
+            IdUsuarioCreacion = userId
+        };
+
+        foreach (var detalle in detalles)
+        {
+            meta.MetaMensualDetalles.Add(detalle);
+        }
+
+        _context.MetaMensuals.Add(meta);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { IdMetaMensual = meta.IdMetaMensual, MetaMensual = metaMensualCalculada });
+    }
+
+    [HttpPost("{id}/enviar")]
+    public async Task<IActionResult> EnviarPropuesta(int id)
+    {
+        var meta = await _context.MetaMensuals.FindAsync(id);
+        if (meta == null)
+            return NotFound();
+
+        if (meta.Estado != "PENDIENTE")
+            return BadRequest("Solo se pueden enviar propuestas pendientes");
+
+        // Validar que se envíe 2 días antes del inicio del mes
+        var fechaInicioMes = new DateTime(meta.Anio, meta.Mes, 1);
+        var fechaLimite = fechaInicioMes.AddDays(-2);
+        if (DateTime.Now > fechaLimite)
+            return BadRequest("Las propuestas deben enviarse al menos 2 días antes del inicio del mes");
+
+        meta.Estado = "ENVIADA";
+        meta.FechaEnvio = DateTime.Now;
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpPost("{id}/aprobar")]
+    public async Task<IActionResult> AprobarRechazar(int id, [FromBody] AprobarMetaMensualRequest request)
+    {
+        if (request == null || request.IdMetaMensual != id)
+            return BadRequest("Datos inválidos");
+
+        var meta = await _context.MetaMensuals.FindAsync(request.IdMetaMensual);
+        if (meta == null)
+            return NotFound();
+
+        if (meta.Estado != "ENVIADA")
+            return BadRequest("Solo se pueden aprobar/rechazar propuestas enviadas");
+
+        var userIdClaim = User.FindFirst("userId")?.Value;
+        if (!int.TryParse(userIdClaim, out var userId))
+            return Unauthorized("Usuario no válido");
+
+        // Verificar que sea administrador
+        var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+        if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+            return Forbid("Solo los administradores pueden aprobar/rechazar propuestas");
+
+        meta.Estado = request.Aprobar ? "APROBADA" : "RECHAZADA";
+        meta.IdUsuarioAprobacion = userId;
+        meta.FechaAprobacion = DateTime.Now;
+        meta.Observaciones = request.Observaciones;
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpPost("generar-todas")]
+    public async Task<IActionResult> GenerarMetasParaTodosAlmacenes([FromBody] CrearMetaMensualRequest request)
+    {
+        if (request == null)
+            return BadRequest("Datos inválidos");
+
+        if (request.Mes < 1 || request.Mes > 12)
+            return BadRequest("Mes inválido");
+
+        // Obtener ID del usuario actual
+        var userIdClaim = User.FindFirst("userId")?.Value;
+        if (!int.TryParse(userIdClaim, out var userId))
+            return Unauthorized("Usuario no válido");
+
+        // Obtener todos los almacenes que son tiendas
+        var almacenes = await _context.Almacens
+            .Where(a => a.EsTienda && a.Estado)
+            .ToListAsync();
+
+        var resultados = new List<object>();
+
+        foreach (var almacen in almacenes)
+        {
+            // Validar que no exista ya una meta
+            var existe = await _context.MetaMensuals
+                .AnyAsync(m => m.IdAlmacen == almacen.IdAlmacen &&
+                              m.Anio == request.Anio &&
+                              m.Mes == request.Mes);
+
+            if (existe)
+            {
+                resultados.Add(new { Almacen = almacen.Nombre, Estado = "Ya existe", MetaMensual = 0m });
+                continue;
+            }
+
+            // Calcular meta mensual automáticamente
+            var metaMensualCalculada = await CalcularMetaMensual(
+                almacen.IdAlmacen,
+                request.Anio,
+                request.Mes,
+                request.MesesHistoricos);
+
+            // Calcular distribución diaria
+            var detalles = await CalcularDistribucionDiaria(
+                almacen.IdAlmacen,
+                request.Anio,
+                request.Mes,
+                metaMensualCalculada,
+                request.MesesHistoricos);
+
+            var meta = new MetaMensual
+            {
+                IdAlmacen = almacen.IdAlmacen,
+                Anio = request.Anio,
+                Mes = request.Mes,
+                Meta = metaMensualCalculada,
+                Estado = "PENDIENTE",
+                FechaCreacion = DateTime.Now,
+                IdUsuarioCreacion = userId
+            };
+
+            foreach (var detalle in detalles)
+            {
+                meta.MetaMensualDetalles.Add(detalle);
+            }
+
+            _context.MetaMensuals.Add(meta);
+            resultados.Add(new { Almacen = almacen.Nombre, Estado = "Creada", MetaMensual = metaMensualCalculada });
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(resultados);
+    }
+
+    [HttpGet("exportar")]
+    public async Task<IActionResult> ExportarExcel([FromQuery] int anio, [FromQuery] int mes)
+    {
+        if (mes < 1 || mes > 12)
+            return BadRequest("Mes inválido");
+
+        // Obtener todas las metas del mes para todos los almacenes
+        var metas = await _context.MetaMensuals
+            .Include(m => m.IdAlmacenNavigation)
+            .Include(m => m.MetaMensualDetalles)
+            .Where(m => m.Anio == anio && m.Mes == mes)
+            .OrderBy(m => m.IdAlmacen)
+            .ToListAsync();
+
+        if (!metas.Any())
+            return NotFound("No se encontraron metas para el período indicado");
+
+        // Actualizar ventas reales para todas las metas
+        foreach (var meta in metas)
+        {
+            await ActualizarVentasReales(meta);
+        }
+
+        var cultura = CultureInfo.CreateSpecificCulture("es-PE");
+        var fecha = new DateTime(anio, mes, 1);
+        var nombreMes = cultura.TextInfo.ToTitleCase(fecha.ToString("MMMM", cultura));
+
+        using var workbook = new XLWorkbook();
+
+        // Crear una hoja por cada almacén
+        foreach (var meta in metas)
+        {
+            var hoja = workbook.Worksheets.Add(meta.IdAlmacenNavigation.Nombre.Length > 31
+                ? meta.IdAlmacenNavigation.Nombre.Substring(0, 31)
+                : meta.IdAlmacenNavigation.Nombre);
+
+            // Encabezado principal
+            hoja.Cell(1, 1).Value = "META MENSUAL";
+            hoja.Range(1, 1, 1, 7).Merge();
+            hoja.Cell(1, 1).Style.Font.SetBold();
+            hoja.Cell(1, 1).Style.Font.FontSize = 16;
+            hoja.Cell(1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            hoja.Cell(1, 1).Style.Fill.BackgroundColor = XLColor.FromArgb(230, 230, 230);
+
+            hoja.Cell(2, 1).Value = $"Almacén: {meta.IdAlmacenNavigation.Nombre}";
+            hoja.Cell(3, 1).Value = $"Período: {nombreMes} {meta.Anio}";
+            hoja.Cell(4, 1).Value = $"Meta Mensual: S/ {meta.Meta:N2}";
+            hoja.Cell(4, 1).Style.Font.SetBold();
+
+            var ventaAcumulada = meta.MetaMensualDetalles
+                .Where(d => d.VentaReal.HasValue)
+                .Sum(d => d.VentaReal.Value);
+            var porcentajeCumplimiento = meta.Meta > 0
+                ? (ventaAcumulada / meta.Meta) * 100
+                : 0;
+
+            hoja.Cell(5, 1).Value = $"Venta Acumulada: S/ {ventaAcumulada:N2}";
+            hoja.Cell(6, 1).Value = $"Cumplimiento: {porcentajeCumplimiento:N2}%";
+            hoja.Cell(6, 1).Style.Font.SetBold();
+
+            // Encabezados de tabla
+            int fila = 8;
+            hoja.Cell(fila, 1).Value = "Fecha";
+            hoja.Cell(fila, 2).Value = "Día";
+            hoja.Cell(fila, 3).Value = "Meta Diaria";
+            hoja.Cell(fila, 4).Value = "Venta Real";
+            hoja.Cell(fila, 5).Value = "Cumplimiento %";
+            hoja.Cell(fila, 6).Value = "Quincena";
+            hoja.Cell(fila, 7).Value = "Semana";
+
+            var headerRange = hoja.Range(fila, 1, fila, 7);
+            headerRange.Style.Font.SetBold();
+            headerRange.Style.Fill.BackgroundColor = XLColor.FromArgb(200, 200, 200);
+            headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+            // Datos
+            fila++;
+            var detallesOrdenados = meta.MetaMensualDetalles.OrderBy(d => d.Fecha).ToList();
+            foreach (var detalle in detallesOrdenados)
+            {
+                var fechaDateTime = detalle.Fecha.ToDateTime(TimeOnly.MinValue);
+                var diaSemana = fechaDateTime.ToString("dddd", cultura);
+                var numeroSemana = GetNumeroSemana(fechaDateTime);
+                var numeroQuincena = detalle.Fecha.Day <= 15 ? 1 : 2;
+
+                hoja.Cell(fila, 1).Value = detalle.Fecha.ToString("dd/MM/yyyy");
+                hoja.Cell(fila, 2).Value = diaSemana;
+                hoja.Cell(fila, 3).Value = detalle.MetaDiaria;
+                hoja.Cell(fila, 4).Value = detalle.VentaReal ?? 0;
+                hoja.Cell(fila, 5).Value = detalle.PorcentajeCumplimiento ?? 0;
+                hoja.Cell(fila, 6).Value = $"Q{numeroQuincena}";
+                hoja.Cell(fila, 7).Value = $"S{numeroSemana}";
+
+                // Formato de números
+                hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
+                hoja.Cell(fila, 4).Style.NumberFormat.Format = "S/ #,##0.00";
+                hoja.Cell(fila, 5).Style.NumberFormat.Format = "#,##0.00%";
+                // Color según cumplimiento
+                if (detalle.PorcentajeCumplimiento.HasValue)
+                {
+                    var porcentaje = detalle.PorcentajeCumplimiento.Value;
+                    if (porcentaje >= 100)
+                        hoja.Cell(fila, 5).Style.Font.FontColor = XLColor.Green;
+                    else if (porcentaje >= 80)
+                        hoja.Cell(fila, 5).Style.Font.FontColor = XLColor.Orange;
+                    else
+                        hoja.Cell(fila, 5).Style.Font.FontColor = XLColor.Red;
+                }
+
+                fila++;
+            }
+
+            // Resumen por quincenas
+            fila += 2;
+            hoja.Cell(fila, 1).Value = "RESUMEN POR QUINCENAS";
+            hoja.Cell(fila, 1).Style.Font.SetBold();
+            hoja.Cell(fila, 1).Style.Font.FontSize = 14;
+            fila++;
+
+            hoja.Cell(fila, 1).Value = "Quincena";
+            hoja.Cell(fila, 2).Value = "Meta";
+            hoja.Cell(fila, 3).Value = "Venta Real";
+            hoja.Cell(fila, 4).Value = "Cumplimiento %";
+            var resumenHeaderRange = hoja.Range(fila, 1, fila, 4);
+            resumenHeaderRange.Style.Font.SetBold();
+            resumenHeaderRange.Style.Fill.BackgroundColor = XLColor.FromArgb(200, 200, 200);
+
+            fila++;
+            for (int q = 1; q <= 2; q++)
+            {
+                var detallesQuincena = detallesOrdenados
+                    .Where(d => (d.Fecha.Day <= 15 ? 1 : 2) == q)
+                    .ToList();
+                var metaQuincena = detallesQuincena.Sum(d => d.MetaDiaria);
+                var ventaQuincena = detallesQuincena
+                    .Where(d => d.VentaReal.HasValue)
+                    .Sum(d => d.VentaReal.Value);
+                var porcentajeQuincena = metaQuincena > 0
+                    ? (ventaQuincena / metaQuincena) * 100
+                    : 0;
+
+                hoja.Cell(fila, 1).Value = $"Q{q}";
+                hoja.Cell(fila, 2).Value = metaQuincena;
+                hoja.Cell(fila, 3).Value = ventaQuincena;
+                hoja.Cell(fila, 4).Value = porcentajeQuincena;
+
+                hoja.Cell(fila, 2).Style.NumberFormat.Format = "S/ #,##0.00";
+                hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
+                hoja.Cell(fila, 4).Style.NumberFormat.Format = "#,##0.00%";
+                fila++;
+            }
+
+            // Resumen por semanas
+            fila += 2;
+            hoja.Cell(fila, 1).Value = "RESUMEN POR SEMANAS";
+            hoja.Cell(fila, 1).Style.Font.SetBold();
+            hoja.Cell(fila, 1).Style.Font.FontSize = 14;
+            fila++;
+
+            hoja.Cell(fila, 1).Value = "Semana";
+            hoja.Cell(fila, 2).Value = "Meta";
+            hoja.Cell(fila, 3).Value = "Venta Real";
+            hoja.Cell(fila, 4).Value = "Cumplimiento %";
+            var semanaHeaderRange = hoja.Range(fila, 1, fila, 4);
+            semanaHeaderRange.Style.Font.SetBold();
+            semanaHeaderRange.Style.Fill.BackgroundColor = XLColor.FromArgb(200, 200, 200);
+
+            fila++;
+            var semanas = detallesOrdenados
+                .GroupBy(d => GetNumeroSemanaFromDateOnly(d.Fecha))
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            foreach (var semana in semanas)
+            {
+                var metaSemana = semana.Sum(d => d.MetaDiaria);
+                var ventaSemana = semana
+                    .Where(d => d.VentaReal.HasValue)
+                    .Sum(d => d.VentaReal.Value);
+                var porcentajeSemana = metaSemana > 0
+                    ? (ventaSemana / metaSemana) * 100
+                    : 0;
+
+                hoja.Cell(fila, 1).Value = $"S{semana.Key}";
+                hoja.Cell(fila, 2).Value = metaSemana;
+                hoja.Cell(fila, 3).Value = ventaSemana;
+                hoja.Cell(fila, 4).Value = porcentajeSemana;
+
+                hoja.Cell(fila, 2).Style.NumberFormat.Format = "S/ #,##0.00";
+                hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
+                hoja.Cell(fila, 4).Style.NumberFormat.Format = "#,##0.00%";
+                fila++;
+            }
+
+            hoja.Columns().AdjustToContents();
+        }
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        stream.Position = 0;
+
+        var nombreArchivo = $"MetasMensuales_{nombreMes}_{anio}.xlsx";
+        return File(stream.ToArray(),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            nombreArchivo);
+    }
+
+    [HttpGet("{id}/exportar")]
+    public async Task<IActionResult> ExportarExcel(int id)
+    {
+        var meta = await _context.MetaMensuals
+            .Include(m => m.IdAlmacenNavigation)
+            .Include(m => m.MetaMensualDetalles)
+            .FirstOrDefaultAsync(m => m.IdMetaMensual == id);
+
+        if (meta == null)
+            return NotFound();
+
+        // Actualizar ventas reales
+        await ActualizarVentasReales(meta);
+
+        var cultura = CultureInfo.CreateSpecificCulture("es-PE");
+        var fecha = new DateTime(meta.Anio, meta.Mes, 1);
+        var nombreMes = cultura.TextInfo.ToTitleCase(fecha.ToString("MMMM", cultura));
+
+        using var workbook = new XLWorkbook();
+        var hoja = workbook.Worksheets.Add("Meta Mensual");
+
+        // Encabezado principal
+        hoja.Cell(1, 1).Value = "META MENSUAL";
+        hoja.Range(1, 1, 1, 7).Merge();
+        hoja.Cell(1, 1).Style.Font.SetBold().Font.SetFontSize(16);
+        hoja.Cell(1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        hoja.Cell(1, 1).Style.Fill.BackgroundColor = XLColor.FromArgb(230, 230, 230);
+
+        hoja.Cell(2, 1).Value = $"Almacén: {meta.IdAlmacenNavigation.Nombre}";
+        hoja.Cell(3, 1).Value = $"Período: {nombreMes} {meta.Anio}";
+        hoja.Cell(4, 1).Value = $"Meta Mensual: S/ {meta.Meta:N2}";
+        hoja.Cell(4, 1).Style.Font.SetBold();
+
+        var ventaAcumulada = meta.MetaMensualDetalles
+            .Where(d => d.VentaReal.HasValue)
+            .Sum(d => d.VentaReal.Value);
+        var porcentajeCumplimiento = meta.Meta > 0
+            ? (ventaAcumulada / meta.Meta) * 100
+            : 0;
+
+        hoja.Cell(5, 1).Value = $"Venta Acumulada: S/ {ventaAcumulada:N2}";
+        hoja.Cell(6, 1).Value = $"Cumplimiento: {porcentajeCumplimiento:N2}%";
+        hoja.Cell(6, 1).Style.Font.SetBold();
+
+        // Encabezados de tabla
+        int fila = 8;
+        hoja.Cell(fila, 1).Value = "Fecha";
+        hoja.Cell(fila, 2).Value = "Día";
+        hoja.Cell(fila, 3).Value = "Meta Diaria";
+        hoja.Cell(fila, 4).Value = "Venta Real";
+        hoja.Cell(fila, 5).Value = "Cumplimiento %";
+        hoja.Cell(fila, 6).Value = "Quincena";
+        hoja.Cell(fila, 7).Value = "Semana";
+
+        var headerRange = hoja.Range(fila, 1, fila, 7);
+        headerRange.Style.Font.SetBold();
+        headerRange.Style.Fill.BackgroundColor = XLColor.FromArgb(200, 200, 200);
+        headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        // Datos
+        fila++;
+        var detallesOrdenados = meta.MetaMensualDetalles.OrderBy(d => d.Fecha).ToList();
+        foreach (var detalle in detallesOrdenados)
+        {
+            var fechaDateTime = detalle.Fecha.ToDateTime(TimeOnly.MinValue);
+            var diaSemana = fechaDateTime.ToString("dddd", cultura);
+            var numeroSemana = GetNumeroSemana(fechaDateTime);
+            var numeroQuincena = detalle.Fecha.Day <= 15 ? 1 : 2;
+
+            hoja.Cell(fila, 1).Value = detalle.Fecha.ToString("dd/MM/yyyy");
+            hoja.Cell(fila, 2).Value = diaSemana;
+            hoja.Cell(fila, 3).Value = detalle.MetaDiaria;
+            hoja.Cell(fila, 4).Value = detalle.VentaReal ?? 0;
+            hoja.Cell(fila, 5).Value = detalle.PorcentajeCumplimiento ?? 0;
+            hoja.Cell(fila, 6).Value = $"Q{numeroQuincena}";
+            hoja.Cell(fila, 7).Value = $"S{numeroSemana}";
+
+            // Formato de números
+            hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
+            hoja.Cell(fila, 4).Style.NumberFormat.Format = "S/ #,##0.00";
+            hoja.Cell(fila, 5).Style.NumberFormat.Format = "0.00%";
+
+            // Color según cumplimiento
+            if (detalle.PorcentajeCumplimiento.HasValue)
+            {
+                var porcentaje = detalle.PorcentajeCumplimiento.Value;
+                if (porcentaje >= 100)
+                    hoja.Cell(fila, 5).Style.Font.FontColor = XLColor.Green;
+                else if (porcentaje >= 80)
+                    hoja.Cell(fila, 5).Style.Font.FontColor = XLColor.Orange;
+                else
+                    hoja.Cell(fila, 5).Style.Font.FontColor = XLColor.Red;
+            }
+
+            fila++;
+        }
+
+        // Resumen por quincenas
+        fila += 2;
+        hoja.Cell(fila, 1).Value = "RESUMEN POR QUINCENAS";
+        hoja.Cell(fila, 1).Style.Font.SetBold().Font.SetFontSize(14);
+        fila++;
+
+        hoja.Cell(fila, 1).Value = "Quincena";
+        hoja.Cell(fila, 2).Value = "Meta";
+        hoja.Cell(fila, 3).Value = "Venta Real";
+        hoja.Cell(fila, 4).Value = "Cumplimiento %";
+        var resumenHeaderRange = hoja.Range(fila, 1, fila, 4);
+        resumenHeaderRange.Style.Font.SetBold();
+        resumenHeaderRange.Style.Fill.BackgroundColor = XLColor.FromArgb(200, 200, 200);
+
+        fila++;
+        for (int q = 1; q <= 2; q++)
+        {
+            var detallesQuincena = detallesOrdenados
+                .Where(d => (d.Fecha.Day <= 15 ? 1 : 2) == q)
+                .ToList();
+            var metaQuincena = detallesQuincena.Sum(d => d.MetaDiaria);
+            var ventaQuincena = detallesQuincena
+                .Where(d => d.VentaReal.HasValue)
+                .Sum(d => d.VentaReal.Value);
+            var porcentajeQuincena = metaQuincena > 0
+                ? (ventaQuincena / metaQuincena) * 100
+                : 0;
+
+            hoja.Cell(fila, 1).Value = $"Q{q}";
+            hoja.Cell(fila, 2).Value = metaQuincena;
+            hoja.Cell(fila, 3).Value = ventaQuincena;
+            hoja.Cell(fila, 4).Value = porcentajeQuincena;
+
+            hoja.Cell(fila, 2).Style.NumberFormat.Format = "S/ #,##0.00";
+            hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
+            hoja.Cell(fila, 4).Style.NumberFormat.Format = "0.00%";
+
+            fila++;
+        }
+
+        // Resumen por semanas
+        fila += 2;
+        hoja.Cell(fila, 1).Value = "RESUMEN POR SEMANAS";
+        hoja.Cell(fila, 1).Style.Font.SetBold().Font.SetFontSize(14);
+        fila++;
+
+        hoja.Cell(fila, 1).Value = "Semana";
+        hoja.Cell(fila, 2).Value = "Meta";
+        hoja.Cell(fila, 3).Value = "Venta Real";
+        hoja.Cell(fila, 4).Value = "Cumplimiento %";
+        var semanaHeaderRange = hoja.Range(fila, 1, fila, 4);
+        semanaHeaderRange.Style.Font.SetBold();
+        semanaHeaderRange.Style.Fill.BackgroundColor = XLColor.FromArgb(200, 200, 200);
+
+        fila++;
+        var semanas = detallesOrdenados
+            .GroupBy(d => GetNumeroSemanaFromDateOnly(d.Fecha))
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        foreach (var semana in semanas)
+        {
+            var metaSemana = semana.Sum(d => d.MetaDiaria);
+            var ventaSemana = semana
+                .Where(d => d.VentaReal.HasValue)
+                .Sum(d => d.VentaReal.Value);
+            var porcentajeSemana = metaSemana > 0
+                ? (ventaSemana / metaSemana) * 100
+                : 0;
+
+            hoja.Cell(fila, 1).Value = $"S{semana.Key}";
+            hoja.Cell(fila, 2).Value = metaSemana;
+            hoja.Cell(fila, 3).Value = ventaSemana;
+            hoja.Cell(fila, 4).Value = porcentajeSemana;
+
+            hoja.Cell(fila, 2).Style.NumberFormat.Format = "S/ #,##0.00";
+            hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
+            hoja.Cell(fila, 4).Style.NumberFormat.Format = "0.00%";
+
+            fila++;
+        }
+
+        hoja.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        stream.Position = 0;
+
+        var nombreArchivo = $"MetaMensual_{meta.IdAlmacenNavigation.Nombre.Replace(" ", "_")}_{meta.Mes}_{meta.Anio}.xlsx";
+        return File(stream.ToArray(),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            nombreArchivo);
+    }
+
+    private async Task<decimal> CalcularMetaMensual(
+        int idAlmacen,
+        int anio,
+        int mes,
+        int mesesHistoricos = 3)
+    {
+        var fechaInicio = new DateTime(anio, mes, 1);
+
+        // Obtener ventas históricas de los últimos N meses
+        var fechaInicioHistorico = fechaInicio.AddMonths(-mesesHistoricos);
+        var fechaFinHistorico = fechaInicio.AddDays(-1);
+
+        // Obtener ventas históricas filtrando anuladas
+        var ventasQuery = _context.VCierreVentaDiaria1s
+            .AsNoTracking()
+            .Where(v => v.IdAlmacen == idAlmacen &&
+                        v.Fecha >= fechaInicioHistorico &&
+                        v.Fecha < fechaInicio);
+
+        ventasQuery = from v in ventasQuery
+                      join c in _context.ComprobanteDeVentaCabeceras
+                          on new { v.IdAlmacen, v.Serie, v.Numero }
+                          equals new { c.IdAlmacen, c.Serie, c.Numero }
+                      where !(c.Estado == "A" &&
+                              (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                              c.FechaHoraUsuarioAnula.HasValue &&
+                              c.FechaHoraUsuarioAnula.Value >= fechaInicioHistorico &&
+                              c.FechaHoraUsuarioAnula.Value < fechaInicio)
+                      select v;
+
+        var ventasHistoricas = await ventasQuery
+            .Select(v => new
+            {
+                v.Fecha,
+                Descripcion = v.Descripcion,
+                Soles = v.Soles,
+                Vuelto = v.Vuelto
+            })
+            .ToListAsync();
+
+        // Procesar ventas válidas
+        var ventasValidas = new List<decimal>();
+        foreach (var venta in ventasHistoricas)
+        {
+            var tipo = (venta.Descripcion ?? string.Empty).Split(' ')[0];
+            if (tipo != "N.C.")
+            {
+                var total = tipo == "Efectivo"
+                    ? venta.Soles - (venta.Vuelto ?? 0)
+                    : venta.Soles;
+                ventasValidas.Add(total);
+            }
+        }
+
+        // Si no hay datos históricos, retornar 0
+        if (!ventasValidas.Any())
+            return 0;
+
+        // Calcular promedio diario de los últimos N meses
+        var totalVentas = ventasValidas.Sum();
+        var diasTotales = (fechaInicio - fechaInicioHistorico).Days;
+        var promedioDiario = diasTotales > 0 ? totalVentas / diasTotales : 0;
+
+        // Calcular meta mensual: promedio diario * días del mes
+        var diasEnMes = DateTime.DaysInMonth(anio, mes);
+        var metaMensual = promedioDiario * diasEnMes;
+
+        return Math.Round(metaMensual, 2);
+    }
+
+    private async Task<List<MetaMensualDetalle>> CalcularDistribucionDiaria(
+        int idAlmacen,
+        int anio,
+        int mes,
+        decimal metaMensual,
+        int mesesHistoricos = 3)
+    {
+        var fechaInicio = new DateTime(anio, mes, 1);
+        var diasEnMes = DateTime.DaysInMonth(anio, mes);
+
+        // Obtener ventas históricas de los últimos N meses
+        var fechaInicioHistorico = fechaInicio.AddMonths(-mesesHistoricos);
+        var fechaFinHistorico = fechaInicio.AddDays(-1);
+
+        // Obtener ventas históricas filtrando anuladas
+        var ventasQuery = _context.VCierreVentaDiaria1s
+            .AsNoTracking()
+            .Where(v => v.IdAlmacen == idAlmacen &&
+                        v.Fecha >= fechaInicioHistorico &&
+                        v.Fecha < fechaInicio);
+
+        ventasQuery = from v in ventasQuery
+                      join c in _context.ComprobanteDeVentaCabeceras
+                          on new { v.IdAlmacen, v.Serie, v.Numero }
+                          equals new { c.IdAlmacen, c.Serie, c.Numero }
+                      where !(c.Estado == "A" &&
+                              (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                              c.FechaHoraUsuarioAnula.HasValue &&
+                              c.FechaHoraUsuarioAnula.Value >= fechaInicioHistorico &&
+                              c.FechaHoraUsuarioAnula.Value < fechaInicio)
+                      select v;
+
+        var ventasHistoricas = await ventasQuery
+            .Select(v => new
+            {
+                v.Fecha,
+                DiaSemana = (int)v.Fecha.DayOfWeek, // 0=Domingo, 6=Sábado
+                Descripcion = v.Descripcion,
+                Soles = v.Soles,
+                Vuelto = v.Vuelto
+            })
+            .ToListAsync();
+
+        // Procesar ventas válidas
+        var ventasValidas = new List<(DateTime Fecha, int DiaSemana, decimal Total)>();
+        foreach (var venta in ventasHistoricas)
+        {
+            var tipo = (venta.Descripcion ?? string.Empty).Split(' ')[0];
+            if (tipo != "N.C.")
+            {
+                var total = tipo == "Efectivo"
+                    ? venta.Soles - (venta.Vuelto ?? 0)
+                    : venta.Soles;
+                ventasValidas.Add((venta.Fecha, venta.DiaSemana, total));
+            }
+        }
+
+        // Calcular promedio por día de semana
+        var promediosPorDiaSemana = ventasValidas
+            .GroupBy(v => v.DiaSemana)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Average(v => (double)v.Total)
+            );
+
+        // Si no hay datos históricos, distribución uniforme
+        if (!promediosPorDiaSemana.Any())
+        {
+            var metaDiaria = metaMensual / diasEnMes;
+            return Enumerable.Range(1, diasEnMes)
+                .Select(dia =>
+                {
+                    var fecha = new DateTime(anio, mes, dia);
+                    return new MetaMensualDetalle
+                    {
+                        Fecha = DateOnly.FromDateTime(fecha),
+                        MetaDiaria = Math.Round(metaDiaria, 2)
+                    };
+                })
+                .ToList();
+        }
+
+        // Calcular total de pesos históricos
+        var totalPesos = 0.0;
+        var pesosPorDia = new Dictionary<int, double>();
+
+        for (int dia = 1; dia <= diasEnMes; dia++)
+        {
+            var fecha = new DateTime(anio, mes, dia);
+            var diaSemana = (int)fecha.DayOfWeek;
+            var peso = promediosPorDiaSemana.GetValueOrDefault(diaSemana, 0);
+            pesosPorDia[dia] = peso;
+            totalPesos += peso;
+        }
+
+        // Distribuir la meta mensual proporcionalmente
+        var detalles = new List<MetaMensualDetalle>();
+        for (int dia = 1; dia <= diasEnMes; dia++)
+        {
+            var fecha = new DateTime(anio, mes, dia);
+            var peso = pesosPorDia[dia];
+            var metaDiaria = totalPesos > 0
+                ? (decimal)((peso / totalPesos) * (double)metaMensual)
+                : metaMensual / diasEnMes;
+
+            detalles.Add(new MetaMensualDetalle
+            {
+                Fecha = DateOnly.FromDateTime(fecha),
+                MetaDiaria = Math.Round(metaDiaria, 2)
+            });
+        }
+
+        return detalles;
+    }
+
+    private async Task ActualizarVentasReales(MetaMensual meta)
+    {
+        var fechaInicio = new DateTime(meta.Anio, meta.Mes, 1);
+        var fechaFin = fechaInicio.AddMonths(1);
+
+        // Obtener ventas filtrando anuladas
+        var ventasQuery = _context.VCierreVentaDiaria1s
+            .AsNoTracking()
+            .Where(v => v.IdAlmacen == meta.IdAlmacen &&
+                        v.Fecha >= fechaInicio &&
+                        v.Fecha < fechaFin);
+
+        ventasQuery = from v in ventasQuery
+                      join c in _context.ComprobanteDeVentaCabeceras
+                          on new { v.IdAlmacen, v.Serie, v.Numero }
+                          equals new { c.IdAlmacen, c.Serie, c.Numero }
+                      where !(c.Estado == "A" &&
+                              (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                              c.FechaHoraUsuarioAnula.HasValue &&
+                              c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
+                              c.FechaHoraUsuarioAnula.Value < fechaFin)
+                      select v;
+
+        var ventas = await ventasQuery.ToListAsync();
+
+        // Procesar ventas válidas
+        var ventasValidas = new List<(DateOnly Fecha, decimal Total)>();
+        foreach (var venta in ventas)
+        {
+            var fechaVenta = DateOnly.FromDateTime(venta.Fecha);
+            var tipo = (venta.Descripcion ?? string.Empty).Split(' ')[0];
+            if (tipo != "N.C.")
+            {
+                var total = tipo == "Efectivo"
+                    ? venta.Soles - (venta.Vuelto ?? 0)
+                    : venta.Soles;
+                ventasValidas.Add((fechaVenta, total));
+            }
+        }
+
+        var ventasPorFecha = ventasValidas
+            .GroupBy(v => v.Fecha)
+            .ToDictionary(g => g.Key, g => g.Sum(v => v.Total));
+
+        foreach (var detalle in meta.MetaMensualDetalles)
+        {
+            if (ventasPorFecha.TryGetValue(detalle.Fecha, out var ventaReal))
+            {
+                detalle.VentaReal = ventaReal;
+                detalle.PorcentajeCumplimiento = detalle.MetaDiaria > 0
+                    ? (ventaReal / detalle.MetaDiaria) * 100
+                    : 0;
+            }
+            else
+            {
+                detalle.VentaReal = null;
+                detalle.PorcentajeCumplimiento = null;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    private static int GetNumeroSemana(DateTime fecha)
+    {
+        var inicioMes = new DateTime(fecha.Year, fecha.Month, 1);
+        var diasTranscurridos = fecha.Day - 1;
+        return (diasTranscurridos / 7) + 1;
+    }
+
+    private static int GetNumeroSemanaFromDateOnly(DateOnly fecha)
+    {
+        var diasTranscurridos = fecha.Day - 1;
+        return (diasTranscurridos / 7) + 1;
+    }
+}
+

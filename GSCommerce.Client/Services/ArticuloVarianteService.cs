@@ -20,10 +20,18 @@ namespace GSCommerce.Client.Services
             return response ?? new List<ArticuloVarianteDTO>();
         }
 
-        public async Task<bool> RegistrarVariante(ArticuloVarianteDTO variante)
+        public async Task<(bool Success, string? ErrorMessage)> RegistrarVariante(ArticuloVarianteDTO variante)
         {
             var response = await _http.PostAsJsonAsync(baseUrl, variante);
-            return response.IsSuccessStatusCode;
+            if (response.IsSuccessStatusCode)
+            {
+                return (true, null);
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                return (false, errorMessage);
+            }
         }
 
         public async Task<bool> EliminarVariante(int idVariante)

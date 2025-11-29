@@ -49,10 +49,13 @@ builder.Services.AddScoped<IngresosEgresosService>();
 builder.Services.AddScoped<ComplementoService>();
 builder.Services.AddScoped<MetaDiariaService>();
 builder.Services.AddScoped<NotificacionService>();
+builder.Services.AddScoped<MetaMensualService>();
 builder.Services.AddAuthorizationCore();
 
+// JSPrintManager service (Neodynamic)
+
 // Configurar HttpClient para conectarse al backend
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://gscommerce.net/api/") });
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7246/") });
 
 var host = builder.Build();
 

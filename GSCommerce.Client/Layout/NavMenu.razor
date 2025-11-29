@@ -58,7 +58,7 @@
                 <NavLink class="nav-link" href="/reportes/calculo-distribucion">
                     <span class="bi bi-bar-chart-fill" aria-hidden="true"></span> Cálculo de Distribución
                 </NavLink>
-                
+
             </div>
 
         }
@@ -87,8 +87,8 @@
         }
         @if (cargo == "CAJERO")
         {
-                <div class="nav-item px-3">
-                    <a class="nav-link" href="#" @onclick="IrAVentas">
+            <div class="nav-item px-3">
+                <a class="nav-link" href="#" @onclick="IrAVentas">
                     <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Ventas
                 </a>
             </div>
@@ -126,11 +126,11 @@
         }
         @if (cargo == "CAJERO")
         {
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/reportes">
-                <span class="bi bi-bar-chart-fill" aria-hidden="true"></span> Reporte Diario Vendedores
-            </NavLink>
-        </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/reportes">
+                    <span class="bi bi-bar-chart-fill" aria-hidden="true"></span> Reporte Diario Vendedores
+                </NavLink>
+            </div>
         }
         @if (cargo == "ADMINISTRADOR")
         {
@@ -177,6 +177,11 @@
             <div class="nav-item px-3">
                 <NavLink class="topbar-item text-primary text-decoration-none" href="/igv-almacen">
                     <i class="bi bi-percent me-1"></i>IGV Tienda
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/reportes/metas-mensuales">
+                    <span class="bi bi-graph-up" aria-hidden="true"></span> Metas Mensuales
                 </NavLink>
             </div>
         }

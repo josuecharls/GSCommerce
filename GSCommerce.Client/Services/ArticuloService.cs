@@ -98,10 +98,18 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<ArticuloDTO>($"api/articulos/{id}");
+                // Asegurar formato de 6 caracteres
+                var idFormateado = id?.PadLeft(6, '0') ?? id;
+                var response = await _httpClient.GetAsync($"api/articulos/{idFormateado}");
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<ArticuloDTO>();
+                }
+                return null;
             }
-            catch (HttpRequestException)
+            catch
             {
+                // Capturar cualquier excepción (404, 500, etc.) y retornar null silenciosamente
                 return null;
             }
         }

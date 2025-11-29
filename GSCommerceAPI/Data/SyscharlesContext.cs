@@ -226,6 +226,10 @@ public partial class SyscharlesContext : DbContext
 
     public virtual DbSet<VStockXalmacen1> VStockXalmacen1s { get; set; }
 
+    public virtual DbSet<MetaMensual> MetaMensuals { get; set; }
+
+    public virtual DbSet<MetaMensualDetalle> MetaMensualDetalles { get; set; }
+
     public virtual DbSet<VUsuarioAperturaAlmacen1> VUsuarioAperturaAlmacen1s { get; set; }
 
     public virtual DbSet<VVenta1> VVenta1s { get; set; }
@@ -241,7 +245,7 @@ public partial class SyscharlesContext : DbContext
     public virtual DbSet<Xyz> Xyzs { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseSqlServer("Server=localhost;Database=SYSCHARLES;User Id=sa;Password=4pfzqo0yE;TrustServerCertificate=True;");
+        => optionsBuilder.UseSqlServer("Server=localhost;Database=SYSCHARLES;User Id=sa;Password=4pfzqo0yE@;TrustServerCertificate=True;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1218,7 +1222,55 @@ public partial class SyscharlesContext : DbContext
                 .HasColumnName("MAC");
         });
 
-        modelBuilder.Entity<MovimientosCabecera>(entity =>
+        modelBuilder.Entity<MetaMensual>(entity =>
+        {
+            entity.ToTable("MetaMensual", "Maestros");
+
+            entity.HasKey(e => e.IdMetaMensual).HasName("PK_MetaMensual");
+
+            entity.Property(e => e.Meta)
+                .HasColumnName("MetaMensual")
+                .HasColumnType("decimal(18, 2)");
+
+            entity.Property(e => e.Estado)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+
+            entity.Property(e => e.Observaciones)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+
+            entity.Property(e => e.FechaCreacion).HasColumnType("datetime");
+            entity.Property(e => e.FechaEnvio).HasColumnType("datetime");
+            entity.Property(e => e.FechaAprobacion).HasColumnType("datetime");
+
+            entity.HasOne(d => d.IdAlmacenNavigation)
+                .WithMany()
+                .HasForeignKey(d => d.IdAlmacen)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_MetaMensual_Almacen");
+        });
+
+        modelBuilder.Entity<MetaMensualDetalle>(entity =>
+        {
+            entity.ToTable("MetaMensualDetalle", "Maestros");
+
+            entity.HasKey(e => e.IdMetaMensualDetalle).HasName("PK_MetaMensualDetalle");
+
+            entity.Property(e => e.Fecha).HasColumnType("date");
+            entity.Property(e => e.MetaDiaria).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.VentaReal).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.PorcentajeCumplimiento).HasColumnType("decimal(5, 2)");
+
+            entity.HasOne(d => d.IdMetaMensualNavigation)
+                .WithMany(p => p.MetaMensualDetalles)
+                .HasForeignKey(d => d.IdMetaMensual)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_MetaMensualDetalle_MetaMensual");
+        });
+
+
+            modelBuilder.Entity<MovimientosCabecera>(entity =>
         {
             entity.HasKey(e => e.IdMovimiento).HasName("PK_IngresosEgresosCabecera");
 
