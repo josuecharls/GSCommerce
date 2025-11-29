@@ -122,7 +122,7 @@ else
                                         <i class="bi bi-send"></i>
                                     </button>
                                 }
-                                @if (meta.Estado == "ENVIADA" && esAdministrador)
+                                @if (string.Equals(meta.Estado?.Trim(), "ENVIADA", StringComparison.OrdinalIgnoreCase) && esAdministrador)
                                 {
                                     <button class="btn btn-outline-success" @onclick="() => MostrarModalAprobar(meta, true)" title="Aprobar">
                                         <i class="bi bi-check-circle"></i>
@@ -508,8 +508,11 @@ else
     private bool PuedeEnviar(MetaMensualDTO meta)
     {
         var fechaInicioMes = new DateTime(meta.Anio, meta.Mes, 1);
-        var fechaLimite = fechaInicioMes.AddDays(-2);
-        return DateTime.Now <= fechaLimite;
+        var fechaInicioPermitida = fechaInicioMes.AddDays(-7); // Penúltimo día del mes anterior
+        var fechaFinPermitida = fechaInicioMes; // Primer día del mes de la meta
+        var fechaActual = DateTime.Now.Date; // Solo comparar fechas, sin hora
+
+        return fechaActual >= fechaInicioPermitida.Date && fechaActual <= fechaFinPermitida.Date;
     }
 
     private async Task EnviarPropuesta(MetaMensualDTO meta)

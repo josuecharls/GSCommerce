@@ -211,7 +211,7 @@ public class MetaMensualController : ControllerBase
         _context.MetaMensuals.Add(meta);
         await _context.SaveChangesAsync();
 
-        return Ok(new { IdMetaMensual = meta.IdMetaMensual, MetaMensual = metaMensualCalculada });
+        return Ok(new { IdMetaMensual = meta.IdMetaMensual, Meta = metaMensualCalculada });
     }
 
     [HttpPost("{id}/enviar")]
@@ -224,11 +224,14 @@ public class MetaMensualController : ControllerBase
         if (meta.Estado != "PENDIENTE")
             return BadRequest("Solo se pueden enviar propuestas pendientes");
 
-        // Validar que se envíe 2 días antes del inicio del mes
+        // Validar que se envíe solo en los últimos 2 días del mes anterior o el primer día del mes
         var fechaInicioMes = new DateTime(meta.Anio, meta.Mes, 1);
-        var fechaLimite = fechaInicioMes.AddDays(-2);
-        if (DateTime.Now > fechaLimite)
-            return BadRequest("Las propuestas deben enviarse al menos 2 días antes del inicio del mes");
+        var fechaInicioPermitida = fechaInicioMes.AddDays(-7); // Penúltimo día del mes anterior
+        var fechaFinPermitida = fechaInicioMes; // Primer día del mes de la meta
+        var fechaActual = DateTime.Now.Date; // Solo comparar fechas, sin hora
+
+        if (fechaActual < fechaInicioPermitida.Date || fechaActual > fechaFinPermitida.Date)
+            return BadRequest("Las propuestas solo pueden enviarse durante los últimos 2 días del mes anterior o el primer día del mes de la meta");
 
         meta.Estado = "ENVIADA";
         meta.FechaEnvio = DateTime.Now;
@@ -335,7 +338,7 @@ public class MetaMensualController : ControllerBase
             }
 
             _context.MetaMensuals.Add(meta);
-            resultados.Add(new { Almacen = almacen.Nombre, Estado = "Creada", MetaMensual = metaMensualCalculada });
+            resultados.Add(new { Almacen = almacen.Nombre, Estado = "Creada", Meta = metaMensualCalculada });
         }
 
         await _context.SaveChangesAsync();
@@ -440,6 +443,7 @@ public class MetaMensualController : ControllerBase
                 hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
                 hoja.Cell(fila, 4).Style.NumberFormat.Format = "S/ #,##0.00";
                 hoja.Cell(fila, 5).Style.NumberFormat.Format = "#,##0.00%";
+
                 // Color según cumplimiento
                 if (detalle.PorcentajeCumplimiento.HasValue)
                 {
@@ -491,7 +495,8 @@ public class MetaMensualController : ControllerBase
 
                 hoja.Cell(fila, 2).Style.NumberFormat.Format = "S/ #,##0.00";
                 hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
-                hoja.Cell(fila, 4).Style.NumberFormat.Format = "#,##0.00%";
+                hoja.Cell(fila, 4).Style.NumberFormat.Format = "0.00%";
+
                 fila++;
             }
 
@@ -533,7 +538,8 @@ public class MetaMensualController : ControllerBase
 
                 hoja.Cell(fila, 2).Style.NumberFormat.Format = "S/ #,##0.00";
                 hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
-                hoja.Cell(fila, 4).Style.NumberFormat.Format = "#,##0.00%";
+                hoja.Cell(fila, 4).Style.NumberFormat.Format = "0.00%";
+
                 fila++;
             }
 
@@ -574,7 +580,8 @@ public class MetaMensualController : ControllerBase
         // Encabezado principal
         hoja.Cell(1, 1).Value = "META MENSUAL";
         hoja.Range(1, 1, 1, 7).Merge();
-        hoja.Cell(1, 1).Style.Font.SetBold().Font.SetFontSize(16);
+        hoja.Cell(1, 1).Style.Font.SetBold();
+        hoja.Cell(1, 1).Style.Font.FontSize = 16;
         hoja.Cell(1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         hoja.Cell(1, 1).Style.Fill.BackgroundColor = XLColor.FromArgb(230, 230, 230);
 
@@ -650,7 +657,8 @@ public class MetaMensualController : ControllerBase
         // Resumen por quincenas
         fila += 2;
         hoja.Cell(fila, 1).Value = "RESUMEN POR QUINCENAS";
-        hoja.Cell(fila, 1).Style.Font.SetBold().Font.SetFontSize(14);
+        hoja.Cell(fila, 1).Style.Font.SetBold();
+        hoja.Cell(fila, 1).Style.Font.FontSize = 14;
         fila++;
 
         hoja.Cell(fila, 1).Value = "Quincena";
@@ -690,7 +698,8 @@ public class MetaMensualController : ControllerBase
         // Resumen por semanas
         fila += 2;
         hoja.Cell(fila, 1).Value = "RESUMEN POR SEMANAS";
-        hoja.Cell(fila, 1).Style.Font.SetBold().Font.SetFontSize(14);
+        hoja.Cell(fila, 1).Style.Font.SetBold();
+        hoja.Cell(fila, 1).Style.Font.FontSize = 14;
         fila++;
 
         hoja.Cell(fila, 1).Value = "Semana";
@@ -748,17 +757,157 @@ public class MetaMensualController : ControllerBase
         int mesesHistoricos = 3)
     {
         var fechaInicio = new DateTime(anio, mes, 1);
+        var fechaFin = fechaInicio.AddMonths(1);
 
-        // Obtener ventas históricas de los últimos N meses
-        var fechaInicioHistorico = fechaInicio.AddMonths(-mesesHistoricos);
-        var fechaFinHistorico = fechaInicio.AddDays(-1);
+        // 1. Obtener ventas del mismo mes del año anterior (para estacionalidad)
+        var mesAnioAnterior = fechaInicio.AddYears(-1);
+        var fechaInicioAnioAnterior = new DateTime(mesAnioAnterior.Year, mesAnioAnterior.Month, 1);
+        var fechaFinAnioAnterior = fechaInicioAnioAnterior.AddMonths(1);
 
-        // Obtener ventas históricas filtrando anuladas
+        var ventasMesAnioAnterior = await ObtenerVentasValidas(
+            idAlmacen,
+            fechaInicioAnioAnterior,
+            fechaFinAnioAnterior);
+
+        // 2. Calcular Factor de Crecimiento: Comparar últimos 3 meses de este año vs mismos 3 meses del año pasado
+        var fechaActual = DateTime.Now;
+        var mesActual = fechaActual.Month;
+        var anioActual = fechaActual.Year;
+
+        // Determinar el mes de referencia (último mes con datos disponibles)
+        var mesReferencia = mesActual;
+        var anioReferencia = anioActual;
+
+        // Si estamos calculando para un mes futuro, usar el mes anterior como referencia
+        if (anio > anioActual || (anio == anioActual && mes > mesActual))
+        {
+            // Retroceder al mes anterior
+            var fechaRef = new DateTime(anioActual, mesActual, 1).AddMonths(-1);
+            mesReferencia = fechaRef.Month;
+            anioReferencia = fechaRef.Year;
+        }
+
+        // Últimos 3 meses de este año (hasta el mes de referencia, excluyendo el mes que estamos calculando)
+        var mesesParaComparar = new List<(int Mes, int Anio)>();
+        var fechaRefInicio = new DateTime(anioReferencia, mesReferencia, 1);
+
+        for (int i = 1; i <= 3; i++)
+        {
+            var fechaMes = fechaRefInicio.AddMonths(-i);
+            // No incluir el mes que estamos calculando
+            if (!(fechaMes.Year == anio && fechaMes.Month == mes))
+            {
+                mesesParaComparar.Add((fechaMes.Month, fechaMes.Year));
+            }
+        }
+
+        // Si no tenemos 3 meses válidos, usar los que tengamos
+        if (mesesParaComparar.Count < 3)
+        {
+            mesesParaComparar.Clear();
+            for (int i = 1; i <= 3; i++)
+            {
+                var fechaMes = fechaRefInicio.AddMonths(-i);
+                mesesParaComparar.Add((fechaMes.Month, fechaMes.Year));
+            }
+        }
+
+        // Obtener ventas de los últimos 3 meses de este año
+        decimal ventasUltimos3MesesEsteAnio = 0;
+        int mesesConDatosEsteAnio = 0;
+        foreach (var (m, a) in mesesParaComparar)
+        {
+            var inicio = new DateTime(a, m, 1);
+            var fin = inicio.AddMonths(1);
+            var ventas = await ObtenerVentasValidas(idAlmacen, inicio, fin);
+            if (ventas > 0)
+            {
+                ventasUltimos3MesesEsteAnio += ventas;
+                mesesConDatosEsteAnio++;
+            }
+        }
+
+        // Obtener ventas de los mismos 3 meses del año pasado
+        decimal ventasMismos3MesesAnioPasado = 0;
+        int mesesConDatosAnioPasado = 0;
+        foreach (var (m, a) in mesesParaComparar)
+        {
+            var inicio = new DateTime(a - 1, m, 1);
+            var fin = inicio.AddMonths(1);
+            var ventas = await ObtenerVentasValidas(idAlmacen, inicio, fin);
+            if (ventas > 0)
+            {
+                ventasMismos3MesesAnioPasado += ventas;
+                mesesConDatosAnioPasado++;
+            }
+        }
+
+        // 3. Calcular Factor de Crecimiento
+        decimal factorCrecimiento = 1.0m; // Factor por defecto (sin crecimiento)
+
+        if (ventasMismos3MesesAnioPasado > 0 && mesesConDatosAnioPasado > 0)
+        {
+            // Calcular promedio mensual para comparar mejor
+            var promedioMensualEsteAnio = mesesConDatosEsteAnio > 0
+                ? ventasUltimos3MesesEsteAnio / mesesConDatosEsteAnio
+                : 0;
+            var promedioMensualAnioPasado = ventasMismos3MesesAnioPasado / mesesConDatosAnioPasado;
+
+            if (promedioMensualAnioPasado > 0)
+            {
+                factorCrecimiento = promedioMensualEsteAnio / promedioMensualAnioPasado;
+
+                // Limitar el factor de crecimiento a un rango razonable (entre 0.5 y 2.0)
+                // Esto evita factores extremos que podrían ser errores de datos
+                if (factorCrecimiento < 0.5m)
+                    factorCrecimiento = 0.5m;
+                else if (factorCrecimiento > 2.0m)
+                    factorCrecimiento = 2.0m;
+            }
+        }
+        else if (ventasUltimos3MesesEsteAnio > 0 && mesesConDatosEsteAnio > 0)
+        {
+            // Si no hay datos del año pasado pero sí del año actual, usar un factor conservador
+            factorCrecimiento = 1.1m; // 10% de crecimiento estimado
+        }
+
+        // 4. Calcular Meta Mensual: Mismo Mes Año Anterior * Factor de Crecimiento
+        decimal metaMensual = 0;
+        if (ventasMesAnioAnterior > 0)
+        {
+            // Aplicar factor de crecimiento al mismo mes del año anterior
+            metaMensual = ventasMesAnioAnterior * factorCrecimiento;
+        }
+        else
+        {
+            // Si no hay datos del mismo mes del año anterior, usar promedio de los últimos 3 meses con factor
+            if (ventasUltimos3MesesEsteAnio > 0 && mesesConDatosEsteAnio > 0)
+            {
+                var promedioMensual = ventasUltimos3MesesEsteAnio / mesesConDatosEsteAnio;
+                metaMensual = promedioMensual * factorCrecimiento;
+            }
+            else if (ventasUltimos3MesesEsteAnio > 0)
+            {
+                // Fallback: usar promedio simple si no hay suficientes datos
+                var promedioMensual = ventasUltimos3MesesEsteAnio / 3;
+                metaMensual = promedioMensual;
+            }
+        }
+
+        return Math.Round(metaMensual, 2);
+    }
+
+    private async Task<decimal> ObtenerVentasValidas(
+        int idAlmacen,
+        DateTime fechaInicio,
+        DateTime fechaFin)
+    {
+        // Obtener ventas filtrando anuladas
         var ventasQuery = _context.VCierreVentaDiaria1s
             .AsNoTracking()
             .Where(v => v.IdAlmacen == idAlmacen &&
-                        v.Fecha >= fechaInicioHistorico &&
-                        v.Fecha < fechaInicio);
+                        v.Fecha >= fechaInicio &&
+                        v.Fecha < fechaFin);
 
         ventasQuery = from v in ventasQuery
                       join c in _context.ComprobanteDeVentaCabeceras
@@ -767,11 +916,11 @@ public class MetaMensualController : ControllerBase
                       where !(c.Estado == "A" &&
                               (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
                               c.FechaHoraUsuarioAnula.HasValue &&
-                              c.FechaHoraUsuarioAnula.Value >= fechaInicioHistorico &&
-                              c.FechaHoraUsuarioAnula.Value < fechaInicio)
+                              c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
+                              c.FechaHoraUsuarioAnula.Value < fechaFin)
                       select v;
 
-        var ventasHistoricas = await ventasQuery
+        var ventas = await ventasQuery
             .Select(v => new
             {
                 v.Fecha,
@@ -782,33 +931,20 @@ public class MetaMensualController : ControllerBase
             .ToListAsync();
 
         // Procesar ventas válidas
-        var ventasValidas = new List<decimal>();
-        foreach (var venta in ventasHistoricas)
+        decimal total = 0;
+        foreach (var venta in ventas)
         {
             var tipo = (venta.Descripcion ?? string.Empty).Split(' ')[0];
             if (tipo != "N.C.")
             {
-                var total = tipo == "Efectivo"
+                var monto = tipo == "Efectivo"
                     ? venta.Soles - (venta.Vuelto ?? 0)
                     : venta.Soles;
-                ventasValidas.Add(total);
+                total += monto;
             }
         }
 
-        // Si no hay datos históricos, retornar 0
-        if (!ventasValidas.Any())
-            return 0;
-
-        // Calcular promedio diario de los últimos N meses
-        var totalVentas = ventasValidas.Sum();
-        var diasTotales = (fechaInicio - fechaInicioHistorico).Days;
-        var promedioDiario = diasTotales > 0 ? totalVentas / diasTotales : 0;
-
-        // Calcular meta mensual: promedio diario * días del mes
-        var diasEnMes = DateTime.DaysInMonth(anio, mes);
-        var metaMensual = promedioDiario * diasEnMes;
-
-        return Math.Round(metaMensual, 2);
+        return total;
     }
 
     private async Task<List<MetaMensualDetalle>> CalcularDistribucionDiaria(
@@ -854,8 +990,8 @@ public class MetaMensualController : ControllerBase
             })
             .ToListAsync();
 
-        // Procesar ventas válidas
-        var ventasValidas = new List<(DateTime Fecha, int DiaSemana, decimal Total)>();
+        // Procesar ventas válidas y agrupar por fecha para obtener totales diarios
+        var ventasPorFecha = new Dictionary<DateTime, decimal>();
         foreach (var venta in ventasHistoricas)
         {
             var tipo = (venta.Descripcion ?? string.Empty).Split(' ')[0];
@@ -864,16 +1000,31 @@ public class MetaMensualController : ControllerBase
                 var total = tipo == "Efectivo"
                     ? venta.Soles - (venta.Vuelto ?? 0)
                     : venta.Soles;
-                ventasValidas.Add((venta.Fecha, venta.DiaSemana, total));
+
+                // Agrupar por fecha (solo fecha, sin hora) para sumar totales diarios
+                var fecha = venta.Fecha.Date;
+                if (!ventasPorFecha.ContainsKey(fecha))
+                {
+                    ventasPorFecha[fecha] = 0;
+                }
+                ventasPorFecha[fecha] += total;
             }
         }
 
-        // Calcular promedio por día de semana
-        var promediosPorDiaSemana = ventasValidas
-            .GroupBy(v => v.DiaSemana)
+        // Calcular promedio de totales diarios por día de semana
+        // Primero agrupar por día de semana, luego promediar los totales diarios
+        var totalesDiariosPorDiaSemana = ventasPorFecha
+            .GroupBy(kvp => ((int)kvp.Key.DayOfWeek)) // 0=Domingo, 6=Sábado
             .ToDictionary(
                 g => g.Key,
-                g => g.Average(v => (double)v.Total)
+                g => g.Select(kvp => (double)kvp.Value).ToList() // Lista de totales diarios para este día de semana
+            );
+
+        // Calcular el promedio de totales diarios por día de semana
+        var promediosPorDiaSemana = totalesDiariosPorDiaSemana
+            .ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.Count > 0 ? kvp.Value.Average() : 0.0
             );
 
         // Si no hay datos históricos, distribución uniforme
@@ -893,6 +1044,11 @@ public class MetaMensualController : ControllerBase
                 .ToList();
         }
 
+        // Si hay días de semana sin datos históricos, usar el promedio general como fallback
+        var promedioGeneral = promediosPorDiaSemana.Values.Any()
+            ? promediosPorDiaSemana.Values.Average()
+            : 0.0;
+
         // Calcular total de pesos históricos
         var totalPesos = 0.0;
         var pesosPorDia = new Dictionary<int, double>();
@@ -901,7 +1057,8 @@ public class MetaMensualController : ControllerBase
         {
             var fecha = new DateTime(anio, mes, dia);
             var diaSemana = (int)fecha.DayOfWeek;
-            var peso = promediosPorDiaSemana.GetValueOrDefault(diaSemana, 0);
+            // Si no hay datos para este día de semana, usar el promedio general
+            var peso = promediosPorDiaSemana.GetValueOrDefault(diaSemana, promedioGeneral);
             pesosPorDia[dia] = peso;
             totalPesos += peso;
         }
