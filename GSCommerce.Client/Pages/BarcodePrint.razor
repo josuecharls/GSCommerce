@@ -1,6 +1,6 @@
 ﻿@page "/barcode-print/{codigo}/{descripcion}"
 @page "/barcode-print/{codigo}/{descripcion}/{precio}"
-@page "/barcode-print/{codigo}/{descripcion}/{precio}/{talla?}"
+@page "/barcode-print/{codigo}/{descripcion}/{precio}/{color?}/{talla?}"
 
 @inject IJSRuntime JS
 
@@ -61,12 +61,12 @@
         display: block;
     }
 
-    .barcode svg {
-        width: 100% !important;
-        height: 100% !important;
-        max-width: 100%;
-        max-height: 100%;
-    }
+        .barcode svg {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100%;
+            max-height: 100%;
+        }
 
     .barcode-code {
         font-size: 10pt;
@@ -159,13 +159,6 @@
                     </div>
 
                     <div class="bottom">
-                        <div class="talla">
-                            @if (!string.IsNullOrWhiteSpace(Talla))
-                            {
-                                <span><strong>T/@Talla</strong> &nbsp;Talla</span>
-                                ;
-                            }
-                        </div>
                         <div class="price">
                             @if (PrecioDecimal.HasValue)
                             {
@@ -188,6 +181,7 @@ else
     [Parameter] public string? Codigo { get; set; }
     [Parameter] public string? Descripcion { get; set; }
     [Parameter] public string? Precio { get; set; }
+    [Parameter] public string? Color { get; set; }
     [Parameter] public string? Talla { get; set; }
 
     private decimal? PrecioDecimal;
@@ -214,7 +208,7 @@ else
             // Generar códigos de barras para ambas etiquetas
             await JS.InvokeVoidAsync("generateBarcode", "barcode-0", Codigo);
             await JS.InvokeVoidAsync("generateBarcode", "barcode-1", Codigo);
-            
+
             // Pequeño delay para asegurar que los SVG se rendericen antes de imprimir
             await Task.Delay(150);
             await JS.InvokeVoidAsync("window.print");
