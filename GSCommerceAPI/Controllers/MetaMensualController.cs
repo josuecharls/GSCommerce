@@ -378,9 +378,16 @@ public class MetaMensualController : ControllerBase
         // Crear una hoja por cada almacén
         foreach (var meta in metas)
         {
-            var hoja = workbook.Worksheets.Add(meta.IdAlmacenNavigation.Nombre.Length > 31 
-                ? meta.IdAlmacenNavigation.Nombre.Substring(0, 31) 
-                : meta.IdAlmacenNavigation.Nombre);
+            // Sanitizar nombre de hoja: eliminar caracteres problemáticos
+            var nombreHoja = meta.IdAlmacenNavigation.Nombre
+                .Replace("*", "")
+                .Replace("/", "")
+                .Replace(":", "")
+                .Replace("?", "");
+            if (nombreHoja.Length > 31)
+                nombreHoja = nombreHoja.Substring(0, 31);
+            
+            var hoja = workbook.Worksheets.Add(nombreHoja);
 
             // Encabezado principal
             hoja.Cell(1, 1).Value = "META MENSUAL";
@@ -423,6 +430,7 @@ public class MetaMensualController : ControllerBase
 
             // Datos
             fila++;
+            var filaInicioDatos = fila;
             var detallesOrdenados = meta.MetaMensualDetalles.OrderBy(d => d.Fecha).ToList();
             foreach (var detalle in detallesOrdenados)
             {
@@ -431,18 +439,14 @@ public class MetaMensualController : ControllerBase
                 var numeroSemana = GetNumeroSemana(fechaDateTime);
                 var numeroQuincena = detalle.Fecha.Day <= 15 ? 1 : 2;
 
-                hoja.Cell(fila, 1).Value = detalle.Fecha.ToString("dd/MM/yyyy");
+                // Fecha como objeto DateTime para permitir filtrado en Excel
+                hoja.Cell(fila, 1).Value = fechaDateTime;
                 hoja.Cell(fila, 2).Value = diaSemana;
                 hoja.Cell(fila, 3).Value = detalle.MetaDiaria;
                 hoja.Cell(fila, 4).Value = detalle.VentaReal ?? 0;
                 hoja.Cell(fila, 5).Value = detalle.PorcentajeCumplimiento ?? 0;
                 hoja.Cell(fila, 6).Value = $"Q{numeroQuincena}";
                 hoja.Cell(fila, 7).Value = $"S{numeroSemana}";
-
-                // Formato de números
-                hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
-                hoja.Cell(fila, 4).Style.NumberFormat.Format = "S/ #,##0.00";
-                hoja.Cell(fila, 5).Style.NumberFormat.Format = "#,##0.00%";
 
                 // Color según cumplimiento
                 if (detalle.PorcentajeCumplimiento.HasValue)
@@ -457,6 +461,20 @@ public class MetaMensualController : ControllerBase
                 }
 
                 fila++;
+            }
+            
+            // Aplicar formatos fuera del bucle para optimizar
+            var filaFinDatos = fila - 1;
+            if (filaFinDatos >= filaInicioDatos)
+            {
+                // Formato de fecha (columna 1)
+                hoja.Range(filaInicioDatos, 1, filaFinDatos, 1).Style.NumberFormat.Format = "dd/MM/yyyy";
+                // Formato de moneda para Meta Diaria (columna 3)
+                hoja.Range(filaInicioDatos, 3, filaFinDatos, 3).Style.NumberFormat.Format = "\"S/ \"#,##0.00";
+                // Formato de moneda para Venta Real (columna 4)
+                hoja.Range(filaInicioDatos, 4, filaFinDatos, 4).Style.NumberFormat.Format = "\"S/ \"#,##0.00";
+                // Formato de porcentaje para Cumplimiento (columna 5)
+                hoja.Range(filaInicioDatos, 5, filaFinDatos, 5).Style.NumberFormat.Format = "#,##0.00%";
             }
 
             // Resumen por quincenas
@@ -493,8 +511,8 @@ public class MetaMensualController : ControllerBase
                 hoja.Cell(fila, 3).Value = ventaQuincena;
                 hoja.Cell(fila, 4).Value = porcentajeQuincena;
 
-                hoja.Cell(fila, 2).Style.NumberFormat.Format = "S/ #,##0.00";
-                hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
+                hoja.Cell(fila, 2).Style.NumberFormat.Format = "\"S/ \"#,##0.00";
+                hoja.Cell(fila, 3).Style.NumberFormat.Format = "\"S/ \"#,##0.00";
                 hoja.Cell(fila, 4).Style.NumberFormat.Format = "0.00%";
 
                 fila++;
@@ -536,8 +554,8 @@ public class MetaMensualController : ControllerBase
                 hoja.Cell(fila, 3).Value = ventaSemana;
                 hoja.Cell(fila, 4).Value = porcentajeSemana;
 
-                hoja.Cell(fila, 2).Style.NumberFormat.Format = "S/ #,##0.00";
-                hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
+                hoja.Cell(fila, 2).Style.NumberFormat.Format = "\"S/ \"#,##0.00";
+                hoja.Cell(fila, 3).Style.NumberFormat.Format = "\"S/ \"#,##0.00";
                 hoja.Cell(fila, 4).Style.NumberFormat.Format = "0.00%";
 
                 fila++;
@@ -575,7 +593,16 @@ public class MetaMensualController : ControllerBase
         var nombreMes = cultura.TextInfo.ToTitleCase(fecha.ToString("MMMM", cultura));
 
         using var workbook = new XLWorkbook();
-        var hoja = workbook.Worksheets.Add("Meta Mensual");
+        // Sanitizar nombre de hoja: eliminar caracteres problemáticos
+        var nombreHoja = meta.IdAlmacenNavigation.Nombre
+            .Replace("*", "")
+            .Replace("/", "")
+            .Replace(":", "")
+            .Replace("?", "");
+        if (nombreHoja.Length > 31)
+            nombreHoja = nombreHoja.Substring(0, 31);
+        
+        var hoja = workbook.Worksheets.Add(nombreHoja);
 
         // Encabezado principal
         hoja.Cell(1, 1).Value = "META MENSUAL";
@@ -618,6 +645,7 @@ public class MetaMensualController : ControllerBase
 
         // Datos
         fila++;
+        var filaInicioDatos = fila;
         var detallesOrdenados = meta.MetaMensualDetalles.OrderBy(d => d.Fecha).ToList();
         foreach (var detalle in detallesOrdenados)
         {
@@ -626,18 +654,14 @@ public class MetaMensualController : ControllerBase
             var numeroSemana = GetNumeroSemana(fechaDateTime);
             var numeroQuincena = detalle.Fecha.Day <= 15 ? 1 : 2;
 
-            hoja.Cell(fila, 1).Value = detalle.Fecha.ToString("dd/MM/yyyy");
+            // Fecha como objeto DateTime para permitir filtrado en Excel
+            hoja.Cell(fila, 1).Value = fechaDateTime;
             hoja.Cell(fila, 2).Value = diaSemana;
             hoja.Cell(fila, 3).Value = detalle.MetaDiaria;
             hoja.Cell(fila, 4).Value = detalle.VentaReal ?? 0;
             hoja.Cell(fila, 5).Value = detalle.PorcentajeCumplimiento ?? 0;
             hoja.Cell(fila, 6).Value = $"Q{numeroQuincena}";
             hoja.Cell(fila, 7).Value = $"S{numeroSemana}";
-
-            // Formato de números
-            hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
-            hoja.Cell(fila, 4).Style.NumberFormat.Format = "S/ #,##0.00";
-            hoja.Cell(fila, 5).Style.NumberFormat.Format = "0.00%";
 
             // Color según cumplimiento
             if (detalle.PorcentajeCumplimiento.HasValue)
@@ -652,6 +676,20 @@ public class MetaMensualController : ControllerBase
             }
 
             fila++;
+        }
+        
+        // Aplicar formatos fuera del bucle para optimizar
+        var filaFinDatos = fila - 1;
+        if (filaFinDatos >= filaInicioDatos)
+        {
+            // Formato de fecha (columna 1)
+            hoja.Range(filaInicioDatos, 1, filaFinDatos, 1).Style.NumberFormat.Format = "dd/MM/yyyy";
+            // Formato de moneda para Meta Diaria (columna 3)
+            hoja.Range(filaInicioDatos, 3, filaFinDatos, 3).Style.NumberFormat.Format = "\"S/ \"#,##0.00";
+            // Formato de moneda para Venta Real (columna 4)
+            hoja.Range(filaInicioDatos, 4, filaFinDatos, 4).Style.NumberFormat.Format = "\"S/ \"#,##0.00";
+            // Formato de porcentaje para Cumplimiento (columna 5)
+            hoja.Range(filaInicioDatos, 5, filaFinDatos, 5).Style.NumberFormat.Format = "#,##0.00%";
         }
 
         // Resumen por quincenas
@@ -688,8 +726,8 @@ public class MetaMensualController : ControllerBase
             hoja.Cell(fila, 3).Value = ventaQuincena;
             hoja.Cell(fila, 4).Value = porcentajeQuincena;
 
-            hoja.Cell(fila, 2).Style.NumberFormat.Format = "S/ #,##0.00";
-            hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
+            hoja.Cell(fila, 2).Style.NumberFormat.Format = "\"S/ \"#,##0.00";
+            hoja.Cell(fila, 3).Style.NumberFormat.Format = "\"S/ \"#,##0.00";
             hoja.Cell(fila, 4).Style.NumberFormat.Format = "0.00%";
 
             fila++;
@@ -731,8 +769,8 @@ public class MetaMensualController : ControllerBase
             hoja.Cell(fila, 3).Value = ventaSemana;
             hoja.Cell(fila, 4).Value = porcentajeSemana;
 
-            hoja.Cell(fila, 2).Style.NumberFormat.Format = "S/ #,##0.00";
-            hoja.Cell(fila, 3).Style.NumberFormat.Format = "S/ #,##0.00";
+            hoja.Cell(fila, 2).Style.NumberFormat.Format = "\"S/ \"#,##0.00";
+            hoja.Cell(fila, 3).Style.NumberFormat.Format = "\"S/ \"#,##0.00";
             hoja.Cell(fila, 4).Style.NumberFormat.Format = "0.00%";
 
             fila++;

@@ -122,6 +122,14 @@
                 </div>
             </div>
         </div>
+        <div class="col">
+            <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAMetasMensuales">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                    <i class="bi bi-graph-up" style="font-size: 3rem; color: #6c757d;"></i>
+                    <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Metas Mensuales</h5>
+                </div>
+            </div>
+        </div>
         }
     @if (cargo == "CONTADOR" || cargo == "ADMINISTRADOR")
     {
@@ -221,5 +229,10 @@
     private void IrAReporteTOPtenMenosVendidos()
     {
         Navigation.NavigateTo("/reportes/top10-articulos-menos-vendidos");
+    }
+
+    private void IrAMetasMensuales()
+    {
+        Navigation.NavigateTo("/reportes/metas-mensuales");
     }
 }
