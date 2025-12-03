@@ -1,4 +1,4 @@
-﻿@page "/ventas"
+@page "/ventas"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject NavigationManager Nav
@@ -149,12 +149,13 @@
                             }
                         </td>
                     }
-                    <td><div class="btn-group btn-group-sm flex-wrap" role="group">
-                        <button class="btn btn-outline-info"
-                                title="Reimprimir boleta"
-                                @onclick="@(() => ReimprimirBoleta(v))">
-                            <i class="bi bi-printer"></i> Imprimir
-                        </button>
+                    <td>
+                        <div class="btn-group btn-group-sm flex-wrap" role="group">
+                            <button class="btn btn-outline-info"
+                                    title="Reimprimir boleta"
+                                    @onclick="@(() => ReimprimirBoleta(v))">
+                                <i class="bi bi-printer"></i> Imprimir
+                            </button>
                             @if (cargo == "ADMINISTRADOR" && v.TipoDocumento == "TICKET")
                             {
                                 <button class="btn btn-outline-danger" title="Anular Ticket" @onclick="@(() => AbrirAnulacion(v))">
@@ -164,32 +165,32 @@
                         </div>
                         @if (cargo == "ADMINISTRADOR")
                         {
-                        <div class="btn-group btn-group-sm flex-wrap" role="group">
-                            <button class="btn btn-outline-primary"
-                                    title="Emitir Nota de Crédito Electrónica"
-                                    disabled="@(!PuedeEmitirNC(v))"
-                                    @onclick="@(() => EmitirNotaCredito("ELECTRONICA", v))">
-                                NC Electrónica
-                            </button>
-                            <button class="btn btn-outline-secondary"
-                                    title="Emitir Nota de Crédito Manual"
-                                    disabled="@(!PuedeEmitirNC(v))"
-                                    @onclick="@(() => EmitirNotaCredito("MANUAL", v))">
-                                NC Manual
-                            </button>
-                            <button class="btn btn-outline-dark"
-                                    title="Emitir Nota de Crédito Interna"
-                                    disabled="@(!PuedeEmitirNC(v))"
-                                    @onclick="@(() => EmitirNotaCredito("INTERNA", v))">
-                                NC Interna
-                            </button>
-                            <button class="btn btn-outline-success"
-                                    title="Ver Nota de Crédito"
-                                    disabled="@string.IsNullOrWhiteSpace(v.NumeroNotaCredito)"
-                                    @onclick="@(() => VerNCPdf(v))">
-                                Ver NC
-                            </button>
-                        </div>
+                            <div class="btn-group btn-group-sm flex-wrap" role="group">
+                                <button class="btn btn-outline-primary"
+                                        title="Emitir Nota de Crédito Electrónica"
+                                        disabled="@(!PuedeEmitirNC(v))"
+                                        @onclick="@(() => EmitirNotaCredito("ELECTRONICA", v))">
+                                    NC Electrónica
+                                </button>
+                                <button class="btn btn-outline-secondary"
+                                        title="Emitir Nota de Crédito Manual"
+                                        disabled="@(!PuedeEmitirNC(v))"
+                                        @onclick="@(() => EmitirNotaCredito("MANUAL", v))">
+                                    NC Manual
+                                </button>
+                                <button class="btn btn-outline-dark"
+                                        title="Emitir Nota de Crédito Interna"
+                                        disabled="@(!PuedeEmitirNC(v))"
+                                        @onclick="@(() => EmitirNotaCredito("INTERNA", v))">
+                                    NC Interna
+                                </button>
+                                <button class="btn btn-outline-success"
+                                        title="Ver Nota de Crédito"
+                                        disabled="@string.IsNullOrWhiteSpace(v.NumeroNotaCredito)"
+                                        @onclick="@(() => VerNCPdf(v))">
+                                    Ver NC
+                                </button>
+                            </div>
                             @if (!string.IsNullOrWhiteSpace(v.NumeroNotaCredito))
                             {
                                 <div class="text-muted small mt-1">NC: @v.NumeroNotaCredito</div>
@@ -262,7 +263,7 @@
                     <button class="btn btn-secondary" @onclick="CancelarReenvio">Cancelar</button>
                 </div>
             </div>
-    </div>
+        </div>
     </div>
 }
 
@@ -333,7 +334,7 @@
 
         await BuscarVentas();
     }
-    
+
     private async Task OnAlmacenChanged()
     {
         selectedCajero = 0; // resetear cajero
@@ -353,7 +354,7 @@
         int? filtroAlmacen = cargo == "ADMINISTRADOR" && selectedAlmacen == 0 ? (int?)null : selectedAlmacen;
         int? filtroTipoDoc = selectedTipoDoc == 0 ? (int?)null : selectedTipoDoc;
         int? filtroCajero = null;
-        
+
         if (cargo == "ADMINISTRADOR")
         {
             // Si se seleccionó un cajero específico, usar ese

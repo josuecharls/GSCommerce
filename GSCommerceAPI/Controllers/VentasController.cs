@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using GSCommerce.Client.Models;
 using GSCommerce.Client.Models.DTOs.Reportes;
 using GSCommerce.Client.Models.SUNAT;
@@ -950,14 +950,14 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("siguiente-correlativo-disponible")]
         [Authorize]
         public async Task<IActionResult> ObtenerSiguienteCorrelativoDisponible(
-            [FromQuery] string serie, 
-            [FromQuery] int idAlmacen, 
+            [FromQuery] string serie,
+            [FromQuery] int idAlmacen,
             [FromQuery] int idTipoDocumento)
         {
             // Obtener el correlativo actual
             var serieCorr = await _context.SerieCorrelativos
-                .FirstOrDefaultAsync(s => s.Serie == serie && 
-                                         s.IdAlmacen == idAlmacen && 
+                .FirstOrDefaultAsync(s => s.Serie == serie &&
+                                         s.IdAlmacen == idAlmacen &&
                                          s.IdTipoDocumentoVenta == idTipoDocumento);
 
             int correlativoActual = serieCorr?.Correlativo ?? 0;
@@ -1526,7 +1526,7 @@ namespace GSCommerceAPI.Controllers
                 .Where(s => s.Serie == serie && s.IdAlmacen == idAlmacen && s.IdTipoDocumentoVenta == idTipoDocumento)
                 .Select(s => s.Correlativo)
                 .FirstOrDefaultAsync();
-                                                                                                                        
+
             int siguienteNumero = correlativo + 1;
 
             // Verificar si el número ya está en uso (ventas del día actual)
@@ -1775,73 +1775,73 @@ namespace GSCommerceAPI.Controllers
             return Ok(resultado);
         }
 
-    [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
-    [HttpPost("calculo-distribucion")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
+        [HttpPost("calculo-distribucion")]
         public async Task<IActionResult> CalcularDistribucion([FromBody] CalculoDistribucionRequest request)
-    {
-        if (request?.Familias == null || request.Familias.Count == 0)
         {
-            return BadRequest("Debes enviar al menos una familia con su cantidad.");
-        }
+            if (request?.Familias == null || request.Familias.Count == 0)
+            {
+                return BadRequest("Debes enviar al menos una familia con su cantidad.");
+            }
 
-        var almacenOrigen = await ObtenerAlmacenUsuarioAsync();
-        if (!almacenOrigen.HasValue)
-        {
-            return BadRequest("No se encontró el almacén asociado al usuario.");
-        }
+            var almacenOrigen = await ObtenerAlmacenUsuarioAsync();
+            if (!almacenOrigen.HasValue)
+            {
+                return BadRequest("No se encontró el almacén asociado al usuario.");
+            }
             if (almacenOrigen.Value != IdAlmacenDistribucion)
             {
                 return StatusCode(StatusCodes.Status403Forbidden, "No puede ingresar al Cálculo de Distribución");
             }
 
-        var (resultados, errores) = await CalcularDistribucionInterno(almacenOrigen.Value, request);
-        if (errores.Any())
-        {
-            return BadRequest(string.Join(" ", errores));
+            var (resultados, errores) = await CalcularDistribucionInterno(almacenOrigen.Value, request);
+            if (errores.Any())
+            {
+                return BadRequest(string.Join(" ", errores));
+            }
+
+            return Ok(resultados);
         }
 
-        return Ok(resultados);
-    }
-
-    [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
-    [HttpPost("calculo-distribucion/export")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
+        [HttpPost("calculo-distribucion/export")]
         public async Task<IActionResult> ExportarCalculoDistribucion([FromBody] CalculoDistribucionRequest request)
-    {
-        if (request?.Familias == null || request.Familias.Count == 0)
         {
-            return BadRequest("Debes enviar al menos una familia con su cantidad.");
-        }
+            if (request?.Familias == null || request.Familias.Count == 0)
+            {
+                return BadRequest("Debes enviar al menos una familia con su cantidad.");
+            }
 
-        var almacenOrigen = await ObtenerAlmacenUsuarioAsync();
-        if (!almacenOrigen.HasValue)
-        {
-            return BadRequest("No se encontró el almacén asociado al usuario.");
-        }
+            var almacenOrigen = await ObtenerAlmacenUsuarioAsync();
+            if (!almacenOrigen.HasValue)
+            {
+                return BadRequest("No se encontró el almacén asociado al usuario.");
+            }
             if (almacenOrigen.Value != IdAlmacenDistribucion)
             {
                 return StatusCode(StatusCodes.Status403Forbidden, "No puede ingresar al Cálculo de Distribución");
             }
 
-        var (resultados, errores) = await CalcularDistribucionInterno(almacenOrigen.Value, request);
-        if (errores.Any())
-        {
-            return BadRequest(string.Join(" ", errores));
+            var (resultados, errores) = await CalcularDistribucionInterno(almacenOrigen.Value, request);
+            if (errores.Any())
+            {
+                return BadRequest(string.Join(" ", errores));
+            }
+
+            if (!resultados.Any())
+            {
+                return BadRequest("No se encontraron datos para exportar.");
+            }
+
+            using var workbook = CrearLibroCalculoDistribucion(resultados);
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            stream.Position = 0;
+
+            var fileName = $"CalculoDistribucion_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            var contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            return File(stream.ToArray(), contentType, fileName);
         }
-
-        if (!resultados.Any())
-        {
-            return BadRequest("No se encontraron datos para exportar.");
-        }
-
-        using var workbook = CrearLibroCalculoDistribucion(resultados);
-        using var stream = new MemoryStream();
-        workbook.SaveAs(stream);
-        stream.Position = 0;
-
-        var fileName = $"CalculoDistribucion_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-        var contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-        return File(stream.ToArray(), contentType, fileName);
-    }
 
         [Authorize]
         [HttpGet("emisor")]
