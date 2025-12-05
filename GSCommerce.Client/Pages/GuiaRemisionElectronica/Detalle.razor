@@ -1,0 +1,229 @@
+@page "/guias-remision-electronica/detalle/{idGuiaRemision:int}"
+@using GSCommerce.Client.Models.SUNAT
+@using GSCommerce.Client.Services
+@inject GuiaRemisionElectronicaService GuiaService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Detalle de Guía de Remisión Electrónica</PageTitle>
+
+<h3><i class="bi bi-file-earmark-text"></i> Detalle de Guía de Remisión Electrónica</h3>
+
+@if (isLoading)
+{
+    <p>Cargando...</p>
+}
+else if (guia != null)
+{
+    <div class="card p-4">
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Información General</h5>
+                <p><strong>Serie-Número:</strong> @guia.Serie-@guia.Numero.ToString("D8")</p>
+                <p><strong>Fecha Emisión:</strong> @guia.FechaEmision.ToString("dd/MM/yyyy")</p>
+                <p><strong>Hora Emisión:</strong> @guia.HoraEmision.ToString(@"hh\:mm\:ss")</p>
+                <p><strong>Motivo Traslado:</strong> @guia.MotivoTraslado - @guia.DescripcionMotivo</p>
+            </div>
+            <div class="col-md-6">
+                <h5>Estado SUNAT</h5>
+                @if (guia.EnviadoSunat)
+                {
+                    <p><strong>Estado:</strong> 
+                        @if (guia.EstadoSunat == "Aceptado")
+                        {
+                            <span class="badge bg-success">Aceptado</span>
+                        }
+                        else if (guia.EstadoSunat == "Rechazado")
+                        {
+                            <span class="badge bg-danger">Rechazado</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning">Enviado</span>
+                        }
+                    </p>
+                    @if (!string.IsNullOrWhiteSpace(guia.TicketSunat))
+                    {
+                        <p><strong>Ticket:</strong> @guia.TicketSunat</p>
+                    }
+                    @if (guia.FechaEnvio.HasValue)
+                    {
+                        <p><strong>Fecha Envío:</strong> @guia.FechaEnvio.Value.ToString("dd/MM/yyyy HH:mm")</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(guia.MensajeRespuestaSunat))
+                    {
+                        <p><strong>Mensaje:</strong> @guia.MensajeRespuestaSunat</p>
+                    }
+                }
+                else
+                {
+                    <p><strong>Estado:</strong> <span class="badge bg-secondary">No enviado</span></p>
+                }
+            </div>
+        </div>
+
+        <hr />
+
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Remitente</h5>
+                <p><strong>RUC:</strong> @guia.RucRemitente</p>
+                <p><strong>Razón Social:</strong> @guia.RazonSocialRemitente</p>
+                <p><strong>Dirección:</strong> @guia.DireccionRemitente</p>
+                <p><strong>Ubigeo:</strong> @guia.UbigeoRemitente</p>
+            </div>
+            <div class="col-md-6">
+                <h5>Destinatario</h5>
+                <p><strong>Tipo Doc:</strong> @guia.TipoDocumentoDestinatario</p>
+                <p><strong>Número Doc:</strong> @guia.NumeroDocumentoDestinatario</p>
+                <p><strong>Razón Social:</strong> @guia.RazonSocialDestinatario</p>
+                <p><strong>Dirección:</strong> @guia.DireccionDestinatario</p>
+                <p><strong>Ubigeo:</strong> @guia.UbigeoDestinatario</p>
+            </div>
+        </div>
+
+        <hr />
+
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Origen</h5>
+                <p><strong>Dirección:</strong> @guia.DireccionOrigen</p>
+                <p><strong>Ubigeo:</strong> @guia.UbigeoOrigen</p>
+            </div>
+            <div class="col-md-6">
+                <h5>Destino</h5>
+                <p><strong>Dirección:</strong> @guia.DireccionDestino</p>
+                <p><strong>Ubigeo:</strong> @guia.UbigeoDestino</p>
+            </div>
+        </div>
+
+        @if (guia.Transporte != null)
+        {
+            <hr />
+            <h5>Transporte</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Placa:</strong> @guia.Transporte.NumeroPlaca</p>
+                    <p><strong>Conductor:</strong> @guia.Transporte.NombreConductor</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Licencia:</strong> @guia.Transporte.NumeroLicencia</p>
+                    <p><strong>Documento:</strong> @guia.Transporte.NumeroDocumentoConductor</p>
+                </div>
+            </div>
+        }
+
+        <hr />
+
+        <h5>Detalles de Productos</h5>
+        <table class="table table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>Item</th>
+                    <th>Código</th>
+                    <th>Descripción</th>
+                    <th>Unidad</th>
+                    <th>Cantidad</th>
+                    <th>Peso</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var detalle in guia.Detalles)
+                {
+                    <tr>
+                        <td>@detalle.Item</td>
+                        <td>@detalle.CodigoItem</td>
+                        <td>@detalle.DescripcionItem</td>
+                        <td>@detalle.UnidadMedida</td>
+                        <td>@detalle.Cantidad</td>
+                        <td>@(detalle.Peso?.ToString("F2") ?? "-")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        @if (!string.IsNullOrWhiteSpace(guia.Observaciones))
+        {
+            <hr />
+            <h5>Observaciones</h5>
+            <p>@guia.Observaciones</p>
+        }
+
+        <div class="mt-3">
+            <button class="btn btn-primary" @onclick="GenerarXml">
+                <i class="bi bi-file-code"></i> Generar XML
+            </button>
+            @if (!guia.EnviadoSunat)
+            {
+                <button class="btn btn-warning" @onclick="EnviarSunat">
+                    <i class="bi bi-send"></i> Enviar a SUNAT
+                </button>
+            }
+            @if (!string.IsNullOrWhiteSpace(guia.TicketSunat))
+            {
+                <button class="btn btn-info" @onclick="ConsultarTicket">
+                    <i class="bi bi-search"></i> Consultar Ticket
+                </button>
+            }
+            <button class="btn btn-secondary" @onclick="Volver">
+                <i class="bi bi-arrow-left"></i> Volver
+            </button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-danger">
+        No se encontró la guía de remisión electrónica.
+    </div>
+}
+
+@code {
+    [Parameter] public int idGuiaRemision { get; set; }
+
+    private GuiaRemisionDTO? guia;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        guia = await GuiaService.ObtenerGuia(idGuiaRemision);
+        isLoading = false;
+    }
+
+    private async Task GenerarXml()
+    {
+        if (guia != null)
+        {
+            var (exito, mensaje) = await GuiaService.GenerarXmlGuia(guia);
+            await JS.InvokeVoidAsync("alert", mensaje);
+        }
+    }
+
+    private async Task EnviarSunat()
+    {
+        if (guia != null)
+        {
+            var (exito, mensaje) = await GuiaService.EnviarGuia(guia);
+            await JS.InvokeVoidAsync("alert", mensaje);
+            if (exito)
+            {
+                guia = await GuiaService.ObtenerGuia(idGuiaRemision);
+            }
+        }
+    }
+
+    private async Task ConsultarTicket()
+    {
+        if (guia != null && !string.IsNullOrWhiteSpace(guia.TicketSunat))
+        {
+            var resultado = await GuiaService.ConsultarTicket(idGuiaRemision, guia.TicketSunat);
+            await JS.InvokeVoidAsync("alert", resultado);
+            guia = await GuiaService.ObtenerGuia(idGuiaRemision);
+        }
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/guias-remision-electronica");
+    }
+}

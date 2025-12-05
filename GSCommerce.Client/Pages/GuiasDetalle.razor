@@ -3,6 +3,7 @@
 @using GSCommerce.Client.Services
 @using Microsoft.AspNetCore.WebUtilities
 @inject MovimientoGuiaService MovimientoGuiaService
+@inject GuiaRemisionElectronicaService GuiaRemisionElectronicaService
 @inject NavigationManager Navigation
 @inject AlmacenService AlmacenService
 @inject ProveedorService ProveedorService
@@ -136,6 +137,9 @@ else
                 <button class="btn btn-warning ms-2" @onclick="Editar">
                     <i class="bi bi-pencil-square"></i> Editar
                 </button>
+                <button class="btn btn-success ms-2" @onclick="GenerarGuiaElectronica">
+                    <i class="bi bi-file-earmark-text"></i> Generar Guía Electrónica
+                </button>
             }
         </div>
     </div>
@@ -245,6 +249,11 @@ else
         var currentUrl = Navigation.Uri;
         var returnUrlEdit = Uri.EscapeDataString(currentUrl);
         Navigation.NavigateTo($"/guias/edit/{id}?returnUrl={returnUrlEdit}");
+    }
+
+    private void GenerarGuiaElectronica()
+    {
+        Navigation.NavigateTo($"/guias-remision-electronica/formulario/{id}");
     }
 }
 

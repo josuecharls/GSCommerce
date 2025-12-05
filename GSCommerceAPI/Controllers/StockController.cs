@@ -183,12 +183,35 @@ namespace GSCommerceAPI.Controllers
 
             try
             {
-                // 1. Obtener stock actual del artículo en el almacén
-                var stockActual = await _context.VStockXalmacen1s
-                    .Where(s => s.IdArticulo == codigoArticulo.Trim() && s.IdAlmacen == idAlmacen)
-                    .Select(s => s.Stock)
+                // Normalizar el código del artículo a 6 dígitos con ceros a la izquierda
+                var codigoNormalizado = codigoArticulo.Trim();
+                if (int.TryParse(codigoNormalizado, out int numero))
+                {
+                    codigoNormalizado = numero.ToString("D6"); // D6 = 6 dígitos con ceros a la izquierda
+                }
+                else if (codigoNormalizado.Length < 6)
+                {
+                    codigoNormalizado = codigoNormalizado.PadLeft(6, '0'); // Completar con ceros a la izquierda
+                }
+                else if (codigoNormalizado.Length > 6)
+                {
+                    codigoNormalizado = codigoNormalizado.Substring(0, 6); // Truncar a 6 dígitos si es más largo
+                }
+
+                // 1. Obtener el registro completo del stock para verificar si existe
+                var stockRegistro = await _context.VStockXalmacen1s
+                    .Where(s => s.IdArticulo == codigoNormalizado && s.IdAlmacen == idAlmacen)
                     .FirstOrDefaultAsync();
 
+                // Si el registro no existe, retornar 0
+                if (stockRegistro == null)
+                {
+                    return Ok(new { stockDisponible = 0 });
+                }
+
+                var stockActual = stockRegistro.Stock;
+
+                // Si el stock es 0, retornar 0
                 if (stockActual == 0)
                 {
                     return Ok(new { stockDisponible = 0 });
@@ -199,7 +222,7 @@ namespace GSCommerceAPI.Controllers
                 // Suma las cantidades del artículo en todas las transferencias EGRESO pendientes
                 var cantidadReservada = await _context.MovimientosDetalles
                     .Where(d =>
-                        d.IdArticulo == codigoArticulo.Trim() &&
+                        d.IdArticulo == codigoNormalizado &&
                         d.IdMovimientoNavigation.Tipo == "T" &&
                         d.IdMovimientoNavigation.Motivo.Trim() == "TRANSFERENCIA EGRESO" &&
                         d.IdMovimientoNavigation.Estado.Trim() == "E" &&
@@ -229,7 +252,7 @@ namespace GSCommerceAPI.Controllers
         {
             var cargo = User.FindFirst("Cargo")?.Value;
             var esAdministrador = string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
-            
+
             if (!esAdministrador)
             {
                 return Ok(new List<RepositionAlertDTO>());
@@ -248,9 +271,9 @@ namespace GSCommerceAPI.Controllers
 
             // Obtener artículos con stock bajo en almacén PRINCIPAL
             var articulosStockBajo = await _context.VStockXalmacen1s
-                .Where(s => s.IdAlmacen == almacenPrincipal.IdAlmacen && 
-                           s.Stock > 0 && 
-                           (s.Stock <= umbral || 
+                .Where(s => s.IdAlmacen == almacenPrincipal.IdAlmacen &&
+                           s.Stock > 0 &&
+                           (s.Stock <= umbral ||
                             (s.StockMinimo.HasValue && s.StockMinimo.Value > 0 && s.Stock <= s.StockMinimo.Value)))
                 .Select(s => new { s.IdArticulo, s.Descripcion, s.Stock })
                 .ToListAsync();
@@ -261,8 +284,8 @@ namespace GSCommerceAPI.Controllers
             {
                 // Buscar stock disponible en otros almacenes
                 var stockEnOtrosAlmacenes = await _context.VStockXalmacen1s
-                    .Where(s => s.IdArticulo == articulo.IdArticulo && 
-                               s.IdAlmacen != almacenPrincipal.IdAlmacen && 
+                    .Where(s => s.IdArticulo == articulo.IdArticulo &&
+                               s.IdAlmacen != almacenPrincipal.IdAlmacen &&
                                s.Stock > 0)
                     .Select(s => new { s.IdAlmacen, s.Almacen, s.Stock })
                     .ToListAsync();
@@ -274,12 +297,12 @@ namespace GSCommerceAPI.Controllers
                         IdArticulo = articulo.IdArticulo,
                         Descripcion = articulo.Descripcion,
                         StockPrincipal = articulo.Stock,
-                        AlmacenesConStock = stockEnOtrosAlmacenes.Select(a => 
-                            new AlmacenStockDTO 
-                            { 
-                                IdAlmacen = a.IdAlmacen, 
-                                Nombre = a.Almacen, 
-                                Stock = a.Stock 
+                        AlmacenesConStock = stockEnOtrosAlmacenes.Select(a =>
+                            new AlmacenStockDTO
+                            {
+                                IdAlmacen = a.IdAlmacen,
+                                Nombre = a.Almacen,
+                                Stock = a.Stock
                             }).ToList()
                     });
                 }

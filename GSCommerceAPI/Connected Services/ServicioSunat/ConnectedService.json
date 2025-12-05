@@ -1,7 +1,7 @@
 {
   "ExtendedData": {
     "inputs": [
-      "https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService?wsdl"
+      "https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService?wsdl"
     ],
     "collectionTypes": [
       "System.Array",

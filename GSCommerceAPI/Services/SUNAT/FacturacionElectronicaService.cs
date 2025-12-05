@@ -795,7 +795,7 @@ namespace GSCommerceAPI.Services.SUNAT
             }
                 };
 
-                var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
+                var direccion = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService");
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
 
                 ws.Endpoint.EndpointBehaviors.Add(new SoapLogger
@@ -855,7 +855,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 binding.Security.Transport.ClientCredentialType = HttpClientCredentialType.None;
                 binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
 
-                var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
+                var direccion = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService");
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
 
                 ws.Endpoint.EndpointBehaviors.Add(new SoapLogger
@@ -916,7 +916,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 binding.Security.Transport.ClientCredentialType = HttpClientCredentialType.None;
                 binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
 
-                var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");//producción SUNAT
+                var direccion = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService");//prueba SUNAT
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
 
                 ws.Endpoint.EndpointBehaviors.Add(new SoapLogger
@@ -1173,7 +1173,7 @@ namespace GSCommerceAPI.Services.SUNAT
             };
             binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
 
-            var endpoint = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
+            var endpoint = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService");
             var client = new billServiceClient(binding, endpoint);
 
             client.ClientCredentials.UserName.UserName = usuarioSOL;

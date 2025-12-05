@@ -13,14 +13,15 @@ using ServicioSunat;
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar la conexión con SQL Server usando SyscharlesContext
+// Configurar la conexiï¿½n con SQL Server usando SyscharlesContext
 builder.Services.AddDbContext<SyscharlesContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.Configure<ReporteAvanceHoraEmailOptions>(builder.Configuration.GetSection(ReporteAvanceHoraEmailOptions.SectionName));
 Console.WriteLine(
-    "Cadena de conexión: " + builder.Configuration.GetConnectionString("DefaultConnection"));
+    "Cadena de conexiï¿½n: " + builder.Configuration.GetConnectionString("DefaultConnection"));
 
 builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaService>();
+builder.Services.AddScoped<IGuiaRemisionElectronicaService, GuiaRemisionElectronicaService>();
 builder.Services.AddScoped<ReporteAvanceHoraProvider>();
 builder.Services.AddScoped<IReporteAvanceHoraEmailService, ReporteAvanceHoraEmailService>();
 builder.Services.AddHostedService<TicketValidationBackgroundService>();
@@ -41,11 +42,11 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.MaxRequestBodySize = 5 * 1024 * 1024; // 5 MB
 });
 
-// Configurar la autenticación con JWT
+// Configurar la autenticaciï¿½n con JWT
 var jwtKey = builder.Configuration["JwtSettings:SecretKey"];
 if (string.IsNullOrEmpty(jwtKey))
 {
-    throw new ArgumentNullException("JwtSettings:SecretKey", "La clave JWT no puede ser nula o vacía.");
+    throw new ArgumentNullException("JwtSettings:SecretKey", "La clave JWT no puede ser nula o vacï¿½a.");
 }
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -83,13 +84,13 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.Use(async (context, next) =>
 {
-    context.Request.EnableBuffering(); // Permite leer el cuerpo de la solicitud más de una vez
+    context.Request.EnableBuffering(); // Permite leer el cuerpo de la solicitud mï¿½s de una vez
     await next();
 });
 app.MapControllers();
 if (app.Environment.IsDevelopment())
 {
-    app.Run(); // usará https://localhost:7246; http://localhost:5051 de launchSettings.json
+    app.Run(); // usarï¿½ https://localhost:7246; http://localhost:5051 de launchSettings.json
 }
 else
 {

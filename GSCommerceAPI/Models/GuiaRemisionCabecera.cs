@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace GSCommerceAPI.Models;
@@ -44,6 +44,8 @@ public partial class GuiaRemisionCabecera
     public int? IdAlmacenDestino { get; set; }
 
     public virtual ICollection<GuiaRemisionDetalle> GuiaRemisionDetalles { get; set; } = new List<GuiaRemisionDetalle>();
+
+    public virtual GuiaRemisionSunat? GuiaRemisionSunat { get; set; }
 
     public virtual MovimientosCabecera IdMovimientoNavigation { get; set; } = null!;
 }

@@ -426,15 +426,15 @@ namespace GSCommerceAPI.ServicioFacturacion2018
         {
             if ((endpointConfiguration == EndpointConfiguration.BillServicePort))
             {
-                return new System.ServiceModel.EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
+                return new System.ServiceModel.EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService");
             }
             if ((endpointConfiguration == EndpointConfiguration.BillServicePort_0))
             {
-                return new System.ServiceModel.EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
+                return new System.ServiceModel.EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService");
             }
             if ((endpointConfiguration == EndpointConfiguration.BillServicePort_3))
             {
-                return new System.ServiceModel.EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
+                return new System.ServiceModel.EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService");
             }
             throw new System.InvalidOperationException(string.Format("No se pudo encontrar un punto de conexión con el nombre \"{0}\".", endpointConfiguration));
         }

@@ -1,4 +1,4 @@
-﻿@using Blazored.LocalStorage
+@using Blazored.LocalStorage
 @using GSCommerce.Client.Services
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Components
@@ -32,11 +32,12 @@
                     <NavLink class="topbar-item text-primary text-decoration-none" href="/diario-resumido">
                         <i class="bi bi-file-earmark-check me-1"></i>Resumen Cajeros
                     </NavLink>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="/comprobantes-sunat">
-                            <span class="bi bi-file-earmark-text" aria-hidden="true"></span> Comprobantes SUNAT
-                        </NavLink>
-                    </div>
+                    <NavLink class="topbar-item text-primary text-decoration-none" href="/comprobantes-sunat">
+                        <i class="bi bi-file-earmark-text me-1"></i>Comprobantes SUNAT
+                    </NavLink>
+                    <NavLink class="topbar-item text-primary text-decoration-none" href="/guias-remision-electronica">
+                        <i class="bi bi-truck me-1"></i>Guías de Remisión Electrónica
+                    </NavLink>
                 }
                 @if (cargo == "CAJERO")
                 {
@@ -45,6 +46,12 @@
                     </NavLink>
                     <NavLink class="nav-link" href="/ingresos-egresos">
                         <i class="bi bi-cash-stack"></i> Ingresos/Egresos
+                    </NavLink>
+                }
+                @if (cargo == "ALMACEN")
+                {
+                    <NavLink class="topbar-item text-primary text-decoration-none" href="/guias-remision-electronica">
+                        <i class="bi bi-truck me-1"></i>Guías de Remisión Electrónica
                     </NavLink>
                 }
                 <div class="ms-auto">

@@ -16,6 +16,7 @@ builder.Services.AddScoped<AlmacenService>();
 builder.Services.AddScoped<ProveedorService>();
 builder.Services.AddScoped<ArticuloService>();
 builder.Services.AddScoped<ComprobantesSunatService>();
+builder.Services.AddScoped<GuiaRemisionElectronicaService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<CustomAuthStateProvider>();

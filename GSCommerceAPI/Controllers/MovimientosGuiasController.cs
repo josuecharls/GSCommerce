@@ -401,11 +401,11 @@ namespace GSCommerceAPI.Controllers
                     // Crear notificaciones para usuarios del almacén destino
                     var usuariosDestino = await _context.Usuarios
                         .Include(u => u.IdPersonalNavigation)
-                        .Where(u => 
+                        .Where(u =>
                             u.Estado == true &&
                             u.IdPersonalNavigation != null &&
                             u.IdPersonalNavigation.IdAlmacen == dto.IdAlmacenDestinoOrigen.Value &&
-                            (u.IdPersonalNavigation.Cargo == "ALMACEN" || 
+                            (u.IdPersonalNavigation.Cargo == "ALMACEN" ||
                              u.IdPersonalNavigation.Cargo == "ADMINISTRADOR" ||
                              u.IdPersonalNavigation.Cargo == "CAJERO"))
                         .ToListAsync();
@@ -525,7 +525,7 @@ namespace GSCommerceAPI.Controllers
                 return BadRequest(new { mensaje = "La guía ya está anulada" });
 
             // Permitir anular guías emitidas (E) o confirmadas (C)
-            if (!string.Equals(estadoOriginal, "E", StringComparison.OrdinalIgnoreCase) && 
+            if (!string.Equals(estadoOriginal, "E", StringComparison.OrdinalIgnoreCase) &&
                 !string.Equals(estadoOriginal, "C", StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { mensaje = "Solo se pueden anular guías emitidas o confirmadas" });
 
@@ -537,12 +537,11 @@ namespace GSCommerceAPI.Controllers
             var fecha = DateTime.Now;
 
             // Revertir stock si:
-            // - No es transferencia (siempre revertir)
-            // - Es transferencia y el estado anterior era "E" (emitido) - revertir
-            // - Es transferencia y el estado anterior era "C" (confirmado) - revertir (nuevo)
+            // - No es transferencia (siempre revertir porque el stock se mueve al crear)
+            // - Es transferencia y el estado anterior era "C" (confirmado) - revertir porque el stock ya se movió
+            // NOTA: Para transferencias en estado "E" (emitido), NO se revierte stock porque nunca se movió
             bool DebeRevertirStock(bool esTransferenciaMovimiento, string estadoAnterior)
-                => !esTransferenciaMovimiento || 
-                   string.Equals(estadoAnterior, "E", StringComparison.OrdinalIgnoreCase) ||
+                => !esTransferenciaMovimiento ||
                    string.Equals(estadoAnterior, "C", StringComparison.OrdinalIgnoreCase);
 
             async Task AjustarStockYkardex(MovimientosCabecera mov)

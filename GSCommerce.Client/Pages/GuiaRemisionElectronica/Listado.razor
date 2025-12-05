@@ -1,0 +1,197 @@
+@page "/guias-remision-electronica"
+@using GSCommerce.Client.Models.SUNAT
+@using GSCommerce.Client.Services
+@inject GuiaRemisionElectronicaService GuiaService
+@inject AlmacenService AlmacenService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Guías de Remisión Electrónica</PageTitle>
+
+<h3><i class="bi bi-file-earmark-text"></i> Guías de Remisión Electrónica</h3>
+
+<div class="card p-4">
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label>Almacén</label>
+            <select class="form-control" @bind="idAlmacenFiltro" @bind:event="onchange">
+                <option value="">Todos</option>
+                @foreach (var alm in almacenes)
+                {
+                    <option value="@alm.IdAlmacen">@alm.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label>Buscar</label>
+            <input type="text" class="form-control" @bind="searchText" @bind:event="oninput" placeholder="Serie, RUC, Razón Social..." />
+        </div>
+        <div class="col-md-2">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary w-100" @onclick="Buscar">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+        <div class="col-md-3 text-end">
+            <label>&nbsp;</label>
+            <button class="btn btn-success w-100" @onclick="NuevaGuia">
+                <i class="bi bi-plus-circle"></i> Nueva Guía
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <p>Cargando...</p>
+    }
+    else if (response?.Data != null && response.Data.Any())
+    {
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Serie-Número</th>
+                    <th>Fecha</th>
+                    <th>Remitente</th>
+                    <th>Destinatario</th>
+                    <th>RUC/DNI</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var guia in response.Data)
+                {
+                    <tr>
+                        <td>@(guia.Serie ?? "")-@(guia.Numero?.ToString("D8") ?? "")</td>
+                        <td>@(guia.Fecha?.ToString("dd/MM/yyyy") ?? "")</td>
+                        <td>@(guia.Almacen ?? "")</td>
+                        <td>@(guia.RazonSocialNombre ?? "")</td>
+                        <td>@(guia.Rucdnice ?? "")</td>
+                        <td>
+                            @if (guia.Estado == "A")
+                            {
+                                <span class="badge bg-danger">Anulado</span>
+                            }
+                            else if (guia.EnviadoSunat)
+                            {
+                                @if (guia.EstadoSunat == "Aceptado")
+                                {
+                                    <span class="badge bg-success">Aceptado</span>
+                                }
+                                else if (guia.EstadoSunat == "Rechazado")
+                                {
+                                    <span class="badge bg-danger">Rechazado</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning">@(guia.EstadoSunat ?? "Enviado")</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">No enviado</span>
+                            }
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-info" @onclick="() => VerDetalle(guia.IdGuiaRemision)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-success" @onclick="() => EnviarGuia(guia.IdGuiaRemision)">
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <div>
+                <p>Total: @response.TotalItems registros</p>
+            </div>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" @onclick="AnteriorPagina" disabled="@(paginaActual <= 1)">
+                    <i class="bi bi-chevron-left"></i> Anterior
+                </button>
+                <span class="mx-2">Página @paginaActual de @response.TotalPages</span>
+                <button class="btn btn-sm btn-outline-primary" @onclick="SiguientePagina" disabled="@(paginaActual >= response.TotalPages)">
+                    Siguiente <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No se encontraron guías de remisión electrónica.
+        </div>
+    }
+</div>
+
+@code {
+    private GuiaRemisionElectronicaService.GuiaRemisionResponse? response;
+    private List<GSCommerce.Client.Models.AlmacenDTO> almacenes = new();
+    private int? idAlmacenFiltro;
+    private string searchText = "";
+    private int paginaActual = 1;
+    private int pageSize = 10;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        await CargarGuias();
+    }
+
+    private async Task CargarGuias()
+    {
+        isLoading = true;
+        response = await GuiaService.ListarGuias(paginaActual, pageSize, searchText, idAlmacenFiltro);
+        isLoading = false;
+    }
+
+    private async Task Buscar()
+    {
+        paginaActual = 1;
+        await CargarGuias();
+    }
+
+    private async Task SiguientePagina()
+    {
+        if (response != null && paginaActual < response.TotalPages)
+        {
+            paginaActual++;
+            await CargarGuias();
+        }
+    }
+
+    private async Task AnteriorPagina()
+    {
+        if (paginaActual > 1)
+        {
+            paginaActual--;
+            await CargarGuias();
+        }
+    }
+
+    private void NuevaGuia()
+    {
+        Navigation.NavigateTo("/guias-remision-electronica/formulario");
+    }
+
+    private void VerDetalle(int idGuiaRemision)
+    {
+        Navigation.NavigateTo($"/guias-remision-electronica/detalle/{idGuiaRemision}");
+    }
+
+    private async Task EnviarGuia(int idGuiaRemision)
+    {
+        var guia = await GuiaService.ObtenerGuia(idGuiaRemision);
+        if (guia != null)
+        {
+            var (exito, mensaje) = await GuiaService.EnviarGuia(guia);
+            await JS.InvokeVoidAsync("alert", mensaje);
+            await CargarGuias();
+        }
+    }
+}

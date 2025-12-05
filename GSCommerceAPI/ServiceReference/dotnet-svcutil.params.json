@@ -3,7 +3,7 @@
   "version": "8.0.0",
   "options": {
     "inputs": [
-      "https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService?wsdl"
+      "https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService?wsdl"
     ],
     "namespaceMappings": [
       "*, GSCommerceAPI.ServicioFacturacion2018"

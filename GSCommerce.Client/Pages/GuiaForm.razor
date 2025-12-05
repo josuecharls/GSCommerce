@@ -107,11 +107,13 @@ else
             {
                 <tr>
                     <td>@d.Item</td>
-                    <td><input class="form-control"
-               @bind="d.IdArticulo"
-               @bind:after="() => NormalizarCodigoArticulo(d)"
-               @onblur="() => BuscarArticulo(d)"
-               data-item="@d.Item" /></td>
+                    <td>
+                        <input class="form-control"
+                               @bind="d.IdArticulo"
+                               @bind:after="() => NormalizarCodigoArticulo(d)"
+                               @onblur="() => BuscarArticulo(d)"
+                               data-item="@d.Item" />
+                    </td>
                     <td><input class="form-control" value="@d.DescripcionArticulo" readonly /></td>
                     <td><input class="form-control text-end" type="number" @bind="d.Cantidad" @bind:after="() => OnCantidadChange(d)" @onkeydown="@((e) => OnCantidadKeyDown(e, d))" /></td>
                     <td><input class="form-control text-end" type="number" step="0.01" @bind="d.Valor" /></td>
@@ -206,13 +208,13 @@ else
                 guia.IdProveedor = orden.IdProveedor;
                 guia.Descripcion = $"Ingreso de artículos según OC {orden.NumeroOc}";
                 guia.Detalles = orden.Detalles.Select(d => new MovimientoDetalleDTO
-                    {
-                        Item = d.Item,
-                        IdArticulo = d.IdArticulo,
-                        DescripcionArticulo = d.DescripcionArticulo,
-                        Cantidad = d.Cantidad,
-                        Valor = d.CostoUnitario
-                    }).ToList();
+                {
+                    Item = d.Item,
+                    IdArticulo = d.IdArticulo,
+                    DescripcionArticulo = d.DescripcionArticulo,
+                    Cantidad = d.Cantidad,
+                    Valor = d.CostoUnitario
+                }).ToList();
             }
             else
             {
@@ -295,22 +297,31 @@ else
 
             // Validar stock en el almacén para TODOS los tipos de movimiento
             var idAlmacen = guia.IdAlmacen;
-            int stockDisponible;
-            
+            int stockDisponibleTotal;
+
             // Para transferencias, usar el método que considera transferencias pendientes
             if (tipo == "Transferencia")
             {
-                stockDisponible = await StockService.GetStockDisponibleParaTransferencia(codigoNormalizado, idAlmacen);
+                stockDisponibleTotal = await StockService.GetStockDisponibleParaTransferencia(codigoNormalizado, idAlmacen);
             }
             else
             {
-                stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, idAlmacen);
+                stockDisponibleTotal = await StockService.GetStockDisponible(codigoNormalizado, idAlmacen);
             }
 
-            // Guardar el stock disponible para validar cantidad después
-            stockPorArticulo[codigoNormalizado] = stockDisponible;
+            // Guardar el stock disponible total para validar cantidad después
+            stockPorArticulo[codigoNormalizado] = stockDisponibleTotal;
 
-            if (stockDisponible <= 0)
+            // Calcular la cantidad del mismo artículo en otras filas (excluyendo la fila actual)
+            var cantidadEnOtrasFilas = guia.Detalles
+                .Where(det => det != d &&
+                             !string.IsNullOrWhiteSpace(det.IdArticulo) &&
+                             det.IdArticulo.Trim() == codigoNormalizado)
+                .Sum(det => det.Cantidad);
+
+            var stockDisponibleRestante = stockDisponibleTotal - cantidadEnOtrasFilas;
+
+            if (stockDisponibleTotal <= 0)
             {
                 // Para transferencias y egresos: bloquear si no hay stock
                 if (tipo == "Transferencia" || tipo == "Egreso")
@@ -328,6 +339,24 @@ else
                 {
                     await MostrarAlerta($"⚠️ Advertencia: El artículo '{codigoNormalizado}' no tiene stock en el almacén seleccionado. Puede continuar si está ingresando nuevo stock.");
                 }
+            }
+            else if (stockDisponibleRestante <= 0 && cantidadEnOtrasFilas > 0)
+            {
+                // Si ya se usó todo el stock disponible en otras filas
+                if (tipo == "Transferencia" || tipo == "Egreso")
+                {
+                    await MostrarAlerta($"⚠️ El artículo '{codigoNormalizado}' ya tiene todo su stock disponible ({stockDisponibleTotal}) asignado en otras filas de esta transferencia. Stock disponible restante: {stockDisponibleRestante}.");
+                    // Limpiar el código y descripción para no permitir continuar
+                    d.IdArticulo = string.Empty;
+                    d.DescripcionArticulo = string.Empty;
+                    StateHasChanged();
+                    return;
+                }
+            }
+            else if (cantidadEnOtrasFilas > 0)
+            {
+                // Advertencia informativa si hay stock restante pero ya se usó algo en otras filas
+                await MostrarAlerta($"ℹ️ El artículo '{codigoNormalizado}' ya tiene {cantidadEnOtrasFilas} unidades en otras filas. Stock disponible restante: {stockDisponibleRestante} de {stockDisponibleTotal}.");
             }
         }
         else
@@ -377,13 +406,24 @@ else
         {
             guia.Motivo = "TRANSFERENCIA EGRESO";
 
-            // Validar stock disponible en el almacén de origen
-            foreach (var d in guia.Detalles)
-            {
-                var stockDisponible = await StockService.GetStockDisponibleParaTransferencia(d.IdArticulo, guia.IdAlmacen);
-                if (stockDisponible < d.Cantidad)
+            // Agrupar por artículo y validar stock disponible total
+            var articulosAgrupados = guia.Detalles
+                .Where(d => !string.IsNullOrWhiteSpace(d.IdArticulo))
+                .GroupBy(d => d.IdArticulo.Trim())
+                .Select(g => new
                 {
-                    await MostrarAlerta($"❌ Stock insuficiente para el artículo '{d.IdArticulo}'. Disponible: {stockDisponible}, requerido: {d.Cantidad}.");
+                    IdArticulo = g.Key,
+                    CantidadTotal = g.Sum(d => d.Cantidad)
+                })
+                .ToList();
+
+            // Validar stock disponible en el almacén de origen para cada artículo
+            foreach (var articulo in articulosAgrupados)
+            {
+                var stockDisponible = await StockService.GetStockDisponibleParaTransferencia(articulo.IdArticulo, guia.IdAlmacen);
+                if (stockDisponible < articulo.CantidadTotal)
+                {
+                    await MostrarAlerta($"❌ Stock insuficiente para el artículo '{articulo.IdArticulo}'. Disponible: {stockDisponible}, cantidad total requerida en todas las filas: {articulo.CantidadTotal}.");
                     return;
                 }
             }
@@ -433,11 +473,11 @@ else
     {
         int nuevoItem = guia.Detalles.Count + 1;
         guia.Detalles.Add(new MovimientoDetalleDTO
-            {
-                Item = nuevoItem,
-                Cantidad = 1,
-                Valor = 0
-            });
+        {
+            Item = nuevoItem,
+            Cantidad = 1,
+            Valor = 0
+        });
 
         CalcularTotalArticulos();
     }
@@ -480,17 +520,25 @@ else
         if ((tipo == "Transferencia" || tipo == "Egreso") && !string.IsNullOrWhiteSpace(d.IdArticulo))
         {
             var codigoNormalizado = d.IdArticulo.Trim();
-            
+
+            // Calcular la cantidad total del mismo artículo en otras filas (excluyendo la fila actual)
+            var cantidadEnOtrasFilas = guia.Detalles
+                .Where(det => det != d &&
+                             !string.IsNullOrWhiteSpace(det.IdArticulo) &&
+                             det.IdArticulo.Trim() == codigoNormalizado)
+                .Sum(det => det.Cantidad);
+
             // Si tenemos el stock almacenado, validar
             if (stockPorArticulo.ContainsKey(codigoNormalizado))
             {
-                var stockDisponible = stockPorArticulo[codigoNormalizado];
-                
-                if (d.Cantidad > stockDisponible)
+                var stockDisponibleTotal = stockPorArticulo[codigoNormalizado];
+                var stockDisponibleRestante = stockDisponibleTotal - cantidadEnOtrasFilas;
+
+                if (d.Cantidad > stockDisponibleRestante)
                 {
-                    await MostrarAlerta($"❌ No hay stock suficiente ({stockDisponible} en total) para el artículo '{codigoNormalizado}'. Cantidad solicitada: {d.Cantidad}.");
-                    // Restaurar cantidad al stock disponible
-                    d.Cantidad = stockDisponible;
+                    await MostrarAlerta($"❌ No hay stock suficiente para el artículo '{codigoNormalizado}'. Stock disponible: {stockDisponibleTotal}, ya usado en otras filas: {cantidadEnOtrasFilas}, disponible restante: {stockDisponibleRestante}. Cantidad solicitada: {d.Cantidad}.");
+                    // Restaurar cantidad al stock disponible restante
+                    d.Cantidad = Math.Max(0, stockDisponibleRestante);
                     CalcularTotalArticulos();
                     StateHasChanged();
                 }
@@ -500,23 +548,25 @@ else
                 // Si no tenemos el stock almacenado, consultarlo
                 if (guia.IdAlmacen > 0)
                 {
-                    int stockDisponible;
+                    int stockDisponibleTotal;
                     // Para transferencias, usar el método que considera transferencias pendientes
                     if (tipo == "Transferencia")
                     {
-                        stockDisponible = await StockService.GetStockDisponibleParaTransferencia(codigoNormalizado, guia.IdAlmacen);
+                        stockDisponibleTotal = await StockService.GetStockDisponibleParaTransferencia(codigoNormalizado, guia.IdAlmacen);
                     }
                     else
                     {
-                        stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, guia.IdAlmacen);
+                        stockDisponibleTotal = await StockService.GetStockDisponible(codigoNormalizado, guia.IdAlmacen);
                     }
-                    stockPorArticulo[codigoNormalizado] = stockDisponible;
-                    
-                    if (d.Cantidad > stockDisponible)
+                    stockPorArticulo[codigoNormalizado] = stockDisponibleTotal;
+
+                    var stockDisponibleRestante = stockDisponibleTotal - cantidadEnOtrasFilas;
+
+                    if (d.Cantidad > stockDisponibleRestante)
                     {
-                        await MostrarAlerta($"❌ No hay stock suficiente ({stockDisponible} en total) para el artículo '{codigoNormalizado}'. Cantidad solicitada: {d.Cantidad}.");
-                        // Restaurar cantidad al stock disponible
-                        d.Cantidad = stockDisponible;
+                        await MostrarAlerta($"❌ No hay stock suficiente para el artículo '{codigoNormalizado}'. Stock disponible: {stockDisponibleTotal}, ya usado en otras filas: {cantidadEnOtrasFilas}, disponible restante: {stockDisponibleRestante}. Cantidad solicitada: {d.Cantidad}.");
+                        // Restaurar cantidad al stock disponible restante
+                        d.Cantidad = Math.Max(0, stockDisponibleRestante);
                         CalcularTotalArticulos();
                         StateHasChanged();
                     }
@@ -536,7 +586,7 @@ else
             var nuevoItem = guia.Detalles.Count + 1;
             AgregarArticulo();
             StateHasChanged();
-            
+
             // Esperar un poco para que el DOM se actualice y luego enfocar el nuevo campo código
             await Task.Delay(100);
             await EnfocarInputCodigo(nuevoItem);

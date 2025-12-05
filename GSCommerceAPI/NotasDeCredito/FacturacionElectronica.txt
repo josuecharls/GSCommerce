@@ -472,7 +472,7 @@ namespace FE
                 binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
                 binding.Security.Message.AlgorithmSuite = System.ServiceModel.Security.SecurityAlgorithmSuite.Default;
 
-                EndpointAddress remoteAddress = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
+                EndpointAddress remoteAddress = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService");
                 
                 #endregion
 
@@ -891,7 +891,7 @@ namespace FE
                 binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
                 binding.Security.Message.AlgorithmSuite = System.ServiceModel.Security.SecurityAlgorithmSuite.Default;
 
-                EndpointAddress remoteAddress = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
+                EndpointAddress remoteAddress = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService");
 
                 #endregion
 
@@ -980,17 +980,17 @@ namespace FE
                 binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
                 binding.Security.Message.AlgorithmSuite = System.ServiceModel.Security.SecurityAlgorithmSuite.Default;
 
-                //EndpointAddress remoteAddress = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
-                //EndpointAddress remoteAddress = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-it-wsconscpegem/billConsultService");
+                //EndpointAddress remoteAddress = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService");
+                //EndpointAddress remoteAddress = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-it-wsconscpegem/billConsultService");
                 EndpointAddress remoteAddress;
 
                 if (pTicket.StartsWith("3"))
                 {
-                    remoteAddress = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-it-wsconscpegem/billConsultService");
+                    remoteAddress = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-it-wsconscpegem/billConsultService");
                 }
                 else
                 {
-                    remoteAddress = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
+                    remoteAddress = new EndpointAddress("https://e-beta.sunat.gob.pe/ol-ti-itcpfegem/billService");
                 }
 
                 #endregion
