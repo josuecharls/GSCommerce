@@ -40,6 +40,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize]
         public async Task<IActionResult> ObtenerVentaPorId(int id)
         {
             var cabecera = await _context.ComprobanteDeVentaCabeceras
@@ -963,16 +964,12 @@ namespace GSCommerceAPI.Controllers
             int correlativoActual = serieCorr?.Correlativo ?? 0;
             int siguienteNumero = correlativoActual + 1;
 
-            // Verificar si el número ya está en uso (ventas del día actual)
-            var fechaHoy = DateTime.Today;
-            var fechaFin = fechaHoy.AddDays(1).AddTicks(-1);
-
+            // Verificar si el número ya está en uso (todos los comprobantes históricos, no solo del día actual)
+            // Usa la misma lógica que ObtenerNuevoNumeroSerieAsync para mantener consistencia
             bool numeroEnUso = await _context.ComprobanteDeVentaCabeceras
                 .AnyAsync(c => c.IdAlmacen == idAlmacen &&
                               c.Serie == serie &&
                               c.Numero == siguienteNumero &&
-                              c.Fecha >= fechaHoy &&
-                              c.Fecha <= fechaFin &&
                               c.Estado != "A"); // Excluir anuladas
 
             // Si está en uso, buscar el siguiente disponible
@@ -983,8 +980,6 @@ namespace GSCommerceAPI.Controllers
                     .AnyAsync(c => c.IdAlmacen == idAlmacen &&
                                   c.Serie == serie &&
                                   c.Numero == siguienteNumero &&
-                                  c.Fecha >= fechaHoy &&
-                                  c.Fecha <= fechaFin &&
                                   c.Estado != "A");
             }
 
@@ -992,6 +987,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("resumen")]
+        [Authorize]
         public async Task<IActionResult> ObtenerResumen([FromQuery] int idAlmacen, [FromQuery] int idUsuario)
         {
             var fechaHoy = DateOnly.FromDateTime(DateTime.Today);
@@ -1136,6 +1132,7 @@ namespace GSCommerceAPI.Controllers
 
 
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> RegistrarVenta([FromBody] VentaRegistroDTO ventaRegistro)
         {
             if (ventaRegistro?.Cabecera == null || ventaRegistro.TipoDocumento == null || ventaRegistro.TipoDocumento.IdTipoDocumentoVenta == 0)
@@ -1173,6 +1170,12 @@ namespace GSCommerceAPI.Controllers
                 idAlmacen,
                 ventaRegistro.TipoDocumento.IdTipoDocumentoVenta);
 
+            // Obtener el objeto SerieCorrelativo para incrementarlo después de guardar exitosamente
+            var serieCorrelativo = await _context.SerieCorrelativos
+                .FirstOrDefaultAsync(s => s.Serie == ventaRegistro.Cabecera.Serie &&
+                                          s.IdAlmacen == idAlmacen &&
+                                          s.IdTipoDocumentoVenta == ventaRegistro.TipoDocumento.IdTipoDocumentoVenta);
+
             try
             {
                 Cliente? cliente = null;
@@ -1205,6 +1208,19 @@ namespace GSCommerceAPI.Controllers
                     var hoy = DateOnly.FromDateTime(DateTime.Today);
                     var tc = await _context.TipoDeCambios.FirstOrDefaultAsync(t => t.Fecha == hoy);
                     tipoCambio = tc?.Venta ?? 1m;
+                }
+
+                // Validar que no exista un comprobante con la misma serie y número en este almacén
+                var comprobanteExistente = await _context.ComprobanteDeVentaCabeceras
+                    .AnyAsync(c => c.IdAlmacen == idAlmacen &&
+                                   c.Serie == ventaRegistro.Cabecera.Serie &&
+                                   c.Numero == nuevoNumero &&
+                                   c.Estado != "A"); // Excluir anulados
+
+                if (comprobanteExistente)
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest($"Ya existe un comprobante con la serie {ventaRegistro.Cabecera.Serie} y número {nuevoNumero} en este almacén.");
                 }
 
                 // Insertar cabecera
@@ -1320,6 +1336,22 @@ namespace GSCommerceAPI.Controllers
 
                 await _context.SaveChangesAsync(); // Guardar detalles, pagos y estado SUNAT
 
+                // Incrementar correlativo solo después de que todo se guardó exitosamente
+                if (serieCorrelativo != null)
+                {
+                    // Asegurar que el correlativo esté al menos en el número usado
+                    if (serieCorrelativo.Correlativo < nuevoNumero)
+                    {
+                        serieCorrelativo.Correlativo = nuevoNumero;
+                    }
+                    else
+                    {
+                        // Si ya está igual o mayor, incrementar para la próxima venta
+                        serieCorrelativo.Correlativo++;
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
                 // Confirmar la transacción: solo aquí se garantiza que todo se guardó en BD
                 // Si llegamos aquí sin excepciones, la venta está completamente registrada
                 await transaction.CommitAsync();
@@ -1367,6 +1399,7 @@ namespace GSCommerceAPI.Controllers
         }
         */
         [HttpPost("enviar-sunat")]
+        [Authorize]
         public async Task<IActionResult> EnviarASUNAT([FromBody] GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteCabeceraDTO cabecera)
         {
             try
@@ -1387,6 +1420,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpPost("enviar-resumen")]
+        [Authorize]
         public async Task<IActionResult> EnviarResumenDiario([FromBody] List<GSCommerceAPI.Models.SUNAT.DTOs.ComprobanteCabeceraDTO> comprobantes)
         {
             var resultado = await _facturacionService.EnviarResumenDiario(comprobantes);
@@ -1529,16 +1563,11 @@ namespace GSCommerceAPI.Controllers
 
             int siguienteNumero = correlativo + 1;
 
-            // Verificar si el número ya está en uso (ventas del día actual)
-            var fechaHoy = DateTime.Today;
-            var fechaFin = fechaHoy.AddDays(1).AddTicks(-1);
-
+            // Verificar si el número ya está en uso (todos los comprobantes históricos, no solo del día actual)
             bool numeroEnUso = await _context.ComprobanteDeVentaCabeceras
                 .AnyAsync(c => c.IdAlmacen == idAlmacen &&
-                              c.Serie == serie &
+                              c.Serie == serie &&
                               c.Numero == siguienteNumero &&
-                              c.Fecha >= fechaHoy &&
-                              c.Fecha <= fechaFin &&
                               c.Estado != "A"); // Excluir anuladas
 
             // Si está en uso, buscar el siguiente disponible
@@ -1549,8 +1578,6 @@ namespace GSCommerceAPI.Controllers
                     .AnyAsync(c => c.IdAlmacen == idAlmacen &&
                                   c.Serie == serie &&
                                   c.Numero == siguienteNumero &&
-                                  c.Fecha >= fechaHoy &&
-                                  c.Fecha <= fechaFin &&
                                   c.Estado != "A");
             }
 

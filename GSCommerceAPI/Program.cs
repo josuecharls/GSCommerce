@@ -3,11 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using System.IO;
 using GSCommerceAPI.Services;
 using GSCommerceAPI.Services.Reportes;
 using GSCommerceAPI.Services.SUNAT;
 using ServicioSunat;
+using AspNetCoreRateLimit;
 
 
 
@@ -26,50 +26,73 @@ if (File.Exists(rutaFuente))
 }
 else
 {
-    Console.WriteLine($"[PELIGRO] No se encontró el archivo de fuente en: {rutaFuente}");
+    Console.WriteLine($"[PELIGRO] No se encontrÃ³ el archivo de fuente en: {rutaFuente}");
 }
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar la conexión con SQL Server usando SyscharlesContext
+// Configurar la conexiï¿½n con SQL Server usando SyscharlesContext
 builder.Services.AddDbContext<SyscharlesContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.Configure<ReporteAvanceHoraEmailOptions>(builder.Configuration.GetSection(ReporteAvanceHoraEmailOptions.SectionName));
 Console.WriteLine(
-    "Cadena de conexión: " + builder.Configuration.GetConnectionString("DefaultConnection"));
+    "Cadena de conexiï¿½n: " + builder.Configuration.GetConnectionString("DefaultConnection"));
 
 builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaService>();
 builder.Services.AddScoped<ReporteAvanceHoraProvider>();
 builder.Services.AddScoped<IReporteAvanceHoraEmailService, ReporteAvanceHoraEmailService>();
+builder.Services.AddScoped<GSCommerceAPI.Services.PasswordHasherService>();
 builder.Services.AddHostedService<TicketValidationBackgroundService>();
 builder.Services.AddHostedService<ReporteAvanceHoraEmailBackgroundService>();
 
 // Habilitar CORS para permitir llamadas desde el frontend
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
+                     ?? (builder.Environment.IsDevelopment()
+                         ? new[] { "https://gscommerce.net/" }
+                         : Array.Empty<string>());
+
+if (allowedOrigins.Length == 0 && !builder.Environment.IsDevelopment())
+{
+    throw new InvalidOperationException("Debe configurar al menos un origen permitido en 'AllowedOrigins' para producciÃ³n.");
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazor",
-        policy => policy.WithOrigins("https://gscommerce.net/") // URL del frontend Blazor
-                        .AllowAnyMethod()
-                        .AllowAnyHeader()
+        policy => policy.WithOrigins(allowedOrigins)
+                        .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
+                        .WithHeaders("Content-Type", "Authorization", "X-Requested-With")
                         .AllowCredentials());
 });
 
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = 5 * 1024 * 1024; // 5 MB
+
+    // Configurar HTTPS en producciÃ³n
+    if (!builder.Environment.IsDevelopment())
+    {
+        // HTTP en puerto 5000 (para redirecciÃ³n)
+        options.ListenAnyIP(5000);
+        // HTTPS en puerto 5001 (requiere certificado configurado)
+        options.ListenAnyIP(5001, listenOptions =>
+        {
+            listenOptions.UseHttps();
+        });
+    }
 });
 
-// Configurar la autenticación con JWT
+// Configurar la autenticaciï¿½n con JWT
 var jwtKey = builder.Configuration["JwtSettings:SecretKey"];
 if (string.IsNullOrEmpty(jwtKey))
 {
-    throw new ArgumentNullException("JwtSettings:SecretKey", "La clave JWT no puede ser nula o vacía.");
+    throw new ArgumentNullException("JwtSettings:SecretKey", "La clave JWT no puede ser nula o vacÃ­a.");
 }
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false;
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.SaveToken = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -83,35 +106,91 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// Rate limiting para protecciÃ³n contra fuerza bruta
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
+builder.Services.AddInMemoryRateLimiting();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "GSCommerce API",
+        Version = "v1",
+        Description = "API para el sistema GSCommerce"
+    });
+
+    // Configurar JWT Bearer en Swagger
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header usando el esquema Bearer. Ejemplo: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-app.UseSwagger();
-app.UseSwaggerUI();
+// Swagger solo en desarrollo
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 // Habilitar CORS
 app.UseCors("AllowBlazor");
 
-app.UseHttpsRedirection();
+// Rate limiting (antes de autenticaciÃ³n para proteger endpoints pÃºblicos)
+app.UseIpRateLimiting();
+
+// RedirecciÃ³n HTTPS solo en producciÃ³n
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
+// Middleware de manejo global de excepciones
+app.UseMiddleware<GSCommerceAPI.Middleware.GlobalExceptionHandlerMiddleware>();
+
 app.Use(async (context, next) =>
 {
-    context.Request.EnableBuffering(); // Permite leer el cuerpo de la solicitud más de una vez
+    context.Request.EnableBuffering(); // Permite leer el cuerpo de la solicitud mï¿½s de una vez
     await next();
 });
 app.MapControllers();
-try
+if (app.Environment.IsDevelopment())
 {
-    app.Run("http://0.0.0.0:5000");
+    app.Run(); // En desarrollo, Kestrel ya estÃ¡ configurado para escuchar en el puerto correcto
 }
-catch (Exception ex)
+else
 {
-    Console.WriteLine($"ERROR CRÍTICO EN LA API: {ex.Message}");
-    Console.WriteLine(ex.StackTrace);
-    throw;
+    // En producciÃ³n, Kestrel ya estÃ¡ configurado para escuchar en los puertos correctos
+    app.Run();
 }

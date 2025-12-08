@@ -140,6 +140,8 @@ public partial class SyscharlesContext : DbContext
 
     public virtual DbSet<Usuario> Usuarios { get; set; }
 
+    public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
+
     public virtual DbSet<Notificacion> Notificaciones { get; set; }
 
     public virtual DbSet<VAlmacen1> VAlmacen1s { get; set; }
@@ -1911,6 +1913,41 @@ public partial class SyscharlesContext : DbContext
                 .HasForeignKey(d => d.IdMovimiento)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Notificacion_Movimiento");
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.ToTable("RefreshTokens", "dbo");
+
+            entity.Property(e => e.Token)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(e => e.ExpiresAt)
+                .IsRequired()
+                .HasColumnType("datetime2");
+
+            entity.Property(e => e.CreatedAt)
+                .IsRequired()
+                .HasColumnType("datetime2")
+                .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("IX_RefreshTokens_UserId");
+
+            entity.HasIndex(e => e.Token)
+                .HasDatabaseName("IX_RefreshTokens_Token");
+
+            entity.HasIndex(e => e.ExpiresAt)
+                .HasDatabaseName("IX_RefreshTokens_ExpiresAt");
+
+            entity.HasOne<Usuario>()
+                .WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_RefreshTokens_Usuarios");
         });
 
         modelBuilder.Entity<VAlmacen1>(entity =>
