@@ -19,7 +19,7 @@ namespace GSCommerce.Client.Services
             string? estado = null,
             int? tipoDoc = null)
         {
-            var url = "api/comprobantes";
+            var url = "comprobantes";
             var q = new List<string>();
             if (desde.HasValue) q.Add($"desde={desde:yyyy-MM-dd}");
             if (hasta.HasValue) q.Add($"hasta={hasta:yyyy-MM-dd}");

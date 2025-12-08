@@ -21,20 +21,20 @@ namespace GSCommerce.Client.Services
         // Obtener todos los articulos
         public async Task<List<ArticuloDTO>> ObtenerTodos()
         {
-            var response = await _httpClient.GetFromJsonAsync<List<ArticuloDTO>>("api/articulos/todos");
+            var response = await _httpClient.GetFromJsonAsync<List<ArticuloDTO>>("articulos/todos");
             return response ?? new List<ArticuloDTO>();
         }
 
         public async Task<List<FamiliaLineaDTO>> ObtenerFamilias()
         {
-            var response = await _httpClient.GetFromJsonAsync<List<FamiliaLineaDTO>>("api/articulos/familias");
+            var response = await _httpClient.GetFromJsonAsync<List<FamiliaLineaDTO>>("articulos/familias");
             return response ?? new List<FamiliaLineaDTO>();
         }
         public async Task<ArticuloDTO?> BuscarPorCodigoAsync(string codigo)
         {
             try
             {
-                var articulo = await _httpClient.GetFromJsonAsync<ArticuloDTO>($"api/articulos/{codigo}");
+                var articulo = await _httpClient.GetFromJsonAsync<ArticuloDTO>($"articulos/{codigo}");
                 return articulo;
             }
             catch
@@ -46,7 +46,7 @@ namespace GSCommerce.Client.Services
          {
              try
              {
-                 var response = await _httpClient.GetAsync("api/articulos");
+                 var response = await _httpClient.GetAsync("articulos");
                  var jsonResponse = await response.Content.ReadAsStringAsync();
                  Console.WriteLine($" JSON recibido en GetArticulos(): {jsonResponse}");
 
@@ -78,7 +78,7 @@ namespace GSCommerce.Client.Services
         public async Task<ArticuloResponse> GetArticulos(int page, int pageSize, string search = "")
         {
             var response = await _httpClient.GetFromJsonAsync<ArticuloResponse>(
-                $"api/articulos?page={page}&pageSize={pageSize}&search={search}");
+                $"articulos?page={page}&pageSize={pageSize}&search={search}");
             return response ?? new ArticuloResponse
             {
                 TotalItems = 0,
@@ -89,7 +89,7 @@ namespace GSCommerce.Client.Services
 
         public async Task<bool> UploadFoto(ArticuloDTO articulo)
         {
-            var response = await _httpClient.PostAsJsonAsync($"api/articulos/UploadFoto", articulo);
+            var response = await _httpClient.PostAsJsonAsync($"articulos/UploadFoto", articulo);
             return response.IsSuccessStatusCode;
         }
 
@@ -100,7 +100,7 @@ namespace GSCommerce.Client.Services
             {
                 // Asegurar formato de 6 caracteres
                 var idFormateado = id?.PadLeft(6, '0') ?? id;
-                var response = await _httpClient.GetAsync($"api/articulos/{idFormateado}");
+                var response = await _httpClient.GetAsync($"articulos/{idFormateado}");
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadFromJsonAsync<ArticuloDTO>();
@@ -119,7 +119,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetStringAsync("api/articulos/nuevo-id");
+                return await _httpClient.GetStringAsync("articulos/nuevo-id");
             }
             catch (HttpRequestException)
             {
@@ -130,7 +130,7 @@ namespace GSCommerce.Client.Services
         // Crear un nuevo artículo
         public async Task<bool> CreateArticulo(ArticuloDTO articulo)
         {
-            var response = await _httpClient.PostAsJsonAsync("api/articulos/Upload", articulo);
+            var response = await _httpClient.PostAsJsonAsync("articulos/Upload", articulo);
             return response.IsSuccessStatusCode;
         }
 
@@ -139,7 +139,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PutAsJsonAsync($"api/articulos/{id}", articulo);
+                var response = await _httpClient.PutAsJsonAsync($"articulos/{id}", articulo);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -155,7 +155,7 @@ namespace GSCommerce.Client.Services
             try
             {
                 var formattedId = id.PadLeft(6, '0');
-                var response = await _httpClient.DeleteAsync($"api/articulos/{formattedId}");
+                var response = await _httpClient.DeleteAsync($"articulos/{formattedId}");
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)

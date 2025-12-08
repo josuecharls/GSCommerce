@@ -419,15 +419,7 @@ else
 
     private async Task EnfocarInputCodigo(int item)
     {
-        await JS.InvokeVoidAsync("eval", $@"
-            setTimeout(function() {{
-                var input = document.querySelector('input[data-item=""{item}""]');
-                if (input) {{
-                    input.focus();
-                    input.select();
-                }}
-            }}, 50);
-        ");
+        await JS.InvokeVoidAsync("focusInputByItem", item);
     }
 
     private async Task Guardar()

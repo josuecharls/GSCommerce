@@ -1,4 +1,4 @@
-﻿@page "/ventass/crear/{modo}"
+@page "/ventass/crear/{modo}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject ReniecService ReniecService
@@ -1056,15 +1056,8 @@ else
             return;
         }
 
-        // Incrementar correlativo solo si la venta fue exitosa y tiene IdComprobante válido
-        if (idAlmacenActual.HasValue)
-        {
-            await SerieCorrelativoService.IncrementarCorrelativo(
-                venta.Serie,
-                idAlmacenActual.Value,
-                tipoDoc.IdTipoDocumentoVenta
-            );
-        }
+        // El correlativo ya se incrementa automáticamente en el backend después de guardar exitosamente
+        // No es necesario incrementarlo desde el frontend
 
         // Imprimir boleta solo después de confirmar que la venta se guardó correctamente
         // Esto garantiza que no se impriman boletas de ventas que no existen en la BD
@@ -1277,7 +1270,7 @@ else
                 Pagos = pagosRealizados
             };
 
-            var response = await Http.PostAsJsonAsync("api/ventas", ventaRegistro);
+            var response = await Http.PostAsJsonAsync("ventas", ventaRegistro);
 
             if (response.IsSuccessStatusCode)
             {

@@ -14,7 +14,7 @@ namespace GSCommerce.Client.Services
 
         public async Task<NotaCreditoResponseDTO> EmitirNotaCreditoAsync(string tipo, NotaCreditoRegistroDTO dto)
         {
-            var response = await _http.PostAsJsonAsync($"api/notascredito/emitir/{tipo.ToLower()}", dto);
+            var response = await _http.PostAsJsonAsync($"notascredito/emitir/{tipo.ToLower()}", dto);
             if (response.IsSuccessStatusCode)
             {
                 return await response.Content.ReadFromJsonAsync<NotaCreditoResponseDTO>() ?? new NotaCreditoResponseDTO();
@@ -29,7 +29,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var url = $"/api/api/notascredito/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+                var url = $"/api/notascredito/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
 
                 if (!string.IsNullOrWhiteSpace(dniruc))
                     url += $"&dniruc={dniruc}";
@@ -50,7 +50,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var url = $"api/notascredito/buscar?serie={serie}&numero={numero}";
+                var url = $"notascredito/buscar?serie={serie}&numero={numero}";
                 if (idAlmacen > 0)
                 {
                     url += $"&idAlmacen={idAlmacen}";

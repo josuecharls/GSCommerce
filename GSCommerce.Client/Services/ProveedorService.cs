@@ -20,7 +20,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.GetAsync("api/proveedor");
+                var response = await _httpClient.GetAsync("proveedor");
                 var jsonResponse = await response.Content.ReadAsStringAsync(); // Imprime el JSON
                 Console.WriteLine($" JSON recibido en GetProveedores(): {jsonResponse}");
                 if (!response.IsSuccessStatusCode)
@@ -43,7 +43,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.GetAsync($"api/proveedor/list?page={page}&pageSize={pageSize}&search={search}");
+                var response = await _httpClient.GetAsync($"proveedor/list?page={page}&pageSize={pageSize}&search={search}");
                 var jsonResponse = await response.Content.ReadAsStringAsync(); //  Imprime la respuesta
                 Console.WriteLine($" JSON recibido en GetProveedorList(): {jsonResponse}");
                 if (!response.IsSuccessStatusCode)
@@ -81,7 +81,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<ProveedorDTO>($"api/proveedor/{id}");
+                return await _httpClient.GetFromJsonAsync<ProveedorDTO>($"proveedor/{id}");
             }
             catch (HttpRequestException)
             {
@@ -92,7 +92,7 @@ namespace GSCommerce.Client.Services
         // Crear un nuevo proveedor
         public async Task<bool> CreateProveedor(ProveedorDTO proveedor)
         {
-            var response = await _httpClient.PostAsJsonAsync("api/proveedor", proveedor);
+            var response = await _httpClient.PostAsJsonAsync("proveedor", proveedor);
             return response.IsSuccessStatusCode;
         }
 
@@ -101,7 +101,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PutAsJsonAsync($"api/proveedor/{id}", proveedor);
+                var response = await _httpClient.PutAsJsonAsync($"proveedor/{id}", proveedor);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -116,7 +116,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.DeleteAsync($"api/proveedor/{id}");
+                var response = await _httpClient.DeleteAsync($"proveedor/{id}");
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)

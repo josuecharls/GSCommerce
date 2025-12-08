@@ -323,7 +323,7 @@
     }
 
     private string GetFotoUrl(string codigo)
-        => $"{Http.BaseAddress}api/articulos/foto/{codigo}?t={DateTime.Now.Ticks}";
+        => $"{Http.BaseAddress}articulos/foto/{codigo}?t={DateTime.Now.Ticks}";
 
     private void VerFoto(string codigo)
     {

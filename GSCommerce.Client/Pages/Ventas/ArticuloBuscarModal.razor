@@ -77,7 +77,7 @@
     private int pageSize = 10;
 
     private string GetFotoUrl(string id)
-        => $"{Http.BaseAddress}api/articulos/foto/{id}?t={DateTime.Now.Ticks}";
+        => $"{Http.BaseAddress}articulos/foto/{id}?t={DateTime.Now.Ticks}";
 
     protected override async Task OnParametersSetAsync()
     {

@@ -19,7 +19,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var result = await _httpClient.GetFromJsonAsync<List<AlmacenCuentaDTO>>($"api/almacencuenta/{idAlmacen}");
+                var result = await _httpClient.GetFromJsonAsync<List<AlmacenCuentaDTO>>($"almacencuenta/{idAlmacen}");
                 return result ?? new List<AlmacenCuentaDTO>();
             }
             catch
@@ -32,7 +32,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync($"api/almacencuenta/{idAlmacen}", cuentas);
+                var response = await _httpClient.PostAsJsonAsync($"almacencuenta/{idAlmacen}", cuentas);
                 return response.IsSuccessStatusCode;
             }
             catch

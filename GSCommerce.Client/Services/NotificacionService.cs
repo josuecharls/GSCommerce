@@ -17,7 +17,7 @@ namespace GSCommerce.Client.Services
             try
             {
                 var response = await _httpClient.GetFromJsonAsync<List<NotificacionDTO>>(
-                    $"api/notificaciones?soloNoLeidas={soloNoLeidas}");
+                    $"notificaciones?soloNoLeidas={soloNoLeidas}");
                 return response ?? new List<NotificacionDTO>();
             }
             catch
@@ -30,7 +30,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PutAsync($"api/notificaciones/{idNotificacion}/marcar-leida", null);
+                var response = await _httpClient.PutAsync($"notificaciones/{idNotificacion}/marcar-leida", null);
                 return response.IsSuccessStatusCode;
             }
             catch

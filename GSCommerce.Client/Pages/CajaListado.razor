@@ -128,7 +128,7 @@ else
 
     private async Task Descargar(int id)
     {
-        var url = $"{Http.BaseAddress}api/caja/arqueo-pdf/{id}";
+        var url = $"{Http.BaseAddress}caja/arqueo-pdf/{id}";
         await JS.InvokeVoidAsync("open", url, "_blank");
     }
 

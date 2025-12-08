@@ -42,7 +42,7 @@ namespace GSCommerce.Client.Services
 
             var queryString = query.Count > 0 ? "?" + string.Join("&", query) : "";
 
-            return await _http.GetFromJsonAsync<List<KardexDTO>>($"api/kardex{queryString}")
+            return await _http.GetFromJsonAsync<List<KardexDTO>>($"kardex{queryString}")
                    ?? new List<KardexDTO>();
         }
     }

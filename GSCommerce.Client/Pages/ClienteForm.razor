@@ -3,8 +3,9 @@
 @using GSCommerce.Client.Services
 @inject ClienteService ClienteService
 @inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Forms
 
-<h3>👤 Nuevo Cliente</h3>
+<h3><i class="bi bi-person-plus"></i> Nuevo Cliente</h3>
 
 <div class="card p-4">
     <EditForm Model="cliente" OnValidSubmit="HandleValidSubmit">
@@ -52,10 +53,10 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Estado</label>
-                    <select class="form-control" @bind="cliente.Estado">
+                    <InputSelect @bind-Value="cliente.Estado" class="form-control">
                         <option value="true">Activo</option>
                         <option value="false">Inactivo</option>
-                    </select>
+                    </InputSelect>
                 </div>
             </div>
         </div>

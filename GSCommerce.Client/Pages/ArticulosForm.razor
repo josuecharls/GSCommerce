@@ -13,7 +13,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
 
-<h3>📌 Nuevo Artículo</h3>
+<h3><i class="bi bi-box-seam"></i> Nuevo Artículo</h3>
 
 @if (!isLoading)
 {
@@ -218,10 +218,10 @@
 
                 <div class="mb-3">
                     <label class="form-label">Estado</label>
-                    <select class="form-control" @bind="articulo.Estado">
+                    <InputSelect @bind-Value="articulo.Estado" class="form-control">
                         <option value="true">Activo</option>
                         <option value="false">Inactivo</option>
-                    </select>
+                    </InputSelect>
                 </div>
 
                 <!-- Imagen del artículo -->
@@ -237,7 +237,7 @@
                     <img src="https://barcode.tec-it.com/barcode.ashx?data=@(articulo.IdArticulo)&code=Code93" class="img-thumbnail" width="150" />
                     <div><strong>@articulo.IdArticulo</strong></div>
                     <button class="btn btn-success mt-2 me-2" @onclick="PrintBarcode"><i class="bi bi-printer"></i> Imprimir</button>
-                    <button class="btn btn-info mt-2" @onclick="() => mostrarModalQR = true">📱 QR</button>
+                    <button class="btn btn-info mt-2" @onclick="() => mostrarModalQR = true"><i class="bi bi-qr-code"></i> QR</button>
                 </div>
 
             </div> <!-- /col-md-6 derecha -->
@@ -261,7 +261,7 @@ else
     <div class="modal d-block" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content p-4 text-center">
-                <h4>📱 Código QR</h4>
+                <h4><i class="bi bi-qr-code"></i> Código QR</h4>
                 <hr />
                 <div class="etiqueta-imprimir">
                     <div class="label">
@@ -422,7 +422,7 @@ else
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">🎨 Variantes de Color/Talla - @articulo.IdArticulo</h5>
+                    <h5 class="modal-title"><i class="bi bi-palette"></i> Variantes de Color/Talla - @articulo.IdArticulo</h5>
                     <button type="button" class="btn-close" @onclick="CerrarModalVariantes"></button>
                 </div>
                 <div class="modal-body">

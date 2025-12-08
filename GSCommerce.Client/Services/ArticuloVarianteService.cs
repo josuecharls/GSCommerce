@@ -12,7 +12,7 @@ namespace GSCommerce.Client.Services
             _http = http;
         }
 
-        private const string baseUrl = "api/ArticuloVariante";
+        private const string baseUrl = "ArticuloVariante";
 
         public async Task<List<ArticuloVarianteDTO>> ObtenerVariantesPorArticulo(string idArticulo)
         {

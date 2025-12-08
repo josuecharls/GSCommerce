@@ -19,7 +19,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.GetFromJsonAsync<decimal>($"api/ventas/meta-diaria?idAlmacen={idAlmacen}&fecha={fecha:yyyy-MM-dd}");
+                var response = await _httpClient.GetFromJsonAsync<decimal>($"ventas/meta-diaria?idAlmacen={idAlmacen}&fecha={fecha:yyyy-MM-dd}");
                 return response;
             }
             catch
@@ -39,7 +39,7 @@ namespace GSCommerce.Client.Services
                     Meta = meta
                 };
 
-                var response = await _httpClient.PostAsJsonAsync("api/ventas/meta-diaria", request);
+                var response = await _httpClient.PostAsJsonAsync("ventas/meta-diaria", request);
                 return response.IsSuccessStatusCode;
             }
             catch
@@ -59,7 +59,7 @@ namespace GSCommerce.Client.Services
                     Meta = meta
                 };
 
-                var response = await _httpClient.PostAsJsonAsync("api/ventas/meta-diaria-multiple", request);
+                var response = await _httpClient.PostAsJsonAsync("ventas/meta-diaria-multiple", request);
                 return response.IsSuccessStatusCode;
             }
             catch
@@ -72,7 +72,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var url = $"api/ventas/metas-diarias?fecha={fecha:yyyy-MM-dd}";
+                var url = $"ventas/metas-diarias?fecha={fecha:yyyy-MM-dd}";
                 if (idAlmacen.HasValue)
                 {
                     url += $"&idAlmacen={idAlmacen.Value}";

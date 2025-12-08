@@ -9,7 +9,7 @@ namespace GSCommerce.Client.Services
         public ComplementoService(HttpClient http) => _http = http;
 
         public async Task<List<ComplementoDTO>> GetByTipo(string tipo)
-            => await _http.GetFromJsonAsync<List<ComplementoDTO>>($"api/complementos/{Uri.EscapeDataString(tipo)}")
+            => await _http.GetFromJsonAsync<List<ComplementoDTO>>($"complementos/{Uri.EscapeDataString(tipo)}")
                ?? new List<ComplementoDTO>();
 
         public async Task<ComplementoDTO?> Crear(string tipo, string descripcion, string? alias)
@@ -20,7 +20,7 @@ namespace GSCommerce.Client.Services
                 Descripcion = descripcion,
                 Alias = alias
             };
-            var resp = await _http.PostAsJsonAsync("api/complementos", payload);
+            var resp = await _http.PostAsJsonAsync("complementos", payload);
             if (!resp.IsSuccessStatusCode) return null;
             return await resp.Content.ReadFromJsonAsync<ComplementoDTO>();
         }

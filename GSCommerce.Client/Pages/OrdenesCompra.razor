@@ -461,7 +461,7 @@
             return;
         if (int.TryParse(o.NumeroOc[3..], out var idIe))
         {
-            photoUrl = $"{Http.BaseAddress}api/IngresosEgresos/foto/{idIe}?t={DateTime.Now.Ticks}";
+            photoUrl = $"{Http.BaseAddress}IngresosEgresos/foto/{idIe}?t={DateTime.Now.Ticks}";
             showPhotoModal = true;
         }
     }

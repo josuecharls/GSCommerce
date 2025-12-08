@@ -23,7 +23,7 @@ namespace GSCommerce.Client.Services
 
         public async Task<bool> Login(LoginRequest loginRequest)
         {
-            var response = await _httpClient.PostAsJsonAsync("api/auth/login", loginRequest);
+            var response = await _httpClient.PostAsJsonAsync("auth/login", loginRequest);
             if (!response.IsSuccessStatusCode)
             {
                 return false;
@@ -72,7 +72,7 @@ namespace GSCommerce.Client.Services
             }
 
             var request = new RefreshTokenRequest { UserId = userId, RefreshToken = refreshToken };
-            var response = await _httpClient.PostAsJsonAsync("api/auth/refresh-token", request);
+            var response = await _httpClient.PostAsJsonAsync("auth/refresh-token", request);
             if (!response.IsSuccessStatusCode)
             {
                 await Logout();
@@ -101,7 +101,7 @@ namespace GSCommerce.Client.Services
             if (string.IsNullOrEmpty(userId))
                 return null;
 
-            var response = await _httpClient.GetAsync($"api/usuarios/info/{userId}");
+            var response = await _httpClient.GetAsync($"usuarios/info/{userId}");
             if (!response.IsSuccessStatusCode)
                 return null;
 
@@ -143,7 +143,7 @@ namespace GSCommerce.Client.Services
             if (string.IsNullOrWhiteSpace(token))
                 return null;
 
-            var request = new HttpRequestMessage(HttpMethod.Get, "api/ventas/emisor");
+            var request = new HttpRequestMessage(HttpMethod.Get, "ventas/emisor");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             var response = await _httpClient.SendAsync(request);
 

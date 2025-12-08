@@ -251,10 +251,10 @@
 
                 <div class="mb-3">
                     <label class="form-label">Estado</label>
-                    <select class="form-control" @bind="articulo.Estado">
+                    <InputSelect @bind-Value="articulo.Estado" class="form-control">
                         <option value="true">Activo</option>
                         <option value="false">Inactivo</option>
-                    </select>
+                    </InputSelect>
                 </div>
 
                 <!-- Imagen del artículo -->
@@ -321,7 +321,7 @@ else
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">🎨 Variantes de Color/Talla - @articulo.IdArticulo</h5>
+                    <h5 class="modal-title"><i class="bi bi-palette"></i> Variantes de Color/Talla - @articulo.IdArticulo</h5>
                     <button type="button" class="btn-close" @onclick="CerrarModalVariantes"></button>
                 </div>
                 <div class="modal-body">

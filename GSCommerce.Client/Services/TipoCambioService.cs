@@ -12,30 +12,30 @@ public class TipoCambioService
 
     public async Task<TipoCambioDTO?> ObtenerTipoCambioDeHoyAsync()
     {
-        return await _http.GetFromJsonAsync<TipoCambioDTO>("api/tipocambio/hoy");
+        return await _http.GetFromJsonAsync<TipoCambioDTO>("tipocambio/hoy");
     }
 
     public async Task<List<TipoCambioDTO>> ObtenerPorMes(int mes, int anio)
     {
-        return await _http.GetFromJsonAsync<List<TipoCambioDTO>>($"api/tipocambio/mes/{mes}/{anio}");
+        return await _http.GetFromJsonAsync<List<TipoCambioDTO>>($"tipocambio/mes/{mes}/{anio}");
     }
 
     public async Task<bool> Insertar(TipoCambioDTO nuevo)
     {
-        var response = await _http.PostAsJsonAsync("api/tipocambio", nuevo);
+        var response = await _http.PostAsJsonAsync("tipocambio", nuevo);
         return response.IsSuccessStatusCode;
     }
 
     public async Task<bool> Modificar(TipoCambioDTO modificado)
     {
-        var response = await _http.PutAsJsonAsync("api/tipocambio", modificado);
+        var response = await _http.PutAsJsonAsync("tipocambio", modificado);
         return response.IsSuccessStatusCode;
     }
 
     public async Task<bool> Eliminar(DateTime fecha)
     {
         var fechaStr = fecha.ToString("yyyy-MM-dd");
-        var response = await _http.DeleteAsync($"api/tipocambio/{fechaStr}");
+        var response = await _http.DeleteAsync($"tipocambio/{fechaStr}");
         return response.IsSuccessStatusCode;
     }
 }

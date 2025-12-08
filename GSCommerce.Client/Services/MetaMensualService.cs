@@ -28,7 +28,7 @@ namespace GSCommerce.Client.Services
                 if (idAlmacen.HasValue)
                     queryParams.Add($"idAlmacen={idAlmacen.Value}");
 
-                var url = "api/metas-mensuales";
+                var url = "metas-mensuales";
                 if (queryParams.Any())
                     url += "?" + string.Join("&", queryParams);
 
@@ -50,7 +50,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.GetAsync($"api/metas-mensuales/{id}");
+                var response = await _httpClient.GetAsync($"metas-mensuales/{id}");
                 if (!response.IsSuccessStatusCode)
                     return null;
 
@@ -67,7 +67,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync("api/metas-mensuales", request);
+                var response = await _httpClient.PostAsJsonAsync("metas-mensuales", request);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -81,7 +81,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PostAsync($"api/metas-mensuales/{id}/enviar", null);
+                var response = await _httpClient.PostAsync($"metas-mensuales/{id}/enviar", null);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -95,7 +95,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync($"api/metas-mensuales/{request.IdMetaMensual}/aprobar", request);
+                var response = await _httpClient.PostAsJsonAsync($"metas-mensuales/{request.IdMetaMensual}/aprobar", request);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -109,7 +109,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetAsync($"api/metas-mensuales/{id}/exportar");
+                return await _httpClient.GetAsync($"metas-mensuales/{id}/exportar");
             }
             catch (Exception ex)
             {
@@ -122,7 +122,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync("api/metas-mensuales/generar-todas", request);
+                var response = await _httpClient.PostAsJsonAsync("metas-mensuales/generar-todas", request);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -136,7 +136,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetAsync($"api/metas-mensuales/exportar?anio={anio}&mes={mes}");
+                return await _httpClient.GetAsync($"metas-mensuales/exportar?anio={anio}&mes={mes}");
             }
             catch (Exception ex)
             {

@@ -21,7 +21,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                string url = $"api/stock?page={page}&pageSize={pageSize}&";
+                string url = $"stock?page={page}&pageSize={pageSize}&";
 
                 if (idAlmacen.HasValue)
                     url += $"idAlmacen={idAlmacen}&";
@@ -51,7 +51,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                string url = $"api/stock/low-stock?threshold={threshold}";
+                string url = $"stock/low-stock?threshold={threshold}";
 
                 if (idAlmacen.HasValue)
                 {
@@ -83,7 +83,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var url = $"api/stock/disponible-para-transferencia?codigoArticulo={Uri.EscapeDataString(codigoArticulo)}&idAlmacen={idAlmacen}";
+                var url = $"stock/disponible-para-transferencia?codigoArticulo={Uri.EscapeDataString(codigoArticulo)}&idAlmacen={idAlmacen}";
                 if (idMovimientoExcluir.HasValue)
                 {
                     url += $"&idMovimientoExcluir={idMovimientoExcluir.Value}";
@@ -109,7 +109,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                string url = $"api/stock/reposition-alert?threshold={threshold}";
+                string url = $"stock/reposition-alert?threshold={threshold}";
                 
                 if (idAlmacen.HasValue)
                 {

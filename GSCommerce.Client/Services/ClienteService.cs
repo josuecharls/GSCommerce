@@ -19,7 +19,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.GetAsync("api/clientes");
+                var response = await _httpClient.GetAsync("clientes");
                 var jsonResponse = await response.Content.ReadAsStringAsync();
               //  Console.WriteLine($" JSON recibido en GetClientes(): {jsonResponse}");
 
@@ -43,7 +43,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.GetAsync($"api/clientes/list?page={page}&pageSize={pageSize}&search={search}");
+                var response = await _httpClient.GetAsync($"clientes/list?page={page}&pageSize={pageSize}&search={search}");
                 var jsonResponse = await response.Content.ReadAsStringAsync();
                 //Console.WriteLine($" JSON recibido en GetClienteList(): {jsonResponse}");
 
@@ -82,7 +82,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<ClienteDTO>($"api/clientes/{id}");
+                return await _httpClient.GetFromJsonAsync<ClienteDTO>($"clientes/{id}");
             }
             catch (HttpRequestException)
             {
@@ -94,7 +94,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync("api/clientes", cliente);
+                var response = await _httpClient.PostAsJsonAsync("clientes", cliente);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -108,7 +108,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PutAsJsonAsync($"api/clientes/{id}", cliente);
+                var response = await _httpClient.PutAsJsonAsync($"clientes/{id}", cliente);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -122,7 +122,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.DeleteAsync($"api/clientes/{id}");
+                var response = await _httpClient.DeleteAsync($"clientes/{id}");
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -135,7 +135,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.GetAsync($"api/clientes/documento/{documento}");
+                var response = await _httpClient.GetAsync($"clientes/documento/{documento}");
                 if (!response.IsSuccessStatusCode)
                     return null;
 

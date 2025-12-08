@@ -18,7 +18,7 @@ namespace GSCommerce.Client.Services
             try
             {
                 var response = await _httpClient.GetFromJsonAsync<List<SerieCorrelativoDTO>>(
-                    $"api/seriescorrelativos/almacen/{idAlmacen}");
+                    $"seriescorrelativos/almacen/{idAlmacen}");
                 return response ?? new();
             }
             catch (Exception ex)
@@ -31,7 +31,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var url = $"api/seriescorrelativos/buscar?tipoDoc={tipoDoc}&idAlmacen={idAlmacen}";
+                var url = $"seriescorrelativos/buscar?tipoDoc={tipoDoc}&idAlmacen={idAlmacen}";
                 var response = await _httpClient.GetStringAsync(url);
                 return response;
             }
@@ -47,7 +47,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync("api/seriescorrelativos", dto);
+                var response = await _httpClient.PostAsJsonAsync("seriescorrelativos", dto);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -62,7 +62,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PutAsJsonAsync($"api/seriescorrelativos/{dto.IdSerieCorrelativo}", dto);
+                var response = await _httpClient.PutAsJsonAsync($"seriescorrelativos/{dto.IdSerieCorrelativo}", dto);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -77,7 +77,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.DeleteAsync($"api/seriescorrelativos/{id}");
+                var response = await _httpClient.DeleteAsync($"seriescorrelativos/{id}");
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -100,7 +100,7 @@ namespace GSCommerce.Client.Services
 
                 serieObj.Correlativo += 1;
 
-                var response = await _httpClient.PutAsJsonAsync($"api/seriescorrelativos/{serieObj.IdSerieCorrelativo}", serieObj);
+                var response = await _httpClient.PutAsJsonAsync($"seriescorrelativos/{serieObj.IdSerieCorrelativo}", serieObj);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -113,18 +113,18 @@ namespace GSCommerce.Client.Services
         public async Task<List<VSeriesXalmacen1>> ObtenerSeriesDisponibles(int idAlmacen)
         {
             return await _httpClient.GetFromJsonAsync<List<VSeriesXalmacen1>>(
-                $"api/seriescorrelativos/disponibles/{idAlmacen}") ?? new();
+                $"seriescorrelativos/disponibles/{idAlmacen}") ?? new();
         }
 
         public async Task<List<VSeriesXcajero1>> ObtenerSeriesAsignadas(int idUsuario, int idAlmacen)
         {
             return await _httpClient.GetFromJsonAsync<List<VSeriesXcajero1>>(
-                $"api/seriescorrelativos/asignadas?usuario={idUsuario}&almacen={idAlmacen}") ?? new();
+                $"seriescorrelativos/asignadas?usuario={idUsuario}&almacen={idAlmacen}") ?? new();
         }
 
         public async Task<bool> AsignarSeriesACajero(int idUsuario, int idAlmacen, List<VSeriesXcajero1> series)
         {
-            var response = await _httpClient.PostAsJsonAsync($"api/seriescorrelativos/asignar", new
+            var response = await _httpClient.PostAsJsonAsync($"seriescorrelativos/asignar", new
             {
                 IdUsuario = idUsuario,
                 IdAlmacen = idAlmacen,

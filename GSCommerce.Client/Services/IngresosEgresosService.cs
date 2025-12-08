@@ -28,7 +28,7 @@ public class IngresosEgresosService
         {
             query.Add($"tipo={Uri.EscapeDataString(tipo)}");
         }
-        var url = "api/IngresosEgresos";
+        var url = "IngresosEgresos";
         if (query.Count > 0) url += "?" + string.Join("&", query);
         var data = await _httpClient.GetFromJsonAsync<List<IngresoEgresoDTO>>(url);
         return data ?? new List<IngresoEgresoDTO>();
@@ -37,13 +37,13 @@ public class IngresosEgresosService
     public async Task<bool> Registrar(IngresoEgresoRegistroDTO dto)
     {
         dto.Naturaleza = dto.Naturaleza.StartsWith("I", StringComparison.OrdinalIgnoreCase) ? "I" : "E";
-        var response = await _httpClient.PostAsJsonAsync("api/IngresosEgresos", dto);
+        var response = await _httpClient.PostAsJsonAsync("IngresosEgresos", dto);
         return response.IsSuccessStatusCode;
     }
 
     public async Task<bool> Anular(int id)
     {
-        var response = await _httpClient.PutAsync($"api/IngresosEgresos/{id}/anular", null);
+        var response = await _httpClient.PutAsync($"IngresosEgresos/{id}/anular", null);
         return response.IsSuccessStatusCode;
     }
 }

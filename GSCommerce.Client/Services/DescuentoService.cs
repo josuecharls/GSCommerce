@@ -16,7 +16,7 @@ public class DescuentoService
 
     public async Task<List<DescuentoDTO>> ObtenerDescuentos(int idAlmacen)
     {
-        var response = await _httpClient.GetFromJsonAsync<List<DescuentoDTO>>($"api/descuentos/{idAlmacen}");
+        var response = await _httpClient.GetFromJsonAsync<List<DescuentoDTO>>($"descuentos/{idAlmacen}");
         return response ?? new List<DescuentoDTO>();
     }
 
@@ -24,7 +24,7 @@ public class DescuentoService
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<DescuentoDTO>($"api/descuentos/{idAlmacen}/{idArticulo}");
+            return await _httpClient.GetFromJsonAsync<DescuentoDTO>($"descuentos/{idAlmacen}/{idArticulo}");
         }
         catch
         {
@@ -35,20 +35,20 @@ public class DescuentoService
     public async Task<bool> AgregarDescuento(int idAlmacen, string idArticulo, double porcentaje)
     {
         var dto = new { IdAlmacen = idAlmacen, IdArticulo = idArticulo, DescuentoPorc = porcentaje };
-        var resp = await _httpClient.PostAsJsonAsync("api/descuentos", dto);
+        var resp = await _httpClient.PostAsJsonAsync("descuentos", dto);
         return resp.IsSuccessStatusCode;
     }
 
     public async Task<bool> ModificarDescuento(int idAlmacen, string idArticulo, double porcentaje)
     {
         var dto = new { IdAlmacen = idAlmacen, IdArticulo = idArticulo, DescuentoPorc = porcentaje };
-        var resp = await _httpClient.PutAsJsonAsync("api/descuentos", dto);
+        var resp = await _httpClient.PutAsJsonAsync("descuentos", dto);
         return resp.IsSuccessStatusCode;
     }
 
     public async Task<bool> EliminarDescuento(int idAlmacen, string idArticulo)
     {
-        var resp = await _httpClient.DeleteAsync($"api/descuentos/{idAlmacen}/{idArticulo}");
+        var resp = await _httpClient.DeleteAsync($"descuentos/{idAlmacen}/{idArticulo}");
         return resp.IsSuccessStatusCode;
     }
 }

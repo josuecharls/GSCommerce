@@ -317,7 +317,7 @@
 
     private void VerFoto(int id)
     {
-        photoUrl = $"{Http.BaseAddress}api/IngresosEgresos/foto/{id}?t={DateTime.Now.Ticks}";
+        photoUrl = $"{Http.BaseAddress}IngresosEgresos/foto/{id}?t={DateTime.Now.Ticks}";
         showPhotoModal = true;
     }
 

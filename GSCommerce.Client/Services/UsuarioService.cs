@@ -16,7 +16,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<UsuarioDTO>($"api/usuarios/{id}");
+                return await _httpClient.GetFromJsonAsync<UsuarioDTO>($"usuarios/{id}");
             }
             catch (HttpRequestException)
             {
@@ -28,7 +28,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.GetFromJsonAsync<List<UsuarioDTO>>($"api/usuarios/cajeros/{idAlmacen}");
+                var response = await _httpClient.GetFromJsonAsync<List<UsuarioDTO>>($"usuarios/cajeros/{idAlmacen}");
                 return response ?? new();
             }
             catch (Exception ex)
@@ -42,7 +42,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.GetFromJsonAsync<List<UsuarioDTO>>($"api/usuarios/cajeros2/{idAlmacen}");
+                var response = await _httpClient.GetFromJsonAsync<List<UsuarioDTO>>($"usuarios/cajeros2/{idAlmacen}");
                 return response ?? new();
             }
             catch (Exception ex)
@@ -56,7 +56,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync("api/usuarios/generar-credenciales", request);
+                var response = await _httpClient.PostAsJsonAsync("usuarios/generar-credenciales", request);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -70,7 +70,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.GetFromJsonAsync<List<UsuarioDTO>>("api/usuarios/administradores");
+                var response = await _httpClient.GetFromJsonAsync<List<UsuarioDTO>>("usuarios/administradores");
                 return response ?? new();
             }
             catch (Exception ex)
@@ -84,7 +84,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync("api/usuarios/cambiar-password", request);
+                var response = await _httpClient.PostAsJsonAsync("usuarios/cambiar-password", request);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)

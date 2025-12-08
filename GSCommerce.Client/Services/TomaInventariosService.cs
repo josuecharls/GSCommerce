@@ -14,7 +14,7 @@ namespace GSCommerce.Client.Services
 
         public async Task<List<TomaInventarioDTO>> GetTomasAsync(int? anio = null, int? idAlmacen = null)
         {
-            string url = "api/toma-inventarios?";
+            string url = "toma-inventarios?";
             if (anio.HasValue)
                 url += $"anio={anio.Value}&";
             if (idAlmacen.HasValue)
@@ -25,7 +25,7 @@ namespace GSCommerce.Client.Services
 
         public async Task<TomaInventarioDTO?> CrearAsync(TomaInventarioDTO dto)
         {
-            var response = await _httpClient.PostAsJsonAsync("api/toma-inventarios", dto);
+            var response = await _httpClient.PostAsJsonAsync("toma-inventarios", dto);
             if (!response.IsSuccessStatusCode)
                 return null;
             return await response.Content.ReadFromJsonAsync<TomaInventarioDTO>();
@@ -33,41 +33,41 @@ namespace GSCommerce.Client.Services
 
         public async Task<List<TomaInventarioDetalleDTO>> GetDetallesAsync(int idToma)
         {
-            var data = await _httpClient.GetFromJsonAsync<List<TomaInventarioDetalleDTO>>($"api/toma-inventarios/{idToma}/detalles");
+            var data = await _httpClient.GetFromJsonAsync<List<TomaInventarioDetalleDTO>>($"toma-inventarios/{idToma}/detalles");
             return data ?? new();
         }
         public async Task<bool> ActualizarDetalleAsync(int idToma, TomaInventarioDetalleDTO dto)
         {
             var response = await _httpClient.PutAsJsonAsync(
-                $"api/toma-inventarios/{idToma}/detalles/{dto.IdTomaInventarioDetalle}", dto);
+                $"toma-inventarios/{idToma}/detalles/{dto.IdTomaInventarioDetalle}", dto);
             return response.IsSuccessStatusCode;
         }
 
         public async Task<bool> AgregarDetalleAsync(int idToma, TomaInventarioDetalleDTO dto)
         {
-            var response = await _httpClient.PostAsJsonAsync($"api/toma-inventarios/{idToma}/detalles", dto);
+            var response = await _httpClient.PostAsJsonAsync($"toma-inventarios/{idToma}/detalles", dto);
             return response.IsSuccessStatusCode;
         }
         public async Task<bool> TerminarAsync(int idToma)
         {
-            var response = await _httpClient.PutAsync($"api/toma-inventarios/{idToma}/terminar", null);
+            var response = await _httpClient.PutAsync($"toma-inventarios/{idToma}/terminar", null);
             return response.IsSuccessStatusCode;
         }
 
         public async Task<bool> AplicarDiferenciasAsync(int idToma)
         {
-            var response = await _httpClient.PutAsync($"api/toma-inventarios/{idToma}/aplicar-diferencias", null);
+            var response = await _httpClient.PutAsync($"toma-inventarios/{idToma}/aplicar-diferencias", null);
             return response.IsSuccessStatusCode;
         }
 
         public async Task<bool> AnularAsync(int idToma)
         {
-            var response = await _httpClient.PutAsync($"api/toma-inventarios/{idToma}/anular", null);
+            var response = await _httpClient.PutAsync($"toma-inventarios/{idToma}/anular", null);
             return response.IsSuccessStatusCode;
         }
         public async Task<bool> ReemplazarStockAsync(int idToma)
         {
-            var response = await _httpClient.PutAsync($"api/toma-inventarios/{idToma}/reemplazo", null);
+            var response = await _httpClient.PutAsync($"toma-inventarios/{idToma}/reemplazo", null);
             return response.IsSuccessStatusCode;
         }
     }

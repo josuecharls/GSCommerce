@@ -16,7 +16,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<List<TipoPagoVentaDTO>>("api/tipopagos")
+                return await _httpClient.GetFromJsonAsync<List<TipoPagoVentaDTO>>("tipopagos")
                        ?? new List<TipoPagoVentaDTO>();
             }
             catch

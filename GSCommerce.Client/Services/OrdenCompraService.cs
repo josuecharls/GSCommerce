@@ -16,7 +16,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<OrdenCompraDTO>($"api/ordenes-compra/{id}");
+                return await _httpClient.GetFromJsonAsync<OrdenCompraDTO>($"ordenes-compra/{id}");
             }
             catch (Exception ex)
             {
@@ -29,7 +29,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var url = $"api/ordenes-compra/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+                var url = $"ordenes-compra/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
                 if (idProveedor.HasValue && idProveedor.Value > 0)
                     url += $"&idProveedor={idProveedor.Value}";
                 var result = await _httpClient.GetFromJsonAsync<List<OrdenCompraConsultaDTO>>(url);
@@ -44,7 +44,7 @@ namespace GSCommerce.Client.Services
 
         public async Task<int?> CrearAsync(OrdenCompraDTO dto)
         {
-            var resp = await _httpClient.PostAsJsonAsync("api/ordenes-compra", dto);
+            var resp = await _httpClient.PostAsJsonAsync("ordenes-compra", dto);
             if (resp.IsSuccessStatusCode)
             {
                 var r = await resp.Content.ReadFromJsonAsync<OrdenCompraDTO>();
@@ -55,13 +55,13 @@ namespace GSCommerce.Client.Services
 
         public async Task<bool> ActualizarAsync(OrdenCompraDTO dto)
         {
-            var resp = await _httpClient.PutAsJsonAsync($"api/ordenes-compra/{dto.IdOc}", dto);
+            var resp = await _httpClient.PutAsJsonAsync($"ordenes-compra/{dto.IdOc}", dto);
             return resp.IsSuccessStatusCode;
         }
 
         public async Task<GenerarIngresoResult> GenerarIngresoAsync(int idOc, int idAlmacen = 1009)
         {
-            var resp = await _httpClient.PostAsync($"api/ordenes-compra/{idOc}/generar-ingreso?idAlmacen={idAlmacen}", null);
+            var resp = await _httpClient.PostAsync($"ordenes-compra/{idOc}/generar-ingreso?idAlmacen={idAlmacen}", null);
             if (resp.IsSuccessStatusCode)
             {
                 var data = await resp.Content.ReadFromJsonAsync<GenerarIngresoResponse>();
@@ -86,7 +86,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var resp = await _httpClient.PostAsync($"api/ordenes-compra/{idOc}/anular", null);
+                var resp = await _httpClient.PostAsync($"ordenes-compra/{idOc}/anular", null);
                 if (resp.IsSuccessStatusCode)
                 {
                     var data = await resp.Content.ReadFromJsonAsync<OperacionResponse>();

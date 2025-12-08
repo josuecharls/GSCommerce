@@ -20,14 +20,14 @@ public class ReporteService
 
     public async Task<ReporteArticuloDTO?> ObtenerReportePorArticulo(string idArticulo, int mes, int anio)
     {
-        var url = $"api/ventas/reporte-articulo?idArticulo={idArticulo}&mes={mes}&anio={anio}";
+        var url = $"ventas/reporte-articulo?idArticulo={idArticulo}&mes={mes}&anio={anio}";
         var response = await _http.GetFromJsonAsync<ReporteArticuloDTO>(url);
         return response;
     }
 
     public async Task<List<RankingVendedoraDTO>> ObtenerRankingVendedoras(DateTime desde, DateTime hasta, int? idAlmacen, bool porAlmacen)
     {
-        var url = $"api/ventas/reporte-ranking-vendedoras?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}&porAlmacen={porAlmacen}";
+        var url = $"ventas/reporte-ranking-vendedoras?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}&porAlmacen={porAlmacen}";
         if (porAlmacen && idAlmacen.HasValue)
         {
             url += $"&idAlmacen={idAlmacen.Value}";
@@ -54,7 +54,7 @@ public class ReporteService
             queryParams["idAlmacen"] = idAlmacen.Value.ToString();
         }
 
-        var url = QueryHelpers.AddQueryString("api/ventas/reporte-top10-articulos", queryParams);
+        var url = QueryHelpers.AddQueryString("ventas/reporte-top10-articulos", queryParams);
 
         if (lineas != null)
         {
@@ -102,7 +102,7 @@ public class ReporteService
             queryParams["idAlmacen"] = idAlmacen.Value.ToString();
         }
 
-        var url = QueryHelpers.AddQueryString("api/ventas/reporte-top10-articulos-menos-vendidos", queryParams);
+        var url = QueryHelpers.AddQueryString("ventas/reporte-top10-articulos-menos-vendidos", queryParams);
 
         if (lineas != null)
         {
@@ -135,7 +135,7 @@ public class ReporteService
 
     public async Task<List<ReporteTotalTiendasDTO>> ObtenerTotalTiendas(DateTime desde, DateTime hasta, int? idAlmacen = null)
     {
-        var url = $"api/ventas/reporte-total-tiendas?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+        var url = $"ventas/reporte-total-tiendas?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
         if (idAlmacen.HasValue && idAlmacen.Value > 0)
             url += $"&idAlmacen={idAlmacen.Value}";
 
@@ -144,7 +144,7 @@ public class ReporteService
     }
     public async Task<List<ReporteUtilidadTiendasDTO>> ObtenerUtilidadTiendas(DateTime desde, DateTime hasta, int? idAlmacen = null)
     {
-        var url = $"api/ventas/reporte-utilidad-tiendas?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+        var url = $"ventas/reporte-utilidad-tiendas?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
         if (idAlmacen.HasValue && idAlmacen.Value > 0)
             url += $"&idAlmacen={idAlmacen.Value}";
 
@@ -153,7 +153,7 @@ public class ReporteService
     }
     public async Task<ReportePagosTarjetaOnlineResponseDTO> ObtenerPagosTarjetaOnline(DateTime desde, DateTime hasta, string? razonSocial = null)
     {
-        var url = $"api/ventas/reporte-pagos-tarjeta-online?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+        var url = $"ventas/reporte-pagos-tarjeta-online?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
         if (!string.IsNullOrWhiteSpace(razonSocial))
             url += $"&razonSocial={System.Uri.EscapeDataString(razonSocial)}";
 
@@ -162,7 +162,7 @@ public class ReporteService
     }
     public async Task<ReporteAvanceHoraDTO> ObtenerAvanceVentasHora(DateTime desde, DateTime hasta, int? idAlmacen = null)
     {
-        var url = $"api/ventas/reporte-avance-por-hora?desde={Uri.EscapeDataString(desde.ToString("yyyy-MM-ddTHH:mm:ss"))}&hasta={Uri.EscapeDataString(hasta.ToString("yyyy-MM-ddTHH:mm:ss"))}";
+        var url = $"ventas/reporte-avance-por-hora?desde={Uri.EscapeDataString(desde.ToString("yyyy-MM-ddTHH:mm:ss"))}&hasta={Uri.EscapeDataString(hasta.ToString("yyyy-MM-ddTHH:mm:ss"))}";
         if (idAlmacen.HasValue && idAlmacen.Value > 0)
         {
             url += $"&idAlmacen={idAlmacen.Value}";
@@ -185,14 +185,14 @@ public class ReporteService
     List<string> ids, DateTime desde, DateTime hasta)
     {
         var body = new ReporteArticulosRangoRequest { Ids = ids, Desde = desde, Hasta = hasta };
-        var resp = await _http.PostAsJsonAsync("api/ventas/reporte-articulos-rango", body);
+        var resp = await _http.PostAsJsonAsync("ventas/reporte-articulos-rango", body);
         if (!resp.IsSuccessStatusCode) return new();
         return await resp.Content.ReadFromJsonAsync<List<ReporteArticuloRangoDTO>>() ?? new();
     }
 
     public async Task<List<ReporteGastosInversionDTO>> ObtenerReporteGastos(int anio, int mes, int? idAlmacen = null)
     {
-        var url = $"api/reportes/gastos?anio={anio}&mes={mes}";
+        var url = $"reportes/gastos?anio={anio}&mes={mes}";
         if (idAlmacen.HasValue && idAlmacen.Value > 0)
         {
             url += $"&idAlmacen={idAlmacen.Value}";
@@ -204,19 +204,19 @@ public class ReporteService
 
     public async Task<bool> GuardarReporteGastos(GuardarReporteGastosRequest request)
     {
-        var resp = await _http.PostAsJsonAsync("api/reportes/gastos/detalles", request);
+        var resp = await _http.PostAsJsonAsync("reportes/gastos/detalles", request);
         return resp.IsSuccessStatusCode;
     }
 
     public async Task<bool> GuardarReporteGastosAlquiler(GuardarReporteGastosAlquilerRequest request)
     {
-        var resp = await _http.PostAsJsonAsync("api/reportes/gastos/alquiler", request);
+        var resp = await _http.PostAsJsonAsync("reportes/gastos/alquiler", request);
         return resp.IsSuccessStatusCode;
     }
 
     public async Task<HttpResponseMessage> ExportarReporteGastosExcel(int anio, int mes, int? idAlmacen = null)
     {
-        var url = $"api/reportes/gastos/exportar?anio={anio}&mes={mes}";
+        var url = $"reportes/gastos/exportar?anio={anio}&mes={mes}";
         if (idAlmacen.HasValue && idAlmacen.Value > 0)
         {
             url += $"&idAlmacen={idAlmacen.Value}";
@@ -227,7 +227,7 @@ public class ReporteService
 
     public async Task<List<DistribucionPorFamiliaDTO>> CalcularDistribucionFamilias(CalculoDistribucionRequest request)
     {
-        var response = await _http.PostAsJsonAsync("api/ventas/calculo-distribucion", request);
+        var response = await _http.PostAsJsonAsync("ventas/calculo-distribucion", request);
         if (!response.IsSuccessStatusCode)
         {
             var contenido = await response.Content.ReadAsStringAsync();
@@ -242,6 +242,6 @@ public class ReporteService
 
     public async Task<HttpResponseMessage> ExportarDistribucionFamilias(CalculoDistribucionRequest request)
     {
-        return await _http.PostAsJsonAsync("api/ventas/calculo-distribucion/export", request);
+        return await _http.PostAsJsonAsync("ventas/calculo-distribucion/export", request);
     }
 }

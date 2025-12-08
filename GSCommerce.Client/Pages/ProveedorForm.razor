@@ -3,8 +3,9 @@
 @using GSCommerce.Client.Services
 @inject ProveedorService ProveedorService
 @inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Forms
 
-<h3>📌 Nuevo Proveedor</h3>
+<h3><i class="bi bi-building"></i> Nuevo Proveedor</h3>
 
 @if (!isLoading)
 {
@@ -77,10 +78,10 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Estado</label>
-                    <select class="form-control" @bind="proveedor.Estado">
+                    <InputSelect @bind-Value="proveedor.Estado" class="form-control">
                         <option value="true">Activo</option>
                         <option value="false">Inactivo</option>
-                    </select>
+                    </InputSelect>
                 </div>
             </div>
         </div>

@@ -18,7 +18,7 @@ namespace GSCommerce.Client.Services
 
         public async Task<PersonalResponse> GetPersonalList(int page, int pageSize, string search = "", bool incluirInactivos = false)
         {
-            var url = $"api/personal?page={page}&pageSize={pageSize}&search={search}";
+            var url = $"personal?page={page}&pageSize={pageSize}&search={search}";
             if (incluirInactivos)
             {
                 url += "&incluirInactivos=true";
@@ -38,7 +38,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<PersonalDTO>($"api/personal/{id}");
+                return await _httpClient.GetFromJsonAsync<PersonalDTO>($"personal/{id}");
             }
             catch (HttpRequestException)
             {
@@ -50,13 +50,13 @@ namespace GSCommerce.Client.Services
         {
             var json = System.Text.Json.JsonSerializer.Serialize(personal);
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-            var response = await _httpClient.PostAsync("api/personal", content);
+            var response = await _httpClient.PostAsync("personal", content);
             return response.IsSuccessStatusCode;
         }
 
         public async Task<List<PersonalDTO>> ObtenerVendedoresPorAlmacen(int idAlmacen)
         {
-            return await _httpClient.GetFromJsonAsync<List<PersonalDTO>>($"api/personal/vendedores-por-almacen/{idAlmacen}")
+            return await _httpClient.GetFromJsonAsync<List<PersonalDTO>>($"personal/vendedores-por-almacen/{idAlmacen}")
                 ?? new List<PersonalDTO>();
         }
 
@@ -64,7 +64,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PutAsJsonAsync($"api/personal/{id}", personal);
+                var response = await _httpClient.PutAsJsonAsync($"personal/{id}", personal);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -76,19 +76,19 @@ namespace GSCommerce.Client.Services
 
         public async Task<bool> DeletePersonal(int id)
         {
-            var response = await _httpClient.DeleteAsync($"api/personal/{id}");
+            var response = await _httpClient.DeleteAsync($"personal/{id}");
             return response.IsSuccessStatusCode;
         }
 
         public async Task<bool> HabilitarPersonal(int id)
         {
-            var response = await _httpClient.PutAsync($"api/personal/{id}/habilitar", null);
+            var response = await _httpClient.PutAsync($"personal/{id}/habilitar", null);
             return response.IsSuccessStatusCode;
         }
 
         public async Task<bool> UpdatePhoto(int id, PersonalDTO personal)
         {
-            var response = await _httpClient.PutAsJsonAsync($"api/personal/UploadFoto/{id}", personal);
+            var response = await _httpClient.PutAsJsonAsync($"personal/UploadFoto/{id}", personal);
             return response.IsSuccessStatusCode;
         }
     }

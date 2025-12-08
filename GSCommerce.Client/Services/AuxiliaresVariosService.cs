@@ -15,7 +15,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _http.GetFromJsonAsync<List<string>>($"api/auxiliares-varios/motivos/{tipo}");
+                var response = await _http.GetFromJsonAsync<List<string>>($"auxiliares-varios/motivos/{tipo}");
                 return response ?? new List<string>();
             }
             catch (Exception ex)

@@ -18,7 +18,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<IgvAlmacenDTO>($"api/igvalmacen/{idAlmacen}");
+                return await _httpClient.GetFromJsonAsync<IgvAlmacenDTO>($"igvalmacen/{idAlmacen}");
             }
             catch
             {
@@ -29,7 +29,7 @@ namespace GSCommerce.Client.Services
         public async Task<bool> ActualizarAsync(int idAlmacen, decimal igv)
         {
             var dto = new IgvAlmacenDTO { IdAlmacen = idAlmacen, Igv = igv };
-            var response = await _httpClient.PutAsJsonAsync($"api/igvalmacen/{idAlmacen}", dto);
+            var response = await _httpClient.PutAsJsonAsync($"igvalmacen/{idAlmacen}", dto);
             return response.IsSuccessStatusCode;
         }
     }

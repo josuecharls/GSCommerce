@@ -21,7 +21,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var url = $"api/movimientos-guias/list?page={page}&pageSize={pageSize}&search={search}&tipo={tipo}&motivo={motivo}"; if (idAlmacen.HasValue && idAlmacen.Value > 0)
+                var url = $"movimientos-guias/list?page={page}&pageSize={pageSize}&search={search}&tipo={tipo}&motivo={motivo}"; if (idAlmacen.HasValue && idAlmacen.Value > 0)
                     url += $"&idAlmacen={idAlmacen.Value}";
 
                 var response = await _httpClient.GetAsync(url);
@@ -48,7 +48,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PutAsync($"api/movimientos-guias/{id}/confirmar", null);
+                var response = await _httpClient.PutAsync($"movimientos-guias/{id}/confirmar", null);
                 var mensaje = await ObtenerMensaje(response);
                 return new ApiResponse
                 {
@@ -90,7 +90,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PutAsync($"api/movimientos-guias/{id}/anular", null);
+                var response = await _httpClient.PutAsync($"movimientos-guias/{id}/anular", null);
                 var mensaje = await ObtenerMensaje(response);
                 return new ApiResponse
                 {
@@ -109,7 +109,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<MovimientoGuiaDTO>($"api/movimientos-guias/{id}");
+                return await _httpClient.GetFromJsonAsync<MovimientoGuiaDTO>($"movimientos-guias/{id}");
             }
             catch
             {
@@ -123,7 +123,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync("api/movimientos-guias", movimiento);
+                var response = await _httpClient.PostAsJsonAsync("movimientos-guias", movimiento);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -138,7 +138,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PutAsJsonAsync($"api/movimientos-guias/{id}", movimiento);
+                var response = await _httpClient.PutAsJsonAsync($"movimientos-guias/{id}", movimiento);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -153,7 +153,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.DeleteAsync($"api/movimientos-guias/{id}");
+                var response = await _httpClient.DeleteAsync($"movimientos-guias/{id}");
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -165,7 +165,7 @@ namespace GSCommerce.Client.Services
 
         public async Task<bool> CreateMovimientoConSP(MovimientoGuiaDTO guia)
         {
-            var response = await _httpClient.PostAsJsonAsync("api/movimientos-guias/registrar-con-sp", guia);
+            var response = await _httpClient.PostAsJsonAsync("movimientos-guias/registrar-con-sp", guia);
             return response.IsSuccessStatusCode;
         }
 

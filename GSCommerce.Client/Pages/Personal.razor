@@ -195,7 +195,7 @@
         if (selectedPersonal != null)
         {
             // Agregar un parámetro único a la URL de la imagen para forzar la recarga
-            photoUrl = $"{Http.BaseAddress}api/Personal/foto/{id}?t={DateTime.Now.Ticks}";
+            photoUrl = $"{Http.BaseAddress}Personal/foto/{id}?t={DateTime.Now.Ticks}";
             showPhotoModal = true;
         }
     }

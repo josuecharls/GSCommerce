@@ -78,10 +78,10 @@
                 </div>
                 <div class="mb-2">
                     <label>Estado:</label>
-                    <select class="form-select" @bind="formulario.Estado">
+                    <InputSelect @bind-Value="formulario.Estado" class="form-select">
                         <option value="true">ACTIVO</option>
                         <option value="false">INACTIVO</option>
-                    </select>
+                    </InputSelect>
                 </div>
                 <div>
                     <button class="btn btn-success me-2" type="submit">Guardar</button>

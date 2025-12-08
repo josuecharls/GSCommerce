@@ -83,7 +83,7 @@ else
 
         try
         {
-            var url = $"api/ventas/estado-sunat?desde={fechaDesde:yyyy-MM-dd}&hasta={fechaHasta:yyyy-MM-dd}";
+            var url = $"ventas/estado-sunat?desde={fechaDesde:yyyy-MM-dd}&hasta={fechaHasta:yyyy-MM-dd}";
             estados = await Http.GetFromJsonAsync<List<EstadosSunatDTO>>(url) ?? new();
         }
         catch (Exception ex)

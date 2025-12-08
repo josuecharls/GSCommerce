@@ -19,14 +19,14 @@ namespace GSCommerce.Client.Services
         public async Task<List<VentaDiariaAlmacenDTO>> ObtenerVentasPorAlmacenDiaAsync(DateOnly fecha)
         {
             string fechaStr = fecha.ToString("yyyy-MM-dd");
-            var response = await _httpClient.GetFromJsonAsync<List<VentaDiariaAlmacenDTO>>($"api/ventas/ventas-almacenes-dia?fecha={fechaStr}");
+            var response = await _httpClient.GetFromJsonAsync<List<VentaDiariaAlmacenDTO>>($"ventas/ventas-almacenes-dia?fecha={fechaStr}");
             return response ?? new();
         }
 
 
         public async Task<int?> RegistrarVentaYObtenerNumeroAsync(VentaRegistroDTO venta)
         {
-            var response = await _httpClient.PostAsJsonAsync("api/ventas", venta);
+            var response = await _httpClient.PostAsJsonAsync("ventas", venta);
 
             if (!response.IsSuccessStatusCode)
                 return null;
@@ -45,7 +45,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync("api/ventas", venta);
+                var response = await _httpClient.PostAsJsonAsync("ventas", venta);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -79,7 +79,7 @@ namespace GSCommerce.Client.Services
 
         public async Task<List<ReporteVentasVendedorDTO>> ObtenerReportePorVendedor(DateTime desde, DateTime hasta)
         {
-            var response = await _httpClient.GetFromJsonAsync<List<ReporteVentasVendedorDTO>>($"api/ventas/reporte-vendedor?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}");
+            var response = await _httpClient.GetFromJsonAsync<List<ReporteVentasVendedorDTO>>($"ventas/reporte-vendedor?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}");
             return response ?? new();
         }
 
@@ -88,7 +88,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                string url = $"api/ventas/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+                string url = $"ventas/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
                 if (idAlmacen.HasValue) url += $"&idAlmacen={idAlmacen.Value}";
                 if (idTipoDoc.HasValue) url += $"&idTipoDoc={idTipoDoc.Value}";
                 if (idUsuario.HasValue && idUsuario.Value > 0) url += $"&idUsuario={idUsuario.Value}";
@@ -106,7 +106,7 @@ namespace GSCommerce.Client.Services
 
         public async Task<bool> RegistrarYEnviarVentaAsync(VentaRegistroDTO venta)
         {
-            var response = await _httpClient.PostAsJsonAsync("api/ventas", venta);
+            var response = await _httpClient.PostAsJsonAsync("ventas", venta);
 
             if (!response.IsSuccessStatusCode)
                 return false;
@@ -141,7 +141,7 @@ namespace GSCommerce.Client.Services
             if (idAlmacen == null)
                 return false;
 
-            var almacen = await _httpClient.GetFromJsonAsync<AlmacenDTO>($"api/almacen/{idAlmacen}");
+            var almacen = await _httpClient.GetFromJsonAsync<AlmacenDTO>($"almacen/{idAlmacen}");
 
             if (almacen == null)
                 return false;
@@ -241,7 +241,7 @@ namespace GSCommerce.Client.Services
                 Detalles = detallesComprobante
             };
 
-            var response = await _httpClient.PostAsJsonAsync("api/ventas/enviar-sunat", comprobante);
+            var response = await _httpClient.PostAsJsonAsync("ventas/enviar-sunat", comprobante);
             var contenido = await response.Content.ReadAsStringAsync();
             Console.WriteLine($"SUNAT respuesta: {contenido}");
             return response.IsSuccessStatusCode;
@@ -251,7 +251,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<VentaDTO>($"api/ventas/{id}");
+                return await _httpClient.GetFromJsonAsync<VentaDTO>($"ventas/{id}");
             }
             catch
             {
@@ -260,7 +260,7 @@ namespace GSCommerce.Client.Services
         }
         public async Task<int> ObtenerNuevoCorrelativoAsync(int idComprobante)
         {
-            return await _httpClient.GetFromJsonAsync<int>($"api/ventas/nuevo-correlativo/{idComprobante}");
+            return await _httpClient.GetFromJsonAsync<int>($"ventas/nuevo-correlativo/{idComprobante}");
         }
 
         public async Task<int> ObtenerSiguienteCorrelativoDisponibleAsync(string serie, int idAlmacen, int idTipoDocumento)
@@ -268,7 +268,7 @@ namespace GSCommerce.Client.Services
             try
             {
                 return await _httpClient.GetFromJsonAsync<int>(
-                    $"api/ventas/siguiente-correlativo-disponible?serie={serie}&idAlmacen={idAlmacen}&idTipoDocumento={idTipoDocumento}");
+                    $"ventas/siguiente-correlativo-disponible?serie={serie}&idAlmacen={idAlmacen}&idTipoDocumento={idTipoDocumento}");
             }
             catch
             {
@@ -278,14 +278,14 @@ namespace GSCommerce.Client.Services
 
         public async Task<(bool Success, string? Message)> ReenviarSunatAsync(int idComprobante)
         {
-            var response = await _httpClient.PostAsync($"api/ventas/reenviar-sunat/{idComprobante}", null);
+            var response = await _httpClient.PostAsync($"ventas/reenviar-sunat/{idComprobante}", null);
             var msg = await response.Content.ReadAsStringAsync();
             return (response.IsSuccessStatusCode, msg);
         }
 
         public async Task<bool> AnularTicketAsync(int idComprobante, AnulacionTicketDTO dto)
         {
-            var response = await _httpClient.PutAsJsonAsync($"api/ventas/anular-ticket/{idComprobante}", dto);
+            var response = await _httpClient.PutAsJsonAsync($"ventas/anular-ticket/{idComprobante}", dto);
             return response.IsSuccessStatusCode;
         }
 

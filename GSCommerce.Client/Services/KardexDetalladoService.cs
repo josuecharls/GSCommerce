@@ -26,7 +26,7 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                string url = $"api/kardexdetallado?articulo={textoBusqueda}&desde={fechaDesde:yyyy-MM-dd}&hasta={fechaHasta:yyyy-MM-dd}";
+                string url = $"kardexdetallado?articulo={textoBusqueda}&desde={fechaDesde:yyyy-MM-dd}&hasta={fechaHasta:yyyy-MM-dd}";
 
                 if (idAlmacen.HasValue)
                     url += $"&idAlmacen={idAlmacen.Value}";

@@ -19,7 +19,7 @@ namespace GSCommerce.Client.Services
         // Verificar si hay apertura pendiente
         public async Task<List<AperturaCierreCajaDTO>?> VerificarAperturaAsync(int idUsuario, int idAlmacen)
         {
-            return await _http.GetFromJsonAsync<List<AperturaCierreCajaDTO>>($"api/caja/verificar/{idUsuario}/{idAlmacen}");
+            return await _http.GetFromJsonAsync<List<AperturaCierreCajaDTO>>($"caja/verificar/{idUsuario}/{idAlmacen}");
         }
 
         // Obtener apertura por fecha
@@ -28,7 +28,7 @@ namespace GSCommerce.Client.Services
             try
             {
                 string fechaStr = fecha.ToString("yyyy-MM-dd");
-                var response = await _http.GetAsync($"api/caja/apertura?idUsuario={idUsuario}&idAlmacen={idAlmacen}&fecha={fechaStr}");
+                var response = await _http.GetAsync($"caja/apertura?idUsuario={idUsuario}&idAlmacen={idAlmacen}&fecha={fechaStr}");
 
                 if (response.StatusCode == HttpStatusCode.NoContent)
                 {
@@ -60,7 +60,7 @@ namespace GSCommerce.Client.Services
         // Última apertura anterior
         public async Task<AperturaCierreCajaDTO?> ObtenerAperturaAnteriorAsync(int idUsuario, int idAlmacen, DateOnly fecha)
         {
-            var response = await _http.GetAsync($"api/caja/anterior/{idUsuario}/{idAlmacen}/{fecha:yyyy-MM-dd}");
+            var response = await _http.GetAsync($"caja/anterior/{idUsuario}/{idAlmacen}/{fecha:yyyy-MM-dd}");
             if (response.StatusCode == HttpStatusCode.NoContent)
                 return null;
 
@@ -71,7 +71,7 @@ namespace GSCommerce.Client.Services
         // Siguiente apertura
         public async Task<AperturaCierreCajaDTO?> ObtenerAperturaSiguienteAsync(int idUsuario, int idAlmacen, DateOnly fecha)
         {
-            var response = await _http.GetAsync($"api/caja/siguiente/{idUsuario}/{idAlmacen}/{fecha}");
+            var response = await _http.GetAsync($"caja/siguiente/{idUsuario}/{idAlmacen}/{fecha}");
             if (response.StatusCode == HttpStatusCode.NoContent)
                 return null;
 
@@ -80,7 +80,7 @@ namespace GSCommerce.Client.Services
         }
         public async Task<bool> DesliquidarCajaAsync(int id)
         {
-            var response = await _http.PutAsync($"api/caja/desliquidar/{id}", null);
+            var response = await _http.PutAsync($"caja/desliquidar/{id}", null);
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync();
@@ -98,7 +98,7 @@ namespace GSCommerce.Client.Services
                 if (apertura.FondoFijo <= 0 || apertura.IdUsuario <= 0 || apertura.IdAlmacen <= 0)
                     return false;
 
-                var response = await _http.PostAsJsonAsync("api/caja/apertura", apertura);
+                var response = await _http.PostAsJsonAsync("caja/apertura", apertura);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -120,13 +120,13 @@ namespace GSCommerce.Client.Services
         // Obtener resumen 1
         public async Task<List<ResumenCierreDeCajaDTO>?> ObtenerResumen1Async(int idUsuario, int idAlmacen, DateOnly fecha)
         {
-            return await _http.GetFromJsonAsync<List<ResumenCierreDeCajaDTO>>($"api/caja/resumen1/{idUsuario}/{idAlmacen}/{fecha}");
+            return await _http.GetFromJsonAsync<List<ResumenCierreDeCajaDTO>>($"caja/resumen1/{idUsuario}/{idAlmacen}/{fecha}");
         }
 
         // Obtener resumen 2
         public async Task<List<VResumenCierreDeCaja2DTO>?> ObtenerResumen2Async(int idUsuario, int idAlmacen, DateOnly fecha)
         {
-            return await _http.GetFromJsonAsync<List<VResumenCierreDeCaja2DTO>>($"api/caja/resumen2/{idUsuario}/{idAlmacen}/{fecha}");
+            return await _http.GetFromJsonAsync<List<VResumenCierreDeCaja2DTO>>($"caja/resumen2/{idUsuario}/{idAlmacen}/{fecha}");
         }
 
         // Registrar cierre
@@ -144,7 +144,7 @@ namespace GSCommerce.Client.Services
                 return false;
             }
             */
-            var response = await _http.PutAsJsonAsync($"api/caja/cierre/{id}", cierre);
+            var response = await _http.PutAsJsonAsync($"caja/cierre/{id}", cierre);
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync();
@@ -173,7 +173,7 @@ namespace GSCommerce.Client.Services
         public async Task<List<VCierreVentaDiaria1DTO>?> ObtenerVentasDiariasAsync(int idAlmacen, DateOnly fecha, int? idUsuario = null)
         {
             string fechaStr = fecha.ToString("yyyy-MM-dd");
-            string url = $"api/caja/ventas/{idAlmacen}/{fechaStr}";
+            string url = $"caja/ventas/{idAlmacen}/{fechaStr}";
             if (idUsuario.HasValue && idUsuario.Value > 0)
             {
                 url += $"?idUsuario={idUsuario.Value}";
@@ -184,7 +184,7 @@ namespace GSCommerce.Client.Services
         // Liquidar caja
         public async Task<bool> LiquidarCajaAsync(LiquidacionVentaDTO liquidacion)
         {
-            var response = await _http.PostAsJsonAsync("api/caja/liquidar", liquidacion);
+            var response = await _http.PostAsJsonAsync("caja/liquidar", liquidacion);
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync();
@@ -196,7 +196,7 @@ namespace GSCommerce.Client.Services
         // Listado de aperturas y cierres
         public async Task<List<VListadoAperturaCierre1DTO>?> ListadoAperturasCierresAsync(DateOnly fecha, int? idAlmacen)
         {
-            var url = $"api/caja/listado?fecha={fecha:yyyy-MM-dd}";
+            var url = $"caja/listado?fecha={fecha:yyyy-MM-dd}";
             if (idAlmacen.HasValue) url += $"&idAlmacen={idAlmacen}";
 
             try

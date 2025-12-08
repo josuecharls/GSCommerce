@@ -158,3 +158,14 @@ window.renderVentasDiaChart = (canvasId, items, highlightId) => {
         }
     });
 }
+
+// Función segura para enfocar inputs por data-item (reemplaza eval)
+window.focusInputByItem = (item) => {
+    setTimeout(function () {
+        var input = document.querySelector(`input[data-item="${item}"]`);
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }, 50);
+};
