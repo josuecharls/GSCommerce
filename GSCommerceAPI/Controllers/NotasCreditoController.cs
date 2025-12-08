@@ -26,6 +26,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpPost("emitir/{tipo}")]
+        [Authorize]
         public async Task<IActionResult> EmitirNotaCredito(string tipo, [FromBody] NotaCreditoRegistroDTO dto)
         {
             if (dto == null || dto.Cabecera == null || dto.Detalles == null)
@@ -137,14 +138,28 @@ namespace GSCommerceAPI.Controllers
                     await _context.SaveChangesAsync();
                 }
 
-                correlativo.Correlativo += 1;
-                dto.Cabecera.Numero = correlativo.Correlativo;
+                // Calcular el siguiente número sin incrementar aún el correlativo
+                int siguienteNumero = correlativo.Correlativo + 1;
+                dto.Cabecera.Numero = siguienteNumero;
 
                 // El crédito debe afectar la caja original que emitió la venta.
                 // Guardamos el usuario actual (quien emite la NC) para registrar
                 // quién realizó la operación, pero asignamos como usuario de la
                 // nota al cajero del comprobante original.
                 var usuarioEmisorNc = dto.Cabecera.IdUsuario;
+
+                // Validar que no exista una nota de crédito con la misma serie y número en este almacén
+                var notaExistente = await _context.NotaDeCreditoCabeceras
+                    .AnyAsync(n => n.IdAlmacen == dto.Cabecera.IdAlmacen &&
+                                   n.Serie == dto.Cabecera.Serie &&
+                                   n.Numero == dto.Cabecera.Numero &&
+                                   n.Estado != "A"); // Excluir anuladas
+
+                if (notaExistente)
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest($"Ya existe una nota de crédito con la serie {dto.Cabecera.Serie} y número {dto.Cabecera.Numero} en este almacén.");
+                }
 
                 // Crear entidad cabecera
                 var cabecera = new NotaDeCreditoCabecera
@@ -288,6 +303,23 @@ namespace GSCommerceAPI.Controllers
                     comprobante.ExcluirDeEstadisticas = true;
                 }
                 await _context.SaveChangesAsync();
+
+                // Incrementar correlativo solo después de que todo se guardó exitosamente
+                if (correlativo != null)
+                {
+                    // Asegurar que el correlativo esté al menos en el número usado
+                    if (correlativo.Correlativo < siguienteNumero)
+                    {
+                        correlativo.Correlativo = siguienteNumero;
+                    }
+                    else
+                    {
+                        // Si ya está igual o mayor, incrementar para la próxima nota
+                        correlativo.Correlativo++;
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
                 await transaction.CommitAsync();
 
                 // Enviar a SUNAT
@@ -389,6 +421,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("buscar")]
+        [Authorize]
         public async Task<IActionResult> BuscarNotaCredito([FromQuery] string serie, [FromQuery] int numero, [FromQuery] int? idAlmacen = null)
         {
             if (string.IsNullOrWhiteSpace(serie))
@@ -437,6 +470,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("pdf/{id}")]
+        [Authorize]
         public async Task<IActionResult> ObtenerPdf(int id)
         {
             var nc = await _context.NotaDeCreditoCabeceras
@@ -475,6 +509,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("pdf-por-numero/{serie}/{numero}")]
+        [Authorize]
         public async Task<IActionResult> ObtenerPdfPorNumero(string serie, int numero)
         {
             var nc = await _context.NotaDeCreditoCabeceras

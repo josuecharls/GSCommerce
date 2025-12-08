@@ -1,6 +1,7 @@
 ﻿using GSCommerce.Client.Models;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
+using GSCommerceAPI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
@@ -16,10 +17,12 @@ namespace GSCommerceAPI.Controllers
     public class UsuariosController : ControllerBase
     {
         private readonly SyscharlesContext _context;
+        private readonly PasswordHasherService _passwordHasher;
 
-        public UsuariosController(SyscharlesContext context)
+        public UsuariosController(SyscharlesContext context, PasswordHasherService passwordHasher)
         {
             _context = context;
+            _passwordHasher = passwordHasher;
         }
 
         // En UsuariosController.cs
@@ -89,8 +92,11 @@ namespace GSCommerceAPI.Controllers
                 return NotFound("Usuario no encontrado.");
 
             var passwordActual = await GetPasswordFromDB(request.NombreUsuario);
-            if (passwordActual == null || passwordActual != request.PasswordActual)
+            if (passwordActual == null || !_passwordHasher.VerifyPassword(request.PasswordActual, passwordActual))
                 return Unauthorized("Contraseña actual incorrecta.");
+
+            // Hashear la nueva contraseña antes de guardarla
+            var hashedPassword = _passwordHasher.HashPassword(request.PasswordNuevo);
 
             using (var connection = new SqlConnection(_context.Database.GetConnectionString()))
             {
@@ -98,7 +104,7 @@ namespace GSCommerceAPI.Controllers
                 using var command = new SqlCommand("dbo.usp_set_password", connection);
                 command.CommandType = CommandType.StoredProcedure;
                 command.Parameters.Add("@IdUsuario", SqlDbType.Int).Value = usuario.IdUsuario;
-                command.Parameters.Add("@password", SqlDbType.VarChar, 50).Value = request.PasswordNuevo;
+                command.Parameters.Add("@password", SqlDbType.VarChar, 200).Value = hashedPassword; // Aumentar tamaño para hash
                 await command.ExecuteNonQueryAsync();
             }
 
@@ -110,17 +116,44 @@ namespace GSCommerceAPI.Controllers
             string? password = null;
             using (var connection = new SqlConnection(_context.Database.GetConnectionString()))
             {
-                await connection.OpenAsync();
-                using (var command = new SqlCommand("dbo.usp_get_password", connection))
+                try
                 {
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.Parameters.AddWithValue("@usuario", usuario);
-                    var result = await command.ExecuteScalarAsync();
-                    if (result != null)
-                        password = result.ToString();
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand("dbo.usp_get_password", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.AddWithValue("@usuario", usuario);
+                        var result = await command.ExecuteScalarAsync();
+                        if (result != null && result != DBNull.Value)
+                        {
+                            password = result.ToString();
+                            // Si el resultado es una cadena vacía, tratarlo como null
+                            if (string.IsNullOrWhiteSpace(password))
+                                password = null;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log del error para debugging
+                    Console.WriteLine($"Error al obtener contraseña para usuario {usuario}: {ex.Message}");
+                    throw; // Re-lanzar para que el método de migración lo capture
                 }
             }
             return password;
+        }
+
+        private async Task SetPasswordHash(int idUsuario, string hashedPassword)
+        {
+            using (var connection = new SqlConnection(_context.Database.GetConnectionString()))
+            {
+                await connection.OpenAsync();
+                using var command = new SqlCommand("dbo.usp_set_password", connection);
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add("@IdUsuario", SqlDbType.Int).Value = idUsuario;
+                command.Parameters.Add("@password", SqlDbType.VarChar, 200).Value = hashedPassword;
+                await command.ExecuteNonQueryAsync();
+            }
         }
 
         // POST: api/usuarios (Crear un nuevo usuario)
@@ -212,13 +245,16 @@ namespace GSCommerceAPI.Controllers
                 await _context.SaveChangesAsync();
             }
 
+            // Hashear la contraseña antes de guardarla
+            var hashedPassword = _passwordHasher.HashPassword(request.Password);
+
             using (var connection = new SqlConnection(_context.Database.GetConnectionString()))
             {
                 await connection.OpenAsync();
                 using var command = new SqlCommand("dbo.usp_set_password", connection);
                 command.CommandType = System.Data.CommandType.StoredProcedure;
                 command.Parameters.Add("@IdUsuario", SqlDbType.Int).Value = usuario.IdUsuario;
-                command.Parameters.Add("@password", SqlDbType.VarChar, 50).Value = request.Password;
+                command.Parameters.Add("@password", SqlDbType.VarChar, 200).Value = hashedPassword; // Aumentar tamaño para hash
                 await command.ExecuteNonQueryAsync();
             }
 
@@ -270,6 +306,68 @@ namespace GSCommerceAPI.Controllers
         private bool UsuarioExists(int id)
         {
             return _context.Usuarios.Any(e => e.IdUsuario == id);
+        }
+
+        [HttpPost("migrar-contrasenas-bcrypt")]
+        [Authorize(Roles = "ADMINISTRADOR")]
+        public async Task<IActionResult> MigrarContrasenasABcrypt()
+        {
+            try
+            {
+                var usuarios = await _context.Usuarios.Where(u => u.Estado == true).ToListAsync();
+                var migrados = 0;
+                var yaMigrados = 0;
+                var errores = 0;
+                var erroresDetalle = new List<string>();
+
+                foreach (var usuario in usuarios)
+                {
+                    try
+                    {
+                        var passwordActual = await GetPasswordFromDB(usuario.Nombre);
+
+                        if (string.IsNullOrEmpty(passwordActual))
+                        {
+                            errores++;
+                            erroresDetalle.Add($"Usuario {usuario.Nombre}: No se pudo obtener contraseña");
+                            continue;
+                        }
+
+                        // Verificar si ya es un hash BCrypt (empieza con $2a$, $2b$, $2y$)
+                        if (passwordActual.StartsWith("$2"))
+                        {
+                            yaMigrados++;
+                            continue;
+                        }
+
+                        // Hashear la contraseña con BCrypt
+                        var hashedPassword = _passwordHasher.HashPassword(passwordActual);
+
+                        // Guardar el hash
+                        await SetPasswordHash(usuario.IdUsuario, hashedPassword);
+                        migrados++;
+                    }
+                    catch (Exception ex)
+                    {
+                        errores++;
+                        erroresDetalle.Add($"Usuario {usuario.Nombre}: {ex.Message}");
+                    }
+                }
+
+                return Ok(new
+                {
+                    mensaje = "Migración completada",
+                    totalUsuarios = usuarios.Count,
+                    migrados = migrados,
+                    yaMigrados = yaMigrados,
+                    errores = errores,
+                    erroresDetalle = erroresDetalle
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = $"Error en la migración: {ex.Message}" });
+            }
         }
     }
 }

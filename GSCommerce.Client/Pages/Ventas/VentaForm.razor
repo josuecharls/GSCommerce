@@ -228,7 +228,7 @@ else
                                 class="btn btn-outline-primary variante-btn @(idx == indiceVarianteSeleccionada ? "active" : "")"
                                 @onclick="() => SeleccionarVarianteRapida(idx)">
                             <span class="variante-numero">@(idx + 1)</span>
-                            <span class="variante-info">@variante.Color<br/><small>@variante.Talla</small></span>
+                            <span class="variante-info">@variante.Color<br /><small>@variante.Talla</small></span>
                         </button>
                     }
                 </div>
@@ -746,6 +746,16 @@ else
         var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
         if (variantes.Any())
         {
+            // Si hay exactamente una variante, agregarla automáticamente sin mostrar el modal
+            if (variantes.Count == 1)
+            {
+                var unica = variantes[0];
+                var descripcionVariante = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {unica.Color} {unica.Talla}";
+                ActualizarArticuloSeleccionado(articulo, descripcionVariante);
+                await AgregarArticuloALaVenta(codigo, articulo, descripcionVariante, precioUnitario, esPromo, stockDisponible);
+                return;
+            }
+
             // Guardar datos pendientes y mostrar popup
             articuloPendiente = articulo;
             variantesPendientes = variantes;
@@ -961,7 +971,6 @@ else
         venta.Pagos = pagosRealizados;
         // Calcular y registrar el vuelto entregado
         var pagoEfectivo = pagosRealizados.FirstOrDefault(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3); venta.Vuelto = pagoEfectivo?.Vuelto ?? 0;
-        ventaCobrada = true;
         Console.WriteLine("Venta cobrada con éxito");
         /*
                 await JS.InvokeVoidAsync("console.log", "Datos de la venta enviados a SUNAT:", new
@@ -1045,6 +1054,7 @@ else
         {
             await JS.InvokeVoidAsync("console.log", "Error al registrar la venta:", resultadoRegistro.ErrorMessage);
             await JS.InvokeVoidAsync("alert", $"❌ Error al registrar la venta: {resultadoRegistro.ErrorMessage}");
+            ventaCobrada = false;
             return;
         }
 
@@ -1053,18 +1063,12 @@ else
         if (venta.IdComprobante <= 0)
         {
             await JS.InvokeVoidAsync("alert", "❌ Error: La venta no se registró correctamente en la base de datos. No se imprimirá la boleta.");
+            ventaCobrada = false;
             return;
         }
 
-        // Incrementar correlativo solo si la venta fue exitosa y tiene IdComprobante válido
-        if (idAlmacenActual.HasValue)
-        {
-            await SerieCorrelativoService.IncrementarCorrelativo(
-                venta.Serie,
-                idAlmacenActual.Value,
-                tipoDoc.IdTipoDocumentoVenta
-            );
-        }
+        // El correlativo ya se incrementa automáticamente en el backend después de guardar exitosamente
+        // No es necesario incrementarlo desde el frontend
 
         // Imprimir boleta solo después de confirmar que la venta se guardó correctamente
         // Esto garantiza que no se impriman boletas de ventas que no existen en la BD
@@ -1099,6 +1103,8 @@ else
             else
                 await JS.InvokeVoidAsync("alert", "❌ Falló el envío a SUNAT.");
         }
+
+        ventaCobrada = true;
 
         // Limpiar manteniendo valores clave
         string? tipoAnterior = venta.TipoDocumento;

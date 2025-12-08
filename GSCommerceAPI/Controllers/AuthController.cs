@@ -1,5 +1,6 @@
 ﻿using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
+using GSCommerceAPI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -20,12 +21,13 @@ namespace GSCommerceAPI.Controllers
     {
         private readonly SyscharlesContext _context;
         private readonly IConfiguration _configuration;
-        private static readonly Dictionary<int, string> _refreshTokens = new();
+        private readonly PasswordHasherService _passwordHasher;
 
-        public AuthController(SyscharlesContext context, IConfiguration configuration)
+        public AuthController(SyscharlesContext context, IConfiguration configuration, PasswordHasherService passwordHasher)
         {
             _context = context;
             _configuration = configuration;
+            _passwordHasher = passwordHasher;
         }
 
         [HttpPost("login")]
@@ -37,8 +39,8 @@ namespace GSCommerceAPI.Controllers
             }
 
             var storedPassword = await GetPasswordFromDB(request.Usuario);
-            if (storedPassword == null || storedPassword != request.Password)
-            {   
+            if (storedPassword == null || !_passwordHasher.VerifyPassword(request.Password, storedPassword))
+            {
                 return Unauthorized("Credenciales inválidas.");
             }
 
@@ -55,7 +57,8 @@ namespace GSCommerceAPI.Controllers
             var token = GenerateJwtToken(user, cargo);
             var refreshToken = GenerateRefreshToken();
 
-            _refreshTokens[user.IdUsuario] = refreshToken;
+            // Guardar refresh token en base de datos
+            await SaveRefreshTokenToDB(user.IdUsuario, refreshToken);
 
             int almacenId = user.IdPersonalNavigation?.IdAlmacen ?? 0;
 
@@ -103,6 +106,38 @@ namespace GSCommerceAPI.Controllers
             return password;
         }
 
+        private async Task SaveRefreshTokenToDB(int userId, string token)
+        {
+            var refreshToken = new RefreshToken
+            {
+                UserId = userId,
+                Token = token,
+                ExpiresAt = DateTime.UtcNow.AddDays(7), // Token válido por 7 días
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task<RefreshToken?> GetRefreshTokenFromDB(int userId, string token)
+        {
+            return await _context.RefreshTokens
+                .FirstOrDefaultAsync(rt => rt.UserId == userId && rt.Token == token);
+        }
+
+        private async Task DeleteRefreshTokenFromDB(int userId, string token)
+        {
+            var refreshToken = await _context.RefreshTokens
+                .FirstOrDefaultAsync(rt => rt.UserId == userId && rt.Token == token);
+
+            if (refreshToken != null)
+            {
+                _context.RefreshTokens.Remove(refreshToken);
+                await _context.SaveChangesAsync();
+            }
+        }
+
         private string GenerateJwtToken(Usuario user, string cargo)
         {
             var keyString = _configuration["JwtSettings:SecretKey"];
@@ -132,7 +167,6 @@ namespace GSCommerceAPI.Controllers
             );
 
             var jwt = new JwtSecurityTokenHandler().WriteToken(token);
-            Console.WriteLine($"Token generado en backend: {jwt}");
             return jwt;
         }
 
@@ -147,9 +181,10 @@ namespace GSCommerceAPI.Controllers
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
         {
-            if (!_refreshTokens.TryGetValue(request.UserId, out var existingToken) || existingToken != request.RefreshToken)
+            var existingToken = await GetRefreshTokenFromDB(request.UserId, request.RefreshToken);
+            if (existingToken == null || existingToken.ExpiresAt < DateTime.UtcNow)
             {
-                return Unauthorized("Refresh token inválido.");
+                return Unauthorized("Refresh token inválido o expirado.");
             }
 
             var user = await _context.Usuarios
@@ -164,7 +199,10 @@ namespace GSCommerceAPI.Controllers
             string cargo = user.IdPersonalNavigation?.Cargo ?? "USUARIO";
             var token = GenerateJwtToken(user, cargo);
             var newRefreshToken = GenerateRefreshToken();
-            _refreshTokens[user.IdUsuario] = newRefreshToken;
+
+            // Eliminar token antiguo y guardar nuevo
+            await DeleteRefreshTokenFromDB(request.UserId, request.RefreshToken);
+            await SaveRefreshTokenToDB(user.IdUsuario, newRefreshToken);
             int almacenId = user.IdPersonalNavigation?.IdAlmacen ?? 0;
 
             return Ok(new

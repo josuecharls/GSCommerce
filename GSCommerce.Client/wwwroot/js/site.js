@@ -158,3 +158,37 @@ window.renderVentasDiaChart = (canvasId, items, highlightId) => {
         }
     });
 }
+
+// Función segura para enfocar inputs por data-item (reemplaza eval)
+window.focusInputByItem = (item) => {
+    setTimeout(function () {
+        var input = document.querySelector(`input[data-item="${item}"]`);
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }, 50);
+};
+
+// Enfocar por id como respaldo seguro
+window.focusElementById = (id) => {
+    setTimeout(() => document.getElementById(id)?.focus(), 30);
+};
+
+// Determinar si el foco actual está en un input/campo interactivo
+window.isActiveElementInput = () => {
+    const el = document.activeElement;
+    if (!el) return false;
+    if (el.isContentEditable) return true;
+    const tag = el.tagName;
+    return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'BUTTON';
+};
+
+// Quitar el foco actual (deja el foco "en el aire")
+window.blurActiveElement = () => {
+    try {
+        if (document.activeElement && document.activeElement.blur) {
+            document.activeElement.blur();
+        }
+    } catch (e) { }
+};
