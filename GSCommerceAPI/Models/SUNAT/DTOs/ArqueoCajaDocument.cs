@@ -23,14 +23,14 @@ public class ArqueoCajaDocument : IDocument
         container.Page(page =>
         {
             page.Size(PageSizes.A4);
-            page.Margin(40);
-            page.DefaultTextStyle(x => x.FontSize(11));
+            page.Margin(20);
+            page.DefaultTextStyle(x => x.FontSize(9));
 
             page.Header().Column(header =>
             {
-                header.Item().Text("ARQUEO DIARIO DE CAJA").Bold().FontSize(14).AlignCenter();
+                header.Item().Text("ARQUEO DIARIO DE CAJA").Bold().FontSize(12).AlignCenter();
                 header.Item().Text(_dto.Fecha.ToString("dd/MM/yyyy")).AlignCenter();
-                header.Item().PaddingTop(5);
+                header.Item().PaddingTop(3);
 
                 header.Item().Row(row =>
                 {
@@ -39,14 +39,14 @@ public class ArqueoCajaDocument : IDocument
                 });
 
                 header.Item().Text(_dto.Sucursal);
-                header.Item().PaddingVertical(5).LineHorizontal(1);
+                header.Item().PaddingVertical(3).LineHorizontal(1);
             });
 
             page.Content().Column(column =>
             {
-                column.Spacing(15);
+                column.Spacing(8);
 
-                column.Item().Text("Detalle").Bold().FontSize(12);
+                column.Item().Text("Detalle").Bold().FontSize(10);
                 column.Item().Table(table =>
                 {
                     table.ColumnsDefinition(cols =>
@@ -73,8 +73,8 @@ public class ArqueoCajaDocument : IDocument
                                 : $"{item.Monto:N2}");
                     }
                 });
-                column.Item().PaddingVertical(5).LineHorizontal(1);
-                column.Item().Text("Resumen").Bold().FontSize(12);
+                column.Item().PaddingVertical(3).LineHorizontal(1);
+                column.Item().Text("Resumen").Bold().FontSize(10);
 
                 column.Item().Table(table =>
                 {
@@ -120,8 +120,8 @@ public class ArqueoCajaDocument : IDocument
 
             page.Footer().Column(footer =>
             {
-                footer.Item().PaddingVertical(5).LineHorizontal(1);
-                footer.Item().Border(1).Padding(8).Table(table =>
+                footer.Item().PaddingVertical(3).LineHorizontal(1);
+                footer.Item().Border(1).Padding(5).Table(table =>
                 {
                     var saldoEnCaja = _dto.SaldoInicial + _dto.VentasDelDia + _dto.Ingresos - _dto.Egresos;
                     table.ColumnsDefinition(c => { c.RelativeColumn(); c.ConstantColumn(100); });

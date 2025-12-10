@@ -67,15 +67,15 @@
         line-height: 3rem;
     }
 
-.nav-item ::deep a.active {
-    background-color: rgba(255,255,255,0.37);
-    color: white;
-}
+        .nav-item ::deep a.active {
+            background-color: rgba(255,255,255,0.37);
+            color: white;
+        }
 
-.nav-item ::deep a:hover {
-    background-color: rgba(255,255,255,0.1);
-    color: white;
-}
+        .nav-item ::deep a:hover {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+        }
 
 @media (min-width: 641px) {
     .navbar-toggler {
@@ -106,7 +106,7 @@
         overflow-y: auto; /* Permite el desplazamiento vertical si el contenido es demasiado grande */
     }
 
-    .nav-scrollable .nav-item {
+        .nav-scrollable .nav-item {
             margin: 1rem 0; /* Espaciado entre los elementos del menú */
         }
 

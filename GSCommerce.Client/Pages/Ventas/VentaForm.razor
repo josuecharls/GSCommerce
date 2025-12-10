@@ -746,6 +746,16 @@ else
         var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
         if (variantes.Any())
         {
+            // Si hay exactamente una variante, agregarla automáticamente sin mostrar el modal
+            if (variantes.Count == 1)
+            {
+                var unica = variantes[0];
+                var descripcionVariante = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {unica.Color} {unica.Talla}";
+                ActualizarArticuloSeleccionado(articulo, descripcionVariante);
+                await AgregarArticuloALaVenta(codigo, articulo, descripcionVariante, precioUnitario, esPromo, stockDisponible);
+                return;
+            }
+
             // Guardar datos pendientes y mostrar popup
             articuloPendiente = articulo;
             variantesPendientes = variantes;
@@ -825,6 +835,27 @@ else
         if (venta.Detalles.Count == 0)
         {
             await JS.InvokeVoidAsync("alert", "⚠️ Debes agregar al menos un producto.");
+            return;
+        }
+
+        // Validar Serie
+        if (string.IsNullOrWhiteSpace(venta.Serie))
+        {
+            await JS.InvokeVoidAsync("alert", "⚠️ Debe seleccionar una serie válida para el tipo de documento.");
+            return;
+        }
+
+        // Validar Correlativo
+        if (venta.Numero <= 0)
+        {
+            await JS.InvokeVoidAsync("alert", "⚠️ El correlativo debe ser mayor a 0.");
+            return;
+        }
+
+        // Validar Cliente (excepto para TICKET)
+        if (RequiereCliente && string.IsNullOrWhiteSpace(venta.NombreCliente))
+        {
+            await JS.InvokeVoidAsync("alert", "⚠️ Debe ingresar el nombre del cliente.");
             return;
         }
 
@@ -961,7 +992,6 @@ else
         venta.Pagos = pagosRealizados;
         // Calcular y registrar el vuelto entregado
         var pagoEfectivo = pagosRealizados.FirstOrDefault(p => p.IdTipoPagoVenta == 2 || p.IdTipoPagoVenta == 3); venta.Vuelto = pagoEfectivo?.Vuelto ?? 0;
-        ventaCobrada = true;
         Console.WriteLine("Venta cobrada con éxito");
         /*
                 await JS.InvokeVoidAsync("console.log", "Datos de la venta enviados a SUNAT:", new
@@ -1045,6 +1075,7 @@ else
         {
             await JS.InvokeVoidAsync("console.log", "Error al registrar la venta:", resultadoRegistro.ErrorMessage);
             await JS.InvokeVoidAsync("alert", $"❌ Error al registrar la venta: {resultadoRegistro.ErrorMessage}");
+            ventaCobrada = false;
             return;
         }
 
@@ -1053,6 +1084,7 @@ else
         if (venta.IdComprobante <= 0)
         {
             await JS.InvokeVoidAsync("alert", "❌ Error: La venta no se registró correctamente en la base de datos. No se imprimirá la boleta.");
+            ventaCobrada = false;
             return;
         }
 
@@ -1092,6 +1124,8 @@ else
             else
                 await JS.InvokeVoidAsync("alert", "❌ Falló el envío a SUNAT.");
         }
+
+        ventaCobrada = true;
 
         // Limpiar manteniendo valores clave
         string? tipoAnterior = venta.TipoDocumento;
@@ -1270,7 +1304,7 @@ else
                 Pagos = pagosRealizados
             };
 
-            var response = await Http.PostAsJsonAsync("ventas", ventaRegistro);
+            var response = await Http.PostAsJsonAsync("api/ventas", ventaRegistro);
 
             if (response.IsSuccessStatusCode)
             {

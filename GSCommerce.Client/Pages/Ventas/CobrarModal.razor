@@ -8,7 +8,7 @@
 
 
 <div class="modal fade @(Mostrar ? "show d-block" : "")" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog" role="document" @onkeydown="HandleGlobalKeyDown" tabindex="0" @ref="modalDialogRef">
         <div class="modal-content">
 
             <div class="modal-header">
@@ -30,7 +30,7 @@
 
                 <div class="mb-3">
                     <label>Monto (@Simbolo.Trim()):</label>
-                    <input type="number" class="form-control" @bind="montoPago" min="0" step="0.01" max="@MaxMontoPago" @onkeydown="HandleMontoKeyDown" />
+                    <input id="montoPagoInput" type="number" class="form-control" @bind="montoPago" @bind:event="oninput" min="0" step="0.01" max="@MaxMontoPago" @ref="montoInputRef" @onkeydown="HandleMontoKeyDown" @onkeydown:stopPropagation="true" />
                 </div>
                 @if (idTipoPagoSeleccionado == 8)
                 {
@@ -69,14 +69,14 @@
                 {
                     <div class="mb-3">
                         <label>4 últimos dígitos de la tarjeta:</label>
-                        <input class="form-control" maxlength="4" @bind="codigoVerificacion" />
+                        <input id="codigoVerificacionInput" class="form-control" maxlength="4" @bind="codigoVerificacion" @bind:event="oninput" @ref="codigoVerificacionInputRef" @onkeydown="HandleCodigoKeyDown" @onkeydown:stopPropagation="true" />
                     </div>
                 }
                 @if (TipoPagoSeleccionado?.Descripcion.ToUpper().Contains("YAPE") == true)
                 {
                     <div class="mb-3">
                         <label>3 dígitos de verificación:</label>
-                        <input class="form-control" maxlength="3" @bind="codigoVerificacion" />
+                        <input id="codigoVerificacionInput" class="form-control" maxlength="3" @bind="codigoVerificacion" @bind:event="oninput" @ref="codigoVerificacionInputRef" @onkeydown="HandleCodigoKeyDown" @onkeydown:stopPropagation="true" />
                     </div>
                 }
                 <div class="text-end mb-2">
@@ -144,6 +144,9 @@
     private string? documentoReferencia;
     private NotaCreditoConsultaDTO? notaCreditoSeleccionada;
     private List<NotaCreditoConsultaDTO> notasCreditoDisponibles = new();
+    private ElementReference modalDialogRef;
+    private ElementReference montoInputRef;
+    private ElementReference codigoVerificacionInputRef;
 
     private string Simbolo => MonedaAlmacen == "USD" ? "$ " : "S/ ";
 
@@ -228,6 +231,7 @@
         await TipoPagoChanged();
         Mostrar = true;
         await InvokeAsync(StateHasChanged);
+        await FocusMontoAsync();
     }
 
     private void Cerrar()
@@ -275,7 +279,7 @@
 
             pagos.Add(nuevoPago);
 
-            montoPago = 0;
+            montoPago = MontoRestante;
             codigoVerificacion = null;
             idTipoPagoSeleccionado = tiposPago.FirstOrDefault()?.IdTipoPagoVenta ?? 0;
         }
@@ -283,26 +287,56 @@
 
     private async Task HandleMontoKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter")
+        if (e.Key != "Enter") return;
+
+        var esTarjeta = string.Equals(TipoPagoSeleccionado?.Tipo, "Tarjeta", StringComparison.OrdinalIgnoreCase);
+        var esYape = TipoPagoSeleccionado?.Descripcion?.Contains("Yape", StringComparison.OrdinalIgnoreCase) == true;
+
+        if (esTarjeta || esYape)
         {
-            // Si hay un monto válido, agregar el pago
-            if (montoPago > 0)
-            {
-                AgregarPago();
-                // Actualizar el estado para reflejar el nuevo pago
-                await InvokeAsync(StateHasChanged);
-            }
-            // Si no hay monto (o es 0) pero el total ya está cubierto, confirmar el pago
-            else if (PuedeConfirmar)
-            {
-                await ConfirmarPago();
-            }
+            await FocusCodigoVerificacionAsync();
+            return;
         }
+
+        if (montoPago > 0)
+        {
+            AgregarPago();
+            await InvokeAsync(StateHasChanged);
+            await BlurActiveElementAsync();
+            await FocusModalAsync();
+        }
+        else if (PuedeConfirmar)
+        {
+            await ConfirmarPago();
+        }
+    }
+
+    private async Task HandleCodigoKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter") return;
+
+        if (montoPago <= 0)
+        {
+            montoPago = MontoRestante;
+        }
+
+        AgregarPago();
+        await InvokeAsync(StateHasChanged);
+        await BlurActiveElementAsync();
+        await FocusModalAsync();
     }
 
     private void EliminarPago(DetallePagoDTO pago)
     {
         pagos.Remove(pago);
+    }
+
+    private async Task HandleGlobalKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !await EstaEnInputAsync() && PuedeConfirmar)
+        {
+            await ConfirmarPago();
+        }
     }
 
     private async Task TipoPagoChanged()
@@ -326,6 +360,54 @@
         }
 
         await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task FocusMontoAsync()
+    {
+        await Task.Delay(50);
+        try
+        {
+            await montoInputRef.FocusAsync();
+        }
+        catch
+        {
+            await JS.InvokeVoidAsync("focusElementById", "montoPagoInput");
+        }
+    }
+
+    private async Task FocusCodigoVerificacionAsync()
+    {
+        await Task.Delay(50);
+        try
+        {
+            await codigoVerificacionInputRef.FocusAsync();
+        }
+        catch
+        {
+            await JS.InvokeVoidAsync("focusElementById", "codigoVerificacionInput");
+        }
+    }
+
+    private async Task BlurActiveElementAsync()
+    {
+        await JS.InvokeVoidAsync("blurActiveElement");
+    }
+
+    private async Task<bool> EstaEnInputAsync()
+    {
+        return await JS.InvokeAsync<bool>("isActiveElementInput");
+    }
+
+    private async Task FocusModalAsync()
+    {
+        try
+        {
+            await modalDialogRef.FocusAsync();
+        }
+        catch
+        {
+            await JS.InvokeVoidAsync("focusElementById", "montoPagoInput");
+        }
     }
 
     private async Task CargarNotasCredito()
