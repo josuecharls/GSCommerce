@@ -4,6 +4,7 @@
     public class VentaDTO
     {
         public int IdTipoDocumento { get; set; }
+        public string TipoDocumento { get; set; } = "";
         public string Serie { get; set; } = "";
         public int Numero { get; set; }
         public DateTime Fecha { get; set; }

@@ -22,6 +22,7 @@ namespace GSCommerce.Client.Models
         public string? GeneroNC { get; set; }
         public string NumeroNotaCredito => string.IsNullOrWhiteSpace(GeneroNC) ? "" : GeneroNC;
         public List<DetallePagoDTO> Pagos { get; set; } = new();
+        public string? NombreVendedor { get; set; }
 
     }
 }

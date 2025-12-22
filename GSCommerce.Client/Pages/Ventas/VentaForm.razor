@@ -24,156 +24,186 @@
 @using System.Text;
 @using System.Linq;
 
-<h3>Registrar Venta</h3>
-<button class="btn btn-outline-primary" @onclick="AbrirNuevaVenta">+ Nueva Venta</button>
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h3 class="mb-0">Registrar Venta</h3>
+    <button class="btn btn-outline-primary btn-sm" @onclick="AbrirNuevaVenta">+ Nueva Venta</button>
+</div>
+
 <fieldset disabled="@ventaCobrada">
-    <div class="mb-3">
-        <label>Escanear o Digitar Código:</label>
-        <input value="@codigoBusqueda" @oninput="DetectarEntradaCodigo" @onkeypress="BuscarAlPresionarEnter" class="form-control" @ref="inputCodigoRef" />
+    <div class="mb-2">
+        <label class="form-label small mb-1">Escanear Código:</label>
+        <input value="@codigoBusqueda" @oninput="DetectarEntradaCodigo" @onkeypress="BuscarAlPresionarEnter" class="form-control form-control-sm" @ref="inputCodigoRef" placeholder="Escanear o digitar código..." />
+    </div>
+    <div class="mb-2">
+        <button class="btn btn-outline-secondary btn-sm" @onclick="() => mostrarArticuloModal = true">
+            <i class="bi bi-search"></i> Buscar Artículo
+        </button>
     </div>
 
-    <div class="mb-3">
-        <label>Buscar Artículo:</label><br />
-        <button class="btn btn-outline-secondary" @onclick="() => mostrarArticuloModal = true"><i class="bi bi-search"></i> Buscar</button>
-    </div>
-
-    <div class="row g-3 align-items-start">
-        <div class="col-lg-8">
-            <div class="mb-3">
-                <label>Tipo de Documento:</label>
-                <select class="form-select" @onchange="OnTipoDocumentoChanged">
-                    @if (EsVentaNormal)
-                    {
-                        <option>BOLETA</option>
-                        <option>FACTURA</option>
-                    }
-                    else if (EsCajaManual)
-                    {
-                        <option>TICKET</option>
-                        <option>BOLETA M</option>
-                        <option>FACTURA M</option>
-                    }
-                </select>
-            </div>
-            <div class="mb-3">
-                <label>Vendedor:</label>
-                <select class="form-select" @onchange="OnVendedorChanged">
-                    <option value="">-- Seleccione --</option>
-                    @foreach (var v in vendedores)
-                    {
-                        <option value="@v.IdPersonal">@($"{v.Nombres} {v.Apellidos}")</option>
-                    }
-                </select>
-            </div>
-
-            <div class="mb-3">
-                <label>Serie:</label>
-                <input class="form-control" disabled
-                       value="@ObtenerSerieConPrefijo()" />
-            </div>
-            <div class="mb-3">
-                <label>Número:</label>
-                <input class="form-control" value="@venta.Numero.ToString("D8")" disabled />
-            </div>
-
-            @if (RequiereCliente)
-            {
-                <div class="mb-3">
-                    <label>Cliente (DNI o RUC):</label>
-                    <InputText class="form-control" @bind-Value="venta.DocumentoCliente" @onblur="BuscarClientePorDocumento" />
-
-                    @if (!string.IsNullOrEmpty(ValidarDocumentoCliente()))
-                    {
-                        <div class="text-danger">@ValidarDocumentoCliente()</div>
-                    }
-                </div>
-
-                <div class="mb-3">
-                    <label>Nombre Cliente:</label>
-                    <InputText class="form-control" @bind-Value="venta.NombreCliente" />
-                </div>
-            }
-
-            <button class="btn btn-primary mb-3" @onclick="AgregarProducto">+ Agregar Producto</button>
+    <div class="row g-2 mb-2">
+        <div class="col-md-2">
+            <label class="form-label small mb-1">Tipo Doc.:</label>
+            <select class="form-select form-select-sm" @onchange="OnTipoDocumentoChanged">
+                @if (EsVentaNormal)
+                {
+                    <option>BOLETA</option>
+                    <option>FACTURA</option>
+                }
+                else if (EsCajaManual)
+                {
+                    <option>TICKET</option>
+                    <option>BOLETA M</option>
+                    <option>FACTURA M</option>
+                }
+            </select>
         </div>
-        <div class="col-lg-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-header">Foto del artículo</div>
+        <div class="col-md-2">
+            <label class="form-label small mb-1">Serie:</label>
+            <input class="form-control form-control-sm" disabled value="@ObtenerSerieConPrefijo()" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small mb-1">Nro:</label>
+            <input class="form-control form-control-sm" value="@venta.Numero.ToString("D8")" disabled />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small mb-1">Fecha:</label>
+            <input class="form-control form-control-sm" value="@venta.FechaEmision.ToString("dd/MM/yyyy")" disabled />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small mb-1">Vendedora:</label>
+            <select class="form-select form-select-sm" @onchange="OnVendedorChanged" @onkeydown="OnVendedorKeyDown" @ref="vendedorSelectRef">
+                <option value="">-- Seleccione --</option>
+                @foreach (var v in vendedores)
+                {
+                    <option value="@v.IdPersonal">@($"{v.Nombres} {v.Apellidos}")</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    @if (RequiereCliente)
+    {
+        <div class="row g-2 mb-2">
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Cliente: DNI</label>
+                <InputText class="form-control form-control-sm" @bind-Value="venta.DocumentoCliente" @onblur="BuscarClientePorDocumento" placeholder="DNI o RUC" />
+                @if (!string.IsNullOrEmpty(ValidarDocumentoCliente()))
+                {
+                    <div class="text-danger small">@ValidarDocumentoCliente()</div>
+                }
+            </div>
+            <div class="col-md-5">
+                <label class="form-label small mb-1">Nombre</label>
+                <InputText class="form-control form-control-sm" @bind-Value="venta.NombreCliente" placeholder="Nombre del cliente" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small mb-1">Dirección:</label>
+                <InputText class="form-control form-control-sm" @bind-Value="venta.DireccionCliente" placeholder="Dirección" />
+            </div>
+        </div>
+    }
+
+    <div class="row g-2 mb-2">
+        <div class="col-md-9">
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-sm table-hover mb-0" style="background-color: #fffacd;">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th style="width: 5%;">Item</th>
+                            <th style="width: 10%;">Código</th>
+                            <th style="width: 30%;">Descripción</th>
+                            <th style="width: 8%;">Cantidad</th>
+                            <th style="width: 12%;">Precio Unitario</th>
+                            <th style="width: 10%;">Descuento (%)</th>
+                            <th style="width: 10%;">Total</th>
+                            <th style="width: 5%;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (venta.Detalles != null && venta.Detalles.Any())
+                        {
+                            @foreach (var detalle in venta.Detalles)
+                            {
+                                <tr class="@ObtenerClaseFila(detalle)">
+                                    <td>
+                                        <button type="button"
+                                                class="btn btn-link p-0 text-decoration-none"
+                                                title="Ver foto del artículo"
+                                                @onclick="() => SeleccionarDetalleAsync(detalle)">
+                                            @detalle.Item
+                                        </button>
+                                    </td>
+                                    <td><input class="form-control form-control-sm" @bind="detalle.CodigoItem" disabled /></td>
+                                    <td><input class="form-control form-control-sm" @bind="detalle.DescripcionItem" disabled /></td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm" step="1" min="1"
+                                               @bind-value="detalle.Cantidad"
+                                               @bind-value:event="oninput"
+                                               @bind-value:after="OnCantidadChanged" />
+                                    </td>
+                                    <td><input type="number" class="form-control form-control-sm" step="0.01" @bind="detalle.PrecioUnitario" @oninput="RecalcularTotales" disabled /></td>
+                                    <td><input type="number" class="form-control form-control-sm" step="0.01" @bind="detalle.PorcentajeDescuento" @oninput="RecalcularTotales" disabled /></td>
+                                    <td>@detalle.Total.ToString("N2")</td>
+                                    <td>
+                                        <button class="btn btn-danger btn-sm" style="padding: 0.125rem 0.5rem; font-size: 0.75rem;" @onclick="() => EliminarProducto(detalle)">X</button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-3">
+                                    <i class="bi bi-inbox"></i> No hay productos agregados. Escanee un código para comenzar.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-header py-1 px-2 small">Foto del artículo</div>
                 @if (!string.IsNullOrWhiteSpace(fotoArticuloSeleccionada))
                 {
-                    <img src="@fotoArticuloSeleccionada" alt="@descripcionArticuloSeleccionada" class="card-img-top" style="object-fit: contain; max-height: 280px;" />
-                    <div class="card-body">
-                        <p class="card-text small mb-0 text-muted">@descripcionArticuloSeleccionada</p>
+                    <img src="@fotoArticuloSeleccionada" alt="@descripcionArticuloSeleccionada" class="card-img-top" style="object-fit: contain; max-height: 120px; padding: 5px;" />
+                    <div class="card-body py-1 px-2">
+                        <p class="card-text small mb-0 text-muted" style="font-size: 0.75rem;">@descripcionArticuloSeleccionada</p>
                     </div>
                 }
                 else if (!string.IsNullOrWhiteSpace(descripcionArticuloSeleccionada))
                 {
-                    <div class="card-body text-center text-muted d-flex flex-column justify-content-center align-items-center" style="min-height: 200px;">
-                        <i class="bi bi-image fs-2 mb-2"></i>
-                        <span>No hay foto disponible para este artículo.</span>
-                        <span class="small mt-2">@descripcionArticuloSeleccionada</span>
+                    <div class="card-body text-center text-muted d-flex flex-column justify-content-center align-items-center py-2" style="min-height: 100px;">
+                        <i class="bi bi-image fs-4 mb-1"></i>
+                        <span class="small">No hay foto disponible</span>
+                        <span class="small mt-1" style="font-size: 0.7rem;">@descripcionArticuloSeleccionada</span>
                     </div>
                 }
                 else
                 {
-                    <div class="card-body text-center text-muted d-flex flex-column justify-content-center align-items-center" style="min-height: 200px;">
-                        <i class="bi bi-image fs-2 mb-2"></i>
-                        <span>Selecciona un artículo para ver su foto.</span>
+                    <div class="card-body text-center text-muted d-flex flex-column justify-content-center align-items-center py-2" style="min-height: 100px;">
+                        <i class="bi bi-image fs-4 mb-1"></i>
+                        <span class="small">Selecciona un artículo</span>
                     </div>
                 }
             </div>
         </div>
     </div>
 
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Item</th>
-                <th>Código</th>
-                <th>Descripción</th>
-                <th>Cantidad</th>
-                <th>Precio Unitario</th>
-                <th>Descuento (%)</th>
-                <th>Total</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var detalle in venta.Detalles)
-            {
-                <tr class="@ObtenerClaseFila(detalle)">
-                    <td>
-                        <button type="button"
-                                class="btn btn-link p-0 text-decoration-none"
-                                title="Ver foto del artículo"
-                                @onclick="() => SeleccionarDetalleAsync(detalle)">
-                            @detalle.Item
-                        </button>
-                    </td>
-                    <td><input class="form-control" @bind="detalle.CodigoItem" disabled /></td>
-                    <td><input class="form-control" @bind="detalle.DescripcionItem" disabled /></td>
-                    <td>
-                        <input type="number" class="form-control" step="1" min="1"
-                               @bind-value="detalle.Cantidad"
-                               @bind-value:event="oninput"
-                               @bind-value:after="OnCantidadChanged" />
-                    </td>
-                    <td><input type="number" class="form-control" step="0.01" @bind="detalle.PrecioUnitario" @oninput="RecalcularTotales" disabled /></td>
-                    <td><input type="number" class="form-control" step="0.01" @bind="detalle.PorcentajeDescuento" @oninput="RecalcularTotales" disabled /></td>
-                    <td>@detalle.Total.ToString("N2")</td>
-                    <td>
-                        <button class="btn btn-danger btn-sm" @onclick="() => EliminarProducto(detalle)">X</button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-
-    <div class="text-end">
-        <h5>Total de Productos: <strong>@TotalProductos.ToString("N0")</strong></h5>
-        <h5>Subtotal: @SimboloMoneda@venta.SubTotal.ToString("N2")@EquivalenteSoles(venta.SubTotal)</h5>
-        <h5>IGV (@porcentajeIgv%): @SimboloMoneda@venta.Igv.ToString("N2")@EquivalenteSoles(venta.Igv)</h5>
-        <h5><strong>Total: @SimboloMoneda@venta.Total.ToString("N2")@EquivalenteSoles(venta.Total)</strong></h5>
+    <div class="row g-2 mb-2">
+        <div class="col-md-9">
+            <div class="d-flex justify-content-end gap-3 align-items-center">
+                <div class="text-end">
+                    <div class="small text-muted">Total Productos: <strong>@TotalProductos.ToString("N0")</strong></div>
+                    <div class="small">Subtotal: @SimboloMoneda@venta.SubTotal.ToString("N2")@EquivalenteSoles(venta.SubTotal)</div>
+                    <div class="small">IGV (@porcentajeIgv%): @SimboloMoneda@venta.Igv.ToString("N2")@EquivalenteSoles(venta.Igv)</div>
+                    <div class="h6 mb-0"><strong>Total: @SimboloMoneda@venta.Total.ToString("N2")@EquivalenteSoles(venta.Total)</strong></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+        </div>
     </div>
 </fieldset>
 
@@ -351,6 +381,7 @@ else
     private string descripcionBusqueda = string.Empty;
     private List<StockDTO> articulosBusqueda = new();
     private ElementReference inputCodigoRef;
+    private ElementReference vendedorSelectRef;
     private CobrarModal? cobrarModalRef;
     private ElementReference variantePopupRef;
     private ElementReference variantePopupContentRef;
@@ -571,6 +602,18 @@ else
             {
                 venta.IdVendedor = v.IdPersonal;
                 venta.NombreVendedor = ($"{v.Nombres} {v.Apellidos}").Trim();
+            }
+        }
+    }
+
+    private async Task OnVendedorKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && idVendedorSeleccionado.HasValue && venta.Detalles != null && venta.Detalles.Any())
+        {
+            // Verificar que haya productos agregados antes de ir a cobrar
+            if (venta.Detalles.Count > 0)
+            {
+                await AbrirCobrar(false); // Abrir cobro en soles por defecto
             }
         }
     }
@@ -988,6 +1031,22 @@ else
 
     private async Task CobroConfirmado(List<DetallePagoDTO> pagos)
     {
+        // Validar que haya al menos una forma de pago
+        if (pagos == null || !pagos.Any())
+        {
+            await JS.InvokeVoidAsync("alert", "❌ Error: Debe haber al menos una forma de pago para registrar la venta.");
+            ventaCobrada = false;
+            return;
+        }
+
+        // Validar que todos los pagos tengan un IdTipoPagoVenta válido
+        if (pagos.Any(p => p.IdTipoPagoVenta <= 0))
+        {
+            await JS.InvokeVoidAsync("alert", "❌ Error: Todas las formas de pago deben tener un tipo válido.");
+            ventaCobrada = false;
+            return;
+        }
+
         pagosRealizados = pagos;
         venta.Pagos = pagosRealizados;
         // Calcular y registrar el vuelto entregado

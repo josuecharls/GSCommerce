@@ -159,6 +159,8 @@ else
     private string proveedorNombre = string.Empty;
     // Diccionario para almacenar el stock disponible de cada artículo
     private Dictionary<string, int> stockPorArticulo = new Dictionary<string, int>();
+    // Semáforo para prevenir doble ejecución
+    private readonly System.Threading.SemaphoreSlim semaforoGuardar = new System.Threading.SemaphoreSlim(1, 1);
 
     private bool mostrarDestino => tipo == "Transferencia" || tipo == "IngresoXOC";
     private bool mostrarProveedor => tipo == "Ingreso" || tipo == "IngresoXOC" || guia.Motivo == "DEVOLUCION A PROVEEDOR";
@@ -353,45 +355,51 @@ else
 
     private async Task Guardar()
     {
-        if (guardando) return; // Prevenir doble ejecución
-
-        // Limpia detalles vacíos o inválidos
-        guia.Detalles = guia.Detalles
-            .Where(d => !string.IsNullOrWhiteSpace(d.IdArticulo) && d.Cantidad > 0)
-            .ToList();
-
-        if (!guia.Detalles.Any())
+        // Prevenir doble ejecución usando semáforo
+        if (!await semaforoGuardar.WaitAsync(0))
         {
-            await MostrarAlerta("Debe ingresar al menos un artículo con cantidad válida.");
-            return;
+            return; // Ya hay una ejecución en curso
         }
 
-        // Asegura que los items estén correctamente enumerados
-        ReordenarItems();
-
-        // Asigna el tipo real (I, E, T) antes de enviar
-        guia.Tipo = tipoMovimiento;
-
-        // Si es transferencia, SIEMPRE egreso en el emisor:
-        if (tipo == "Transferencia")
-        {
-            guia.Motivo = "TRANSFERENCIA EGRESO";
-
-            // Validar stock disponible en el almacén de origen
-            foreach (var d in guia.Detalles)
-            {
-                var stockDisponible = await StockService.GetStockDisponibleParaTransferencia(d.IdArticulo, guia.IdAlmacen);
-                if (stockDisponible < d.Cantidad)
-                {
-                    await MostrarAlerta($"❌ Stock insuficiente para el artículo '{d.IdArticulo}'. Disponible: {stockDisponible}, requerido: {d.Cantidad}.");
-                    return;
-                }
-            }
-        }
-
-        guardando = true;
         try
         {
+            guardando = true;
+            StateHasChanged(); // Actualizar UI inmediatamente
+
+            // Limpia detalles vacíos o inválidos
+            guia.Detalles = guia.Detalles
+                .Where(d => !string.IsNullOrWhiteSpace(d.IdArticulo) && d.Cantidad > 0)
+                .ToList();
+
+            if (!guia.Detalles.Any())
+            {
+                await MostrarAlerta("Debe ingresar al menos un artículo con cantidad válida.");
+                return;
+            }
+
+            // Asegura que los items estén correctamente enumerados
+            ReordenarItems();
+
+            // Asigna el tipo real (I, E, T) antes de enviar
+            guia.Tipo = tipoMovimiento;
+
+            // Si es transferencia, SIEMPRE egreso en el emisor:
+            if (tipo == "Transferencia")
+            {
+                guia.Motivo = "TRANSFERENCIA EGRESO";
+
+                // Validar stock disponible en el almacén de origen
+                foreach (var d in guia.Detalles)
+                {
+                    var stockDisponible = await StockService.GetStockDisponibleParaTransferencia(d.IdArticulo, guia.IdAlmacen);
+                    if (stockDisponible < d.Cantidad)
+                    {
+                        await MostrarAlerta($"❌ Stock insuficiente para el artículo '{d.IdArticulo}'. Disponible: {stockDisponible}, requerido: {d.Cantidad}.");
+                        return;
+                    }
+                }
+            }
+
             bool ok;
             if (tipo == "Transferencia")
             {
@@ -414,6 +422,8 @@ else
         finally
         {
             guardando = false;
+            semaforoGuardar.Release();
+            StateHasChanged();
         }
     }
 

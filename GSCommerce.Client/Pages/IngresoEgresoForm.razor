@@ -399,8 +399,8 @@
             }
         }
 
-        // Validar apertura de caja para transferencias
-        if (registro.Tipo == "TRANSFERENCIA")
+        // Validar apertura de caja para transferencias
+        if (registro.Tipo == "TRANSFERENCIA")
         {
             int idCajeroOrigenValidar;
             int idAlmacenOrigenValidar;
@@ -414,7 +414,7 @@
                 idCajeroDestinoValidar = registro.IdCajeroDestino ?? 0;
                 idAlmacenDestinoValidar = idAlmacenSeleccionado; // Los cajeros mostrados son del almacén seleccionado
 
-                if (idCajeroDestinoValidar == 0)
+                if (idCajeroDestinoValidar == 0)
                 {
                     await JS.InvokeVoidAsync("alert", "Debe seleccionar un cajero destino.");
                     return;
@@ -427,7 +427,7 @@
                 idCajeroDestinoValidar = registro.IdCajeroDestino ?? 0;
                 idAlmacenDestinoValidar = idAlmacen; // Mismo almacén para cajero
 
-                if (idCajeroDestinoValidar == 0)
+                if (idCajeroDestinoValidar == 0)
                 {
                     await JS.InvokeVoidAsync("alert", "Debe seleccionar un cajero destino.");
                     return;
@@ -436,8 +436,8 @@
 
             var fechaOperacion = DateOnly.FromDateTime(registro.Fecha);
 
-            // Verificar apertura del cajero origen
-            var aperturaOrigen = await CajaService.ObtenerAperturaAsync(idCajeroOrigenValidar, idAlmacenOrigenValidar, fechaOperacion);
+            // Verificar apertura del cajero origen
+            var aperturaOrigen = await CajaService.ObtenerAperturaAsync(idCajeroOrigenValidar, idAlmacenOrigenValidar, fechaOperacion);
             if (aperturaOrigen == null || (aperturaOrigen.Estado != "A" && aperturaOrigen.Estado != "L"))
             {
                 var nombreCajeroOrigen = esAdministrador
@@ -447,8 +447,8 @@
                 return;
             }
 
-            // Verificar apertura del cajero destino
-            var aperturaDestino = await CajaService.ObtenerAperturaAsync(idCajeroDestinoValidar, idAlmacenDestinoValidar, fechaOperacion);
+            // Verificar apertura del cajero destino
+            var aperturaDestino = await CajaService.ObtenerAperturaAsync(idCajeroDestinoValidar, idAlmacenDestinoValidar, fechaOperacion);
             if (aperturaDestino == null || (aperturaDestino.Estado != "A" && aperturaDestino.Estado != "L"))
             {
                 var nombreCajeroDestino = cajerosDestino.FirstOrDefault(c => c.IdUsuario == idCajeroDestinoValidar)?.Nombre ?? "Cajero Destino";
@@ -460,8 +460,8 @@
         guardando = true;
         try
         {
-            // Para administrador en transferencia, usar el cajero origen seleccionado como IdUsuario
-            if (registro.Tipo == "TRANSFERENCIA" && esAdministrador && idCajeroOrigen > 0)
+            // Para administrador en transferencia, usar el cajero origen seleccionado como IdUsuario
+            if (registro.Tipo == "TRANSFERENCIA" && esAdministrador && idCajeroOrigen > 0)
             {
                 registro.IdUsuario = idCajeroOrigen;
                 registro.IdAlmacen = idAlmacenSeleccionado;

@@ -1,0 +1,551 @@
+@page "/reportes/detallado-vendedoras-bonos"
+@using System.Text
+@using GSCommerce.Client.Components
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject VentaService VentaService
+@inject AlmacenService AlmacenService
+@inject AuthService AuthService
+@inject IJSRuntime JS
+@using System.Linq
+
+<ReportsBreadcrumb Title="Reporte Detallado Vendedoras con Bonos" />
+
+<div class="row mb-3">
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col-md-3">
+            <label>Almacén:</label>
+            <select class="form-select" @bind="idAlmacenSeleccionado" @bind:after="OnAlmacenChanged">
+                <option value="0">Todos</option>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+    }
+    <div class="@(cargo == "ADMINISTRADOR" ? "col-md-2" : "col-md-3")">
+        <label>Desde:</label>
+        <InputDate @bind-Value="desde" class="form-control" />
+    </div>
+    <div class="@(cargo == "ADMINISTRADOR" ? "col-md-2" : "col-md-3")">
+        <label>Hasta:</label>
+        <InputDate @bind-Value="hasta" class="form-control" />
+    </div>
+    <div class="@(cargo == "ADMINISTRADOR" ? "col-md-2" : "col-md-3")">
+        <label>Vendedora:</label>
+        <select class="form-select" @bind="vendedoraSeleccionada">
+            <option value="">Todas</option>
+            @foreach (var v in vendedorasUnicas)
+            {
+                <option value="@v">@v</option>
+            }
+        </select>
+    </div>
+    <div class="@(cargo == "ADMINISTRADOR" ? "col-md-3" : "col-md-3") d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="Buscar"><i class="bi bi-search"></i> Buscar</button>
+    </div>
+</div>
+
+@if (ventasAgrupadas.Any())
+{
+    <div class="mb-3">
+        <button class="btn btn-info" @onclick="() => mostrarResumen = !mostrarResumen">
+            @(mostrarResumen ? "Ocultar" : "Mostrar") Resumen de Bonos
+        </button>
+        <button class="btn btn-success ms-2" @onclick="ExportarExcel"><i class="bi bi-file-earmark-excel-fill"></i> Descargar Excel</button>
+        @if (cargo == "ADMINISTRADOR")
+        {
+            <button class="btn btn-warning ms-2" @onclick="() => mostrarModalConfiguracion = true"><i class="bi bi-gear"></i> Configurar Bonos</button>
+        }
+    </div>
+
+    @if (mostrarResumen)
+    {
+        <div class="card mb-3">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Resumen de Bonos por Vendedora</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Vendedora</th>
+                            <th>Total Ventas</th>
+                            <th>Ventas > @ObtenerConfiguracionBonos().MontoMenor</th>
+                            <th>Ventas >= @ObtenerConfiguracionBonos().MontoMayor</th>
+                            <th>Bono Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var grupo in resumenBonos)
+                        {
+                            <tr>
+                                <td><strong>@grupo.Vendedora</strong></td>
+                                <td>@grupo.TotalVentas</td>
+                                <td>@grupo.VentasMayores200</td>
+                                <td>@grupo.VentasMayores300</td>
+                                <td><strong>S/ @grupo.BonoTotal.ToString("N2")</strong></td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-info">
+                            <td><strong>TOTAL</strong></td>
+                            <td><strong>@resumenBonos.Sum(r => r.TotalVentas)</strong></td>
+                            <td><strong>@resumenBonos.Sum(r => r.VentasMayores200)</strong></td>
+                            <td><strong>@resumenBonos.Sum(r => r.VentasMayores300)</strong></td>
+                            <td><strong>S/ @resumenBonos.Sum(r => r.BonoTotal).ToString("N2")</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    }
+
+    @foreach (var grupo in ventasAgrupadas)
+    {
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    @grupo.Vendedora 
+                    <span class="badge bg-secondary">@grupo.Ventas.Count ventas</span>
+                    <span class="badge bg-success">Bono Total: S/ @grupo.BonoTotal.ToString("N2")</span>
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-striped table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo Doc</th>
+                            <th>Serie-Número</th>
+                            <th>Cliente</th>
+                            <th>Monto</th>
+                            <th>Bono</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var v in grupo.Ventas.OrderBy(v => v.Fecha))
+                        {
+                            var bono = CalcularBono(v.Total);
+                            <tr>
+                                <td>@v.Fecha.ToString("dd/MM/yyyy")</td>
+                                <td>@v.TipoDocumento</td>
+                                <td>@v.Serie-@v.Numero.ToString("D8")</td>
+                                <td>@v.NombreCliente</td>
+                                <td>S/ @v.Total.ToString("N2")</td>
+                                <td>
+                                    @if (bono > 0)
+                                    {
+                                        <span class="badge bg-info">S/ @bono.ToString("N2")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="4" class="text-end"><strong>Subtotal @grupo.Vendedora:</strong></td>
+                            <td><strong>S/ @grupo.Ventas.Sum(v => v.Total).ToString("N2")</strong></td>
+                            <td><strong>S/ @grupo.BonoTotal.ToString("N2")</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="alert alert-info text-center">No se encontraron ventas para el rango de fechas seleccionado.</div>
+}
+
+@* Modal de Configuración de Bonos *@
+@if (mostrarModalConfiguracion)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Configurar Bonos por Almacén</h5>
+                    <button type="button" class="btn-close" @onclick="() => mostrarModalConfiguracion = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Almacén</th>
+                                    <th>Monto Mínimo (Bono Menor)</th>
+                                    <th>Bono Menor (S/)</th>
+                                    <th>Monto Mínimo (Bono Mayor)</th>
+                                    <th>Bono Mayor (S/)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var almacen in almacenes)
+                                {
+                                    var idx = almacen.IdAlmacen;
+                                    if (!configuracionesBonos.ContainsKey(idx))
+                                    {
+                                        configuracionesBonos[idx] = (200m, 2m, 300m, 3m);
+                                    }
+                                    var config = configuracionesBonos[idx];
+                                    <tr>
+                                        <td><strong>@almacen.Nombre</strong></td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" 
+                                                   step="0.01" min="0" 
+                                                   value="@config.MontoMenor"
+                                                   @onchange="@((ChangeEventArgs e) => ActualizarConfiguracion(idx, "MontoMenor", e))" />
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" 
+                                                   step="0.01" min="0" 
+                                                   value="@config.BonoMenor"
+                                                   @onchange="@((ChangeEventArgs e) => ActualizarConfiguracion(idx, "BonoMenor", e))" />
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" 
+                                                   step="0.01" min="0" 
+                                                   value="@config.MontoMayor"
+                                                   @onchange="@((ChangeEventArgs e) => ActualizarConfiguracion(idx, "MontoMayor", e))" />
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" 
+                                                   step="0.01" min="0" 
+                                                   value="@config.BonoMayor"
+                                                   @onchange="@((ChangeEventArgs e) => ActualizarConfiguracion(idx, "BonoMayor", e))" />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-info mt-3">
+                        <small>
+                            <strong>Nota:</strong> Los bonos se aplican así:<br/>
+                            - Si el monto de la venta es mayor o igual al "Monto Mínimo (Bono Mayor)": se aplica el "Bono Mayor"<br/>
+                            - Si el monto de la venta es mayor al "Monto Mínimo (Bono Menor)": se aplica el "Bono Menor"<br/>
+                            - Si no cumple ninguna condición: no hay bono
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" @onclick="GuardarConfiguraciones">Guardar</button>
+                    <button class="btn btn-secondary" @onclick="() => mostrarModalConfiguracion = false">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DateTime desde = DateTime.Today;
+    private DateTime hasta = DateTime.Today;
+    private string vendedoraSeleccionada = string.Empty;
+    private List<VentaConsultaDTO> ventas = new();
+    private List<string> vendedorasUnicas = new();
+    private List<(string Vendedora, List<VentaConsultaDTO> Ventas, decimal BonoTotal)> ventasAgrupadas = new();
+    private List<(string Vendedora, int TotalVentas, int VentasMayores200, int VentasMayores300, decimal BonoTotal)> resumenBonos = new();
+    private bool mostrarResumen = true;
+    private string? cargo;
+    private int? idAlmacenUsuario;
+    private List<AlmacenDTO> almacenes = new();
+    private int idAlmacenSeleccionado = 0;
+    private bool mostrarModalConfiguracion = false;
+    private Dictionary<int, (decimal MontoMenor, decimal BonoMenor, decimal MontoMayor, decimal BonoMayor)> configuracionesBonos = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo();
+        idAlmacenUsuario = await AuthService.GetUserAlmacenId();
+        
+        if (cargo == "ADMINISTRADOR")
+        {
+            almacenes = (await AlmacenService.GetAlmacenes() ?? new())
+                .Where(a => !a.Nombre.ToUpper().Contains("PRINCIPAL"))
+                .ToList();
+        }
+        else if (idAlmacenUsuario.HasValue)
+        {
+            idAlmacenSeleccionado = idAlmacenUsuario.Value;
+        }
+        
+        await CargarConfiguracionesBonos();
+        await Buscar();
+    }
+
+    private async Task CargarConfiguracionesBonos()
+    {
+        try
+        {
+            var configJson = await JS.InvokeAsync<string>("localStorage.getItem", "configuracionesBonosAlmacenes");
+            if (!string.IsNullOrWhiteSpace(configJson))
+            {
+                configuracionesBonos = System.Text.Json.JsonSerializer.Deserialize<Dictionary<int, (decimal, decimal, decimal, decimal)>>(configJson) ?? new();
+            }
+        }
+        catch
+        {
+            configuracionesBonos = new();
+        }
+    }
+
+    private async Task GuardarConfiguraciones()
+    {
+        try
+        {
+            var configJson = System.Text.Json.JsonSerializer.Serialize(configuracionesBonos);
+            await JS.InvokeVoidAsync("localStorage.setItem", "configuracionesBonosAlmacenes", configJson);
+            await JS.InvokeVoidAsync("alert", "✅ Configuraciones guardadas correctamente.");
+            mostrarModalConfiguracion = false;
+            await Buscar(); // Recalcular bonos con nuevas configuraciones
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"❌ Error al guardar: {ex.Message}");
+        }
+    }
+
+    private async Task OnAlmacenChanged()
+    {
+        await Buscar(); // Recalcular bonos con la configuración del nuevo almacén
+    }
+
+    private void ActualizarConfiguracion(int idAlmacen, string campo, ChangeEventArgs e)
+    {
+        if (!decimal.TryParse(e.Value?.ToString(), out var valor)) return;
+
+        if (!configuracionesBonos.ContainsKey(idAlmacen))
+        {
+            configuracionesBonos[idAlmacen] = (200m, 2m, 300m, 3m);
+        }
+
+        var config = configuracionesBonos[idAlmacen];
+        configuracionesBonos[idAlmacen] = campo switch
+        {
+            "MontoMenor" => (valor, config.BonoMenor, config.MontoMayor, config.BonoMayor),
+            "BonoMenor" => (config.MontoMenor, valor, config.MontoMayor, config.BonoMayor),
+            "MontoMayor" => (config.MontoMenor, config.BonoMenor, valor, config.BonoMayor),
+            "BonoMayor" => (config.MontoMenor, config.BonoMenor, config.MontoMayor, valor),
+            _ => config
+        };
+        StateHasChanged(); // Actualizar UI inmediatamente
+    }
+
+    private async Task Buscar()
+    {
+        int? filtroAlmacen = null;
+        if (cargo == "ADMINISTRADOR")
+        {
+            if (idAlmacenSeleccionado > 0)
+            {
+                filtroAlmacen = idAlmacenSeleccionado;
+            }
+        }
+        else if (idAlmacenUsuario.HasValue)
+        {
+            filtroAlmacen = idAlmacenUsuario.Value;
+        }
+
+        ventas = await VentaService.ObtenerVentasAsync(desde, hasta, filtroAlmacen);
+        
+        // Filtrar por vendedora si está seleccionada
+        if (!string.IsNullOrWhiteSpace(vendedoraSeleccionada))
+        {
+            ventas = ventas.Where(v => v.NombreVendedor == vendedoraSeleccionada).ToList();
+        }
+
+        // Filtrar solo ventas con vendedora y estado válido
+        ventas = ventas
+            .Where(v => !string.IsNullOrWhiteSpace(v.NombreVendedor) && v.Estado == "E")
+            .ToList();
+
+        // Actualizar lista de vendedoras únicas
+        vendedorasUnicas = ventas
+            .Select(v => v.NombreVendedor!)
+            .Distinct()
+            .OrderBy(v => v)
+            .ToList();
+
+        // Agrupar ventas por vendedora y calcular bonos con configuración actual
+        var configActual = ObtenerConfiguracionBonos();
+        ventasAgrupadas = ventas
+            .GroupBy(v => v.NombreVendedor!)
+            .Select(g => {
+                var bonoTotal = g.Sum(v => {
+                    if (v.Total >= configActual.MontoMayor) return configActual.BonoMayor;
+                    if (v.Total > configActual.MontoMenor) return configActual.BonoMenor;
+                    return 0m;
+                });
+                return (
+                    Vendedora: g.Key,
+                    Ventas: g.ToList(),
+                    BonoTotal: bonoTotal
+                );
+            })
+            .OrderBy(g => g.Vendedora)
+            .ToList();
+
+        // Calcular resumen de bonos con configuración del almacén actual
+        // Nota: Si hay múltiples almacenes, cada venta puede tener su propia configuración
+        // Por ahora, usamos la configuración del almacén seleccionado o valores por defecto
+        var config = ObtenerConfiguracionBonos();
+        resumenBonos = ventasAgrupadas.Select(g => {
+            // Contar ventas que califican para cada bono
+            // Ventas que califican para bono menor (mayor al monto menor pero menor al monto mayor)
+            var ventasMenor = g.Ventas.Count(v => v.Total > config.MontoMenor && v.Total < config.MontoMayor);
+            // Ventas que califican para bono mayor (mayor o igual al monto mayor)
+            var ventasMayor = g.Ventas.Count(v => v.Total >= config.MontoMayor);
+            // Calcular bono total
+            var bonoTotal = (ventasMenor * config.BonoMenor) + (ventasMayor * config.BonoMayor);
+            return (
+                Vendedora: g.Vendedora,
+                TotalVentas: g.Ventas.Count,
+                VentasMayores200: ventasMenor,
+                VentasMayores300: ventasMayor,
+                BonoTotal: bonoTotal
+            );
+        }).ToList();
+    }
+
+    private decimal CalcularBono(decimal total)
+    {
+        var config = ObtenerConfiguracionBonos();
+        if (total >= config.MontoMayor) return config.BonoMayor;
+        if (total > config.MontoMenor) return config.BonoMenor;
+        return 0m;
+    }
+
+    private (decimal MontoMenor, decimal BonoMenor, decimal MontoMayor, decimal BonoMayor) ObtenerConfiguracionBonos()
+    {
+        // Si hay un almacén seleccionado, usar su configuración
+        if (idAlmacenSeleccionado > 0 && configuracionesBonos.TryGetValue(idAlmacenSeleccionado, out var config))
+        {
+            return config;
+        }
+        
+        // Si no hay almacén seleccionado o no tiene configuración, usar valores por defecto
+        // Si hay múltiples almacenes, usar la configuración del primero disponible o valores por defecto
+        if (idAlmacenSeleccionado == 0 && almacenes.Any())
+        {
+            // Para "Todos", usar valores por defecto o la primera configuración encontrada
+            var primeraConfig = configuracionesBonos.Values.FirstOrDefault();
+            if (primeraConfig != default)
+            {
+                return primeraConfig;
+            }
+        }
+        
+        // Valores por defecto
+        return (200m, 2m, 300m, 3m);
+    }
+
+    private async Task ExportarExcel()
+    {
+        var rows = new List<object[]>();
+        
+        // Agregar encabezados
+        rows.Add(new object[] { "Vendedora", "Fecha", "Tipo Doc", "Serie-Número", "Cliente", "Monto", "Bono" });
+        
+        // Agregar datos
+        foreach (var grupo in ventasAgrupadas.OrderBy(g => g.Vendedora))
+        {
+            foreach (var v in grupo.Ventas.OrderBy(v => v.Fecha))
+            {
+                var bono = CalcularBono(v.Total);
+                rows.Add(new object[]
+                {
+                    grupo.Vendedora,
+                    v.Fecha.ToString("dd/MM/yyyy"),
+                    v.TipoDocumento,
+                    $"{v.Serie}-{v.Numero:D8}",
+                    v.NombreCliente,
+                    v.Total,
+                    bono
+                });
+            }
+        }
+        
+        var headers = new[] { "Vendedora", "Fecha", "Tipo Doc", "Serie-Número", "Cliente", "Monto", "Bono" };
+        var fileName = $"Reporte_Detallado_Vendedoras_Bonos_{desde:yyyyMMdd}_{hasta:yyyyMMdd}";
+        if (idAlmacenSeleccionado > 0)
+        {
+            var almacenNombre = almacenes.FirstOrDefault(a => a.IdAlmacen == idAlmacenSeleccionado)?.Nombre ?? "";
+            fileName += $"_{almacenNombre.Replace(" ", "_")}";
+        }
+        
+        await JS.InvokeVoidAsync("exportToExcel", headers, rows.ToArray(), fileName);
+    }
+
+    private string GenerarHtmlPDF()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<div style='font-family:Arial; font-size:12px;'>");
+        sb.AppendLine("<h2 style='text-align:center;'>Reporte Detallado Vendedoras con Bonos</h2>");
+        sb.AppendLine($"<p><strong>Desde:</strong> {desde:dd/MM/yyyy} <strong>Hasta:</strong> {hasta:dd/MM/yyyy}</p>");
+        
+        if (cargo == "ADMINISTRADOR" && idAlmacenSeleccionado > 0)
+        {
+            var almacenNombre = almacenes.FirstOrDefault(a => a.IdAlmacen == idAlmacenSeleccionado)?.Nombre ?? "N/A";
+            sb.AppendLine($"<p><strong>Almacén:</strong> {almacenNombre}</p>");
+        }
+        
+        if (!string.IsNullOrWhiteSpace(vendedoraSeleccionada))
+        {
+            sb.AppendLine($"<p><strong>Vendedora:</strong> {vendedoraSeleccionada}</p>");
+        }
+
+        // Resumen de bonos
+        sb.AppendLine("<h3>Resumen de Bonos</h3>");
+        sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
+        sb.AppendLine("<thead><tr><th>Vendedora</th><th>Total Ventas</th><th>Ventas > 200</th><th>Ventas >= 300</th><th>Bono Total</th></tr></thead>");
+        sb.AppendLine("<tbody>");
+        foreach (var r in resumenBonos)
+        {
+            sb.AppendLine("<tr>");
+            sb.AppendLine($"<td>{r.Vendedora}</td>");
+            sb.AppendLine($"<td>{r.TotalVentas}</td>");
+            sb.AppendLine($"<td>{r.VentasMayores200}</td>");
+            sb.AppendLine($"<td>{r.VentasMayores300}</td>");
+            sb.AppendLine($"<td>S/ {r.BonoTotal:N2}</td>");
+            sb.AppendLine("</tr>");
+        }
+        sb.AppendLine("</tbody></table>");
+
+        // Detalle por vendedora
+        foreach (var grupo in ventasAgrupadas)
+        {
+            sb.AppendLine($"<h3 style='margin-top:20px;'>{grupo.Vendedora} - Bono Total: S/ {grupo.BonoTotal:N2}</h3>");
+            sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
+            sb.AppendLine("<thead><tr><th>Fecha</th><th>Tipo Doc</th><th>Serie-Número</th><th>Cliente</th><th>Monto</th><th>Bono</th></tr></thead>");
+            sb.AppendLine("<tbody>");
+            foreach (var v in grupo.Ventas.OrderBy(v => v.Fecha))
+            {
+                var bono = CalcularBono(v.Total);
+                sb.AppendLine("<tr>");
+                sb.AppendLine($"<td>{v.Fecha:dd/MM/yyyy}</td>");
+                sb.AppendLine($"<td>{v.TipoDocumento}</td>");
+                sb.AppendLine($"<td>{v.Serie}-{v.Numero:D8}</td>");
+                sb.AppendLine($"<td>{v.NombreCliente}</td>");
+                sb.AppendLine($"<td>S/ {v.Total:N2}</td>");
+                sb.AppendLine($"<td>{(bono > 0 ? $"S/ {bono:N2}" : "-")}</td>");
+                sb.AppendLine("</tr>");
+            }
+            sb.AppendLine("</tbody>");
+            sb.AppendLine($"<tfoot><tr><td colspan='4'><strong>Subtotal</strong></td><td><strong>S/ {grupo.Ventas.Sum(v => v.Total):N2}</strong></td><td><strong>S/ {grupo.BonoTotal:N2}</strong></td></tr></tfoot>");
+            sb.AppendLine("</table>");
+        }
+
+        sb.AppendLine("</div>");
+        return sb.ToString();
+    }
+}
+

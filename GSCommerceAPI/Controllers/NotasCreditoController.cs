@@ -148,9 +148,10 @@ namespace GSCommerceAPI.Controllers
                 // nota al cajero del comprobante original.
                 var usuarioEmisorNc = dto.Cabecera.IdUsuario;
 
-                // Validar que no exista una nota de crédito con la misma serie y número en este almacén
+                // Validar que no exista una nota de crédito con la misma serie y número en este almacén para este tipo de documento
                 var notaExistente = await _context.NotaDeCreditoCabeceras
                     .AnyAsync(n => n.IdAlmacen == dto.Cabecera.IdAlmacen &&
+                                   n.IdTipoDocumento == dto.Cabecera.IdTipoDocumento &&
                                    n.Serie == dto.Cabecera.Serie &&
                                    n.Numero == dto.Cabecera.Numero &&
                                    n.Estado != "A"); // Excluir anuladas
@@ -158,7 +159,7 @@ namespace GSCommerceAPI.Controllers
                 if (notaExistente)
                 {
                     await transaction.RollbackAsync();
-                    return BadRequest($"Ya existe una nota de crédito con la serie {dto.Cabecera.Serie} y número {dto.Cabecera.Numero} en este almacén.");
+                    return BadRequest($"Ya existe una nota de crédito con la serie {dto.Cabecera.Serie} y número {dto.Cabecera.Numero} en este almacén para este tipo de documento.");
                 }
 
                 // Crear entidad cabecera
@@ -422,7 +423,7 @@ namespace GSCommerceAPI.Controllers
 
         [HttpGet("buscar")]
         [Authorize]
-        public async Task<IActionResult> BuscarNotaCredito([FromQuery] string serie, [FromQuery] int numero, [FromQuery] int? idAlmacen = null)
+        public async Task<IActionResult> BuscarNotaCredito([FromQuery] string serie, [FromQuery] int numero, [FromQuery] int? idAlmacen = null, [FromQuery] int? idTipoDocumento = null)
         {
             if (string.IsNullOrWhiteSpace(serie))
                 return BadRequest("Serie requerida");
@@ -433,6 +434,12 @@ namespace GSCommerceAPI.Controllers
             if (idAlmacen.HasValue && idAlmacen.Value > 0)
             {
                 query = query.Where(n => n.IdAlmacen == idAlmacen.Value);
+            }
+
+            // Filtrar por tipo de documento si se proporciona
+            if (idTipoDocumento.HasValue && idTipoDocumento.Value > 0)
+            {
+                query = query.Where(n => n.IdTipoDocumento == idTipoDocumento.Value);
             }
 
             var nota = await query.FirstOrDefaultAsync();

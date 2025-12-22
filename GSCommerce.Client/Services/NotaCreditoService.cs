@@ -46,7 +46,7 @@ namespace GSCommerce.Client.Services
                 return new();
             }
         }
-        public async Task<NotaCreditoConsultaDTO?> BuscarPorDocumentoAsync(string serie, int numero, int idAlmacen = 0)
+        public async Task<NotaCreditoConsultaDTO?> BuscarPorDocumentoAsync(string serie, int numero, int idAlmacen = 0, int? idTipoDocumento = null)
         {
             try
             {
@@ -54,6 +54,10 @@ namespace GSCommerce.Client.Services
                 if (idAlmacen > 0)
                 {
                     url += $"&idAlmacen={idAlmacen}";
+                }
+                if (idTipoDocumento.HasValue && idTipoDocumento.Value > 0)
+                {
+                    url += $"&idTipoDocumento={idTipoDocumento.Value}";
                 }
                 return await _http.GetFromJsonAsync<NotaCreditoConsultaDTO>(url);
             }

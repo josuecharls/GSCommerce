@@ -200,7 +200,7 @@
         }
     }
 
-    private bool PuedeConfirmar => TotalPagado >= MontoTotal;
+    private bool PuedeConfirmar => pagos.Any() && TotalPagado >= MontoTotal;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -444,18 +444,43 @@
         if (partes.Length != 2) return;
         if (!int.TryParse(partes[1], out var numero)) return;
 
+        // Determinar los IdTipoDocumento de las notas de crédito según el tipo de documento de la venta
+        // Mapeo: BOLETA (1) -> NC Boleta (8) y NC Factura (9) [canje cruzado permitido]
+        //        FACTURA (2) -> NC Factura (9) y NC Boleta (8) [canje cruzado permitido]
+        //        BOLETA M (5) -> NC Boleta M (10)
+        //        TICKET (4) -> NC Ticket (11)
+        List<int> tiposDocumentoNC = TipoDocumento?.ToUpper() switch
+        {
+            "BOLETA" => new List<int> { 8, 9 }, // Permite NC de boleta y factura
+            "FACTURA" => new List<int> { 9, 8 }, // Permite NC de factura y boleta
+            "BOLETA M" => new List<int> { 10 },
+            "TICKET" => new List<int> { 11 },
+            _ => new List<int>()
+        };
+
         try
         {
-            var nota = await NotaCreditoService.BuscarPorDocumentoAsync(partes[0], numero, IdAlmacen);
-            if (nota != null && nota.Empleada != true && string.IsNullOrEmpty(nota.Comprobante) && nota.IdMotivo != "09")
-            {
-                // Restricción: Si es TICKET, no permitir notas de crédito de BOLETAS
-                if (TipoDocumento == "TICKET" && EsNotaCreditoDeBoleta(nota))
-                {
-                    await JS.InvokeVoidAsync("alert", "No se puede usar una nota de crédito de boleta en un ticket.");
-                    return;
-                }
+            NotaCreditoConsultaDTO? nota = null;
 
+            // Buscar en cada tipo de documento hasta encontrar una válida
+            foreach (var idTipoDoc in tiposDocumentoNC)
+            {
+                var notaEncontrada = await NotaCreditoService.BuscarPorDocumentoAsync(partes[0], numero, IdAlmacen, idTipoDoc);
+                if (notaEncontrada != null && notaEncontrada.Empleada != true && string.IsNullOrEmpty(notaEncontrada.Comprobante) && notaEncontrada.IdMotivo != "09")
+                {
+                    // Restricción: Si es TICKET, no permitir notas de crédito de BOLETAS
+                    if (TipoDocumento == "TICKET" && EsNotaCreditoDeBoleta(notaEncontrada))
+                    {
+                        continue; // Buscar siguiente tipo
+                    }
+
+                    nota = notaEncontrada;
+                    break; // Encontrada una válida
+                }
+            }
+
+            if (nota != null)
+            {
                 notaCreditoSeleccionada = nota;
                 var restante = MontoTotal - TotalPagado;
                 montoPago = Math.Min(nota.Total, restante > 0 ? restante : 0);
@@ -467,6 +492,20 @@
 
     private async Task ConfirmarPago()
     {
+        // Validar que haya al menos una forma de pago
+        if (!pagos.Any())
+        {
+            await JS.InvokeVoidAsync("alert", "⚠️ Debes agregar al menos una forma de pago antes de confirmar.");
+            return;
+        }
+
+        // Validar que el total pagado sea suficiente
+        if (TotalPagado < MontoTotal)
+        {
+            await JS.InvokeVoidAsync("alert", $"⚠️ El monto pagado (S/ {TotalPagado:N2}) es menor al total a pagar (S/ {MontoTotal:N2}).");
+            return;
+        }
+
         // Calculamos el vuelto total antes de enviar los pagos
         var vuelto = VueltoCalculado;
         var pagoEfectivo = pagos.FirstOrDefault(p => EsPagoEfectivo(p.IdTipoPagoVenta));

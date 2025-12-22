@@ -45,6 +45,7 @@ namespace GSCommerceAPI.Controllers
         {
             var cabecera = await _context.ComprobanteDeVentaCabeceras
                 .Include(c => c.ComprobanteDeVentaDetalles)
+                .Include(c => c.IdTipoDocumentoNavigation)
                 .FirstOrDefaultAsync(c => c.IdComprobante == id);
 
             if (cabecera == null)
@@ -88,6 +89,7 @@ namespace GSCommerceAPI.Controllers
             var venta = new VentaDTO
             {
                 IdTipoDocumento = cabecera.IdTipoDocumento,
+                TipoDocumento = cabecera.IdTipoDocumentoNavigation?.Abreviatura ?? "",
                 Serie = cabecera.Serie,
                 Numero = cabecera.Numero,
                 Fecha = cabecera.Fecha,
@@ -860,6 +862,26 @@ namespace GSCommerceAPI.Controllers
                         v.GeneroNC = string.IsNullOrWhiteSpace(m.GeneroNc) ? null : m.GeneroNc;
                     }
                 }
+
+                // Obtener información de vendedoras
+                var vendedoresInfo = await (from c in _context.ComprobanteDeVentaCabeceras
+                                           join p in _context.Personals on c.IdVendedor equals p.IdPersonal into vendedorJoin
+                                           from vendedor in vendedorJoin.DefaultIfEmpty()
+                                           where ids.Contains(c.IdComprobante)
+                                           select new { 
+                                               c.IdComprobante, 
+                                               NombreVendedor = vendedor != null ? 
+                                                   ((vendedor.Nombres ?? "") + " " + (vendedor.Apellidos ?? "")).Trim() : null
+                                           })
+                                           .ToDictionaryAsync(x => x.IdComprobante);
+
+                foreach (var v in ventas)
+                {
+                    if (vendedoresInfo.TryGetValue(v.IdComprobante, out var vendedorInfo))
+                    {
+                        v.NombreVendedor = vendedorInfo.NombreVendedor;
+                    }
+                }
             }
 
             // Agrupar formas de pago
@@ -1137,6 +1159,14 @@ namespace GSCommerceAPI.Controllers
         {
             if (ventaRegistro?.Cabecera == null || ventaRegistro.TipoDocumento == null || ventaRegistro.TipoDocumento.IdTipoDocumentoVenta == 0)
                 return BadRequest("Falta seleccionar un tipo de documento válido.");
+
+            // Validar que haya al menos una forma de pago
+            if (ventaRegistro.Pagos == null || !ventaRegistro.Pagos.Any())
+                return BadRequest("Debe haber al menos una forma de pago para registrar la venta.");
+
+            // Validar que todos los pagos tengan un IdTipoPagoVenta válido
+            if (ventaRegistro.Pagos.Any(p => p.IdTipoPagoVenta <= 0))
+                return BadRequest("Todas las formas de pago deben tener un tipo válido.");
 
             // Verificar que exista una apertura de caja para el día actual en el almacén indicado
             var fechaActual = DateOnly.FromDateTime(DateTime.Today);
