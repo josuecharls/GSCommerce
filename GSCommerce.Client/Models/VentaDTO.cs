@@ -32,5 +32,13 @@
         public string? NombreVendedor { get; set; }
         public decimal Vuelto { get; set; }
         public List<DetallePagoDTO> Pagos { get; set; } = new();
+        public string EstadoSunat { get; set; } = "PENDIENTE";
+    }
+
+    public class CorrelativoReenvioDTO
+    {
+        public int Numero { get; set; }
+        public bool Cambiara { get; set; }
+        public int NumeroActual { get; set; }
     }
 }

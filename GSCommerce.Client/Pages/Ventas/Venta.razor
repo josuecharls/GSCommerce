@@ -227,7 +227,25 @@
                 </div>
                 <div class="modal-body">
                     <p><strong>Cliente:</strong> @ventaReenvio.Nombre (@ventaReenvio.Dniruc)</p>
-                    <p><strong>Nuevo Correlativo:</strong> @ventaSeleccionada.Serie-@nuevoNumeroReenvio.ToString("D8")</p>
+                    @if (infoCorrelativoReenvio != null)
+                    {
+                        @if (infoCorrelativoReenvio.Cambiara)
+                        {
+                            <div class="alert alert-warning">
+                                <strong>⚠️ Correlativo cambiará:</strong><br/>
+                                Actual: @ventaSeleccionada.Serie-@infoCorrelativoReenvio.NumeroActual.ToString("D8")<br/>
+                                Nuevo: @ventaSeleccionada.Serie-@infoCorrelativoReenvio.Numero.ToString("D8")
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                <strong>✓ Se mantendrá el mismo correlativo:</strong><br/>
+                                @ventaSeleccionada.Serie-@infoCorrelativoReenvio.Numero.ToString("D8")<br/>
+                                <small class="text-muted">(El documento nunca llegó a SUNAT)</small>
+                            </div>
+                        }
+                    }
                     <table class="table table-sm">
                         <thead>
                             <tr>
@@ -310,7 +328,7 @@
     private VentaDTO? ventaReenvio;
     private VentaConsultaDTO? ventaSeleccionada;
     private bool mostrarModalReenvio;
-    private int nuevoNumeroReenvio;
+    private CorrelativoReenvioDTO? infoCorrelativoReenvio;
     private bool mostrarModalAnulacion;
     private VentaDTO? ventaAnulacion;
     private List<DetallePagoDTO> pagosAnulacion = new();
@@ -426,13 +444,28 @@
                                             || v.TipoDocumento.Contains("TICKET", StringComparison.OrdinalIgnoreCase));
     }
 
-    private bool PuedeEmitirNC(VentaConsultaDTO v) =>
-        (v.Estado == "E" || v.Estado == "D") && string.IsNullOrWhiteSpace(v.NumeroNotaCredito);
+    private bool PuedeEmitirNC(VentaConsultaDTO v)
+    {
+        // Para TICKETS no aplica validación SUNAT
+        if (v.IdTipoDocumento == 4)
+            return (v.Estado == "E" || v.Estado == "D") && string.IsNullOrWhiteSpace(v.NumeroNotaCredito);
+        
+        // Para BOLETA, FACTURA, etc: debe estar ACEPTADO en SUNAT
+        return (v.Estado == "E" || v.Estado == "D") 
+            && string.IsNullOrWhiteSpace(v.NumeroNotaCredito) 
+            && v.EstadoSunat == "ACEPTADO";
+    }
 
     private async Task EmitirNotaCredito(string tipo, VentaConsultaDTO v)
     {
         if (!PuedeEmitirNC(v))
         {
+            if (v.IdTipoDocumento != 4 && v.EstadoSunat != "ACEPTADO")
+            {
+                var tipoDoc = v.TipoDocumento?.ToUpper() ?? "COMPROBANTE";
+                await JS.InvokeVoidAsync("alert", $"⚠️ {tipoDoc} no emitida, no puede hacer Nota De Crédito.");
+                return;
+            }
             await JS.InvokeVoidAsync("alert", "⚠️ Solo se puede emitir N.C. para ventas EMITIDAS o DECLARADAS y sin N.C. previa.");
             return;
         }
@@ -472,7 +505,7 @@
             await JS.InvokeVoidAsync("alert", "No se pudo obtener la venta.");
             return;
         }
-        nuevoNumeroReenvio = await ventaService.ObtenerNuevoCorrelativoAsync(v.IdComprobante);
+        infoCorrelativoReenvio = await ventaService.ObtenerNuevoCorrelativoAsync(v.IdComprobante);
         ventaSeleccionada = v;
         mostrarModalReenvio = true;
     }
@@ -481,13 +514,28 @@
     {
         if (ventaSeleccionada == null) return;
         var (ok, msg) = await ventaService.ReenviarSunatAsync(ventaSeleccionada.IdComprobante);
+        
         if (ok)
-            await JS.InvokeVoidAsync("alert", "Comprobante Emitido a SUNAT");
+        {
+            // Verificar si el mensaje indica que se corrigió el estado
+            if (msg.StartsWith("CORREGIDO:", StringComparison.OrdinalIgnoreCase))
+            {
+                await JS.InvokeVoidAsync("alert", "✅ Se corrigió el estado puesto que este comprobante ya se aceptó anteriormente");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "✅ Comprobante Emitido a SUNAT");
+            }
+        }
         else
-            await JS.InvokeVoidAsync("alert", $"No emitido por {msg}");
+        {
+            await JS.InvokeVoidAsync("alert", $"❌ No emitido por {msg}");
+        }
+        
         mostrarModalReenvio = false;
         ventaReenvio = null;
         ventaSeleccionada = null;
+        infoCorrelativoReenvio = null;
         await BuscarVentas();
     }
 
@@ -496,6 +544,7 @@
         mostrarModalReenvio = false;
         ventaReenvio = null;
         ventaSeleccionada = null;
+        infoCorrelativoReenvio = null;
     }
 
     private async Task AbrirAnulacion(VentaConsultaDTO v)
@@ -538,14 +587,14 @@
 
     private async Task ImprimirBoletaReenvio()
     {
-        if (ventaReenvio == null) return;
+        if (ventaReenvio == null || infoCorrelativoReenvio == null) return;
         try
         {
             var ventaImpresion = new VentaDTO
             {
                 IdTipoDocumento = ventaReenvio.IdTipoDocumento,
                 Serie = ventaReenvio.Serie,
-                Numero = nuevoNumeroReenvio,
+                Numero = infoCorrelativoReenvio.Numero,
                 //fecha y hora actual para diferenciar la impresión del reenvío
                 Fecha = DateTime.Now,
                 IdCliente = ventaReenvio.IdCliente,
@@ -667,25 +716,20 @@
         string dirEmisor = GetAny<string>(vObj, "", "DireccionEmisor", "DireccionLocal", "Direccion");
 
         // ==== Documento / Serie ====
+        int idTipoDoc = GetAny<int>(vObj, 0, "IdTipoDocumento");
         string tipoDocTexto = (GetAny<string>(vObj, "BOLETA", "TipoDocumento", "TipoDoc") ?? "").ToUpper();
-        string tipoDocCodigoSunat = tipoDocTexto == "FACTURA" ? "01" : "03";
+        string tipoDocCodigoSunat = (idTipoDoc == 2 || idTipoDoc == 6) ? "01" : "03";
 
         string serie = GetAny<string>(vObj, "", "Serie");
         int numero = GetAny<int>(vObj, 0, "Numero");
 
-        // Prefijo igual que en ObtenerSerieConPrefijo()
-        string prefijo = (tipoDocTexto == "BOLETA" || tipoDocTexto == "BOLETA M" || tipoDocTexto == "TICKET") ? "B"
-                       : (tipoDocTexto == "FACTURA" || tipoDocTexto == "FACTURA M") ? "F"
-                       : "";
+        // Prefijo basado en IdTipoDocumento
+        string prefijo = (idTipoDoc == 2 || idTipoDoc == 6) ? "F" : "B";
         string serieConPrefijo = $"{prefijo}{serie}";
 
-        // Título igual al de GenerarHtmlDelTicket()
-        string tipoDocTitulo = tipoDocTexto switch
-        {
-            "BOLETA" or "BOLETA M" or "TICKET" => "BOLETA",
-            "FACTURA" or "FACTURA M" => "FACTURA",
-            _ => tipoDocTexto
-        };
+        // Título: FACTURA solo si IdTipoDocumento es 2 (FACTURA) o 6 (FACTURA M)
+        // Para todo lo demás (BOLETA, BOLETA M, TICKET) mostrar BOLETA
+        string tipoDocTitulo = (idTipoDoc == 2 || idTipoDoc == 6) ? "FACTURA" : "BOLETA";
 
         // ==== Cliente ====
         string cliente = GetAny<string>(vObj, "", "NombreCliente", "Nombre");

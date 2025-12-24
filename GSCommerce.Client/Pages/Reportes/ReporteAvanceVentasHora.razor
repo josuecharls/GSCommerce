@@ -17,7 +17,7 @@
 <div class="row g-3 mb-3">
     <div class="col-md-3">
         <label>Fecha:</label>
-        <InputDate @bind-Value="fechaSeleccionada" class="form-control" @onchange="OnFechaChanged" />
+        <InputDate @bind-Value="fechaSeleccionada" class="form-control" />
     </div>
     <div class="col-md-3">
         <label>Hora:</label>
@@ -30,7 +30,54 @@
     </div>
     <div class="col-md-3">
         <label>@ObtenerLabelMeta():</label>
-        <InputNumber @bind-Value="Meta" class="form-control" step="0.01" min="0" disabled="@(!PuedeEditarMeta)"/>
+        <div class="input-group">
+            <InputNumber @bind-Value="Meta" class="form-control" step="0.01" min="0" disabled="@(cargo != "ADMINISTRADOR" || !estaEditandoMeta)" />
+            @if (cargandoMeta)
+            {
+                <span class="input-group-text">
+                    <span class="spinner-border spinner-border-sm"></span>
+                </span>
+            }
+            else if (cargo == "ADMINISTRADOR")
+            {
+                @if (estaEditandoMeta)
+                {
+                    <button class="btn btn-success" @onclick="GuardarMeta" disabled="@guardandoMeta" title="Guardar meta">
+                        @if (guardandoMeta)
+                        {
+                            <span class="spinner-border spinner-border-sm"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-lg"></i>
+                        }
+                    </button>
+                    <button class="btn btn-secondary" @onclick="CancelarEdicionMeta" disabled="@guardandoMeta" title="Cancelar">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-primary" @onclick="HabilitarEdicionMeta" title="Editar meta">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                }
+            }
+            else
+            {
+                <span class="input-group-text bg-light">
+                    <i class="bi bi-lock-fill"></i>
+                </span>
+            }
+        </div>
+        @if (selectedAlmacen == 0 && cargo == "ADMINISTRADOR" && estaEditandoMeta)
+        {
+            <small class="text-muted">La meta se dividirá equitativamente entre todos los almacenes</small>
+        }
+        @if (cargo != "ADMINISTRADOR")
+        {
+            <small class="text-muted">Meta configurada por administradores</small>
+        }
     </div>
     @if (cargo == "ADMINISTRADOR")
     {
@@ -218,7 +265,7 @@ else
 @code {
     private readonly List<int> horas = Enumerable.Range(0, 24).ToList();
     private const decimal MetaPredeterminada = 4500m;
-    private DateTime fechaSeleccionada = DateTime.Today;
+    private DateTime fechaInterna = DateTime.Today;
     private int horaSeleccionada = DateTime.Now.Hour;
     private List<AlmacenDTO> almacenes = new();
     private int selectedAlmacen;
@@ -227,8 +274,30 @@ else
     private string? mensajeError;
     private ReporteAvanceHoraDTO avance = new();
     private decimal metaActual = MetaPredeterminada;
+    private decimal metaAnterior = MetaPredeterminada;
     private bool suprimirGuardadoMeta;
+    private bool estaEditandoMeta = false;
+    private bool guardandoMeta = false;
+    private bool cargandoMeta = false;
     private bool PuedeEditarMeta => cargo == "ADMINISTRADOR";
+    
+    private DateTime fechaSeleccionada
+    {
+        get => fechaInterna;
+        set
+        {
+            if (fechaInterna.Date != value.Date)
+            {
+                fechaInterna = value;
+                estaEditandoMeta = false; // Cancelar edición al cambiar de fecha
+                _ = InvokeAsync(async () =>
+                {
+                    await CargarMetaDelServidorAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+    }
     
     // Variables para modal de meta múltiple
     private bool mostrarModalMetaMultiple = false;
@@ -248,11 +317,8 @@ else
             }
 
             metaActual = value;
-
-            if (!suprimirGuardadoMeta && PuedeEditarMeta)
-            {
-                _ = InvokeAsync(() => GuardarMetaEnServidorAsync(value));
-            }
+            
+            // Ya no guardamos automáticamente, solo actualizamos el valor local
         }
     }
 
@@ -265,14 +331,18 @@ else
 
         if (cargo == "ADMINISTRADOR")
         {
-            almacenes = await AlmacenService.GetAlmacenes() ?? new();
+            var todosAlmacenes = await AlmacenService.GetAlmacenes() ?? new();
+            // Filtrar el almacén PRINCIPAL
+            almacenes = todosAlmacenes
+                .Where(a => !string.Equals(a.Nombre, "PRINCIPAL", StringComparison.OrdinalIgnoreCase))
+                .ToList();
             selectedAlmacen = 0;
         }
         else if (idAlmacenUsuario.HasValue)
         {
             selectedAlmacen = idAlmacenUsuario.Value;
             var almacen = await AlmacenService.GetAlmacenById(selectedAlmacen);
-            if (almacen != null)
+            if (almacen != null && !string.Equals(almacen.Nombre, "PRINCIPAL", StringComparison.OrdinalIgnoreCase))
             {
                 almacenes = new List<AlmacenDTO> { almacen };
             }
@@ -381,47 +451,147 @@ else
             if (selectedAlmacen != nuevoAlmacen)
             {
                 selectedAlmacen = nuevoAlmacen;
+                estaEditandoMeta = false; // Cancelar edición al cambiar de almacén
                 await CargarMetaDelServidorAsync();
             }
         }
     }
 
-    private async Task OnFechaChanged(ChangeEventArgs e)
-    {
-        if (DateTime.TryParse(e.Value?.ToString(), out var nuevaFecha))
-        {
-            if (fechaSeleccionada.Date != nuevaFecha.Date)
-            {
-                fechaSeleccionada = nuevaFecha;
-                // Cargar la meta para la nueva fecha
-                await CargarMetaDelServidorAsync();
-                // Forzar actualización del componente para que se actualice el label
-                StateHasChanged();
-            }
-        }
-    }
 
     private async Task CargarMetaDelServidorAsync()
     {
+        cargandoMeta = true;
         try
         {
             var idAlmacen = ObtenerIdAlmacenParaMeta();
-            if (idAlmacen > 0)
+            
+            suprimirGuardadoMeta = true;
+            
+            if (idAlmacen == 0 && cargo == "ADMINISTRADOR")
             {
-                var meta = await MetaDiariaService.ObtenerMetaDiaria(idAlmacen, DateOnly.FromDateTime(fechaSeleccionada));
+                // Cuando está en "Todos", sumar todas las metas de todos los almacenes
+                var fecha = DateOnly.FromDateTime(fechaSeleccionada);
+                var metasDiarias = await MetaDiariaService.ObtenerMetasDiarias(fecha);
                 
-                suprimirGuardadoMeta = true;
-                Meta = meta > 0 ? meta : MetaPredeterminada;
-                suprimirGuardadoMeta = false;
+                decimal metaTotal = 0m;
+                
+                // Crear un diccionario con las metas configuradas
+                var metasConfiguradas = metasDiarias?.ToDictionary(m => m.IdAlmacen, m => m.Meta) 
+                    ?? new Dictionary<int, decimal>();
+                
+                // Sumar la meta de cada almacén (configurada o predeterminada)
+                foreach (var almacen in almacenes)
+                {
+                    if (metasConfiguradas.TryGetValue(almacen.IdAlmacen, out var metaAlmacen))
+                    {
+                        metaTotal += metaAlmacen;
+                    }
+                    else
+                    {
+                        // Si el almacén no tiene meta configurada, usar la predeterminada
+                        metaTotal += MetaPredeterminada;
+                    }
+                }
+                
+                Meta = metaTotal;
             }
+            else if (idAlmacen > 0)
+            {
+                var fecha = DateOnly.FromDateTime(fechaSeleccionada);
+                var meta = await MetaDiariaService.ObtenerMetaDiaria(idAlmacen, fecha);
+                Meta = meta > 0 ? meta : MetaPredeterminada;
+            }
+            else
+            {
+                Meta = MetaPredeterminada;
+            }
+            
+            metaAnterior = Meta;
+            estaEditandoMeta = false; // Deshabilitar edición al cargar
+            suprimirGuardadoMeta = false;
         }
         catch
         {
             // Si hay error, usar meta predeterminada
             suprimirGuardadoMeta = true;
             Meta = MetaPredeterminada;
+            metaAnterior = Meta;
+            estaEditandoMeta = false;
             suprimirGuardadoMeta = false;
         }
+        finally
+        {
+            cargandoMeta = false;
+        }
+    }
+
+    private void HabilitarEdicionMeta()
+    {
+        metaAnterior = Meta;
+        estaEditandoMeta = true;
+    }
+
+    private async Task GuardarMeta()
+    {
+        guardandoMeta = true;
+        mensajeError = null;
+
+        try
+        {
+            var idAlmacen = ObtenerIdAlmacenParaMeta();
+            var fecha = DateOnly.FromDateTime(fechaSeleccionada);
+            
+            if (idAlmacen == 0 && cargo == "ADMINISTRADOR")
+            {
+                // Cuando está en "Todos", guardar la meta para todos los almacenes
+                var idAlmacenes = almacenes.Select(a => a.IdAlmacen).ToArray();
+                
+                // Calcular la meta por almacén (dividir equitativamente)
+                var metaPorAlmacen = almacenes.Count > 0 ? Meta / almacenes.Count : Meta;
+                
+                var exito = await MetaDiariaService.GuardarMetaDiariaMultiple(idAlmacenes, fecha, metaPorAlmacen);
+                
+                if (exito)
+                {
+                    metaAnterior = Meta;
+                    estaEditandoMeta = false;
+                    // Recargar para mostrar la suma actualizada
+                    await CargarMetaDelServidorAsync();
+                }
+                else
+                {
+                    mensajeError = "Error al guardar la meta. Inténtelo nuevamente.";
+                }
+            }
+            else if (idAlmacen > 0)
+            {
+                var exito = await MetaDiariaService.GuardarMetaDiaria(idAlmacen, fecha, Meta);
+                
+                if (exito)
+                {
+                    metaAnterior = Meta;
+                    estaEditandoMeta = false;
+                }
+                else
+                {
+                    mensajeError = "Error al guardar la meta. Inténtelo nuevamente.";
+                }
+            }
+        }
+        catch
+        {
+            mensajeError = "Error al guardar la meta. Inténtelo nuevamente.";
+        }
+        finally
+        {
+            guardandoMeta = false;
+        }
+    }
+
+    private void CancelarEdicionMeta()
+    {
+        Meta = metaAnterior;
+        estaEditandoMeta = false;
     }
 
     private async Task GuardarMetaEnServidorAsync(decimal valor)
@@ -566,6 +736,12 @@ else
     private string ObtenerLabelMeta()
     {
         var fechaTexto = fechaSeleccionada.ToString("dd/MM/yyyy");
+        
+        if (selectedAlmacen == 0 && cargo == "ADMINISTRADOR")
+        {
+            return $"Meta Total del {fechaTexto} (S/)";
+        }
+        
         return $"Meta del {fechaTexto} (S/)";
     }
 

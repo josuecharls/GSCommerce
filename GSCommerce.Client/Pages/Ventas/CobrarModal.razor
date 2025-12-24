@@ -368,10 +368,11 @@
         try
         {
             await montoInputRef.FocusAsync();
+            await JS.InvokeVoidAsync("selectInputText", montoInputRef);
         }
         catch
         {
-            await JS.InvokeVoidAsync("focusElementById", "montoPagoInput");
+            await JS.InvokeVoidAsync("focusAndSelectElementById", "montoPagoInput");
         }
     }
 
@@ -453,7 +454,7 @@
         {
             "BOLETA" => new List<int> { 8, 9 }, // Permite NC de boleta y factura
             "FACTURA" => new List<int> { 9, 8 }, // Permite NC de factura y boleta
-            "BOLETA M" => new List<int> { 10 },
+            "BOLETA M" => new List<int> { 8, 10 },
             "TICKET" => new List<int> { 11 },
             _ => new List<int>()
         };

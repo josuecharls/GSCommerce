@@ -151,6 +151,15 @@ else
             nav.NavigateTo("/ventas");
             return;
         }
+        // Validar estado SUNAT para documentos que se envían a SUNAT (no TICKET)
+        if (venta.IdTipoDocumento != 4 && venta.EstadoSunat != "ACEPTADO") // ← CAMBIO AQUÍ: 4 = TICKET
+        {
+            loading = false;
+            var tipoDoc = venta.TipoDocumento?.ToUpper() ?? "COMPROBANTE";
+            await JS.InvokeVoidAsync("alert", $"{tipoDoc} no emitida, no puede hacer Nota De Crédito.");
+            nav.NavigateTo("/ventas");
+            return;
+        }
         serieOriginal = venta.Serie;
         idTipoDocumentoOriginal = venta.IdTipoDocumento;
 

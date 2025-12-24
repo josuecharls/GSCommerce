@@ -192,3 +192,23 @@ window.blurActiveElement = () => {
         }
     } catch (e) { }
 };
+
+// Seleccionar todo el texto de un input (recibe ElementReference)
+window.selectInputText = (element) => {
+    setTimeout(() => {
+        if (element && element.select) {
+            element.select();
+        }
+    }, 100);
+};
+
+// Enfocar y seleccionar texto por id
+window.focusAndSelectElementById = (id) => {
+    setTimeout(() => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.focus();
+            element.select();
+        }
+    }, 100);
+};

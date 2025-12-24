@@ -258,9 +258,9 @@ namespace GSCommerce.Client.Services
                 return null;
             }
         }
-        public async Task<int> ObtenerNuevoCorrelativoAsync(int idComprobante)
+        public async Task<CorrelativoReenvioDTO?> ObtenerNuevoCorrelativoAsync(int idComprobante)
         {
-            return await _httpClient.GetFromJsonAsync<int>($"ventas/nuevo-correlativo/{idComprobante}");
+            return await _httpClient.GetFromJsonAsync<CorrelativoReenvioDTO>($"ventas/nuevo-correlativo/{idComprobante}");
         }
 
         public async Task<int> ObtenerSiguienteCorrelativoDisponibleAsync(string serie, int idAlmacen, int idTipoDocumento)
@@ -279,8 +279,23 @@ namespace GSCommerce.Client.Services
         public async Task<(bool Success, string? Message)> ReenviarSunatAsync(int idComprobante)
         {
             var response = await _httpClient.PostAsync($"ventas/reenviar-sunat/{idComprobante}", null);
-            var msg = await response.Content.ReadAsStringAsync();
-            return (response.IsSuccessStatusCode, msg);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                try
+                {
+                    var json = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>();
+                    var mensaje = json?["mensaje"]?.ToString() ?? "Éxito";
+                    return (true, mensaje);
+                }
+                catch
+                {
+                    return (true, "Comprobante enviado correctamente");
+                }
+            }
+            
+            var errorMsg = await response.Content.ReadAsStringAsync();
+            return (false, errorMsg);
         }
 
         public async Task<bool> AnularTicketAsync(int idComprobante, AnulacionTicketDTO dto)

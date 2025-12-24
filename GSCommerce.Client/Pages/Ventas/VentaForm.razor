@@ -395,6 +395,7 @@ else
 
     private DateTime ultimaEntrada = DateTime.MinValue;
     private bool entradaManual = false;
+    private DateTime ultimoEnter = DateTime.MinValue;
     //private string? tipoDocumentoSeleccionado;
     private int? idAlmacenActual;
     private int? idUsuarioActual;
@@ -697,6 +698,41 @@ else
     {
         if (e.Key == "Enter")
         {
+            var ahora = DateTime.UtcNow;
+            
+            // Verificar si se presionó Enter dos veces seguidas (dentro de 500ms)
+            if (ultimoEnter != DateTime.MinValue && (ahora - ultimoEnter).TotalMilliseconds < 500)
+            {
+                // Doble Enter: mover foco a Vendedora
+                ultimoEnter = DateTime.MinValue;
+                await Task.Delay(50);
+                try
+                {
+                    await vendedorSelectRef.FocusAsync();
+                }
+                catch
+                {
+                    // Si falla, intentar con JavaScript
+                    await JS.InvokeVoidAsync("eval", @"
+                        setTimeout(function() {
+                            var labels = document.querySelectorAll('label');
+                            for(var i = 0; i < labels.length; i++) {
+                                if(labels[i].textContent.includes('Vendedora')) {
+                                    var select = labels[i].nextElementSibling;
+                                    if(select && select.tagName === 'SELECT') {
+                                        select.focus();
+                                        break;
+                                    }
+                                }
+                            }
+                        }, 100);
+                    ");
+                }
+                return;
+            }
+            
+            // Enter simple: buscar artículo (comportamiento normal)
+            ultimoEnter = ahora;
             entradaManual = true;
             await BuscarCodigoAsync();
         }
