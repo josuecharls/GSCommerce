@@ -1,0 +1,517 @@
+@page "/guias-remision-sunat/nueva"
+@page "/guias-remision-sunat/editar/{Id:int}"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Models.SUNAT
+@using GSCommerce.Client.Services
+@inject GuiaRemisionSunatService GuiaService
+@inject AlmacenService AlmacenService
+@inject ArticuloService ArticuloService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">
+            <i class="bi bi-truck text-primary me-2"></i>
+            @(esEdicion ? "Editar" : "Nueva") Guía de Remisión Electrónica
+        </h3>
+        <button class="btn btn-outline-secondary" @onclick="Volver">
+            <i class="bi bi-arrow-left me-1"></i> Volver
+        </button>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+            <p class="mt-2">Cargando...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Datos del documento -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-file-text me-2"></i>Datos del Documento
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Serie</label>
+                                <input type="text" class="form-control" @bind="guia.Serie" placeholder="T001" maxlength="4" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Fecha Emisión</label>
+                                <input type="date" class="form-control" @bind="guia.FechaEmision" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Tienda / Almacén Origen</label>
+                                <select class="form-select" @bind="guia.IdAlmacen" @bind:after="OnAlmacenChange">
+                                    <option value="">Seleccione...</option>
+                                    @foreach (var alm in almacenes)
+                                    {
+                                        <option value="@alm.IdAlmacen">@alm.Nombre</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Datos del destinatario -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-info text-white">
+                        <i class="bi bi-person me-2"></i>Datos del Destinatario
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo Doc.</label>
+                                <select class="form-select" @bind="guia.TipoDocumentoDestinatario">
+                                    <option value="6">RUC</option>
+                                    <option value="1">DNI</option>
+                                    <option value="4">Carnet Extranjería</option>
+                                    <option value="7">Pasaporte</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Número Doc.</label>
+                                <input type="text" class="form-control" @bind="guia.NumeroDocumentoDestinatario" maxlength="11" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Razón Social / Nombre</label>
+                                <input type="text" class="form-control" @bind="guia.RazonSocialDestinatario" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Ubigeo Destino</label>
+                                <input type="text" class="form-control" @bind="guia.UbigeoLlegada" placeholder="150101" maxlength="6" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Dirección Destino</label>
+                                <input type="text" class="form-control" @bind="guia.DireccionLlegada" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Datos del traslado -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <i class="bi bi-signpost me-2"></i>Datos del Traslado
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Motivo de Traslado</label>
+                                <select class="form-select" @bind="guia.MotivoTraslado">
+                                    @foreach (var m in motivosTraslado)
+                                    {
+                                        <option value="@m.Codigo">@m.Codigo - @m.Descripcion</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Modalidad Transporte</label>
+                                <select class="form-select" @bind="guia.ModalidadTraslado">
+                                    <option value="02">02 - Transporte Privado</option>
+                                    <option value="01">01 - Transporte Público</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Fecha Inicio Traslado</label>
+                                <input type="date" class="form-control" @bind="guia.FechaInicioTraslado" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Peso Bruto (KG)</label>
+                                <input type="number" class="form-control" @bind="guia.PesoBrutoTotal" step="0.01" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Nro. Bultos</label>
+                                <input type="number" class="form-control" @bind="guia.NumeroBultos" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Descripción Motivo</label>
+                                <input type="text" class="form-control" @bind="guia.DescripcionMotivoTraslado" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transporte -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-secondary text-white">
+                        <i class="bi bi-truck me-2"></i>Datos del Transporte
+                    </div>
+                    <div class="card-body">
+                        @if (guia.ModalidadTraslado == "01")
+                        {
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">RUC Transportista</label>
+                                    <input type="text" class="form-control" @bind="guia.RucTransportista" maxlength="11" />
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label">Razón Social Transportista</label>
+                                    <input type="text" class="form-control" @bind="guia.RazonSocialTransportista" />
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Placa Vehículo</label>
+                                    <input type="text" class="form-control" @bind="guia.PlacaVehiculo" maxlength="7" placeholder="ABC-123" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">DNI Conductor</label>
+                                    <input type="text" class="form-control" @bind="guia.NumeroDocumentoConductor" maxlength="8" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Nombres</label>
+                                    <input type="text" class="form-control" @bind="guia.NombreConductor" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Apellidos</label>
+                                    <input type="text" class="form-control" @bind="guia.ApellidoConductor" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Licencia Conducir</label>
+                                    <input type="text" class="form-control" @bind="guia.LicenciaConductor" />
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Punto de partida -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-success text-white">
+                        <i class="bi bi-geo-alt me-2"></i>Punto de Partida
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Ubigeo</label>
+                                <input type="text" class="form-control" @bind="guia.UbigeoPartida" placeholder="150101" maxlength="6" />
+                            </div>
+                            <div class="col-md-9">
+                                <label class="form-label">Dirección</label>
+                                <input type="text" class="form-control" @bind="guia.DireccionPartida" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <label class="form-label">Observaciones</label>
+                        <textarea class="form-control" rows="2" @bind="guia.Observaciones"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Detalle de artículos -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-box-seam me-2"></i>Bienes a Transportar</span>
+                        <button class="btn btn-sm btn-light" @onclick="AgregarDetalle">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Código</th>
+                                        <th>Descripción</th>
+                                        <th>Cant.</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var det in guia.Detalles)
+                                    {
+                                        <tr>
+                                            <td>@det.Item</td>
+                                            <td>
+                                                <input type="text" class="form-control form-control-sm" 
+                                                       @bind="det.IdArticulo" style="width: 70px;" />
+                                            </td>
+                                            <td>
+                                                <input type="text" class="form-control form-control-sm" 
+                                                       @bind="det.DescripcionArticulo" />
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control form-control-sm" 
+                                                       @bind="det.Cantidad" style="width: 60px;" />
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => EliminarDetalle(det)">
+                                                    <i class="bi bi-x"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer text-muted">
+                        Total: @guia.Detalles.Count artículo(s)
+                    </div>
+                </div>
+
+                <!-- Resumen del remitente -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-building me-2"></i>Datos del Remitente
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-1"><strong>RUC:</strong> @guia.RucRemitente</p>
+                        <p class="mb-1"><strong>Razón Social:</strong> @guia.RazonSocialRemitente</p>
+                        <p class="mb-0"><strong>Dirección:</strong> @guia.DireccionRemitente</p>
+                    </div>
+                </div>
+
+                <!-- Botones de acción -->
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success btn-lg" @onclick="Guardar" disabled="@guardando">
+                        @if (guardando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        <i class="bi bi-check-circle me-2"></i>Guardar Guía
+                    </button>
+                    
+                    @if (esEdicion && !guia.EnviadoSunat)
+                    {
+                        <button class="btn btn-primary btn-lg" @onclick="GuardarYEnviar" disabled="@guardando">
+                            <i class="bi bi-send me-2"></i>Guardar y Enviar a SUNAT
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    private GuiaRemisionSunatDTO guia = new();
+    private List<AlmacenDTO> almacenes = new();
+    private List<CatalogoItemDTO> motivosTraslado = new();
+
+    private bool esEdicion => Id.HasValue && Id.Value > 0;
+    private bool cargando = false;
+    private bool guardando = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargando = true;
+        try
+        {
+            almacenes = await AlmacenService.GetAlmacenes() ?? new();
+            motivosTraslado = await GuiaService.ObtenerMotivosTraslado();
+
+            if (motivosTraslado.Count == 0)
+            {
+                // Catálogo por defecto si no carga del servidor
+                motivosTraslado = new List<CatalogoItemDTO>
+                {
+                    new() { Codigo = "01", Descripcion = "Venta" },
+                    new() { Codigo = "02", Descripcion = "Compra" },
+                    new() { Codigo = "04", Descripcion = "Traslado entre establecimientos" },
+                    new() { Codigo = "06", Descripcion = "Devolución" },
+                    new() { Codigo = "13", Descripcion = "Otros" }
+                };
+            }
+
+            if (esEdicion)
+            {
+                var guiaExistente = await GuiaService.ObtenerGuiaAsync(Id!.Value);
+                if (guiaExistente != null)
+                {
+                    guia = guiaExistente;
+                }
+            }
+            else
+            {
+                // Valores por defecto
+                guia.Serie = "T001";
+                guia.FechaEmision = DateTime.Today;
+                guia.FechaInicioTraslado = DateTime.Today;
+                guia.MotivoTraslado = "01";
+                guia.ModalidadTraslado = "02";
+                guia.TipoDocumentoDestinatario = "6";
+                guia.UnidadMedidaPeso = "KGM";
+                guia.TipoDocumentoConductor = "1";
+
+                var userId = await AuthService.GetUserId();
+                guia.IdUsuario = userId;
+            }
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task OnAlmacenChange()
+    {
+        if (guia.IdAlmacen.HasValue)
+        {
+            var alm = almacenes.FirstOrDefault(a => a.IdAlmacen == guia.IdAlmacen.Value);
+            if (alm != null)
+            {
+                guia.RucRemitente = alm.Ruc ?? "";
+                guia.RazonSocialRemitente = alm.RazonSocial ?? "";
+                guia.DireccionRemitente = alm.Direccion ?? "";
+                guia.UbigeoRemitente = alm.Ubigeo ?? "";
+                guia.DireccionPartida = alm.Direccion ?? "";
+                guia.UbigeoPartida = alm.Ubigeo ?? "";
+            }
+        }
+        await Task.CompletedTask;
+    }
+
+    private void AgregarDetalle()
+    {
+        var nuevoItem = guia.Detalles.Count + 1;
+        guia.Detalles.Add(new GuiaRemisionDetalleItemDTO
+        {
+            Item = nuevoItem,
+            Cantidad = 1,
+            UnidadMedida = "NIU"
+        });
+    }
+
+    private void EliminarDetalle(GuiaRemisionDetalleItemDTO det)
+    {
+        guia.Detalles.Remove(det);
+        // Renumerar items
+        for (int i = 0; i < guia.Detalles.Count; i++)
+        {
+            guia.Detalles[i].Item = i + 1;
+        }
+    }
+
+    private async Task Guardar()
+    {
+        if (!Validar()) return;
+
+        guardando = true;
+        try
+        {
+            if (esEdicion)
+            {
+                var (ok, mensaje) = await GuiaService.ActualizarGuiaAsync(guia);
+                await JS.InvokeVoidAsync("alert", mensaje);
+                if (ok) Volver();
+            }
+            else
+            {
+                var (ok, mensaje, id) = await GuiaService.CrearGuiaAsync(guia);
+                await JS.InvokeVoidAsync("alert", mensaje);
+                if (ok) Volver();
+            }
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task GuardarYEnviar()
+    {
+        if (!Validar()) return;
+
+        guardando = true;
+        try
+        {
+            // Primero guardar
+            bool exitoGuardado;
+            int idGuia = guia.IdGuiaRemision;
+
+            if (esEdicion)
+            {
+                var (ok, _) = await GuiaService.ActualizarGuiaAsync(guia);
+                exitoGuardado = ok;
+            }
+            else
+            {
+                var (ok, _, id) = await GuiaService.CrearGuiaAsync(guia);
+                exitoGuardado = ok;
+                idGuia = id;
+            }
+
+            if (exitoGuardado && idGuia > 0)
+            {
+                // Luego enviar a SUNAT
+                var (okEnvio, mensajeEnvio, _) = await GuiaService.EnviarSunatAsync(idGuia);
+                await JS.InvokeVoidAsync("alert", mensajeEnvio);
+                Volver();
+            }
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private bool Validar()
+    {
+        if (string.IsNullOrWhiteSpace(guia.Serie))
+        {
+            JS.InvokeVoidAsync("alert", "Ingrese la serie del documento");
+            return false;
+        }
+        if (!guia.IdAlmacen.HasValue || guia.IdAlmacen <= 0)
+        {
+            JS.InvokeVoidAsync("alert", "Seleccione el almacén de origen");
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(guia.NumeroDocumentoDestinatario))
+        {
+            JS.InvokeVoidAsync("alert", "Ingrese el documento del destinatario");
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(guia.RazonSocialDestinatario))
+        {
+            JS.InvokeVoidAsync("alert", "Ingrese la razón social del destinatario");
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(guia.UbigeoLlegada))
+        {
+            JS.InvokeVoidAsync("alert", "Ingrese el ubigeo de destino");
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(guia.DireccionLlegada))
+        {
+            JS.InvokeVoidAsync("alert", "Ingrese la dirección de destino");
+            return false;
+        }
+        if (guia.Detalles.Count == 0)
+        {
+            JS.InvokeVoidAsync("alert", "Agregue al menos un artículo a transportar");
+            return false;
+        }
+        return true;
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/guias-remision-sunat");
+    }
+}
+
+

@@ -50,6 +50,7 @@ builder.Services.AddScoped<ComplementoService>();
 builder.Services.AddScoped<MetaDiariaService>();
 builder.Services.AddScoped<NotificacionService>();
 builder.Services.AddScoped<MetaMensualService>();
+builder.Services.AddScoped<GuiaRemisionSunatService>();
 builder.Services.AddAuthorizationCore();
 
 // Configurar HttpClient para conectarse al backend

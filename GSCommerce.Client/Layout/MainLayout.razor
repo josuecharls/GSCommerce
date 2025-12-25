@@ -1,4 +1,4 @@
-﻿@using Blazored.LocalStorage
+@using Blazored.LocalStorage
 @using GSCommerce.Client.Services
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Components
@@ -37,6 +37,9 @@
                             <span class="bi bi-file-earmark-text" aria-hidden="true"></span> Comprobantes SUNAT
                         </NavLink>
                     </div>
+                    <NavLink class="topbar-item text-primary text-decoration-none" href="/guias-remision-sunat">
+                        <i class="bi bi-truck me-1"></i>Guías de Remisión Electrónica
+                    </NavLink>
                 }
                 @if (cargo == "CAJERO")
                 {

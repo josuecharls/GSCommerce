@@ -1,0 +1,330 @@
+@page "/guias-remision-sunat"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Models.SUNAT
+@using GSCommerce.Client.Services
+@inject GuiaRemisionSunatService GuiaService
+@inject AlmacenService AlmacenService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">
+            <i class="bi bi-truck text-primary me-2"></i>Guías de Remisión Electrónica SUNAT
+        </h3>
+        <button class="btn btn-success" @onclick="NuevaGuia">
+            <i class="bi bi-plus-circle me-1"></i> Nueva Guía
+        </button>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" @bind="fechaDesde" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" @bind="fechaHasta" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Tienda</label>
+                    <select class="form-select" @bind="idAlmacen">
+                        <option value="0">Todas</option>
+                        @foreach (var alm in almacenes)
+                        {
+                            <option value="@alm.IdAlmacen">@alm.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Estado SUNAT</label>
+                    <select class="form-select" @bind="estadoSunat">
+                        <option value="">Todos</option>
+                        <option value="PENDIENTE">Pendiente</option>
+                        <option value="ENVIADO">Enviado</option>
+                        <option value="ACEPTADO">Aceptado</option>
+                        <option value="RECHAZADO">Rechazado</option>
+                        <option value="ERROR">Error</option>
+                        <option value="ANULADO">Anulado</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" @onclick="Buscar" disabled="@cargando">
+                        <i class="bi bi-search me-1"></i> Buscar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted">Cargando guías...</p>
+        </div>
+    }
+    else if (guias.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Número</th>
+                            <th>Fecha</th>
+                            <th>Destinatario</th>
+                            <th>RUC/DNI</th>
+                            <th>Estado</th>
+                            <th>Estado SUNAT</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var g in guias)
+                        {
+                            <tr>
+                                <td><strong>@g.NumeroFormateado</strong></td>
+                                <td>@g.FechaEmision.ToString("dd/MM/yyyy")</td>
+                                <td>@g.RazonSocialDestinatario</td>
+                                <td>@g.NumeroDocumentoDestinatario</td>
+                                <td>
+                                    @if (g.Estado == "A")
+                                    {
+                                        <span class="badge bg-danger">Anulado</span>
+                                    }
+                                    else if (g.Estado == "E")
+                                    {
+                                        <span class="badge bg-success">Emitido</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">Pendiente</span>
+                                    }
+                                </td>
+                                <td>
+                                    @switch (g.EstadoSunat)
+                                    {
+                                        case "ACEPTADO":
+                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Aceptado</span>
+                                            break;
+                                        case "RECHAZADO":
+                                            <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Rechazado</span>
+                                            break;
+                                        case "ENVIADO":
+                                            <span class="badge bg-info"><i class="bi bi-send me-1"></i>Enviado</span>
+                                            break;
+                                        case "ERROR":
+                                            <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Error</span>
+                                            break;
+                                        case "ANULADO":
+                                            <span class="badge bg-secondary"><i class="bi bi-slash-circle me-1"></i>Anulado</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-secondary"><i class="bi bi-clock me-1"></i>Pendiente</span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-info" @onclick="() => VerDetalle(g.IdGuiaRemision)" title="Ver detalle">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        
+                                        @if (g.Estado != "A" && !g.EnviadoSunat)
+                                        {
+                                            <button class="btn btn-outline-warning" @onclick="() => EditarGuia(g.IdGuiaRemision)" title="Editar">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        }
+                                        
+                                        @if (g.Estado != "A" && g.EstadoSunat != "ACEPTADO")
+                                        {
+                                            <button class="btn btn-outline-primary" @onclick="() => EnviarSunat(g.IdGuiaRemision)" title="Enviar a SUNAT" disabled="@enviando">
+                                                <i class="bi bi-send"></i>
+                                            </button>
+                                        }
+                                        
+                                        @if (!string.IsNullOrEmpty(g.TicketSunat) && g.EstadoSunat == "ENVIADO")
+                                        {
+                                            <button class="btn btn-outline-secondary" @onclick="() => ConsultarEstado(g.IdGuiaRemision)" title="Consultar estado">
+                                                <i class="bi bi-arrow-repeat"></i>
+                                            </button>
+                                        }
+                                        
+                                        @if (g.Estado != "A" && g.EstadoSunat != "ACEPTADO")
+                                        {
+                                            <button class="btn btn-outline-danger" @onclick="() => AnularGuia(g.IdGuiaRemision)" title="Anular">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <span class="text-muted">Mostrando @guias.Count de @totalItems guías</span>
+            <nav>
+                <ul class="pagination mb-0">
+                    <li class="page-item @(page <= 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="PaginaAnterior" disabled="@(page <= 1)">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">@($"{page} de {totalPages}")</span>
+                    </li>
+                    <li class="page-item @(page >= totalPages ? "disabled" : "")">
+                        <button class="page-link" @onclick="PaginaSiguiente" disabled="@(page >= totalPages)">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>No se encontraron guías de remisión en el rango seleccionado.
+        </div>
+    }
+</div>
+
+@code {
+    private List<GuiaRemisionSunatDTO> guias = new();
+    private List<AlmacenDTO> almacenes = new();
+    
+    private DateTime fechaDesde = DateTime.Today.AddDays(-30);
+    private DateTime fechaHasta = DateTime.Today;
+    private int idAlmacen = 0;
+    private string estadoSunat = "";
+    
+    private int page = 1;
+    private int pageSize = 15;
+    private int totalItems = 0;
+    private int totalPages = 1;
+    
+    private bool cargando = false;
+    private bool enviando = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        cargando = true;
+        try
+        {
+            var result = await GuiaService.ListarGuiasAsync(
+                idAlmacen > 0 ? idAlmacen : null,
+                fechaDesde,
+                fechaHasta,
+                string.IsNullOrEmpty(estadoSunat) ? null : estadoSunat,
+                page,
+                pageSize);
+
+            if (result != null)
+            {
+                guias = result.Data;
+                totalItems = result.TotalItems;
+                totalPages = result.TotalPages;
+            }
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void NuevaGuia()
+    {
+        Navigation.NavigateTo("/guias-remision-sunat/nueva");
+    }
+
+    private void VerDetalle(int id)
+    {
+        Navigation.NavigateTo($"/guias-remision-sunat/detalle/{id}");
+    }
+
+    private void EditarGuia(int id)
+    {
+        Navigation.NavigateTo($"/guias-remision-sunat/editar/{id}");
+    }
+
+    private async Task EnviarSunat(int id)
+    {
+        var confirmar = await JS.InvokeAsync<bool>("confirm", "¿Está seguro de enviar esta guía a SUNAT?");
+        if (!confirmar) return;
+
+        enviando = true;
+        try
+        {
+            var (ok, mensaje, ticket) = await GuiaService.EnviarSunatAsync(id);
+            await JS.InvokeVoidAsync("alert", mensaje);
+            
+            if (ok)
+            {
+                await Buscar();
+            }
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+
+    private async Task ConsultarEstado(int id)
+    {
+        var (ok, codigo, mensaje) = await GuiaService.ConsultarEstadoSunatAsync(id);
+        await JS.InvokeVoidAsync("alert", $"[{codigo}] {mensaje}");
+        await Buscar();
+    }
+
+    private async Task AnularGuia(int id)
+    {
+        var confirmar = await JS.InvokeAsync<bool>("confirm", "¿Está seguro de anular esta guía?");
+        if (!confirmar) return;
+
+        var (ok, mensaje) = await GuiaService.AnularGuiaAsync(id);
+        await JS.InvokeVoidAsync("alert", mensaje);
+        
+        if (ok)
+        {
+            await Buscar();
+        }
+    }
+
+    private async Task PaginaAnterior()
+    {
+        if (page > 1)
+        {
+            page--;
+            await Buscar();
+        }
+    }
+
+    private async Task PaginaSiguiente()
+    {
+        if (page < totalPages)
+        {
+            page++;
+            await Buscar();
+        }
+    }
+}
+
+

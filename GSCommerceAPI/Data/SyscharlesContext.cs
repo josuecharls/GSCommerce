@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using GSCommerceAPI.Models;
 using Microsoft.EntityFrameworkCore;
@@ -77,6 +77,8 @@ public partial class SyscharlesContext : DbContext
     public virtual DbSet<GuiaRemisionCabecera> GuiaRemisionCabeceras { get; set; }
 
     public virtual DbSet<GuiaRemisionDetalle> GuiaRemisionDetalles { get; set; }
+
+    public virtual DbSet<GuiaRemisionSunat> GuiaRemisionSunats { get; set; }
 
     public virtual DbSet<IngresosEgresosCabecera> IngresosEgresosCabeceras { get; set; }
 
@@ -1028,11 +1030,6 @@ public partial class SyscharlesContext : DbContext
             entity.Property(e => e.TipoDestinatario)
                 .HasMaxLength(9)
                 .IsUnicode(false);
-
-            entity.HasOne(d => d.IdMovimientoNavigation).WithMany(p => p.GuiaRemisionCabeceras)
-                .HasForeignKey(d => d.IdMovimiento)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_GuiaRemisionCabecera_MovimientosCabecera");
         });
 
         modelBuilder.Entity<GuiaRemisionDetalle>(entity =>
@@ -1056,6 +1053,41 @@ public partial class SyscharlesContext : DbContext
                 .HasForeignKey(d => d.IdGuiaRemision)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_GuiaRemisionDetalle_GuiaRemisionCabecera");
+        });
+
+        modelBuilder.Entity<GuiaRemisionSunat>(entity =>
+        {
+            entity.HasKey(e => e.IdGuiaRemisionSunat);
+
+            entity.ToTable("GuiaRemisionSunat", "FE");
+
+            entity.Property(e => e.Hash)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+            entity.Property(e => e.TicketSunat)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.RespuestaSunat)
+                .HasMaxLength(5000)
+                .IsUnicode(false);
+            entity.Property(e => e.EstadoSunat)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.CodigoRespuestaSunat)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.MensajeRespuestaSunat)
+                .HasMaxLength(1000)
+                .IsUnicode(false);
+            entity.Property(e => e.FechaEnvio).HasColumnType("datetime");
+            entity.Property(e => e.FechaRespuestaSunat).HasColumnType("datetime");
+            entity.Property(e => e.FechaRegistro).HasColumnType("datetime");
+            entity.Property(e => e.FechaActualizacion).HasColumnType("datetime");
+
+            entity.HasOne(d => d.IdGuiaRemisionNavigation).WithMany()
+                .HasForeignKey(d => d.IdGuiaRemision)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_GuiaRemisionSunat_GuiaRemisionCabecera");
         });
 
         modelBuilder.Entity<IngresosEgresosCabecera>(entity =>

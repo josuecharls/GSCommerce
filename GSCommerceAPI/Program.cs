@@ -39,6 +39,7 @@ Console.WriteLine(
     "Cadena de conexi�n: " + builder.Configuration.GetConnectionString("DefaultConnection"));
 
 builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaService>();
+builder.Services.AddScoped<IGuiaRemisionElectronicaService, GuiaRemisionElectronicaService>();
 builder.Services.AddScoped<ReporteAvanceHoraProvider>();
 builder.Services.AddScoped<IReporteAvanceHoraEmailService, ReporteAvanceHoraEmailService>();
 builder.Services.AddScoped<GSCommerceAPI.Services.PasswordHasherService>();

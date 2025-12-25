@@ -42,6 +42,34 @@ namespace GSCommerceAPI.Controllers
             if (comprobante == null)
                 return BadRequest("Comprobante original no encontrado.");
 
+            // Verificar estado SUNAT del comprobante (solo para documentos que se envían a SUNAT, no TICKET)
+            if (comprobante.IdTipoDocumento != 4) // 4 = TICKET
+            {
+                var estadoSunat = await _context.Comprobantes
+                    .Where(c => c.IdComprobante == dto.IdComprobanteOriginal)
+                    .Select(c => new { c.EnviadoSunat, c.Estado, c.RespuestaSunat })
+                    .FirstOrDefaultAsync();
+
+                string estadoSunatDescripcion = "PENDIENTE";
+                if (estadoSunat != null)
+                {
+                    if (estadoSunat.EnviadoSunat.HasValue && estadoSunat.EnviadoSunat.Value)
+                        estadoSunatDescripcion = estadoSunat.Estado ? "ACEPTADO" : "RECHAZADO";
+                    else if (!string.IsNullOrWhiteSpace(estadoSunat.RespuestaSunat))
+                        estadoSunatDescripcion = "RECHAZADO";
+                }
+
+                // Solo permitir NC si el comprobante fue ACEPTADO por SUNAT
+                if (estadoSunatDescripcion != "ACEPTADO")
+                {
+                    var tipoDoc = await _context.TipoDocumentoVenta
+                        .Where(t => t.IdTipoDocumentoVenta == comprobante.IdTipoDocumento)
+                        .Select(t => t.Descripcion)
+                        .FirstOrDefaultAsync() ?? "COMPROBANTE";
+                    return BadRequest($"{tipoDoc} no emitida, no puede hacer Nota De Crédito.");
+                }
+            }
+
             var userIdClaim = User.FindFirst("userId")?.Value;
             if (!int.TryParse(userIdClaim, out var userId))
                 return BadRequest("Usuario no válido.");

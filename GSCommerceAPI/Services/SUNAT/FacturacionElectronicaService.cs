@@ -1,4 +1,4 @@
-﻿using GSCommerceAPI.Data;
+using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using GSCommerceAPI.Models.SUNAT.DTOs;
 using Microsoft.EntityFrameworkCore;
@@ -243,6 +243,28 @@ namespace GSCommerceAPI.Services.SUNAT
 
                 var rutaRespuestaXml = Path.Combine(carpeta, $"R-{comprobante.RucEmisor}-{codigoTipoDoc}-{comprobante.Serie}-{comprobante.Numero:D8}.xml");
 
+                // Verificar si el comprobante ya fue registrado previamente en SUNAT
+                bool yaRegistradoEnSunat = resultado.mensaje.StartsWith("YA_REGISTRADO:", StringComparison.OrdinalIgnoreCase);
+
+                if (yaRegistradoEnSunat && resultado.exito)
+                {
+                    // El comprobante ya está en SUNAT como ACEPTADO
+                    // Extraer el mensaje original sin el prefijo
+                    string mensajeOriginal = resultado.mensaje.Substring("YA_REGISTRADO:".Length);
+                    
+                    await GuardarEstadoSunatAsync(
+                        comprobante.IdComprobante,
+                        hash,
+                        xmlFirmado,
+                        resultado.ticket ?? "",
+                        $"SUNAT respondió: [0] Comprobante ya fue aceptado anteriormente - {mensajeOriginal}",
+                        true, // exito = true
+                        comprobante.TipoDocumento == "07" || comprobante.TipoDocumento == "08"
+                    );
+                    
+                    return (true, "CORREGIDO:Comprobante ya fue aceptado por SUNAT previamente");
+                }
+
                 var (codigoRespuesta, descripcionRespuesta) = LeerRespuestaSunat(rutaRespuestaXml);
                 bool exito = codigoRespuesta == "0";
 
@@ -258,8 +280,46 @@ namespace GSCommerceAPI.Services.SUNAT
 
                 return (resultado.exito, resultado.mensaje);
             }
+            catch (HttpRequestException ex)
+            {
+                // Error de conexión a internet o red
+                await GuardarEstadoSunatAsync(
+                    comprobante.IdComprobante,
+                    "",
+                    "",
+                    "",
+                    $"Error de conexión: No se pudo contactar con SUNAT - {ex.Message}",
+                    false,
+                    comprobante.TipoDocumento == "07" || comprobante.TipoDocumento == "08"
+                );
+                return (false, $"Error de conexión: No se pudo contactar con SUNAT. Verifique su conexión a internet.");
+            }
+            catch (TaskCanceledException ex)
+            {
+                // Timeout de conexión
+                await GuardarEstadoSunatAsync(
+                    comprobante.IdComprobante,
+                    "",
+                    "",
+                    "",
+                    $"Error de conexión: Tiempo de espera agotado - {ex.Message}",
+                    false,
+                    comprobante.TipoDocumento == "07" || comprobante.TipoDocumento == "08"
+                );
+                return (false, $"Error de conexión: Tiempo de espera agotado al contactar SUNAT.");
+            }
             catch (Exception ex)
             {
+                // Cualquier otro error
+                await GuardarEstadoSunatAsync(
+                    comprobante.IdComprobante,
+                    "",
+                    "",
+                    "",
+                    $"Error general al enviar a SUNAT: {ex.Message}",
+                    false,
+                    comprobante.TipoDocumento == "07" || comprobante.TipoDocumento == "08"
+                );
                 return (false, $"Error al enviar comprobante: {ex.Message}");
             }
         }
@@ -971,6 +1031,20 @@ namespace GSCommerceAPI.Services.SUNAT
                 {
                     mensaje += $" - {detalle}";
                 }
+                
+                // Detectar si el comprobante ya fue registrado previamente en SUNAT
+                bool yaRegistrado = mensaje.Contains("fue registrado previamente", StringComparison.OrdinalIgnoreCase) ||
+                                    mensaje.Contains("fue informado anteriormente", StringComparison.OrdinalIgnoreCase) ||
+                                    detalle.Contains("fue registrado previamente", StringComparison.OrdinalIgnoreCase) ||
+                                    detalle.Contains("fue informado anteriormente", StringComparison.OrdinalIgnoreCase);
+                
+                if (yaRegistrado)
+                {
+                    // El comprobante ya está en SUNAT, indicar que fue aceptado previamente
+                    Console.WriteLine($"[SUNAT] Comprobante ya registrado anteriormente. Será marcado como ACEPTADO.");
+                    return (true, "", $"YA_REGISTRADO:{mensaje}");
+                }
+                
                 return (false, "", mensaje);
             }
             catch (Exception ex)

@@ -43,7 +43,7 @@
 
     private async Task Descargar()
     {
-        var url = $"/api/api/ventas/libro-ventas-contable?anio={anio}&mes={mes}&razonSocial={Uri.EscapeDataString(razonSocial)}";
+        var url = $"/api/ventas/libro-ventas-contable?anio={anio}&mes={mes}&razonSocial={Uri.EscapeDataString(razonSocial)}";
         await JS.InvokeVoidAsync("open", url, "_blank");
     }
 }

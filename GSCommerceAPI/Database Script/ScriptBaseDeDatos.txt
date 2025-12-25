@@ -1,63 +1,28 @@
-﻿
-CREATE DATABASE SYSCHARLES;
-
-USE [SYSCHARLES]
+﻿USE [SYSCHARLES]
 GO
-
+/****** Object:  Schema [Almacen]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE SCHEMA [Almacen]
 GO
-/****** Object:  Schema [Auditoria]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Schema [Auditoria]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE SCHEMA [Auditoria]
 GO
-/****** Object:  Schema [Auxiliares]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Schema [Auxiliares]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE SCHEMA [Auxiliares]
 GO
-/****** Object:  Schema [DW]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Schema [DW]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE SCHEMA [DW]
 GO
-/****** Object:  Schema [FE]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Schema [FE]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE SCHEMA [FE]
 GO
-/****** Object:  Schema [Maestros]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Schema [Maestros]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE SCHEMA [Maestros]
 GO
-/****** Object:  Schema [Movimientos]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Schema [Movimientos]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE SCHEMA [Movimientos]
 GO
-/****** Object:  UserDefinedTableType [Almacen].[GuiaRemisionCabeceraType]    Script Date: 06/02/2025 20:01:49 ******/
-CREATE TYPE [Almacen].[GuiaRemisionCabeceraType] AS TABLE(
-	[IdGuiaRemision] [int] NULL,
-	[IdMovimiento] [int] NOT NULL,
-	[Serie] [varchar](4) NULL,
-	[Numero] [int] NULL,
-	[Fecha] [datetime] NULL,
-	[DireccionOrigen] [varchar](150) NULL,
-	[DPDOrigen] [varchar](100) NULL,
-	[TipoDestinatario] [varchar](9) NULL,
-	[RazonSocialNombre] [varchar](100) NULL,
-	[RUCDNICE] [varchar](11) NULL,
-	[DireccionDestino] [varchar](100) NULL,
-	[DPDDestino] [varchar](100) NULL,
-	[Observaciones] [varchar](300) NULL,
-	[IdUsuario] [int] NULL,
-	[Estado] [char](1) NULL,
-	[IdAlmacen] [int] NULL,
-	[IdProveedor] [int] NULL,
-	[IdTipoDocumento] [int] NULL,
-	[IdAlmacenDestino] [int] NULL
-)
-GO
-/****** Object:  UserDefinedTableType [Almacen].[GuiaRemisionDetalleType]    Script Date: 06/02/2025 20:01:49 ******/
-CREATE TYPE [Almacen].[GuiaRemisionDetalleType] AS TABLE(
-	[IdMovimiento] [int] NOT NULL,
-	[Item] [int] NOT NULL,
-	[IdArticulo] [char](6) NOT NULL,
-	[DescripcionArticulo] [varchar](300) NOT NULL,
-	[Cantidad] [int] NOT NULL,
-	[UnidadMedida] [varchar](20) NOT NULL
-)
-GO
-/****** Object:  UserDefinedTableType [Almacen].[MovimientosCabeceraType]    Script Date: 06/02/2025 20:01:49 ******/
+
+/****** Object:  UserDefinedTableType [Almacen].[MovimientosCabeceraType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Almacen].[MovimientosCabeceraType] AS TABLE(
 	[IdMovimiento] [int] NOT NULL,
 	[IdAlmacen] [int] NOT NULL,
@@ -76,7 +41,7 @@ CREATE TYPE [Almacen].[MovimientosCabeceraType] AS TABLE(
 	[Estado] [char](1) NOT NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Almacen].[MovimientosDetalleType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Almacen].[MovimientosDetalleType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Almacen].[MovimientosDetalleType] AS TABLE(
 	[IdMovimiento] [int] NOT NULL,
 	[Item] [int] NOT NULL,
@@ -86,7 +51,7 @@ CREATE TYPE [Almacen].[MovimientosDetalleType] AS TABLE(
 	[Valor] [decimal](18, 2) NOT NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Maestros].[AlmacenCuentaType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Maestros].[AlmacenCuentaType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Maestros].[AlmacenCuentaType] AS TABLE(
 	[IdAlmacenCuenta] [int] NOT NULL,
 	[IdAlmacen] [int] NOT NULL,
@@ -95,7 +60,7 @@ CREATE TYPE [Maestros].[AlmacenCuentaType] AS TABLE(
 	[CCI] [varchar](30) NOT NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Maestros].[AsignacionSerieCajeroType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Maestros].[AsignacionSerieCajeroType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Maestros].[AsignacionSerieCajeroType] AS TABLE(
 	[IdAsignacion] [int] NOT NULL,
 	[IdUsuario] [int] NOT NULL,
@@ -103,7 +68,7 @@ CREATE TYPE [Maestros].[AsignacionSerieCajeroType] AS TABLE(
 	[IdSerieCorrelativo] [int] NOT NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Movimientos].[ComprobanteDeVentaCabeceraType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Movimientos].[ComprobanteDeVentaCabeceraType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Movimientos].[ComprobanteDeVentaCabeceraType] AS TABLE(
 	[IdComprobante] [int] NOT NULL,
 	[IdTipoDocumento] [int] NOT NULL,
@@ -129,7 +94,7 @@ CREATE TYPE [Movimientos].[ComprobanteDeVentaCabeceraType] AS TABLE(
 	[FechaHoraUsuarioAnula] [datetime] NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Movimientos].[ComprobanteDeVentaDetalleType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Movimientos].[ComprobanteDeVentaDetalleType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Movimientos].[ComprobanteDeVentaDetalleType] AS TABLE(
 	[IdComprobante] [int] NOT NULL,
 	[Item] [int] NOT NULL,
@@ -142,7 +107,7 @@ CREATE TYPE [Movimientos].[ComprobanteDeVentaDetalleType] AS TABLE(
 	[Total] [decimal](18, 2) NOT NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Movimientos].[DetallePagoVentaType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Movimientos].[DetallePagoVentaType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Movimientos].[DetallePagoVentaType] AS TABLE(
 	[IdDetallePagoVenta] [int] NOT NULL,
 	[IdComprobante] [int] NOT NULL,
@@ -155,7 +120,7 @@ CREATE TYPE [Movimientos].[DetallePagoVentaType] AS TABLE(
 	[PorcentajeTarjetaDolares] [decimal](18, 2) NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Movimientos].[IngresosEgresosCabeceraType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Movimientos].[IngresosEgresosCabeceraType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Movimientos].[IngresosEgresosCabeceraType] AS TABLE(
 	[IdIngresoEgreso] [int] NULL,
 	[IdUsuario] [int] NOT NULL,
@@ -173,7 +138,7 @@ CREATE TYPE [Movimientos].[IngresosEgresosCabeceraType] AS TABLE(
 	[IdAlmacenGasto] [int] NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Movimientos].[IngresosEgresosDetalleType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Movimientos].[IngresosEgresosDetalleType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Movimientos].[IngresosEgresosDetalleType] AS TABLE(
 	[IdDetalleIngresoEgreso] [int] NULL,
 	[IdIngresoEgreso] [int] NOT NULL,
@@ -185,7 +150,7 @@ CREATE TYPE [Movimientos].[IngresosEgresosDetalleType] AS TABLE(
 	[Imagen] [image] NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Movimientos].[KardexGeneralType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Movimientos].[KardexGeneralType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Movimientos].[KardexGeneralType] AS TABLE(
 	[IdKardex] [int] NULL,
 	[IdAlmacen] [int] NOT NULL,
@@ -210,7 +175,7 @@ CREATE TYPE [Movimientos].[KardexGeneralType] AS TABLE(
 	[ValorizadoFinalPV] [decimal](18, 2) NOT NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Movimientos].[NotaDeCreditoCabeceraType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Movimientos].[NotaDeCreditoCabeceraType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Movimientos].[NotaDeCreditoCabeceraType] AS TABLE(
 	[IdNC] [int] NOT NULL,
 	[IdTipoDocumento] [int] NOT NULL,
@@ -237,7 +202,7 @@ CREATE TYPE [Movimientos].[NotaDeCreditoCabeceraType] AS TABLE(
 	[FechaHoraUsuarioAnula] [datetime] NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Movimientos].[NotaDeCreditoDetalleType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Movimientos].[NotaDeCreditoDetalleType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Movimientos].[NotaDeCreditoDetalleType] AS TABLE(
 	[IdNC] [int] NOT NULL,
 	[Item] [int] NOT NULL,
@@ -250,7 +215,7 @@ CREATE TYPE [Movimientos].[NotaDeCreditoDetalleType] AS TABLE(
 	[Total] [decimal](18, 2) NOT NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Movimientos].[OrdenDeCompraCabeceraType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Movimientos].[OrdenDeCompraCabeceraType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Movimientos].[OrdenDeCompraCabeceraType] AS TABLE(
 	[IdOc] [int] NOT NULL,
 	[IdProveedor] [int] NOT NULL,
@@ -279,7 +244,7 @@ CREATE TYPE [Movimientos].[OrdenDeCompraCabeceraType] AS TABLE(
 	[FechaRegistra] [datetime] NOT NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Movimientos].[OrdenDeCompraDetalleType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Movimientos].[OrdenDeCompraDetalleType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Movimientos].[OrdenDeCompraDetalleType] AS TABLE(
 	[IdOc] [int] NOT NULL,
 	[Item] [int] NOT NULL,
@@ -291,7 +256,7 @@ CREATE TYPE [Movimientos].[OrdenDeCompraDetalleType] AS TABLE(
 	[Total] [numeric](12, 2) NOT NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Movimientos].[OrdenDeCompraDetalleTypev2]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Movimientos].[OrdenDeCompraDetalleTypev2]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Movimientos].[OrdenDeCompraDetalleTypev2] AS TABLE(
 	[IdOc] [int] NOT NULL,
 	[Item] [int] NOT NULL,
@@ -304,7 +269,7 @@ CREATE TYPE [Movimientos].[OrdenDeCompraDetalleTypev2] AS TABLE(
 	[SinIgv] [bit] NOT NULL
 )
 GO
-/****** Object:  UserDefinedTableType [Movimientos].[ResumenCierreDeCajaType]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  UserDefinedTableType [Movimientos].[ResumenCierreDeCajaType]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE TYPE [Movimientos].[ResumenCierreDeCajaType] AS TABLE(
 	[IdResumen] [int] NOT NULL,
 	[IdUsuario] [int] NOT NULL,
@@ -317,752 +282,33 @@ CREATE TYPE [Movimientos].[ResumenCierreDeCajaType] AS TABLE(
 	[FechaRegistro] [datetime] NULL
 )
 GO
-/****** Object:  Table [Movimientos].[ComprobanteDeVentaCabecera]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Movimientos].[IngresosEgresosCabecera]    Script Date: 24/12/2025 06:33:00 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-CREATE TABLE [Movimientos].[ComprobanteDeVentaCabecera](
-	[IdComprobante] [int] IDENTITY(1,1) NOT NULL,
-	[IdTipoDocumento] [int] NOT NULL,
-	[Serie] [varchar](4) NOT NULL,
-	[Numero] [int] NOT NULL,
-	[Fecha] [datetime] NOT NULL,
-	[IdCliente] [int] NULL,
-	[DNIRUC] [varchar](11) NULL,
-	[Nombre] [varchar](100) NOT NULL,
-	[Direccion] [varchar](100) NULL,
-	[TipoCambio] [decimal](18, 3) NOT NULL,
-	[SubTotal] [decimal](18, 2) NOT NULL,
-	[IGV] [decimal](18, 2) NOT NULL,
-	[Total] [decimal](18, 2) NOT NULL,
-	[Redondeo] [decimal](18, 2) NULL,
-	[APagar] [decimal](18, 2) NULL,
-	[IdVendedor] [int] NOT NULL,
-	[IdCajero] [int] NOT NULL,
-	[IdAlmacen] [int] NOT NULL,
-	[Estado] [char](1) NOT NULL,
-	[FechaHoraRegistro] [datetime] NOT NULL,
-	[IdUsuarioAnula] [int] NULL,
-	[FechaHoraUsuarioAnula] [datetime] NULL,
-	[GeneroNC] [varchar](13) NULL,
- CONSTRAINT [PK_ComprobanteDeVentaCabecera] PRIMARY KEY CLUSTERED 
-(
-	[IdComprobante] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  View [Movimientos].[v_Venta_1]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-
-
-
-
-
-CREATE VIEW [Movimientos].[v_Venta_1]
-AS
-SELECT [IdComprobante]
-      ,[IdTipoDocumento]
-      ,[Serie]
-      ,[Numero]
-      ,[Fecha]
-      ,[IdCliente]
-      ,[DNIRUC]
-      ,[Nombre]
-      ,[Total]
-      ,[IdVendedor]
-      ,[IdCajero]
-      ,[IdAlmacen]
-      ,[Estado]
-  FROM [Movimientos].[ComprobanteDeVentaCabecera]
-GO
-/****** Object:  Table [Maestros].[Almacen]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Maestros].[Almacen](
-	[IdAlmacen] [int] IDENTITY(1,1) NOT NULL,
-	[Nombre] [varchar](100) NOT NULL,
-	[EsTienda] [bit] NOT NULL,
-	[Direccion] [varchar](150) NOT NULL,
-	[DPD] [varchar](100) NULL,
-	[Telefono] [varchar](10) NULL,
-	[Celular] [varchar](9) NULL,
-	[RazonSocial] [varchar](100) NULL,
-	[RUC] [varchar](11) NULL,
-	[Estado] [bit] NOT NULL,
-	[Ubigeo] [char](6) NULL,
-	[Certificado] [varchar](50) NULL,
-	[PasswordCertificado] [varchar](50) NULL,
-	[Abreviacion] [varchar](20) NULL,
-	[UsuarioSOL] [varchar](20) NULL,
-	[ClaveSOL] [varchar](20) NULL,
-	[AfectoIGV] [bit] NOT NULL,
- CONSTRAINT [PK_Almacen] PRIMARY KEY CLUSTERED 
-(
-	[IdAlmacen] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [Movimientos].[Descuentos]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Movimientos].[Descuentos](
-	[idDescuento] [int] IDENTITY(1,1) NOT NULL,
-	[idAlmacen] [int] NOT NULL,
-	[idArticulo] [int] NOT NULL,
-	[Descuento] [float] NOT NULL,
- CONSTRAINT [PK_Descuentos] PRIMARY KEY CLUSTERED 
-(
-	[idDescuento] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [Maestros].[Articulo]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Maestros].[Articulo](
-	[IdArticulo] [char](6) NOT NULL,
-	[Descripcion] [varchar](300) NOT NULL,
-	[DescripcionCorta] [varchar](100) NOT NULL,
-	[Familia] [varchar](100) NOT NULL,
-	[Linea] [varchar](100) NOT NULL,
-	[Marca] [varchar](100) NOT NULL,
-	[Material] [varchar](100) NOT NULL,
-	[Modelo] [varchar](100) NOT NULL,
-	[Color] [varchar](100) NOT NULL,
-	[Detalle] [varchar](100) NOT NULL,
-	[Talla] [varchar](100) NOT NULL,
-	[IdProveedor] [int] NOT NULL,
-	[UnidadAlmacen] [varchar](100) NOT NULL,
-	[MonedaCosteo] [varchar](100) NOT NULL,
-	[PrecioCompra] [decimal](18, 2) NOT NULL,
-	[PrecioVenta] [decimal](18, 2) NOT NULL,
-	[FechaRegistro] [date] NOT NULL,
-	[Foto] [image] NULL,
-	[CodigoBarra] [image] NULL,
-	[Estado] [bit] NOT NULL,
-	[Estacion] [varchar](15) NULL,
- CONSTRAINT [PK_Articulo] PRIMARY KEY CLUSTERED 
-(
-	[IdArticulo] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  View [Movimientos].[v_Descuentos]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-Create view [Movimientos].[v_Descuentos]
-as
-select d.idAlmacen, a.IdArticulo, a.DescripcionCorta, a.PrecioVenta, a.PrecioCompra, 
-		round(a.PrecioVenta * (1 - d.Descuento / 100), 2) [Precio Final], 
-		round(a.PrecioVenta * d.Descuento / 100, 2) Descuento , 
-		round(d.Descuento, 2) Descuento_Porc,
-		round((a.PrecioVenta * (1 - d.Descuento / 100)) - a.PrecioCompra, 2) Utilidad
-from Maestros.Articulo a inner join Movimientos.Descuentos d
-	on a.IdArticulo = d.idArticulo
-GO
-/****** Object:  Table [Movimientos].[Kardex]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Movimientos].[Kardex](
-	[IdKardex] [int] IDENTITY(1,1) NOT NULL,
-	[IdAlmacen] [int] NOT NULL,
-	[IdArticulo] [char](6) NOT NULL,
-	[TipoMovimiento] [char](1) NOT NULL,
-	[Fecha] [datetime] NOT NULL,
-	[SaldoInicial] [int] NOT NULL,
-	[Cantidad] [int] NOT NULL,
-	[SaldoFinal] [int] NOT NULL,
-	[Valor] [decimal](18, 2) NOT NULL,
-	[Origen] [varchar](100) NOT NULL,
-	[NoKardexGeneral] [bit] NULL,
- CONSTRAINT [PK_Kardex] PRIMARY KEY CLUSTERED 
-(
-	[IdKardex] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  View [Movimientos].[v_KardexGeneral]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-create view [Movimientos].[v_KardexGeneral]
-as
-SELECT       Movimientos.Kardex.IdKardex, Movimientos.Kardex.IdAlmacen, Maestros.Almacen.Nombre AS Almacen, Maestros.Articulo.Familia, Maestros.Articulo.Linea, Movimientos.Kardex.IdArticulo AS Codigo, Maestros.Articulo.Descripcion AS Articulo,
-			 Maestros.Articulo.PrecioCompra, cast(isnull(d.[Precio Final], Maestros.Articulo.PrecioVenta) as decimal(18,2)) PrecioVenta, cast(Movimientos.Kardex.Fecha as date) Fecha, Movimientos.Kardex.Origen 'Operacion', 
-             Movimientos.Kardex.SaldoInicial, Movimientos.Kardex.SaldoInicial * Movimientos.Kardex.Valor as 'ValorizadoInicial',
-			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'I' THEN Movimientos.Kardex.Cantidad ELSE 0 END 'Entrada',
-			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'I' THEN Movimientos.Kardex.Cantidad * Movimientos.Kardex.Valor ELSE 0 END 'ValorizadoEntrada',
-			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'E' THEN Movimientos.Kardex.Cantidad ELSE 0 END 'Salida',
-			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'E' THEN Movimientos.Kardex.Cantidad * Movimientos.Kardex.Valor ELSE 0 END 'ValorizadoSalida',
-			 Movimientos.Kardex.SaldoFinal, Movimientos.Kardex.SaldoFinal * Movimientos.Kardex.Valor as 'ValorizadoFinal',
-			 Maestros.Articulo.PrecioCompra * Movimientos.Kardex.SaldoFinal as 'ValorizadoFinalPC', cast(isnull(d.[Precio Final], Maestros.Articulo.PrecioVenta) as decimal(18,2)) * Movimientos.Kardex.SaldoFinal as 'ValorizadoFinalPV'
-FROM            Movimientos.Kardex INNER JOIN
-                         Maestros.Almacen ON Movimientos.Kardex.IdAlmacen = Maestros.Almacen.IdAlmacen INNER JOIN
-                         Maestros.Articulo ON Movimientos.Kardex.IdArticulo = Maestros.Articulo.IdArticulo
-						 left join Movimientos.v_Descuentos d on Maestros.Articulo.IdArticulo = d.idArticulo and Maestros.Almacen.IdAlmacen = d.idAlmacen
-						 WHERE NoKardexGeneral = 0 AND SUBSTRING(origen, 0, CHARINDEX(':',Origen)) <> 'NC'
-
-UNION ALL
-
-SELECT       Movimientos.Kardex.IdKardex, Movimientos.Kardex.IdAlmacen, Maestros.Almacen.Nombre AS Almacen, Maestros.Articulo.Familia, Maestros.Articulo.Linea, Movimientos.Kardex.IdArticulo AS Codigo, Maestros.Articulo.Descripcion AS Articulo,
-			 Maestros.Articulo.PrecioCompra, cast(isnull(d.[Precio Final], Maestros.Articulo.PrecioVenta) as decimal(18,2)) PrecioVenta, cast(Movimientos.Kardex.Fecha as date) Fecha, Movimientos.Kardex.Origen 'Operacion', 
-             Movimientos.Kardex.SaldoInicial, Movimientos.Kardex.SaldoInicial * Movimientos.Kardex.Valor as 'ValorizadoInicial',
-			 0 'Entrada',
-			 0 'ValorizadoEntrada',
-			 Movimientos.Kardex.Cantidad * -1 'Salida',
-			 Movimientos.Kardex.Cantidad * Movimientos.Kardex.Valor * -1 'ValorizadoSalida',
-			 Movimientos.Kardex.SaldoFinal, Movimientos.Kardex.SaldoFinal * Movimientos.Kardex.Valor as 'ValorizadoFinal',
-			 Maestros.Articulo.PrecioCompra * Movimientos.Kardex.SaldoFinal as 'ValorizadoFinalPC', cast(isnull(d.[Precio Final], Maestros.Articulo.PrecioVenta) as decimal(18,2)) * Movimientos.Kardex.SaldoFinal as 'ValorizadoFinalPV'
-FROM            Movimientos.Kardex INNER JOIN
-                         Maestros.Almacen ON Movimientos.Kardex.IdAlmacen = Maestros.Almacen.IdAlmacen INNER JOIN
-                         Maestros.Articulo ON Movimientos.Kardex.IdArticulo = Maestros.Articulo.IdArticulo
-						 left join Movimientos.v_Descuentos d on Maestros.Articulo.IdArticulo = d.idArticulo and Maestros.Almacen.IdAlmacen = d.idAlmacen
-						 WHERE NoKardexGeneral = 0 AND SUBSTRING(origen, 0, CHARINDEX(':',Origen)) = 'NC'
-
-
-GO
-/****** Object:  Table [Movimientos].[ComprobanteDeVentaDetalle]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Movimientos].[ComprobanteDeVentaDetalle](
-	[IdComprobante] [int] NOT NULL,
-	[Item] [int] NOT NULL,
-	[IdArticulo] [char](6) NOT NULL,
-	[Descripcion] [varchar](100) NOT NULL,
-	[UnidadMedida] [varchar](20) NOT NULL,
-	[Cantidad] [int] NOT NULL,
-	[Precio] [decimal](18, 2) NOT NULL,
-	[PorcentajeDescuento] [decimal](18, 2) NOT NULL,
-	[Total] [decimal](18, 2) NOT NULL,
- CONSTRAINT [PK_ComprobanteDeVentaDetalle] PRIMARY KEY CLUSTERED 
-(
-	[IdComprobante] ASC,
-	[Item] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  View [dbo].[v_VentasDW]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE view [dbo].[v_VentasDW]
-
-AS
-
-Select a.Fecha, d.Nombre Tienda, a.Serie, a.Numero, a.DNIRUC DocIdentidad, a.Nombre Cliente, a.SubTotal, a.IGV, a.Total,
-	a.Redondeo, a.APagar, b.IdArticulo, b.Descripcion, c.Linea, c.PrecioCompra, c.PrecioVenta, b.Precio, b.Cantidad, b.Total TotalProducto
-from Movimientos.ComprobanteDeVentaCabecera a inner join Movimientos.ComprobanteDeVentaDetalle b
-	on a.IdComprobante = b.IdComprobante inner join Maestros.Articulo c
-	on b.IdArticulo = c.IdArticulo inner join Maestros.Almacen d
-	on a.IdAlmacen = d.IdAlmacen
-where year(Fecha) = 2021 and a.Estado = 'E'
-GO
-/****** Object:  View [Movimientos].[v_Kardex_3]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-
-
-
-
-CREATE view [Movimientos].[v_Kardex_3]
-as
-SELECT       Movimientos.Kardex.IdKardex, Movimientos.Kardex.IdAlmacen, Maestros.Almacen.Nombre AS Almacen, Maestros.Articulo.Familia, Maestros.Articulo.Linea, Movimientos.Kardex.IdArticulo AS Codigo, Maestros.Articulo.Descripcion AS Articulo,
-			 Maestros.Articulo.PrecioCompra, cast(isnull(d.[Precio Final], Maestros.Articulo.PrecioVenta) as decimal(18,2)) PrecioVenta, cast(Movimientos.Kardex.Fecha as date) Fecha, Movimientos.Kardex.Origen 'Operacion', 
-             Movimientos.Kardex.SaldoInicial, Movimientos.Kardex.SaldoInicial * Movimientos.Kardex.Valor as 'ValorizadoInicial',
-			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'I' THEN Movimientos.Kardex.Cantidad ELSE 0 END 'Entrada',
-			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'I' THEN Movimientos.Kardex.Cantidad * Movimientos.Kardex.Valor ELSE 0 END 'ValorizadoEntrada',
-			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'E' THEN Movimientos.Kardex.Cantidad ELSE 0 END 'Salida',
-			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'E' THEN Movimientos.Kardex.Cantidad * Movimientos.Kardex.Valor ELSE 0 END 'ValorizadoSalida',
-			 Movimientos.Kardex.SaldoFinal, Movimientos.Kardex.SaldoFinal * Movimientos.Kardex.Valor as 'ValorizadoFinal',
-			 Maestros.Articulo.PrecioCompra * Movimientos.Kardex.SaldoFinal as 'ValorizadoFinalPC', cast(isnull(d.[Precio Final], Maestros.Articulo.PrecioVenta) as decimal(18,2)) * Movimientos.Kardex.SaldoFinal as 'ValorizadoFinalPV'
-FROM            Movimientos.Kardex INNER JOIN
-                         Maestros.Almacen ON Movimientos.Kardex.IdAlmacen = Maestros.Almacen.IdAlmacen INNER JOIN
-                         Maestros.Articulo ON Movimientos.Kardex.IdArticulo = Maestros.Articulo.IdArticulo
-						 left join Movimientos.v_Descuentos d on Maestros.Articulo.IdArticulo = d.idArticulo and Maestros.Almacen.IdAlmacen = d.idAlmacen
-
-
-GO
-/****** Object:  Table [Maestros].[TipoPagoVenta]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Maestros].[TipoPagoVenta](
-	[IdTipoPagoVenta] [int] IDENTITY(1,1) NOT NULL,
-	[Tipo] [varchar](12) NOT NULL,
-	[Descripcion] [varchar](30) NOT NULL,
-	[Estado] [bit] NOT NULL,
- CONSTRAINT [PK_TipoPagoVenta] PRIMARY KEY CLUSTERED 
-(
-	[IdTipoPagoVenta] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [Movimientos].[DetallePagoVenta]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Movimientos].[DetallePagoVenta](
-	[IdDetallePagoVenta] [int] IDENTITY(1,1) NOT NULL,
-	[IdComprobante] [int] NOT NULL,
-	[IdTipoPagoVenta] [int] NOT NULL,
-	[Soles] [decimal](18, 2) NOT NULL,
-	[Dolares] [decimal](18, 2) NOT NULL,
-	[Datos] [varchar](13) NULL,
-	[Vuelto] [decimal](18, 2) NULL,
-	[PorcentajeTarjetaSoles] [decimal](18, 2) NULL,
-	[PorcentajeTarjetaDolares] [decimal](18, 2) NULL,
- CONSTRAINT [PK_DetallePagoVenta] PRIMARY KEY CLUSTERED 
-(
-	[IdDetallePagoVenta] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  View [Movimientos].[v_DetallePagoVenta_1]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-CREATE VIEW [Movimientos].[v_DetallePagoVenta_1]
-AS
-SELECT        D.IdDetallePagoVenta, D.IdComprobante, D.IdTipoPagoVenta, T.Descripcion, D.Soles, D.Dolares, D.Datos, D.Vuelto, D.PorcentajeTarjetaSoles, D.PorcentajeTarjetaDolares
-FROM            Movimientos.DetallePagoVenta AS D INNER JOIN
-                         Maestros.TipoPagoVenta AS T ON D.IdTipoPagoVenta = T.IdTipoPagoVenta
-GO
-/****** Object:  Table [Almacen].[MovimientosDetalle]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Almacen].[MovimientosDetalle](
-	[IdMovimiento] [int] NOT NULL,
-	[Item] [int] NOT NULL,
-	[IdArticulo] [char](6) NOT NULL,
-	[DescripcionArticulo] [varchar](300) NOT NULL,
-	[Cantidad] [int] NOT NULL,
-	[Valor] [decimal](18, 2) NOT NULL,
- CONSTRAINT [PK_IngresosEgresosDetalle] PRIMARY KEY CLUSTERED 
-(
-	[IdMovimiento] ASC,
-	[Item] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  View [Almacen].[v_DetalleGuiaRemision_1]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-/****** Script for SelectTopNRows command from SSMS  ******/
-Create view [Almacen].[v_DetalleGuiaRemision_1]
-as
-SELECT D.[IdMovimiento]
-      ,D.[Item]
-      ,D.[IdArticulo]
-      ,D.[DescripcionArticulo]
-      ,D.[Cantidad]
-	  ,A.UnidadAlmacen
-  FROM [Almacen].[MovimientosDetalle] D
-  INNER JOIN [Maestros].[Articulo] A
-  ON D.IdArticulo = A.IdArticulo;
-GO
-/****** Object:  Table [Movimientos].[NotaDeCreditoCabecera]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Movimientos].[NotaDeCreditoCabecera](
-	[IdNC] [int] IDENTITY(1,1) NOT NULL,
-	[IdTipoDocumento] [int] NOT NULL,
-	[Serie] [varchar](4) NOT NULL,
-	[Numero] [int] NOT NULL,
-	[Fecha] [datetime] NOT NULL,
-	[Referencia] [varchar](13) NOT NULL,
-	[IdMotivo] [char](2) NOT NULL,
-	[IdCliente] [int] NOT NULL,
-	[DNIRUC] [varchar](11) NOT NULL,
-	[Nombre] [varchar](100) NOT NULL,
-	[Direccion] [varchar](100) NULL,
-	[SubTotal] [decimal](18, 2) NOT NULL,
-	[IGV] [decimal](18, 2) NOT NULL,
-	[Total] [decimal](18, 2) NOT NULL,
-	[Redondeo] [decimal](18, 2) NOT NULL,
-	[AFavor] [decimal](18, 2) NOT NULL,
+CREATE TABLE [Movimientos].[IngresosEgresosCabecera](
+	[IdIngresoEgreso] [int] IDENTITY(1,1) NOT NULL,
 	[IdUsuario] [int] NOT NULL,
 	[IdAlmacen] [int] NOT NULL,
-	[Estado] [char](1) NOT NULL,
-	[FechaHoraRegistro] [datetime] NOT NULL,
-	[Empleada] [bit] NULL,
-	[IdUsuarioAnula] [int] NULL,
-	[FechaHoraUsuarioAnula] [datetime] NULL,
- CONSTRAINT [PK_NotaDeCreditoCabecera] PRIMARY KEY CLUSTERED 
-(
-	[IdNC] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  View [Movimientos].[v_ListadoNotaCredito_1]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-/****** Script for SelectTopNRows command from SSMS  ******/
-
-CREATE VIEW [Movimientos].[v_ListadoNotaCredito_1]
-AS
-SELECT C.[IdNC]
-      ,C.[IdTipoDocumento]
-	  ,A.Nombre as 'Almacen'
-      ,C.[Serie]
-      ,C.[Numero]
-      ,cast(C.[Fecha] as date) as 'Fecha'
-      ,C.[Referencia]
-      ,C.[IdMotivo]
-      ,C.[IdCliente]
-      ,C.[DNIRUC]
-      ,C.[Nombre]
-      ,C.[AFavor] as 'Total'
-      ,C.[IdUsuario]
-      ,C.[IdAlmacen]
-      ,C.[Estado]
-      ,C.[Empleada]
-	  ,B.Comprobante
-  FROM [Movimientos].[NotaDeCreditoCabecera] C
-  INNER JOIN [Maestros].[Almacen] A
-  ON C.IdAlmacen = A.IdAlmacen
-  LEFT JOIN 
-		(select DPV.Datos 'NC', CVC.IdAlmacen,
-				CVC.Serie + '-' + replicate('0', 8 - Len(cast(CVC.Numero as varchar(8)))) + cast(CVC.Numero as varchar(8)) AS 'Comprobante'
-		from Movimientos.DetallePagoVenta DPV
-		inner join Movimientos.ComprobanteDeVentaCabecera CVC
-		on dpv.IdComprobante = cvc.IdComprobante
-		where cvc.Estado <> 'A'
-		and IdTipoPagoVenta = 8) B
-  ON C.Serie + '-' + replicate('0', 8 - Len(cast(C.Numero as varchar(8)))) + cast(C.Numero as varchar(8)) = B.NC
-  and C.IdAlmacen = B.IdAlmacen
-
-GO
-/****** Object:  Table [Almacen].[MovimientosCabecera]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Almacen].[MovimientosCabecera](
-	[IdMovimiento] [int] IDENTITY(1,1) NOT NULL,
-	[IdAlmacen] [int] NOT NULL,
-	[Tipo] [char](1) NOT NULL,
-	[Motivo] [varchar](40) NOT NULL,
-	[Fecha] [date] NULL,
-	[Descripcion] [varchar](255) NOT NULL,
+	[Naturaleza] [char](1) NOT NULL,
+	[Tipo] [varchar](20) NOT NULL,
+	[Fecha] [datetime] NOT NULL,
+	[Glosa] [varchar](200) NOT NULL,
+	[Monto] [decimal](18, 2) NOT NULL,
 	[IdProveedor] [int] NULL,
-	[IdAlmacenDestinoOrigen] [int] NULL,
-	[IdOc] [int] NULL,
-	[IdUsuario] [int] NOT NULL,
-	[FechaHoraRegistro] [datetime] NOT NULL,
-	[IdGuiaRemision] [int] NULL,
-	[IdUsuarioConfirma] [int] NULL,
-	[FechaHoraConfirma] [datetime] NULL,
-	[Estado] [char](1) NOT NULL,
- CONSTRAINT [PK_IngresosEgresosCabecera] PRIMARY KEY CLUSTERED 
-(
-	[IdMovimiento] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  View [Almacen].[v_ListadoIngresosEgresosAlmacen_1]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-/****** Script for SelectTopNRows command from SSMS  ******/
-CREATE view [Almacen].[v_ListadoIngresosEgresosAlmacen_1]
-as
-SELECT C.IdMovimiento 
-      ,C.[IdAlmacen] 
-	  ,A.Nombre AS 'Almacen'
-      ,C.[Tipo]
-      ,C.[Motivo]
-      ,C.[Fecha]
-      ,C.[Descripcion]
-	  ,C.IdGuiaRemision
-	  ,C.[IdUsuarioConfirma]
-	  ,C.[Estado]
-  FROM [Almacen].[MovimientosCabecera] C
-  inner join Maestros.Almacen A
-  on C.IdAlmacen = a.IdAlmacen
-GO
-/****** Object:  View [Maestros].[v_Articulos]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-
-CREATE VIEW [Maestros].[v_Articulos]
-AS
-SELECT        IdArticulo, IdProveedor, Descripcion, Talla, Linea, Familia, Marca, Color, Modelo, Material, UnidadAlmacen, MonedaCosteo, PrecioCompra, PrecioVenta, FechaRegistro, Estado
-FROM            Maestros.Articulo
-GO
-/****** Object:  Table [Almacen].[GuiaRemisionCabecera]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Almacen].[GuiaRemisionCabecera](
-	[IdGuiaRemision] [int] IDENTITY(1,1) NOT NULL,
-	[IdMovimiento] [int] NOT NULL,
-	[Serie] [varchar](4) NULL,
-	[Numero] [int] NULL,
-	[Fecha] [datetime] NULL,
-	[DireccionOrigen] [varchar](150) NULL,
-	[DPDOrigen] [varchar](100) NULL,
-	[TipoDestinatario] [varchar](9) NULL,
-	[RazonSocialNombre] [varchar](100) NULL,
-	[RUCDNICE] [varchar](11) NULL,
-	[DireccionDestino] [varchar](100) NULL,
-	[DPDDestino] [varchar](100) NULL,
-	[Observaciones] [varchar](300) NULL,
-	[IdUsuario] [int] NULL,
-	[Estado] [char](1) NULL,
-	[IdAlmacen] [int] NULL,
-	[IdProveedor] [int] NULL,
-	[IdTipoDocumento] [int] NULL,
 	[IdAlmacenDestino] [int] NULL,
- CONSTRAINT [PK_GuiaRemisionCabecera] PRIMARY KEY CLUSTERED 
+	[IdCajeroDestino] [int] NULL,
+	[FechaRegistro] [datetime] NULL,
+	[Estado] [char](1) NOT NULL,
+	[IdAlmacenGasto] [int] NULL,
+ CONSTRAINT [PK_IngresosEgresos] PRIMARY KEY CLUSTERED 
 (
-	[IdGuiaRemision] ASC
+	[IdIngresoEgreso] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  View [Almacen].[v_ListadoGR_1]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-/****** Script for SelectTopNRows command from SSMS  ******/
-CREATE view [Almacen].[v_ListadoGR_1]
-as
-SELECT G.[IdGuiaRemision]
-      ,G.[IdMovimiento]
-      ,G.[Serie] + '-' + REPLICATE('0', (8 - LEN(cast(G.[Numero] as varchar(8))))) + cast(G.[Numero] as varchar(8)) AS 'Numero'
-      ,cast(G.[Fecha] as date) as 'Fecha'
-      ,G.[DireccionOrigen]
-      ,G.[DPDOrigen]
-      ,G.[TipoDestinatario]
-      ,G.[RazonSocialNombre]
-      ,G.[RUCDNICE]
-      ,G.[DireccionDestino]
-      ,G.[DPDDestino]
-      ,G.[Observaciones]
-      ,G.[IdUsuario]
-      ,G.[Estado]
-      ,G.[IdAlmacen]
-      ,G.[IdProveedor]
-      ,G.[IdTipoDocumento]
-      ,G.[IdAlmacenDestino]
-	  ,O.Nombre as 'AlmacenOrigen'
-	  ,D.Nombre as 'AlmacenDestino'
-  FROM [Almacen].[GuiaRemisionCabecera] G
-  left join Maestros.Almacen O
-  on G.IdAlmacen = O.IdAlmacen
-  left JOIN MAESTROS.Almacen D
-  ON G.IdAlmacenDestino = D.IdAlmacen
-GO
-/****** Object:  View [dbo].[v_ConsultasArticulos]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-Create view [dbo].[v_ConsultasArticulos]
-
-AS
-
-select t.Nombre, a.IdArticulo, a.Descripcion, a.PrecioCompra, convert(varchar, c.Fecha, 103) FechaVenta, min(cc.Fecha) FechaCompra,
-	count(d.Cantidad) Cantidad, sum(d.Total) / count(d.Cantidad) PrecioVentaMedio, sum(d.Total) Monto
-from Movimientos.ComprobanteDeVentaCabecera c inner join Movimientos.ComprobanteDeVentaDetalle d
-	on c.IdComprobante = d.IdComprobante inner join Maestros.Articulo a
-	on d.IdArticulo = a.IdArticulo inner join Maestros.Almacen t
-	on c.IdAlmacen = t.IdAlmacen inner join Almacen.MovimientosDetalle cd
-	on cd.IdArticulo = a.IdArticulo inner join Almacen.MovimientosCabecera cc
-	on cd.IdMovimiento = cc.IdMovimiento
-where c.Estado = 'E' and a.Descripcion not like '%DESC%' and a.Descripcion not like '%BOLSO%' and cc.Tipo = 'I' and cc.Estado = 'E'
-	--and a.IdArticulo between 8260 and 8263
-group by t.Nombre, a.IdArticulo, a.Descripcion, a.PrecioCompra, convert(varchar, c.Fecha, 103)
---order by 3 desc
-
---cuando a entrada
--- a que precio a entrada
---que tienda lo ha vendido mas
---colores q se mueven mas
-GO
-/****** Object:  Table [Maestros].[Personal]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Maestros].[Personal](
-	[IdPersonal] [int] IDENTITY(1,1) NOT NULL,
-	[Nombres] [varchar](100) NOT NULL,
-	[Apellidos] [varchar](100) NOT NULL,
-	[DocIdentidad] [varchar](20) NOT NULL,
-	[NumeroDocIdentidad] [varchar](10) NOT NULL,
-	[RUC] [varchar](11) NULL,
-	[Sexo] [varchar](9) NOT NULL,
-	[FechaNacimiento] [date] NULL,
-	[Direccion] [varchar](100) NULL,
-	[Telefono] [varchar](10) NULL,
-	[Celular] [varchar](9) NULL,
-	[Email] [varchar](50) NULL,
-	[EstadoCivil] [varchar](20) NULL,
-	[TipoEmpleado] [varchar](20) NOT NULL,
-	[LugarNacimiento] [varchar](20) NULL,
-	[Nacionalidad] [varchar](30) NULL,
-	[GradoInstruccion] [varchar](20) NULL,
-	[Especialidad] [varchar](20) NULL,
-	[IdAlmacen] [int] NULL,
-	[Cargo] [varchar](100) NULL,
-	[FechaIngreso] [date] NULL,
-	[FechaRegistro] [date] NULL,
-	[Foto] [image] NULL,
-	[Estado] [bit] NOT NULL,
- CONSTRAINT [PK_Personal] PRIMARY KEY CLUSTERED 
-(
-	[IdPersonal] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  View [Maestros].[v_Personal_3]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-
-
-
-CREATE VIEW [Maestros].[v_Personal_3]
-AS
-SELECT        P.IdPersonal, P.Nombres + ' ' + P.Apellidos as Personal, A.Nombre as Local
-FROM            Maestros.Personal P inner join
-				Maestros.Almacen A on P.IdAlmacen = A.IdAlmacen
-GO
-/****** Object:  Table [Maestros].[TipoDocumentoVenta]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Maestros].[TipoDocumentoVenta](
-	[IdTipoDocumentoVenta] [int] IDENTITY(1,1) NOT NULL,
-	[Descripcion] [varchar](14) NOT NULL,
-	[Abreviatura] [varchar](5) NOT NULL,
-	[Manual] [bit] NOT NULL,
-	[Estado] [bit] NOT NULL,
- CONSTRAINT [PK_TipoDocumentoVenta] PRIMARY KEY CLUSTERED 
-(
-	[IdTipoDocumentoVenta] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  View [Movimientos].[v_ListadoVentaDiaria_1]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-
-
---select top 1 * from [Movimientos].[v_ListadoVentaDiaria_1] order by fecha desc
-
-
-
-
-
-
-CREATE VIEW [Movimientos].[v_ListadoVentaDiaria_1]
-AS
-SELECT C.[IdComprobante]
-      ,C.[IdTipoDocumento]
-	  ,cast(C.[Fecha] as date) as 'Fecha'
-	  ,cast(C.[Fecha] as time) as 'Hora'
-	  ,A.[Nombre] as 'Almacen'
-	  ,T.[Descripcion]
-      ,C.[Serie]
-      ,C.[Numero]
-      ,C.[IdCliente]
-      ,C.[DNIRUC]
-      ,C.[Nombre]
-	  ,C.[APagar] AS 'Total'
-      ,C.[IdVendedor]
-      ,C.[IdCajero]
-      ,C.[IdAlmacen]
-	  ,(SELECT top 1 left(Tipo, 1) FROM Movimientos.DetallePagoVenta a inner join Maestros.TipoPagoVenta b on a.idtipopagoventa = b.idtipopagoventa WHERE IDCOMPROBANTE = C.IDCOMPROBANTE) Pago
-      ,C.[Estado]
-	  ,C.[GeneroNC]
-  FROM [Movimientos].[ComprobanteDeVentaCabecera] C
-  INNER JOIN [Maestros].[TipoDocumentoVenta] T
-  ON C.IdTipoDocumento = T.IdTipoDocumentoVenta
-  INNER JOIN [Maestros].[Almacen] A
-  ON C.IdAlmacen = A.IdAlmacen
-GO
-/****** Object:  View [Movimientos].[v_DetallePagoVenta_2]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-CREATE VIEW [Movimientos].[v_DetallePagoVenta_2]
-AS
-SELECT LV.Fecha 
-	  ,LV.[IdComprobante]
-	  ,LV.Serie
-	  ,LV.Numero
-      ,LV.[IdTipoDocumento]
-	  ,LV.[IdCajero]
-      ,LV.[IdAlmacen]
-      ,LV.[Estado]
-	  ,DPV.Descripcion
-	  ,DPV.Soles
-	  ,DPV.Dolares
-	  ,DPV.Vuelto
-  FROM [Movimientos].[v_ListadoVentaDiaria_1] LV
-  INNER JOIN [Movimientos].[v_DetallePagoVenta_1] DPV
-  ON LV.IdComprobante = DPV.IdComprobante
-GO
-/****** Object:  Table [Maestros].[Proveedor]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[Proveedor]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1091,242 +337,7 @@ CREATE TABLE [Maestros].[Proveedor](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  View [Maestros].[v_Proveedores_1]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-
-
-CREATE VIEW [Maestros].[v_Proveedores_1]
-AS
-SELECT        IdProveedor, RUC, Nombre, Estado
-FROM            Maestros.Proveedor
-GO
-/****** Object:  Table [FE].[Resumen]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [FE].[Resumen](
-	[IdResumenFE] [int] IDENTITY(1,1) NOT NULL,
-	[Correlativo] [int] NOT NULL,
-	[NombreArchivo] [varchar](100) NOT NULL,
-	[Hash] [varchar](100) NOT NULL,
-	[DocInicio] [varchar](20) NOT NULL,
-	[DocFin] [varchar](20) NOT NULL,
-	[CantidadDocumentos] [int] NOT NULL,
-	[FechaEnvio] [datetime] NOT NULL,
-	[FechaReferencia] [datetime] NULL,
-	[EnvioSUNAT] [bit] NOT NULL,
-	[TicketSUNAT] [varchar](50) NOT NULL,
-	[RespuestaSUNAT] [varchar](8000) NOT NULL,
-	[FechaRespuestaSUNAT] [datetime] NOT NULL,
-	[Tienda] [varchar](50) NOT NULL,
- CONSTRAINT [PK_Resumen] PRIMARY KEY CLUSTERED 
-(
-	[IdResumenFE] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [FE].[Comprobantes]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [FE].[Comprobantes](
-	[IdFE] [int] IDENTITY(1,1) NOT NULL,
-	[IdComprobante] [int] NOT NULL,
-	[Hash] [varchar](500) NOT NULL,
-	[QR] [image] NULL,
-	[EnviadoSUNAT] [bit] NULL,
-	[FechaEnvio] [datetime] NULL,
-	[TicketSUNAT] [varchar](50) NULL,
-	[RespuestaSUNAT] [varchar](5000) NULL,
-	[FechaRespuestaSUNAT] [datetime] NULL,
-	[Estado] [bit] NOT NULL,
-	[Xml] [varchar](max) NULL,
-	[EsNota] [bit] NOT NULL,
- CONSTRAINT [PK_Comprobantes] PRIMARY KEY CLUSTERED 
-(
-	[IdFE] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  View [FE].[v_DocumentosEnviadosSUNAT]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE view [FE].[v_DocumentosEnviadosSUNAT]
-
-as
-
-select Tienda, Hash, DocInicio, DocFin, CantidadDocumentos, FechaEnvio, FechaReferencia, TicketSUNAT, RespuestaSUNAT
-from fe.Resumen fe 
-wHERE EnvioSUNAT = 1
-	union all
-select a.Nombre Tienda, Hash, f.Serie + '-' + right('00000000' + cast(f.Numero as varchar), 8), 
-f.Serie + '-' + right('00000000' + cast(f.Numero as varchar), 8), 1, FechaEnvio, f.Fecha, TicketSUNAT, RespuestaSUNAT
-from fe.Comprobantes fe inner join Movimientos.ComprobanteDeVentaCabecera f
-	on fe.IdComprobante = f.IdComprobante inner join Maestros.Almacen a
-	on f.IdAlmacen = a.IdAlmacen
-where f.IdTipoDocumento = 2 and TicketSUNAT is not null
---order by FechaEnvio desc
-GO
-/****** Object:  View [Maestros].[v_Articulos_1]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-
-
-CREATE VIEW [Maestros].[v_Articulos_1]
-AS
-SELECT        IdArticulo, IdProveedor, Descripcion, UnidadAlmacen, PrecioVenta, Estado
-FROM            Maestros.Articulo
-GO
-/****** Object:  Table [Maestros].[AsignacionSerieCajero]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Maestros].[AsignacionSerieCajero](
-	[IdAsignacion] [int] IDENTITY(1,1) NOT NULL,
-	[IdUsuario] [int] NOT NULL,
-	[IdAlmacen] [int] NOT NULL,
-	[IdSerieCorrelativo] [int] NOT NULL,
- CONSTRAINT [PK_AsignacionSerieCajero] PRIMARY KEY CLUSTERED 
-(
-	[IdAsignacion] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [Maestros].[SerieCorrelativo]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Maestros].[SerieCorrelativo](
-	[IdSerieCorrelativo] [int] IDENTITY(1,1) NOT NULL,
-	[IdAlmacen] [int] NOT NULL,
-	[IdTipoDocumentoVenta] [int] NOT NULL,
-	[Serie] [char](3) NOT NULL,
-	[Correlativo] [int] NOT NULL,
-	[Estado] [bit] NOT NULL,
- CONSTRAINT [PK_SerieCorrelativo] PRIMARY KEY CLUSTERED 
-(
-	[IdSerieCorrelativo] ASC,
-	[IdAlmacen] ASC,
-	[IdTipoDocumentoVenta] ASC,
-	[Serie] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  View [Maestros].[v_SeriesXCajero_1]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-CREATE VIEW [Maestros].[v_SeriesXCajero_1]
-AS
-select ASSC.IdSerieCorrelativo, assc.IdUsuario, assc.IdAlmacen, dv.Descripcion + ' (' + sc.Serie + ')' as 'DocumentoSerie'
-from Maestros.AsignacionSerieCajero ASSC
-inner join maestros.SerieCorrelativo SC
-	on ASSC.IdSerieCorrelativo = SC.IdSerieCorrelativo
-inner join Maestros.TipoDocumentoVenta DV
-	on sc.IdTipoDocumentoVenta = dv.IdTipoDocumentoVenta
-where sc.Estado = 1
-	and dv.Manual = 0
-	and dv.Descripcion in ('BOLETA','FACTURA', 'TICKET')
-	
-GO
-/****** Object:  View [Maestros].[v_SeriesXALmacen_1]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-
-
-CREATE VIEW [Maestros].[v_SeriesXALmacen_1]
-AS
-select sc.IdSerieCorrelativo, sc.IdAlmacen, dv.Descripcion + ' (' + sc.Serie + ')' as 'DocumentoSerie'
-from Maestros.SerieCorrelativo SC
-inner join Maestros.TipoDocumentoVenta DV
-	on sc.IdTipoDocumentoVenta = dv.IdTipoDocumentoVenta
-where sc.Estado = 1
-	and dv.Manual = 0
-	and dv.Descripcion in ('BOLETA','FACTURA', 'TICKET')
-	and SC.IdSerieCorrelativo not in
-		(select IdSerieCorrelativo
-			from Maestros.AsignacionSerieCajero)
-GO
-/****** Object:  View [Maestros].[v_SerieCorrelativo_2]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-CREATE VIEW [Maestros].[v_SerieCorrelativo_2]
-AS
-	  SELECT AC.IdAsignacion, AC.IdUsuario, AC.IdAlmacen, SC.IdTipoDocumentoVenta, AC.IdSerieCorrelativo, SC.Serie, SC.Correlativo, SC.Estado
-	  FROM Maestros.AsignacionSerieCajero AC
-	  INNER JOIN Maestros.SerieCorrelativo SC
-	  on AC.IdSerieCorrelativo = SC.IdSerieCorrelativo
-GO
-/****** Object:  View [Movimientos].[v_HistoricoVentas]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-Create view [Movimientos].[v_HistoricoVentas]
-
-as
-
---set language 'Spanish'
-
-select year(a.Fecha) Año, month(a.fecha) Mes, day(a.fecha) Dia, convert(varchar, Fecha, 103) Fecha, b.Nombre Almacen, sum(a.APagar) Total
-from Movimientos.ComprobanteDeVentaCabecera a inner join Maestros.Almacen b
-	on a.IdAlmacen = b.IdAlmacen
-where a.Estado = 'E' --and fecha > '01/07/2021'
-group by year(a.Fecha), month(a.fecha), day(a.fecha), convert(varchar, Fecha, 103), b.Nombre
---order by 1, 2, 3, 4
-GO
-/****** Object:  Table [Movimientos].[IngresosEgresosCabecera]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Movimientos].[IngresosEgresosCabecera](
-	[IdIngresoEgreso] [int] IDENTITY(1,1) NOT NULL,
-	[IdUsuario] [int] NOT NULL,
-	[IdAlmacen] [int] NOT NULL,
-	[Naturaleza] [char](1) NOT NULL,
-	[Tipo] [varchar](20) NOT NULL,
-	[Fecha] [datetime] NOT NULL,
-	[Glosa] [varchar](200) NOT NULL,
-	[Monto] [decimal](18, 2) NOT NULL,
-	[IdProveedor] [int] NULL,
-	[IdAlmacenDestino] [int] NULL,
-	[IdCajeroDestino] [int] NULL,
-	[FechaRegistro] [datetime] NULL,
-	[Estado] [char](1) NOT NULL,
-	[IdAlmacenGasto] [int] NULL,
- CONSTRAINT [PK_IngresosEgresos] PRIMARY KEY CLUSTERED 
-(
-	[IdIngresoEgreso] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  View [Movimientos].[v_ResumenCierreDeCaja_2]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Movimientos].[v_ResumenCierreDeCaja_2]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1408,7 +419,7 @@ UNION ALL
   	
 
 GO
-/****** Object:  Table [Movimientos].[OrdenDeCompraCabecera]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Movimientos].[OrdenDeCompraCabecera]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1445,7 +456,7 @@ CREATE TABLE [Movimientos].[OrdenDeCompraCabecera](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  View [Movimientos].[v_ListadoOC_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Movimientos].[v_ListadoOC_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1478,7 +489,7 @@ SELECT C.[IdOc]
   inner join [Maestros].[Proveedor] P
   on C.IdProveedor = P.IdProveedor
 GO
-/****** Object:  Table [Movimientos].[AperturaCierreCaja]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Movimientos].[AperturaCierreCaja]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1503,7 +514,7 @@ CREATE TABLE [Movimientos].[AperturaCierreCaja](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Maestros].[Usuario]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[Usuario]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1513,22 +524,83 @@ CREATE TABLE [Maestros].[Usuario](
 	[Nombre] [varchar](50) NOT NULL,
 	[IdPersonal] [int] NOT NULL,
 	[Estado] [bit] NOT NULL,
-	[Clave] [varbinary](128) NULL,
+	[Clave] [varbinary](300) NULL,
  CONSTRAINT [PK_Usuario] PRIMARY KEY CLUSTERED 
 (
 	[IdUsuario] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  View [Movimientos].[v_AlmacenesAperturaFecha_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[Almacen]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-
-
-
-/****** Script for SelectTopNRows command from SSMS  ******/
+CREATE TABLE [Maestros].[Almacen](
+	[IdAlmacen] [int] IDENTITY(1,1) NOT NULL,
+	[Nombre] [varchar](100) NOT NULL,
+	[EsTienda] [bit] NOT NULL,
+	[Direccion] [varchar](150) NOT NULL,
+	[DPD] [varchar](100) NULL,
+	[Telefono] [varchar](10) NULL,
+	[Celular] [varchar](9) NULL,
+	[RazonSocial] [varchar](100) NULL,
+	[RUC] [varchar](11) NULL,
+	[Estado] [bit] NOT NULL,
+	[Ubigeo] [char](6) NULL,
+	[Certificado] [varchar](50) NULL,
+	[PasswordCertificado] [varchar](50) NULL,
+	[Abreviacion] [varchar](20) NULL,
+	[UsuarioSOL] [varchar](20) NULL,
+	[ClaveSOL] [varchar](20) NULL,
+	[AfectoIGV] [bit] NOT NULL,
+ CONSTRAINT [PK_Almacen] PRIMARY KEY CLUSTERED 
+(
+	[IdAlmacen] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [Maestros].[Personal]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Maestros].[Personal](
+	[IdPersonal] [int] IDENTITY(1,1) NOT NULL,
+	[Nombres] [varchar](100) NOT NULL,
+	[Apellidos] [varchar](100) NOT NULL,
+	[DocIdentidad] [varchar](20) NOT NULL,
+	[NumeroDocIdentidad] [varchar](10) NOT NULL,
+	[RUC] [varchar](11) NULL,
+	[Sexo] [varchar](9) NOT NULL,
+	[FechaNacimiento] [date] NULL,
+	[Direccion] [varchar](100) NULL,
+	[Telefono] [varchar](10) NULL,
+	[Celular] [varchar](9) NULL,
+	[Email] [varchar](50) NULL,
+	[EstadoCivil] [varchar](20) NULL,
+	[TipoEmpleado] [varchar](20) NOT NULL,
+	[LugarNacimiento] [varchar](20) NULL,
+	[Nacionalidad] [varchar](30) NULL,
+	[GradoInstruccion] [varchar](20) NULL,
+	[Especialidad] [varchar](20) NULL,
+	[IdAlmacen] [int] NULL,
+	[Cargo] [varchar](100) NULL,
+	[FechaIngreso] [date] NULL,
+	[FechaRegistro] [date] NULL,
+	[Foto] [image] NULL,
+	[Estado] [bit] NOT NULL,
+ CONSTRAINT [PK_Personal] PRIMARY KEY CLUSTERED 
+(
+	[IdPersonal] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+/****** Object:  View [Movimientos].[v_AlmacenesAperturaFecha_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 CREATE view [Movimientos].[v_AlmacenesAperturaFecha_1]
 as
 SELECT distinct acc.IdAlmacen
@@ -1543,7 +615,7 @@ SELECT distinct acc.IdAlmacen
   on u.IdPersonal = p.IdPersonal
   --where acc.Estado <> 'C';
 GO
-/****** Object:  View [Movimientos].[v_UsuarioAperturaAlmacen_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Movimientos].[v_UsuarioAperturaAlmacen_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1562,7 +634,45 @@ SELECT acc.IdUsuario
   on u.IdPersonal = p.IdPersonal
   --where acc.Estado <> 'C';
 GO
-/****** Object:  View [Maestros].[v_SerieCorrelativo_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[TipoDocumentoVenta]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Maestros].[TipoDocumentoVenta](
+	[IdTipoDocumentoVenta] [int] IDENTITY(1,1) NOT NULL,
+	[Descripcion] [varchar](14) NOT NULL,
+	[Abreviatura] [varchar](5) NOT NULL,
+	[Manual] [bit] NOT NULL,
+	[Estado] [bit] NOT NULL,
+ CONSTRAINT [PK_TipoDocumentoVenta] PRIMARY KEY CLUSTERED 
+(
+	[IdTipoDocumentoVenta] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [Maestros].[SerieCorrelativo]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Maestros].[SerieCorrelativo](
+	[IdSerieCorrelativo] [int] IDENTITY(1,1) NOT NULL,
+	[IdAlmacen] [int] NOT NULL,
+	[IdTipoDocumentoVenta] [int] NOT NULL,
+	[Serie] [char](3) NOT NULL,
+	[Correlativo] [int] NOT NULL,
+	[Estado] [bit] NOT NULL,
+ CONSTRAINT [PK_SerieCorrelativo] PRIMARY KEY CLUSTERED 
+(
+	[IdSerieCorrelativo] ASC,
+	[IdAlmacen] ASC,
+	[IdTipoDocumentoVenta] ASC,
+	[Serie] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  View [Maestros].[v_SerieCorrelativo_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1580,7 +690,7 @@ SELECT        SC.IdSerieCorrelativo, SC.IdAlmacen, TDV.IdTipoDocumentoVenta, TDV
 FROM            Maestros.SerieCorrelativo SC inner join
 				Maestros.TipoDocumentoVenta TDV on SC.IdTipoDocumentoVenta = TDV.IdTipoDocumentoVenta
 GO
-/****** Object:  View [Movimientos].[v_ListadoAperturaCierre_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Movimientos].[v_ListadoAperturaCierre_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1611,17 +721,11 @@ SELECT AC.[IdAperturaCierre]
   INNER JOIN Maestros.Personal P
   ON U.IdPersonal = P.IdPersonal
 GO
-/****** Object:  View [Movimientos].[v_ListadoIngresosEgresos_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Movimientos].[v_ListadoIngresosEgresos_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-
-
-
-
-
-/****** Script for SelectTopNRows command from SSMS  ******/
 
 CREATE view [Movimientos].[v_ListadoIngresosEgresos_1]
 as
@@ -1646,7 +750,7 @@ SELECT C.[IdIngresoEgreso]
   inner join [Maestros].[Personal] as P
   on u.IdPersonal = p.IdPersonal
 GO
-/****** Object:  View [Movimientos].[v_ResumenCierreDeCaja_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Movimientos].[v_ResumenCierreDeCaja_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1726,7 +830,7 @@ UNION ALL
   	
 
 GO
-/****** Object:  View [Maestros].[v_Personal_2]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Maestros].[v_Personal_2]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1739,7 +843,7 @@ FROM            Maestros.Personal P inner join
 				inner join Maestros.Usuario U
 				on u.IdPersonal = P.IdPersonal
 GO
-/****** Object:  Table [Movimientos].[OrdenDeCompraDetalle]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Movimientos].[OrdenDeCompraDetalle]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1760,7 +864,53 @@ CREATE TABLE [Movimientos].[OrdenDeCompraDetalle](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  View [Almacen].[v_DetalleOCParaIngreso_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Almacen].[MovimientosDetalle]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Almacen].[MovimientosDetalle](
+	[IdMovimiento] [int] NOT NULL,
+	[Item] [int] NOT NULL,
+	[IdArticulo] [char](6) NOT NULL,
+	[DescripcionArticulo] [varchar](300) NOT NULL,
+	[Cantidad] [int] NOT NULL,
+	[Valor] [decimal](18, 2) NOT NULL,
+ CONSTRAINT [PK_IngresosEgresosDetalle] PRIMARY KEY CLUSTERED 
+(
+	[IdMovimiento] ASC,
+	[Item] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [Almacen].[MovimientosCabecera]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Almacen].[MovimientosCabecera](
+	[IdMovimiento] [int] IDENTITY(1,1) NOT NULL,
+	[IdAlmacen] [int] NOT NULL,
+	[Tipo] [char](1) NOT NULL,
+	[Motivo] [varchar](40) NOT NULL,
+	[Fecha] [date] NULL,
+	[Descripcion] [varchar](255) NOT NULL,
+	[IdProveedor] [int] NULL,
+	[IdAlmacenDestinoOrigen] [int] NULL,
+	[IdOc] [int] NULL,
+	[IdUsuario] [int] NOT NULL,
+	[FechaHoraRegistro] [datetime] NOT NULL,
+	[IdGuiaRemision] [int] NULL,
+	[IdUsuarioConfirma] [int] NULL,
+	[FechaHoraConfirma] [datetime] NULL,
+	[Estado] [char](1) NOT NULL,
+ CONSTRAINT [PK_IngresosEgresosCabecera] PRIMARY KEY CLUSTERED 
+(
+	[IdMovimiento] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  View [Almacen].[v_DetalleOCParaIngreso_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1789,7 +939,7 @@ SELECT OC.IdOC as 'IdMovimiento' --Se renombra así para que no haya conflicto a
   and OC.Item = M.Item
   and OC.IdArticulo = M.IdArticulo;
 GO
-/****** Object:  View [Maestros].[v_Almacen_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Maestros].[v_Almacen_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1816,7 +966,43 @@ SELECT [IdAlmacen]
       ,[AfectoIGV]
   FROM [Maestros].[Almacen]
 GO
-/****** Object:  View [Movimientos].[v_VentasXAlmacenXMesXAnoXProveedor_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Movimientos].[ComprobanteDeVentaCabecera]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Movimientos].[ComprobanteDeVentaCabecera](
+	[IdComprobante] [int] IDENTITY(1,1) NOT NULL,
+	[IdTipoDocumento] [int] NOT NULL,
+	[Serie] [varchar](4) NOT NULL,
+	[Numero] [int] NOT NULL,
+	[Fecha] [datetime] NOT NULL,
+	[IdCliente] [int] NULL,
+	[DNIRUC] [varchar](11) NULL,
+	[Nombre] [varchar](100) NOT NULL,
+	[Direccion] [varchar](100) NULL,
+	[TipoCambio] [decimal](18, 3) NOT NULL,
+	[SubTotal] [decimal](18, 2) NOT NULL,
+	[IGV] [decimal](18, 2) NOT NULL,
+	[Total] [decimal](18, 2) NOT NULL,
+	[Redondeo] [decimal](18, 2) NULL,
+	[APagar] [decimal](18, 2) NULL,
+	[IdVendedor] [int] NOT NULL,
+	[IdCajero] [int] NOT NULL,
+	[IdAlmacen] [int] NOT NULL,
+	[Estado] [char](1) NOT NULL,
+	[FechaHoraRegistro] [datetime] NOT NULL,
+	[IdUsuarioAnula] [int] NULL,
+	[FechaHoraUsuarioAnula] [datetime] NULL,
+	[GeneroNC] [varchar](13) NULL,
+	[ExcluirDeEstadisticas] [bit] NOT NULL,
+ CONSTRAINT [PK_ComprobanteDeVentaCabecera] PRIMARY KEY CLUSTERED 
+(
+	[IdComprobante] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  View [Movimientos].[v_VentasXAlmacenXMesXAnoXProveedor_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1839,7 +1025,40 @@ SELECT [IdComprobante]
       ,[Estado]
   FROM [Movimientos].[ComprobanteDeVentaCabecera]
 GO
-/****** Object:  View [Maestros].[v_Articulos_Busqueda_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[Articulo]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Maestros].[Articulo](
+	[IdArticulo] [char](6) NOT NULL,
+	[Descripcion] [varchar](300) NOT NULL,
+	[DescripcionCorta] [varchar](100) NOT NULL,
+	[Familia] [varchar](100) NOT NULL,
+	[Linea] [varchar](100) NOT NULL,
+	[Marca] [varchar](100) NOT NULL,
+	[Material] [varchar](100) NOT NULL,
+	[Modelo] [varchar](100) NOT NULL,
+	[Color] [varchar](100) NOT NULL,
+	[Detalle] [varchar](100) NOT NULL,
+	[Talla] [varchar](100) NOT NULL,
+	[IdProveedor] [int] NOT NULL,
+	[UnidadAlmacen] [varchar](100) NOT NULL,
+	[MonedaCosteo] [varchar](100) NOT NULL,
+	[PrecioCompra] [decimal](18, 2) NOT NULL,
+	[PrecioVenta] [decimal](18, 2) NOT NULL,
+	[FechaRegistro] [date] NOT NULL,
+	[Foto] [image] NULL,
+	[CodigoBarra] [image] NULL,
+	[Estado] [bit] NOT NULL,
+	[Estacion] [varchar](15) NULL,
+ CONSTRAINT [PK_Articulo] PRIMARY KEY CLUSTERED 
+(
+	[IdArticulo] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+/****** Object:  View [Maestros].[v_Articulos_Busqueda_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1857,7 +1076,7 @@ SELECT        A.IdArticulo, A.Descripcion, P.Nombre as Proveedor, A.Estado
 FROM            Maestros.Articulo A inner join Maestros.Proveedor P
 				on A.IdProveedor = P.IdProveedor				
 GO
-/****** Object:  View [Movimientos].[v_ListadoComprasAProveedores_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Movimientos].[v_ListadoComprasAProveedores_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1880,7 +1099,7 @@ SELECT C.[IdOc]
   ON C.IdOc = D.IdOc
   WHERE C.EstadoAtencion <> 'AN'
 GO
-/****** Object:  Table [Maestros].[Cliente]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[Cliente]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1902,7 +1121,7 @@ CREATE TABLE [Maestros].[Cliente](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  View [Maestros].[v_Clientes_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Maestros].[v_Clientes_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1916,44 +1135,7 @@ AS
 SELECT        IdCliente, DNIRUC, Nombre, Direccion, Estado
 FROM            Maestros.Cliente
 GO
-/****** Object:  Table [Movimientos].[StockAlmacen]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [Movimientos].[StockAlmacen](
-	[IdAlmacen] [int] NOT NULL,
-	[IdArticulo] [char](6) NOT NULL,
-	[Stock] [int] NOT NULL,
- CONSTRAINT [PK_Stock] PRIMARY KEY CLUSTERED 
-(
-	[IdAlmacen] ASC,
-	[IdArticulo] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  View [Movimientos].[v_StockXAlmacen_1]    Script Date: 06/02/2025 20:01:49 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-
-CREATE view [Movimientos].[v_StockXAlmacen_1]
-as
-Select S.IdAlmacen, Al.Nombre as 'Almacen', Ar.Familia, ar.Linea, S.IdArticulo, Ar.Descripcion,
-		S.Stock, Ar.PrecioCompra, S.Stock * Ar.PrecioCompra as 'ValorCompra', isnull(d.[Precio Final], ar.PrecioVenta) PrecioVenta, S.Stock * isnull(d.[Precio Final], ar.PrecioVenta) as 'ValorVenta'
-from Movimientos.StockAlmacen S
-inner join Maestros.Almacen Al
-on S.IdAlmacen = Al.IdAlmacen
-inner join Maestros.Articulo Ar
-on S.IdArticulo = Ar.IdArticulo
-left join Movimientos.v_Descuentos d
-on ar.IdArticulo = d.idArticulo and al.IdAlmacen = d.idAlmacen
-
-GO
-/****** Object:  Table [Movimientos].[IngresosEgresosDetalle]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Movimientos].[IngresosEgresosDetalle]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1973,7 +1155,7 @@ CREATE TABLE [Movimientos].[IngresosEgresosDetalle](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  View [Movimientos].[v_ListadoPagosAProveedores_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Movimientos].[v_ListadoPagosAProveedores_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1990,7 +1172,44 @@ as
   on C.IdAlmacen = A.IdAlmacen
   WHERE C.TIPO = 'PAGO PROVEEDORES' and C.Estado <> 'A'
 GO
-/****** Object:  View [Movimientos].[v_Recaudacion_3]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[TipoPagoVenta]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Maestros].[TipoPagoVenta](
+	[IdTipoPagoVenta] [int] IDENTITY(1,1) NOT NULL,
+	[Tipo] [varchar](12) NOT NULL,
+	[Descripcion] [varchar](30) NOT NULL,
+	[Estado] [bit] NOT NULL,
+ CONSTRAINT [PK_TipoPagoVenta] PRIMARY KEY CLUSTERED 
+(
+	[IdTipoPagoVenta] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [Movimientos].[DetallePagoVenta]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Movimientos].[DetallePagoVenta](
+	[IdDetallePagoVenta] [int] IDENTITY(1,1) NOT NULL,
+	[IdComprobante] [int] NOT NULL,
+	[IdTipoPagoVenta] [int] NOT NULL,
+	[Soles] [decimal](18, 2) NOT NULL,
+	[Dolares] [decimal](18, 2) NOT NULL,
+	[Datos] [varchar](13) NULL,
+	[Vuelto] [decimal](18, 2) NULL,
+	[PorcentajeTarjetaSoles] [decimal](18, 2) NULL,
+	[PorcentajeTarjetaDolares] [decimal](18, 2) NULL,
+ CONSTRAINT [PK_DetallePagoVenta] PRIMARY KEY CLUSTERED 
+(
+	[IdDetallePagoVenta] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  View [Movimientos].[v_Recaudacion_3]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2035,14 +1254,11 @@ FROM          Movimientos.ComprobanteDeVentaCabecera AS C
 
 
 GO
-/****** Object:  View [Maestros].[v_Personal_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Maestros].[v_Personal_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-
-
-
 
 CREATE VIEW [Maestros].[v_Personal_1]
 AS
@@ -2050,7 +1266,7 @@ SELECT        P.IdPersonal, P.Nombres + ' ' + P.Apellidos as Personal, A.Nombre 
 FROM            Maestros.Personal P inner join
 				Maestros.Almacen A on P.IdAlmacen = A.IdAlmacen
 GO
-/****** Object:  View [Movimientos].[v_CierreEnLinea_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Movimientos].[v_CierreEnLinea_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2081,7 +1297,7 @@ GROUP BY cast(C.Fecha as date), Naturaleza
 
 
 GO
-/****** Object:  View [Maestros].[v_Articulos_2]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Maestros].[v_Articulos_2]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2091,7 +1307,30 @@ AS
 Select 0 'IdAlmacen', 0 'Almacen', ar.IdArticulo, Ar.Descripcion, null 'Stock', isnull(ar.[PrecioVenta], ar.PrecioVenta) Precio, ar.Estado
 from Maestros.Articulo Ar
 GO
-/****** Object:  View [Movimientos].[v_Kardex_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Movimientos].[Kardex]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Movimientos].[Kardex](
+	[IdKardex] [int] IDENTITY(1,1) NOT NULL,
+	[IdAlmacen] [int] NOT NULL,
+	[IdArticulo] [char](6) NOT NULL,
+	[TipoMovimiento] [char](1) NOT NULL,
+	[Fecha] [datetime] NOT NULL,
+	[SaldoInicial] [int] NOT NULL,
+	[Cantidad] [int] NOT NULL,
+	[SaldoFinal] [int] NOT NULL,
+	[Valor] [decimal](18, 2) NOT NULL,
+	[Origen] [varchar](100) NOT NULL,
+	[NoKardexGeneral] [bit] NULL,
+ CONSTRAINT [PK_Kardex] PRIMARY KEY CLUSTERED 
+(
+	[IdKardex] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  View [Movimientos].[v_Kardex_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2109,7 +1348,7 @@ FROM            Movimientos.Kardex INNER JOIN
                          Maestros.Almacen ON Movimientos.Kardex.IdAlmacen = Maestros.Almacen.IdAlmacen INNER JOIN
                          Maestros.Articulo ON Movimientos.Kardex.IdArticulo = Maestros.Articulo.IdArticulo
 GO
-/****** Object:  View [Movimientos].[v_Kardex_2]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Movimientos].[v_Kardex_2]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2122,7 +1361,66 @@ from movimientos.v_Kardex_1 a
 
 
 GO
-/****** Object:  View [FE].[v_Comprobantes]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Movimientos].[NotaDeCreditoCabecera]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Movimientos].[NotaDeCreditoCabecera](
+	[IdNC] [int] IDENTITY(1,1) NOT NULL,
+	[IdTipoDocumento] [int] NOT NULL,
+	[Serie] [varchar](4) NOT NULL,
+	[Numero] [int] NOT NULL,
+	[Fecha] [datetime] NOT NULL,
+	[Referencia] [varchar](13) NOT NULL,
+	[IdMotivo] [char](2) NOT NULL,
+	[IdCliente] [int] NOT NULL,
+	[DNIRUC] [varchar](11) NOT NULL,
+	[Nombre] [varchar](100) NOT NULL,
+	[Direccion] [varchar](100) NULL,
+	[SubTotal] [decimal](18, 2) NOT NULL,
+	[IGV] [decimal](18, 2) NOT NULL,
+	[Total] [decimal](18, 2) NOT NULL,
+	[Redondeo] [decimal](18, 2) NOT NULL,
+	[AFavor] [decimal](18, 2) NOT NULL,
+	[IdUsuario] [int] NOT NULL,
+	[IdAlmacen] [int] NOT NULL,
+	[Estado] [char](1) NOT NULL,
+	[FechaHoraRegistro] [datetime] NOT NULL,
+	[Empleada] [bit] NULL,
+	[IdUsuarioAnula] [int] NULL,
+	[FechaHoraUsuarioAnula] [datetime] NULL,
+ CONSTRAINT [PK_NotaDeCreditoCabecera] PRIMARY KEY CLUSTERED 
+(
+	[IdNC] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [FE].[Comprobantes]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [FE].[Comprobantes](
+	[IdFE] [int] IDENTITY(1,1) NOT NULL,
+	[IdComprobante] [int] NOT NULL,
+	[Hash] [varchar](500) NOT NULL,
+	[QR] [image] NULL,
+	[EnviadoSUNAT] [bit] NULL,
+	[FechaEnvio] [datetime] NULL,
+	[TicketSUNAT] [varchar](50) NULL,
+	[RespuestaSUNAT] [varchar](5000) NULL,
+	[FechaRespuestaSUNAT] [datetime] NULL,
+	[Estado] [bit] NOT NULL,
+	[Xml] [varchar](max) NULL,
+	[EsNota] [bit] NOT NULL,
+ CONSTRAINT [PK_Comprobantes] PRIMARY KEY CLUSTERED 
+(
+	[IdFE] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+/****** Object:  View [FE].[v_Comprobantes]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2153,7 +1451,7 @@ where v.Estado <> 'A' and f.EsNota = 1
 	and year(v.Fecha) >= 2024 and v.IdTipoDocumento IN (7, 9)
 	and (RespuestaSUNAT is null or (RespuestaSUNAT NOT like '%aceptado%' and RespuestaSUNAT NOT like '%aceptada%' and RespuestaSUNAT NOT like '%rechazado%' and RespuestaSUNAT NOT like '%existe documento%'))
 GO
-/****** Object:  Table [Movimientos].[NotaDeCreditoDetalle]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Movimientos].[NotaDeCreditoDetalle]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2175,13 +1473,33 @@ CREATE TABLE [Movimientos].[NotaDeCreditoDetalle](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  View [DW].[v_DetallesVentas]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Movimientos].[ComprobanteDeVentaDetalle]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-
-
+CREATE TABLE [Movimientos].[ComprobanteDeVentaDetalle](
+	[IdComprobante] [int] NOT NULL,
+	[Item] [int] NOT NULL,
+	[IdArticulo] [char](6) NOT NULL,
+	[Descripcion] [varchar](100) NOT NULL,
+	[UnidadMedida] [varchar](20) NOT NULL,
+	[Cantidad] [int] NOT NULL,
+	[Precio] [decimal](18, 2) NOT NULL,
+	[PorcentajeDescuento] [decimal](18, 2) NOT NULL,
+	[Total] [decimal](18, 2) NOT NULL,
+ CONSTRAINT [PK_ComprobanteDeVentaDetalle] PRIMARY KEY CLUSTERED 
+(
+	[IdComprobante] ASC,
+	[Item] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  View [DW].[v_DetallesVentas]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 
 
 CREATE view [DW].[v_DetallesVentas]
@@ -2203,7 +1521,7 @@ from Movimientos.NotaDeCreditoCabecera c inner join Movimientos.NotaDeCreditoDet
 	on c.idAlmacen = alm.idAlmacen
 where c.Estado = 'E'
 GO
-/****** Object:  View [Movimientos].[v_CierreVentaDiaria_1]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Movimientos].[v_CierreVentaDiaria_1]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2219,7 +1537,610 @@ on CV.IdComprobante = DPV.IdComprobante
 inner join Maestros.TipoPagoVenta TPV
 on DPV.IdTipoPagoVenta = TPV.IdTipoPagoVenta
 GO
-/****** Object:  Table [Almacen].[GuiaRemisionDetalle]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  View [Movimientos].[v_Venta_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE VIEW [Movimientos].[v_Venta_1]
+AS
+SELECT [IdComprobante]
+      ,[IdTipoDocumento]
+      ,[Serie]
+      ,[Numero]
+      ,[Fecha]
+      ,[IdCliente]
+      ,[DNIRUC]
+      ,[Nombre]
+      ,[Total]
+      ,[IdVendedor]
+      ,[IdCajero]
+      ,[IdAlmacen]
+      ,[Estado]
+  FROM [Movimientos].[ComprobanteDeVentaCabecera]
+GO
+/****** Object:  Table [Movimientos].[Descuentos]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Movimientos].[Descuentos](
+	[idDescuento] [int] IDENTITY(1,1) NOT NULL,
+	[idAlmacen] [int] NOT NULL,
+	[idArticulo] [int] NOT NULL,
+	[Descuento] [float] NOT NULL,
+ CONSTRAINT [PK_Descuentos] PRIMARY KEY CLUSTERED 
+(
+	[idDescuento] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  View [Movimientos].[v_Descuentos]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+Create view [Movimientos].[v_Descuentos]
+as
+select d.idAlmacen, a.IdArticulo, a.DescripcionCorta, a.PrecioVenta, a.PrecioCompra, 
+		round(a.PrecioVenta * (1 - d.Descuento / 100), 2) [Precio Final], 
+		round(a.PrecioVenta * d.Descuento / 100, 2) Descuento , 
+		round(d.Descuento, 2) Descuento_Porc,
+		round((a.PrecioVenta * (1 - d.Descuento / 100)) - a.PrecioCompra, 2) Utilidad
+from Maestros.Articulo a inner join Movimientos.Descuentos d
+	on a.IdArticulo = d.idArticulo
+GO
+/****** Object:  View [Movimientos].[v_KardexGeneral]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+create view [Movimientos].[v_KardexGeneral]
+as
+SELECT       Movimientos.Kardex.IdKardex, Movimientos.Kardex.IdAlmacen, Maestros.Almacen.Nombre AS Almacen, Maestros.Articulo.Familia, Maestros.Articulo.Linea, Movimientos.Kardex.IdArticulo AS Codigo, Maestros.Articulo.Descripcion AS Articulo,
+			 Maestros.Articulo.PrecioCompra, cast(isnull(d.[Precio Final], Maestros.Articulo.PrecioVenta) as decimal(18,2)) PrecioVenta, cast(Movimientos.Kardex.Fecha as date) Fecha, Movimientos.Kardex.Origen 'Operacion', 
+             Movimientos.Kardex.SaldoInicial, Movimientos.Kardex.SaldoInicial * Movimientos.Kardex.Valor as 'ValorizadoInicial',
+			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'I' THEN Movimientos.Kardex.Cantidad ELSE 0 END 'Entrada',
+			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'I' THEN Movimientos.Kardex.Cantidad * Movimientos.Kardex.Valor ELSE 0 END 'ValorizadoEntrada',
+			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'E' THEN Movimientos.Kardex.Cantidad ELSE 0 END 'Salida',
+			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'E' THEN Movimientos.Kardex.Cantidad * Movimientos.Kardex.Valor ELSE 0 END 'ValorizadoSalida',
+			 Movimientos.Kardex.SaldoFinal, Movimientos.Kardex.SaldoFinal * Movimientos.Kardex.Valor as 'ValorizadoFinal',
+			 Maestros.Articulo.PrecioCompra * Movimientos.Kardex.SaldoFinal as 'ValorizadoFinalPC', cast(isnull(d.[Precio Final], Maestros.Articulo.PrecioVenta) as decimal(18,2)) * Movimientos.Kardex.SaldoFinal as 'ValorizadoFinalPV'
+FROM            Movimientos.Kardex INNER JOIN
+                         Maestros.Almacen ON Movimientos.Kardex.IdAlmacen = Maestros.Almacen.IdAlmacen INNER JOIN
+                         Maestros.Articulo ON Movimientos.Kardex.IdArticulo = Maestros.Articulo.IdArticulo
+						 left join Movimientos.v_Descuentos d on Maestros.Articulo.IdArticulo = d.idArticulo and Maestros.Almacen.IdAlmacen = d.idAlmacen
+						 WHERE NoKardexGeneral = 0 AND SUBSTRING(origen, 0, CHARINDEX(':',Origen)) <> 'NC'
+
+UNION ALL
+
+SELECT       Movimientos.Kardex.IdKardex, Movimientos.Kardex.IdAlmacen, Maestros.Almacen.Nombre AS Almacen, Maestros.Articulo.Familia, Maestros.Articulo.Linea, Movimientos.Kardex.IdArticulo AS Codigo, Maestros.Articulo.Descripcion AS Articulo,
+			 Maestros.Articulo.PrecioCompra, cast(isnull(d.[Precio Final], Maestros.Articulo.PrecioVenta) as decimal(18,2)) PrecioVenta, cast(Movimientos.Kardex.Fecha as date) Fecha, Movimientos.Kardex.Origen 'Operacion', 
+             Movimientos.Kardex.SaldoInicial, Movimientos.Kardex.SaldoInicial * Movimientos.Kardex.Valor as 'ValorizadoInicial',
+			 0 'Entrada',
+			 0 'ValorizadoEntrada',
+			 Movimientos.Kardex.Cantidad * -1 'Salida',
+			 Movimientos.Kardex.Cantidad * Movimientos.Kardex.Valor * -1 'ValorizadoSalida',
+			 Movimientos.Kardex.SaldoFinal, Movimientos.Kardex.SaldoFinal * Movimientos.Kardex.Valor as 'ValorizadoFinal',
+			 Maestros.Articulo.PrecioCompra * Movimientos.Kardex.SaldoFinal as 'ValorizadoFinalPC', cast(isnull(d.[Precio Final], Maestros.Articulo.PrecioVenta) as decimal(18,2)) * Movimientos.Kardex.SaldoFinal as 'ValorizadoFinalPV'
+FROM            Movimientos.Kardex INNER JOIN
+                         Maestros.Almacen ON Movimientos.Kardex.IdAlmacen = Maestros.Almacen.IdAlmacen INNER JOIN
+                         Maestros.Articulo ON Movimientos.Kardex.IdArticulo = Maestros.Articulo.IdArticulo
+						 left join Movimientos.v_Descuentos d on Maestros.Articulo.IdArticulo = d.idArticulo and Maestros.Almacen.IdAlmacen = d.idAlmacen
+						 WHERE NoKardexGeneral = 0 AND SUBSTRING(origen, 0, CHARINDEX(':',Origen)) = 'NC'
+
+
+GO
+/****** Object:  View [dbo].[v_VentasDW]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE view [dbo].[v_VentasDW]
+
+AS
+
+Select a.Fecha, d.Nombre Tienda, a.Serie, a.Numero, a.DNIRUC DocIdentidad, a.Nombre Cliente, a.SubTotal, a.IGV, a.Total,
+	a.Redondeo, a.APagar, b.IdArticulo, b.Descripcion, c.Linea, c.PrecioCompra, c.PrecioVenta, b.Precio, b.Cantidad, b.Total TotalProducto
+from Movimientos.ComprobanteDeVentaCabecera a inner join Movimientos.ComprobanteDeVentaDetalle b
+	on a.IdComprobante = b.IdComprobante inner join Maestros.Articulo c
+	on b.IdArticulo = c.IdArticulo inner join Maestros.Almacen d
+	on a.IdAlmacen = d.IdAlmacen
+where year(Fecha) = 2021 and a.Estado = 'E'
+GO
+/****** Object:  View [Movimientos].[v_Kardex_3]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE view [Movimientos].[v_Kardex_3]
+as
+SELECT       Movimientos.Kardex.IdKardex, Movimientos.Kardex.IdAlmacen, Maestros.Almacen.Nombre AS Almacen, Maestros.Articulo.Familia, Maestros.Articulo.Linea, Movimientos.Kardex.IdArticulo AS Codigo, Maestros.Articulo.Descripcion AS Articulo,
+			 Maestros.Articulo.PrecioCompra, cast(isnull(d.[Precio Final], Maestros.Articulo.PrecioVenta) as decimal(18,2)) PrecioVenta, cast(Movimientos.Kardex.Fecha as date) Fecha, Movimientos.Kardex.Origen 'Operacion', 
+             Movimientos.Kardex.SaldoInicial, Movimientos.Kardex.SaldoInicial * Movimientos.Kardex.Valor as 'ValorizadoInicial',
+			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'I' THEN Movimientos.Kardex.Cantidad ELSE 0 END 'Entrada',
+			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'I' THEN Movimientos.Kardex.Cantidad * Movimientos.Kardex.Valor ELSE 0 END 'ValorizadoEntrada',
+			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'E' THEN Movimientos.Kardex.Cantidad ELSE 0 END 'Salida',
+			 CASE Movimientos.Kardex.TipoMovimiento WHEN 'E' THEN Movimientos.Kardex.Cantidad * Movimientos.Kardex.Valor ELSE 0 END 'ValorizadoSalida',
+			 Movimientos.Kardex.SaldoFinal, Movimientos.Kardex.SaldoFinal * Movimientos.Kardex.Valor as 'ValorizadoFinal',
+			 Maestros.Articulo.PrecioCompra * Movimientos.Kardex.SaldoFinal as 'ValorizadoFinalPC', cast(isnull(d.[Precio Final], Maestros.Articulo.PrecioVenta) as decimal(18,2)) * Movimientos.Kardex.SaldoFinal as 'ValorizadoFinalPV'
+FROM            Movimientos.Kardex INNER JOIN
+                         Maestros.Almacen ON Movimientos.Kardex.IdAlmacen = Maestros.Almacen.IdAlmacen INNER JOIN
+                         Maestros.Articulo ON Movimientos.Kardex.IdArticulo = Maestros.Articulo.IdArticulo
+						 left join Movimientos.v_Descuentos d on Maestros.Articulo.IdArticulo = d.idArticulo and Maestros.Almacen.IdAlmacen = d.idAlmacen
+
+
+GO
+/****** Object:  View [Movimientos].[v_DetallePagoVenta_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE VIEW [Movimientos].[v_DetallePagoVenta_1]
+AS
+SELECT        D.IdDetallePagoVenta, D.IdComprobante, D.IdTipoPagoVenta, T.Descripcion, D.Soles, D.Dolares, D.Datos, D.Vuelto, D.PorcentajeTarjetaSoles, D.PorcentajeTarjetaDolares
+FROM            Movimientos.DetallePagoVenta AS D INNER JOIN
+                         Maestros.TipoPagoVenta AS T ON D.IdTipoPagoVenta = T.IdTipoPagoVenta
+GO
+/****** Object:  View [Almacen].[v_DetalleGuiaRemision_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/****** Script for SelectTopNRows command from SSMS  ******/
+Create view [Almacen].[v_DetalleGuiaRemision_1]
+as
+SELECT D.[IdMovimiento]
+      ,D.[Item]
+      ,D.[IdArticulo]
+      ,D.[DescripcionArticulo]
+      ,D.[Cantidad]
+	  ,A.UnidadAlmacen
+  FROM [Almacen].[MovimientosDetalle] D
+  INNER JOIN [Maestros].[Articulo] A
+  ON D.IdArticulo = A.IdArticulo;
+GO
+/****** Object:  View [Movimientos].[v_ListadoNotaCredito_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE VIEW [Movimientos].[v_ListadoNotaCredito_1]
+AS
+SELECT C.[IdNC]
+      ,C.[IdTipoDocumento]
+	  ,A.Nombre as 'Almacen'
+      ,C.[Serie]
+      ,C.[Numero]
+      ,cast(C.[Fecha] as date) as 'Fecha'
+      ,C.[Referencia]
+      ,C.[IdMotivo]
+      ,C.[IdCliente]
+      ,C.[DNIRUC]
+      ,C.[Nombre]
+      ,C.[AFavor] as 'Total'
+      ,C.[IdUsuario]
+      ,C.[IdAlmacen]
+      ,C.[Estado]
+      ,C.[Empleada]
+	  ,B.Comprobante
+  FROM [Movimientos].[NotaDeCreditoCabecera] C
+  INNER JOIN [Maestros].[Almacen] A
+  ON C.IdAlmacen = A.IdAlmacen
+  LEFT JOIN 
+		(select DPV.Datos 'NC', CVC.IdAlmacen,
+				CVC.Serie + '-' + replicate('0', 8 - Len(cast(CVC.Numero as varchar(8)))) + cast(CVC.Numero as varchar(8)) AS 'Comprobante'
+		from Movimientos.DetallePagoVenta DPV
+		inner join Movimientos.ComprobanteDeVentaCabecera CVC
+		on dpv.IdComprobante = cvc.IdComprobante
+		where cvc.Estado <> 'A'
+		and IdTipoPagoVenta = 8) B
+  ON C.Serie + '-' + replicate('0', 8 - Len(cast(C.Numero as varchar(8)))) + cast(C.Numero as varchar(8)) = B.NC
+  and C.IdAlmacen = B.IdAlmacen
+
+GO
+/****** Object:  View [Almacen].[v_ListadoIngresosEgresosAlmacen_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+/****** Script for SelectTopNRows command from SSMS  ******/
+CREATE view [Almacen].[v_ListadoIngresosEgresosAlmacen_1]
+as
+SELECT C.IdMovimiento 
+      ,C.[IdAlmacen] 
+	  ,A.Nombre AS 'Almacen'
+      ,C.[Tipo]
+      ,C.[Motivo]
+      ,C.[Fecha]
+      ,C.[Descripcion]
+	  ,C.IdGuiaRemision
+	  ,C.[IdUsuarioConfirma]
+	  ,C.[Estado]
+  FROM [Almacen].[MovimientosCabecera] C
+  inner join Maestros.Almacen A
+  on C.IdAlmacen = a.IdAlmacen
+GO
+/****** Object:  View [Maestros].[v_Articulos]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+CREATE VIEW [Maestros].[v_Articulos]
+AS
+SELECT        IdArticulo, IdProveedor, Descripcion, Talla, Linea, Familia, Marca, Color, Modelo, Material, UnidadAlmacen, MonedaCosteo, PrecioCompra, PrecioVenta, FechaRegistro, Estado
+FROM            Maestros.Articulo
+GO
+/****** Object:  Table [Movimientos].[StockAlmacen]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Movimientos].[StockAlmacen](
+	[IdAlmacen] [int] NOT NULL,
+	[IdArticulo] [char](6) NOT NULL,
+	[Stock] [int] NOT NULL,
+	[StockMinimo] [int] NOT NULL,
+ CONSTRAINT [PK_Stock] PRIMARY KEY CLUSTERED 
+(
+	[IdAlmacen] ASC,
+	[IdArticulo] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  View [Movimientos].[v_StockXAlmacen_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+  CREATE VIEW [Movimientos].[v_StockXAlmacen_1] AS
+SELECT 
+    S.IdAlmacen,
+    Al.Nombre AS 'Almacen',
+    Ar.Familia,
+    Ar.Linea,
+    S.IdArticulo,
+    Ar.Descripcion,
+    S.Stock,
+    S.StockMinimo,
+    Ar.PrecioCompra,
+    S.Stock * Ar.PrecioCompra AS 'ValorCompra',
+    ISNULL(d.[Precio Final], Ar.PrecioVenta) AS PrecioVenta,
+    S.Stock * ISNULL(d.[Precio Final], Ar.PrecioVenta) AS 'ValorVenta'
+FROM Movimientos.StockAlmacen S
+INNER JOIN Maestros.Almacen Al ON S.IdAlmacen = Al.IdAlmacen
+INNER JOIN Maestros.Articulo Ar ON S.IdArticulo = Ar.IdArticulo
+LEFT JOIN Movimientos.v_Descuentos d ON Ar.IdArticulo = d.IdArticulo AND Al.IdAlmacen = d.IdAlmacen;
+GO
+/****** Object:  Table [Almacen].[GuiaRemisionCabecera]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Almacen].[GuiaRemisionCabecera](
+	[IdGuiaRemision] [int] IDENTITY(1,1) NOT NULL,
+	[Serie] [varchar](4) NULL,
+	[Numero] [int] NULL,
+	[Fecha] [datetime] NULL,
+	[DireccionOrigen] [varchar](150) NULL,
+	[DPDOrigen] [varchar](100) NULL,
+	[TipoDestinatario] [varchar](9) NULL,
+	[RazonSocialNombre] [varchar](100) NULL,
+	[RUCDNICE] [varchar](11) NULL,
+	[DireccionDestino] [varchar](100) NULL,
+	[DPDDestino] [varchar](100) NULL,
+	[Observaciones] [varchar](300) NULL,
+	[IdUsuario] [int] NULL,
+	[Estado] [char](1) NULL,
+	[IdAlmacen] [int] NULL,
+	[IdProveedor] [int] NULL,
+	[IdTipoDocumento] [int] NULL,
+	[IdAlmacenDestino] [int] NULL,
+ CONSTRAINT [PK_GuiaRemisionCabecera] PRIMARY KEY CLUSTERED 
+(
+	[IdGuiaRemision] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  View [Almacen].[v_ListadoGR_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+/****** Script for SelectTopNRows command from SSMS  ******/
+CREATE view [Almacen].[v_ListadoGR_1]
+as
+SELECT G.[IdGuiaRemision]
+      ,G.[IdMovimiento]
+      ,G.[Serie] + '-' + REPLICATE('0', (8 - LEN(cast(G.[Numero] as varchar(8))))) + cast(G.[Numero] as varchar(8)) AS 'Numero'
+      ,cast(G.[Fecha] as date) as 'Fecha'
+      ,G.[DireccionOrigen]
+      ,G.[DPDOrigen]
+      ,G.[TipoDestinatario]
+      ,G.[RazonSocialNombre]
+      ,G.[RUCDNICE]
+      ,G.[DireccionDestino]
+      ,G.[DPDDestino]
+      ,G.[Observaciones]
+      ,G.[IdUsuario]
+      ,G.[Estado]
+      ,G.[IdAlmacen]
+      ,G.[IdProveedor]
+      ,G.[IdTipoDocumento]
+      ,G.[IdAlmacenDestino]
+	  ,O.Nombre as 'AlmacenOrigen'
+	  ,D.Nombre as 'AlmacenDestino'
+  FROM [Almacen].[GuiaRemisionCabecera] G
+  left join Maestros.Almacen O
+  on G.IdAlmacen = O.IdAlmacen
+  left JOIN MAESTROS.Almacen D
+  ON G.IdAlmacenDestino = D.IdAlmacen
+GO
+/****** Object:  View [dbo].[v_ConsultasArticulos]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+Create view [dbo].[v_ConsultasArticulos]
+
+AS
+
+select t.Nombre, a.IdArticulo, a.Descripcion, a.PrecioCompra, convert(varchar, c.Fecha, 103) FechaVenta, min(cc.Fecha) FechaCompra,
+	count(d.Cantidad) Cantidad, sum(d.Total) / count(d.Cantidad) PrecioVentaMedio, sum(d.Total) Monto
+from Movimientos.ComprobanteDeVentaCabecera c inner join Movimientos.ComprobanteDeVentaDetalle d
+	on c.IdComprobante = d.IdComprobante inner join Maestros.Articulo a
+	on d.IdArticulo = a.IdArticulo inner join Maestros.Almacen t
+	on c.IdAlmacen = t.IdAlmacen inner join Almacen.MovimientosDetalle cd
+	on cd.IdArticulo = a.IdArticulo inner join Almacen.MovimientosCabecera cc
+	on cd.IdMovimiento = cc.IdMovimiento
+where c.Estado = 'E' and a.Descripcion not like '%DESC%' and a.Descripcion not like '%BOLSO%' and cc.Tipo = 'I' and cc.Estado = 'E'
+	--and a.IdArticulo between 8260 and 8263
+group by t.Nombre, a.IdArticulo, a.Descripcion, a.PrecioCompra, convert(varchar, c.Fecha, 103)
+--order by 3 desc
+
+--cuando a entrada
+-- a que precio a entrada
+--que tienda lo ha vendido mas
+--colores q se mueven mas
+GO
+/****** Object:  View [Maestros].[v_Personal_3]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE VIEW [Maestros].[v_Personal_3]
+AS
+SELECT        P.IdPersonal, P.Nombres + ' ' + P.Apellidos as Personal, A.Nombre as Local
+FROM            Maestros.Personal P inner join
+				Maestros.Almacen A on P.IdAlmacen = A.IdAlmacen
+GO
+/****** Object:  View [Movimientos].[v_ListadoVentaDiaria_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE VIEW [Movimientos].[v_ListadoVentaDiaria_1]
+AS
+SELECT C.[IdComprobante]
+      ,C.[IdTipoDocumento]
+	  ,cast(C.[Fecha] as date) as 'Fecha'
+	  ,cast(C.[Fecha] as time) as 'Hora'
+	  ,A.[Nombre] as 'Almacen'
+	  ,T.[Descripcion]
+      ,C.[Serie]
+      ,C.[Numero]
+      ,C.[IdCliente]
+      ,C.[DNIRUC]
+      ,C.[Nombre]
+	  ,C.[APagar] AS 'Total'
+      ,C.[IdVendedor]
+      ,C.[IdCajero]
+      ,C.[IdAlmacen]
+	  ,(SELECT top 1 left(Tipo, 1) FROM Movimientos.DetallePagoVenta a inner join Maestros.TipoPagoVenta b on a.idtipopagoventa = b.idtipopagoventa WHERE IDCOMPROBANTE = C.IDCOMPROBANTE) Pago
+      ,C.[Estado]
+	  ,C.[GeneroNC]
+  FROM [Movimientos].[ComprobanteDeVentaCabecera] C
+  INNER JOIN [Maestros].[TipoDocumentoVenta] T
+  ON C.IdTipoDocumento = T.IdTipoDocumentoVenta
+  INNER JOIN [Maestros].[Almacen] A
+  ON C.IdAlmacen = A.IdAlmacen
+GO
+/****** Object:  View [Movimientos].[v_DetallePagoVenta_2]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE VIEW [Movimientos].[v_DetallePagoVenta_2]
+AS
+SELECT LV.Fecha 
+	  ,LV.[IdComprobante]
+	  ,LV.Serie
+	  ,LV.Numero
+      ,LV.[IdTipoDocumento]
+	  ,LV.[IdCajero]
+      ,LV.[IdAlmacen]
+      ,LV.[Estado]
+	  ,DPV.Descripcion
+	  ,DPV.Soles
+	  ,DPV.Dolares
+	  ,DPV.Vuelto
+  FROM [Movimientos].[v_ListadoVentaDiaria_1] LV
+  INNER JOIN [Movimientos].[v_DetallePagoVenta_1] DPV
+  ON LV.IdComprobante = DPV.IdComprobante
+GO
+/****** Object:  View [Maestros].[v_Proveedores_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+
+CREATE VIEW [Maestros].[v_Proveedores_1]
+AS
+SELECT        IdProveedor, RUC, Nombre, Estado
+FROM            Maestros.Proveedor
+GO
+/****** Object:  Table [FE].[Resumen]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [FE].[Resumen](
+	[IdResumenFE] [int] IDENTITY(1,1) NOT NULL,
+	[Correlativo] [int] NOT NULL,
+	[NombreArchivo] [varchar](100) NOT NULL,
+	[Hash] [varchar](100) NOT NULL,
+	[DocInicio] [varchar](20) NOT NULL,
+	[DocFin] [varchar](20) NOT NULL,
+	[CantidadDocumentos] [int] NOT NULL,
+	[FechaEnvio] [datetime] NOT NULL,
+	[FechaReferencia] [datetime] NULL,
+	[EnvioSUNAT] [bit] NOT NULL,
+	[TicketSUNAT] [varchar](50) NOT NULL,
+	[RespuestaSUNAT] [varchar](8000) NOT NULL,
+	[FechaRespuestaSUNAT] [datetime] NOT NULL,
+	[Tienda] [varchar](50) NOT NULL,
+ CONSTRAINT [PK_Resumen] PRIMARY KEY CLUSTERED 
+(
+	[IdResumenFE] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  View [FE].[v_DocumentosEnviadosSUNAT]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE view [FE].[v_DocumentosEnviadosSUNAT]
+
+as
+
+select Tienda, Hash, DocInicio, DocFin, CantidadDocumentos, FechaEnvio, FechaReferencia, TicketSUNAT, RespuestaSUNAT
+from fe.Resumen fe 
+wHERE EnvioSUNAT = 1
+	union all
+select a.Nombre Tienda, Hash, f.Serie + '-' + right('00000000' + cast(f.Numero as varchar), 8), 
+f.Serie + '-' + right('00000000' + cast(f.Numero as varchar), 8), 1, FechaEnvio, f.Fecha, TicketSUNAT, RespuestaSUNAT
+from fe.Comprobantes fe inner join Movimientos.ComprobanteDeVentaCabecera f
+	on fe.IdComprobante = f.IdComprobante inner join Maestros.Almacen a
+	on f.IdAlmacen = a.IdAlmacen
+where f.IdTipoDocumento = 2 and TicketSUNAT is not null
+--order by FechaEnvio desc
+GO
+/****** Object:  View [Maestros].[v_Articulos_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE VIEW [Maestros].[v_Articulos_1]
+AS
+SELECT        IdArticulo, IdProveedor, Descripcion, UnidadAlmacen, PrecioVenta, Estado
+FROM            Maestros.Articulo
+GO
+/****** Object:  Table [Maestros].[AsignacionSerieCajero]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Maestros].[AsignacionSerieCajero](
+	[IdAsignacion] [int] IDENTITY(1,1) NOT NULL,
+	[IdUsuario] [int] NOT NULL,
+	[IdAlmacen] [int] NOT NULL,
+	[IdSerieCorrelativo] [int] NOT NULL,
+ CONSTRAINT [PK_AsignacionSerieCajero] PRIMARY KEY CLUSTERED 
+(
+	[IdAsignacion] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  View [Maestros].[v_SeriesXCajero_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE VIEW [Maestros].[v_SeriesXCajero_1]
+AS
+select ASSC.IdSerieCorrelativo, assc.IdUsuario, assc.IdAlmacen, dv.Descripcion + ' (' + sc.Serie + ')' as 'DocumentoSerie'
+from Maestros.AsignacionSerieCajero ASSC
+inner join maestros.SerieCorrelativo SC
+	on ASSC.IdSerieCorrelativo = SC.IdSerieCorrelativo
+inner join Maestros.TipoDocumentoVenta DV
+	on sc.IdTipoDocumentoVenta = dv.IdTipoDocumentoVenta
+where sc.Estado = 1
+	and dv.Manual = 0
+	and dv.Descripcion in ('BOLETA','FACTURA', 'TICKET')
+	
+GO
+/****** Object:  View [Maestros].[v_SeriesXALmacen_1]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+
+CREATE VIEW [Maestros].[v_SeriesXALmacen_1]
+AS
+select sc.IdSerieCorrelativo, sc.IdAlmacen, dv.Descripcion + ' (' + sc.Serie + ')' as 'DocumentoSerie'
+from Maestros.SerieCorrelativo SC
+inner join Maestros.TipoDocumentoVenta DV
+	on sc.IdTipoDocumentoVenta = dv.IdTipoDocumentoVenta
+where sc.Estado = 1
+	and dv.Manual = 0
+	and dv.Descripcion in ('BOLETA','FACTURA', 'TICKET')
+	and SC.IdSerieCorrelativo not in
+		(select IdSerieCorrelativo
+			from Maestros.AsignacionSerieCajero)
+GO
+/****** Object:  View [Maestros].[v_SerieCorrelativo_2]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE VIEW [Maestros].[v_SerieCorrelativo_2]
+AS
+	  SELECT AC.IdAsignacion, AC.IdUsuario, AC.IdAlmacen, SC.IdTipoDocumentoVenta, AC.IdSerieCorrelativo, SC.Serie, SC.Correlativo, SC.Estado
+	  FROM Maestros.AsignacionSerieCajero AC
+	  INNER JOIN Maestros.SerieCorrelativo SC
+	  on AC.IdSerieCorrelativo = SC.IdSerieCorrelativo
+GO
+/****** Object:  View [Movimientos].[v_HistoricoVentas]    Script Date: 24/12/2025 06:33:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+Create view [Movimientos].[v_HistoricoVentas]
+
+as
+
+--set language 'Spanish'
+
+select year(a.Fecha) Año, month(a.fecha) Mes, day(a.fecha) Dia, convert(varchar, Fecha, 103) Fecha, b.Nombre Almacen, sum(a.APagar) Total
+from Movimientos.ComprobanteDeVentaCabecera a inner join Maestros.Almacen b
+	on a.IdAlmacen = b.IdAlmacen
+where a.Estado = 'E' --and fecha > '01/07/2021'
+group by year(a.Fecha), month(a.fecha), day(a.fecha), convert(varchar, Fecha, 103), b.Nombre
+--order by 1, 2, 3, 4
+GO
+/****** Object:  Table [Almacen].[GuiaRemisionDetalle]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2238,7 +2159,7 @@ CREATE TABLE [Almacen].[GuiaRemisionDetalle](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Almacen].[Inventario]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Almacen].[Inventario]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2254,7 +2175,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Almacen].[TomaInventario]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Almacen].[TomaInventario]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2272,7 +2193,7 @@ CREATE TABLE [Almacen].[TomaInventario](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Almacen].[TomaInventarioDetalle]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Almacen].[TomaInventarioDetalle]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2291,7 +2212,7 @@ CREATE TABLE [Almacen].[TomaInventarioDetalle](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Auditoria].[Eventos]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Auditoria].[Eventos]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2308,7 +2229,7 @@ CREATE TABLE [Auditoria].[Eventos](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [Auditoria].[Log]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Auditoria].[Log]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2325,7 +2246,7 @@ CREATE TABLE [Auditoria].[Log](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [Auxiliares].[ComprobanteDeVentaDetalleTemporal]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Auxiliares].[ComprobanteDeVentaDetalleTemporal]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2347,7 +2268,7 @@ CREATE TABLE [Auxiliares].[ComprobanteDeVentaDetalleTemporal](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[abc]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[abc]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2364,7 +2285,7 @@ CREATE TABLE [dbo].[abc](
 	[Total] [decimal](18, 2) NOT NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[ArticulosBK]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[ArticulosBK]    Script Date: 24/12/2025 06:33:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2392,7 +2313,7 @@ CREATE TABLE [dbo].[ArticulosBK](
 	[Estado] [bit] NOT NULL
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[AuxTIPrincipal]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[AuxTIPrincipal]    Script Date: 24/12/2025 06:33:02 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2402,7 +2323,7 @@ CREATE TABLE [dbo].[AuxTIPrincipal](
 	[fisico] [int] NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[AV]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[AV]    Script Date: 24/12/2025 06:33:02 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2419,7 +2340,7 @@ CREATE TABLE [dbo].[AV](
 	[PRECIO S/] [float] NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[AV08022022]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[AV08022022]    Script Date: 24/12/2025 06:33:02 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2437,7 +2358,7 @@ CREATE TABLE [dbo].[AV08022022](
 	[PRECIO S/] [float] NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[bakfebolsinenvio]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[bakfebolsinenvio]    Script Date: 24/12/2025 06:33:02 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2452,7 +2373,7 @@ CREATE TABLE [dbo].[bakfebolsinenvio](
 	[Xml] [varchar](max) NULL
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[bakfequenoaparecenensunat]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[bakfequenoaparecenensunat]    Script Date: 24/12/2025 06:33:03 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2472,7 +2393,7 @@ CREATE TABLE [dbo].[bakfequenoaparecenensunat](
 	[EsNota] [bit] NOT NULL
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[bkMovimientosDescuentos]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[bkMovimientosDescuentos]    Script Date: 24/12/2025 06:33:03 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2484,7 +2405,7 @@ CREATE TABLE [dbo].[bkMovimientosDescuentos](
 	[Descuento] [float] NOT NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[bkStocks25022020]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[bkStocks25022020]    Script Date: 24/12/2025 06:33:03 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2495,7 +2416,7 @@ CREATE TABLE [dbo].[bkStocks25022020](
 	[Stock] [int] NOT NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[ComprobantesDeclaradosNoSUNAT]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[ComprobantesDeclaradosNoSUNAT]    Script Date: 24/12/2025 06:33:03 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2518,7 +2439,7 @@ CREATE TABLE [dbo].[ComprobantesDeclaradosNoSUNAT](
 	[EsNota] [bit] NOT NULL
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[Descuentosbk25032022]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[Descuentosbk25032022]    Script Date: 24/12/2025 06:33:04 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2530,7 +2451,7 @@ CREATE TABLE [dbo].[Descuentosbk25032022](
 	[Descuento] [float] NOT NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[Maestros.Fijos2022]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[Maestros.Fijos2022]    Script Date: 24/12/2025 06:33:04 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2557,7 +2478,24 @@ CREATE TABLE [dbo].[Maestros.Fijos2022](
 	[IQUITOS ALQUILER ] [float] NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[StockICAbk]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[RefreshTokens]    Script Date: 24/12/2025 06:33:04 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[RefreshTokens](
+	[Id] [int] IDENTITY(1,1) NOT NULL,
+	[UserId] [int] NOT NULL,
+	[Token] [nvarchar](500) NOT NULL,
+	[ExpiresAt] [datetime2](7) NOT NULL,
+	[CreatedAt] [datetime2](7) NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[Id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[StockICAbk]    Script Date: 24/12/2025 06:33:04 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2568,7 +2506,7 @@ CREATE TABLE [dbo].[StockICAbk](
 	[Stock] [int] NOT NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[TODOSALMACENES25032022]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[TODOSALMACENES25032022]    Script Date: 24/12/2025 06:33:04 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2579,7 +2517,7 @@ CREATE TABLE [dbo].[TODOSALMACENES25032022](
 	[PRECIOULTIMO] [float] NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[VentasBak09112020]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[VentasBak09112020]    Script Date: 24/12/2025 06:33:05 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2610,7 +2548,7 @@ CREATE TABLE [dbo].[VentasBak09112020](
 	[GeneroNC] [varchar](13) NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[VentasBk01012019]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[VentasBk01012019]    Script Date: 24/12/2025 06:33:05 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2641,7 +2579,7 @@ CREATE TABLE [dbo].[VentasBk01012019](
 	[GeneroNC] [varchar](13) NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[xyz]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [dbo].[xyz]    Script Date: 24/12/2025 06:33:05 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2672,7 +2610,33 @@ CREATE TABLE [dbo].[xyz](
 	[GeneroNC] [varchar](13) NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [FE].[Sunat]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [FE].[GuiaRemisionSunat]    Script Date: 24/12/2025 06:33:06 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [FE].[GuiaRemisionSunat](
+	[IdGuiaRemisionSunat] [int] IDENTITY(1,1) NOT NULL,
+	[IdGuiaRemision] [int] NOT NULL,
+	[Hash] [varchar](500) NULL,
+	[Xml] [varchar](max) NULL,
+	[EnviadoSunat] [bit] NULL,
+	[FechaEnvio] [datetime] NULL,
+	[TicketSunat] [varchar](50) NULL,
+	[RespuestaSunat] [varchar](5000) NULL,
+	[FechaRespuestaSunat] [datetime] NULL,
+	[EstadoSunat] [varchar](50) NULL,
+	[CodigoRespuestaSunat] [varchar](10) NULL,
+	[MensajeRespuestaSunat] [varchar](1000) NULL,
+	[FechaRegistro] [datetime] NOT NULL,
+	[FechaActualizacion] [datetime] NULL,
+ CONSTRAINT [PK_GuiaRemisionSunat] PRIMARY KEY CLUSTERED 
+(
+	[IdGuiaRemisionSunat] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+/****** Object:  Table [FE].[Sunat]    Script Date: 24/12/2025 06:33:06 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2682,7 +2646,7 @@ CREATE TABLE [FE].[Sunat](
 	[Numero] [varchar](10) NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Maestros].[AlmacenCuenta]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[AlmacenCuenta]    Script Date: 24/12/2025 06:33:06 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2699,7 +2663,23 @@ CREATE TABLE [Maestros].[AlmacenCuenta](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Maestros].[AuxiliarVarios]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[ArticuloVariante]    Script Date: 24/12/2025 06:33:06 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Maestros].[ArticuloVariante](
+	[IdVariante] [int] IDENTITY(1,1) NOT NULL,
+	[IdArticulo] [char](6) NOT NULL,
+	[Color] [varchar](100) NOT NULL,
+	[Talla] [varchar](100) NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdVariante] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [Maestros].[AuxiliarVarios]    Script Date: 24/12/2025 06:33:06 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2716,7 +2696,7 @@ CREATE TABLE [Maestros].[AuxiliarVarios](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Maestros].[ComplementoArticulo]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[ComplementoArticulo]    Script Date: 24/12/2025 06:33:06 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2733,7 +2713,7 @@ CREATE TABLE [Maestros].[ComplementoArticulo](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Maestros].[Configuracion]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[Configuracion]    Script Date: 24/12/2025 06:33:06 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2748,7 +2728,7 @@ CREATE TABLE [Maestros].[Configuracion](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [Maestros].[Maquinas]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[Maquinas]    Script Date: 24/12/2025 06:33:06 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2765,7 +2745,69 @@ CREATE TABLE [Maestros].[Maquinas](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Maestros].[PlanDeCuentas]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[MetaMensual]    Script Date: 24/12/2025 06:33:06 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Maestros].[MetaMensual](
+	[IdMetaMensual] [int] IDENTITY(1,1) NOT NULL,
+	[IdAlmacen] [int] NOT NULL,
+	[Anio] [int] NOT NULL,
+	[Mes] [int] NOT NULL,
+	[MetaMensual] [decimal](18, 2) NOT NULL,
+	[Estado] [varchar](20) NOT NULL,
+	[FechaCreacion] [datetime] NOT NULL,
+	[IdUsuarioCreacion] [int] NOT NULL,
+	[FechaEnvio] [datetime] NULL,
+	[IdUsuarioAprobacion] [int] NULL,
+	[FechaAprobacion] [datetime] NULL,
+	[Observaciones] [varchar](500) NULL,
+ CONSTRAINT [PK_MetaMensual] PRIMARY KEY CLUSTERED 
+(
+	[IdMetaMensual] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [Maestros].[MetaMensualDetalle]    Script Date: 24/12/2025 06:33:06 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Maestros].[MetaMensualDetalle](
+	[IdMetaMensualDetalle] [int] IDENTITY(1,1) NOT NULL,
+	[IdMetaMensual] [int] NOT NULL,
+	[Fecha] [date] NOT NULL,
+	[MetaDiaria] [decimal](18, 2) NOT NULL,
+	[VentaReal] [decimal](18, 2) NULL,
+	[PorcentajeCumplimiento] [decimal](5, 2) NULL,
+ CONSTRAINT [PK_MetaMensualDetalle] PRIMARY KEY CLUSTERED 
+(
+	[IdMetaMensualDetalle] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [Maestros].[Notificacion]    Script Date: 24/12/2025 06:33:06 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Maestros].[Notificacion](
+	[IdNotificacion] [int] IDENTITY(1,1) NOT NULL,
+	[IdUsuario] [int] NOT NULL,
+	[IdMovimiento] [int] NOT NULL,
+	[Tipo] [nvarchar](50) NOT NULL,
+	[Mensaje] [nvarchar](500) NOT NULL,
+	[Leida] [bit] NOT NULL,
+	[FechaCreacion] [datetime] NOT NULL,
+	[FechaLectura] [datetime] NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[IdNotificacion] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [Maestros].[PlanDeCuentas]    Script Date: 24/12/2025 06:33:06 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2789,7 +2831,7 @@ CREATE TABLE [Maestros].[PlanDeCuentas](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Maestros].[TipoDeCambio]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Maestros].[TipoDeCambio]    Script Date: 24/12/2025 06:33:06 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2804,7 +2846,7 @@ CREATE TABLE [Maestros].[TipoDeCambio](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Movimientos].[Descuentosbk09022022]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Movimientos].[Descuentosbk09022022]    Script Date: 24/12/2025 06:33:06 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2816,7 +2858,7 @@ CREATE TABLE [Movimientos].[Descuentosbk09022022](
 	[Descuento] [float] NOT NULL
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [Movimientos].[ResumenCierreDeCaja]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  Table [Movimientos].[ResumenCierreDeCaja]    Script Date: 24/12/2025 06:33:06 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2839,6 +2881,8 @@ CREATE TABLE [Movimientos].[ResumenCierreDeCaja](
 GO
 ALTER TABLE [Almacen].[Inventario] ADD  DEFAULT (getdate()) FOR [Fecha]
 GO
+ALTER TABLE [dbo].[RefreshTokens] ADD  DEFAULT (getutcdate()) FOR [CreatedAt]
+GO
 ALTER TABLE [FE].[Comprobantes] ADD  CONSTRAINT [DF_Comprobantes_Estado]  DEFAULT ((1)) FOR [Estado]
 GO
 ALTER TABLE [FE].[Comprobantes] ADD  CONSTRAINT [DF_Comprobantes_EsNota]  DEFAULT ((0)) FOR [EsNota]
@@ -2846,6 +2890,12 @@ GO
 ALTER TABLE [Maestros].[Almacen] ADD  CONSTRAINT [DF_Almacen_AfectoIGV]  DEFAULT ((1)) FOR [AfectoIGV]
 GO
 ALTER TABLE [Maestros].[Maquinas] ADD  CONSTRAINT [DF_Maquinas_IdUsuario]  DEFAULT ((1)) FOR [IdUsuario]
+GO
+ALTER TABLE [Maestros].[Notificacion] ADD  DEFAULT ('TRANSFERENCIA') FOR [Tipo]
+GO
+ALTER TABLE [Maestros].[Notificacion] ADD  DEFAULT ((0)) FOR [Leida]
+GO
+ALTER TABLE [Maestros].[Notificacion] ADD  DEFAULT (getdate()) FOR [FechaCreacion]
 GO
 ALTER TABLE [Maestros].[Usuario] ADD  CONSTRAINT [DF_Usuario_Estado]  DEFAULT ((1)) FOR [Estado]
 GO
@@ -2857,6 +2907,8 @@ ALTER TABLE [Movimientos].[AperturaCierreCaja] ADD  CONSTRAINT [DF_AperturaCierr
 GO
 ALTER TABLE [Movimientos].[AperturaCierreCaja] ADD  CONSTRAINT [DF_AperturaCierreCaja_SaldoFinal]  DEFAULT ((0)) FOR [SaldoFinal]
 GO
+ALTER TABLE [Movimientos].[ComprobanteDeVentaCabecera] ADD  DEFAULT ((0)) FOR [ExcluirDeEstadisticas]
+GO
 ALTER TABLE [Movimientos].[DetallePagoVenta] ADD  CONSTRAINT [DF_DetallePagoVenta_Vuelto]  DEFAULT ((0)) FOR [Vuelto]
 GO
 ALTER TABLE [Movimientos].[Kardex] ADD  CONSTRAINT [DF_Kardex_NoKardexGeneral]  DEFAULT ((0)) FOR [NoKardexGeneral]
@@ -2867,10 +2919,7 @@ ALTER TABLE [Movimientos].[OrdenDeCompraCabecera] ADD  CONSTRAINT [DF_OrdenDeCom
 GO
 ALTER TABLE [Movimientos].[OrdenDeCompraCabecera] ADD  CONSTRAINT [DF_OrdenDeCompraCabecera_EstadoAtencion]  DEFAULT ('P') FOR [EstadoAtencion]
 GO
-ALTER TABLE [Almacen].[GuiaRemisionCabecera]  WITH CHECK ADD  CONSTRAINT [FK_GuiaRemisionCabecera_MovimientosCabecera] FOREIGN KEY([IdMovimiento])
-REFERENCES [Almacen].[MovimientosCabecera] ([IdMovimiento])
-GO
-ALTER TABLE [Almacen].[GuiaRemisionCabecera] CHECK CONSTRAINT [FK_GuiaRemisionCabecera_MovimientosCabecera]
+ALTER TABLE [Movimientos].[StockAlmacen] ADD  DEFAULT ((0)) FOR [StockMinimo]
 GO
 ALTER TABLE [Almacen].[GuiaRemisionDetalle]  WITH CHECK ADD  CONSTRAINT [FK_GuiaRemisionDetalle_GuiaRemisionCabecera] FOREIGN KEY([IdGuiaRemision])
 REFERENCES [Almacen].[GuiaRemisionCabecera] ([IdGuiaRemision])
@@ -2912,6 +2961,12 @@ REFERENCES [Almacen].[TomaInventario] ([IdTomaInventario])
 GO
 ALTER TABLE [Almacen].[TomaInventarioDetalle] CHECK CONSTRAINT [FK_TomaInventarioDetalle_TomaInventario]
 GO
+ALTER TABLE [dbo].[RefreshTokens]  WITH CHECK ADD  CONSTRAINT [FK_RefreshTokens_Usuarios] FOREIGN KEY([UserId])
+REFERENCES [Maestros].[Usuario] ([IdUsuario])
+ON DELETE CASCADE
+GO
+ALTER TABLE [dbo].[RefreshTokens] CHECK CONSTRAINT [FK_RefreshTokens_Usuarios]
+GO
 ALTER TABLE [Maestros].[AlmacenCuenta]  WITH CHECK ADD  CONSTRAINT [FK_CuentaAlmacen_Almacen] FOREIGN KEY([IdAlmacen])
 REFERENCES [Maestros].[Almacen] ([IdAlmacen])
 GO
@@ -2921,6 +2976,32 @@ ALTER TABLE [Maestros].[Articulo]  WITH CHECK ADD  CONSTRAINT [FK_Articulo_Prove
 REFERENCES [Maestros].[Proveedor] ([IdProveedor])
 GO
 ALTER TABLE [Maestros].[Articulo] CHECK CONSTRAINT [FK_Articulo_Proveedor]
+GO
+ALTER TABLE [Maestros].[ArticuloVariante]  WITH CHECK ADD  CONSTRAINT [FK_ArticuloVariante_Articulo] FOREIGN KEY([IdArticulo])
+REFERENCES [Maestros].[Articulo] ([IdArticulo])
+ON DELETE CASCADE
+GO
+ALTER TABLE [Maestros].[ArticuloVariante] CHECK CONSTRAINT [FK_ArticuloVariante_Articulo]
+GO
+ALTER TABLE [Maestros].[MetaMensual]  WITH CHECK ADD  CONSTRAINT [FK_MetaMensual_Almacen] FOREIGN KEY([IdAlmacen])
+REFERENCES [Maestros].[Almacen] ([IdAlmacen])
+GO
+ALTER TABLE [Maestros].[MetaMensual] CHECK CONSTRAINT [FK_MetaMensual_Almacen]
+GO
+ALTER TABLE [Maestros].[MetaMensualDetalle]  WITH CHECK ADD  CONSTRAINT [FK_MetaMensualDetalle_MetaMensual] FOREIGN KEY([IdMetaMensual])
+REFERENCES [Maestros].[MetaMensual] ([IdMetaMensual])
+GO
+ALTER TABLE [Maestros].[MetaMensualDetalle] CHECK CONSTRAINT [FK_MetaMensualDetalle_MetaMensual]
+GO
+ALTER TABLE [Maestros].[Notificacion]  WITH CHECK ADD  CONSTRAINT [FK_Notificacion_Movimiento] FOREIGN KEY([IdMovimiento])
+REFERENCES [Almacen].[MovimientosCabecera] ([IdMovimiento])
+GO
+ALTER TABLE [Maestros].[Notificacion] CHECK CONSTRAINT [FK_Notificacion_Movimiento]
+GO
+ALTER TABLE [Maestros].[Notificacion]  WITH CHECK ADD  CONSTRAINT [FK_Notificacion_Usuario] FOREIGN KEY([IdUsuario])
+REFERENCES [Maestros].[Usuario] ([IdUsuario])
+GO
+ALTER TABLE [Maestros].[Notificacion] CHECK CONSTRAINT [FK_Notificacion_Usuario]
 GO
 ALTER TABLE [Maestros].[Personal]  WITH CHECK ADD  CONSTRAINT [FK_Personal_Almacen] FOREIGN KEY([IdAlmacen])
 REFERENCES [Maestros].[Almacen] ([IdAlmacen])
@@ -3060,7 +3141,7 @@ REFERENCES [Maestros].[Articulo] ([IdArticulo])
 GO
 ALTER TABLE [Movimientos].[StockAlmacen] CHECK CONSTRAINT [FK_Stock_Articulo]
 GO
-/****** Object:  StoredProcedure [Almacen].[usp_get_TomaInventario]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Almacen].[usp_get_TomaInventario]    Script Date: 24/12/2025 06:33:06 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3092,7 +3173,7 @@ else
 				on  t.IdAlmacen = a.IdAlmacen
 			where a.IdAlmacen = @idAlmacen and (year(t.Fecha) = @año or year(t.Fecha) = @año - 1)
 GO
-/****** Object:  StoredProcedure [Almacen].[usp_InsUpd_GuiaRemision]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Almacen].[usp_InsUpd_GuiaRemision]    Script Date: 24/12/2025 06:33:06 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3212,7 +3293,7 @@ AS
 
 	END      
 GO
-/****** Object:  StoredProcedure [Almacen].[usp_InsUpd_MovimientoAlmacen]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Almacen].[usp_InsUpd_MovimientoAlmacen]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3553,7 +3634,7 @@ AS
 		END
 	END      
 GO
-/****** Object:  StoredProcedure [dbo].[sp_Recover_Dropped_Objects]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [dbo].[sp_Recover_Dropped_Objects]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3585,16 +3666,11 @@ And [Transaction Name]='DROPOBJ'
 And CONVERT(NVARCHAR(11),[Begin Time]) BETWEEN @Date_From AND @Date_To) 
 And Substring([RowLog Contents 0],33,LEN([RowLog Contents 0]))<>0 
 GO
-/****** Object:  StoredProcedure [dbo].[usp_get_Configuration]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [dbo].[usp_get_Configuration]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-
-
-
-
-
 CREATE PROC [dbo].[usp_get_Configuration]
 
 @IdConfig		varchar(100)
@@ -3606,10 +3682,10 @@ OPEN SYMMETRIC KEY SYS_Key_01
 
 SELECT CONVERT(varchar,  
     DecryptByKey(Valor, 1 ,   
-    HashBytes('SHA1', CONVERT(varbinary, @IdConfig))))  
+    HashBytes('SHA2_256', CONVERT(varbinary, @IdConfig))))  
     AS 'Pass Desencriptado' FROM Maestros.Configuracion WHERE Configuracion = @IdConfig;  
 GO
-/****** Object:  StoredProcedure [dbo].[usp_get_descargarInventario]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [dbo].[usp_get_descargarInventario]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3632,7 +3708,7 @@ from Almacen.Inventario a inner join Maestros.Articulo b on a.IdArticulo = b.IdA
 where a.IdAlmacen = @id and Fecha = @fecha
 group by c.Nombre, b.IdArticulo, b.Descripcion, b.PrecioVenta
 GO
-/****** Object:  StoredProcedure [dbo].[usp_get_listAlmacen]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [dbo].[usp_get_listAlmacen]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3645,30 +3721,77 @@ select IdAlmacen Id, Nombre
 from Maestros.Almacen
 where estado = 1
 GO
-/****** Object:  StoredProcedure [dbo].[usp_get_password]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [dbo].[usp_get_password]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
 
 CREATE PROC [dbo].[usp_get_password]
-
-@usuario	varchar(50)
-
+@usuario varchar(50)
 AS
-
-OPEN SYMMETRIC KEY SYS_Key_01  
-   DECRYPTION BY CERTIFICATE Usuarios001;  
-   
-   declare @Id int
-   Select @Id = IdUsuario from Maestros.Usuario where Nombre = @usuario
-
-SELECT CONVERT(varchar,  
-    DecryptByKey(Clave, 1 ,   
-    HashBytes('SHA2_256', CONVERT(varbinary, IdUsuario))))  
-    AS 'Pass Desencriptado' FROM Maestros.Usuario WHERE IdUsuario = @Id;  
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @Id int;
+    DECLARE @IdPersonal int;
+    DECLARE @PasswordDesencriptado varchar(200);
+    
+    -- Obtener IdUsuario e IdPersonal
+    SELECT @Id = IdUsuario, @IdPersonal = IdPersonal
+    FROM Maestros.Usuario 
+    WHERE Nombre = @usuario;
+    
+    IF @Id IS NULL
+    BEGIN
+        SELECT NULL AS 'Pass Desencriptado';
+        RETURN;
+    END
+    
+    -- Verificar si tiene contraseña
+    IF NOT EXISTS (SELECT 1 FROM Maestros.Usuario WHERE IdUsuario = @Id AND Clave IS NOT NULL)
+    BEGIN
+        SELECT NULL AS 'Pass Desencriptado';
+        RETURN;
+    END
+    
+    BEGIN TRY
+        -- Abrir la clave simétrica
+        OPEN SYMMETRIC KEY SYS_Key_01  
+        DECRYPTION BY CERTIFICATE Usuarios001;
+        
+        -- Intentar desencriptar con IdUsuario (método nuevo)
+        SELECT @PasswordDesencriptado = CONVERT(varchar(200),  
+            DecryptByKey(Clave, 1 ,   
+            HashBytes('SHA2_256', CONVERT(varbinary, IdUsuario))))  
+        FROM Maestros.Usuario 
+        WHERE IdUsuario = @Id;
+        
+        -- Si falló con IdUsuario, intentar con IdPersonal (método antiguo)
+        IF @PasswordDesencriptado IS NULL
+        BEGIN
+            SELECT @PasswordDesencriptado = CONVERT(varchar(200),  
+                DecryptByKey(Clave, 1 ,   
+                HashBytes('SHA2_256', CONVERT(varbinary, IdPersonal))))  
+            FROM Maestros.Usuario 
+            WHERE IdUsuario = @Id;
+        END
+        
+        -- Cerrar la clave simétrica
+        CLOSE SYMMETRIC KEY SYS_Key_01;
+        
+        SELECT @PasswordDesencriptado AS 'Pass Desencriptado';
+    END TRY
+    BEGIN CATCH
+        -- Cerrar la clave simétrica en caso de error
+        IF EXISTS (SELECT * FROM sys.openkeys WHERE key_name = 'SYS_Key_01')
+            CLOSE SYMMETRIC KEY SYS_Key_01;
+        
+        SELECT NULL AS 'Pass Desencriptado';
+    END CATCH
+END
 GO
-/****** Object:  StoredProcedure [dbo].[usp_get_VentasdeHoy]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [dbo].[usp_get_VentasdeHoy]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3697,7 +3820,7 @@ from Movimientos.ComprobanteDeVentaCabecera a inner join Maestros.Almacen b
 where convert(varchar, a.Fecha, 103) = convert(varchar, getdate(), 103)
 Order by Sum(a.APagar)
 GO
-/****** Object:  StoredProcedure [dbo].[usp_GetArticulobyCodigo]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [dbo].[usp_GetArticulobyCodigo]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3710,7 +3833,7 @@ as
 
 select IdArticulo CodigoArticulo, Descripcion DescripcionArticulo from Maestros.Articulo where IdArticulo = @codigo
 GO
-/****** Object:  StoredProcedure [dbo].[usp_ins_inventario]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [dbo].[usp_ins_inventario]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3725,7 +3848,7 @@ set language 'Spanish'
 
 insert into Almacen.Inventario(Fecha, IdArticulo, IdAlmacen) values(@fecha, @codigo, @idAlmacen)
 GO
-/****** Object:  StoredProcedure [dbo].[usp_ins_Log]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [dbo].[usp_ins_Log]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3738,7 +3861,7 @@ as
 	insert into Auditoria.Log(Fecha, Modulo, Error, Usuario)
 	values(getdate(), @Modulo, @Error, @Usuario)
 GO
-/****** Object:  StoredProcedure [dbo].[usp_set_Configuration]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [dbo].[usp_set_Configuration]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3759,16 +3882,15 @@ SET Valor = EncryptByKey(Key_GUID('SYS_Key_01')
     , Configuracion)))
 WHERE Configuracion = @IdConfig;
 GO
-/****** Object:  StoredProcedure [dbo].[usp_set_password]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [dbo].[usp_set_password]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
+
 CREATE PROC [dbo].[usp_set_password]
-
-@password		varchar(50),
+@password		varchar(200),  -- Aumentado de 50 a 200 para soportar hashes BCrypt
 @IdUsuario		int
-
 AS
 
 OPEN SYMMETRIC KEY SYS_Key_01  
@@ -3780,7 +3902,7 @@ SET Clave = EncryptByKey(Key_GUID('SYS_Key_01')
     , IdUsuario)))
 WHERE IdUsuario = @IdUsuario;
 GO
-/****** Object:  StoredProcedure [dbo].[usp_upd_DesliquidarCaja]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [dbo].[usp_upd_DesliquidarCaja]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3863,12 +3985,11 @@ Select getdate() Fecha, 'Desliquidación de Caja desde el ' + convert(varchar, @
 
 /******************************************************************************/
 GO
-/****** Object:  StoredProcedure [FE].[usp_get_DiasPendientesEnvio]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [FE].[usp_get_DiasPendientesEnvio]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
---fe.usp_get_DiasPendientesEnvio 2, 57, 2019
 
 CREATE proc [FE].[usp_get_DiasPendientesEnvio]
 	@tipodoc		int,
@@ -3910,7 +4031,7 @@ else
 
 	
 GO
-/****** Object:  StoredProcedure [Maestros].[usp_get_DestinoFacturacion]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Maestros].[usp_get_DestinoFacturacion]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3939,7 +4060,7 @@ else
 
 select @Ruta;
 GO
-/****** Object:  StoredProcedure [Maestros].[usp_get_FechaHoraServidor]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Maestros].[usp_get_FechaHoraServidor]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3950,7 +4071,7 @@ AS
 
 Select getdate() as FechaHoraServidor; 
 GO
-/****** Object:  StoredProcedure [Maestros].[usp_InsUpd_AlmacenCuenta]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Maestros].[usp_InsUpd_AlmacenCuenta]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3989,7 +4110,7 @@ END
 
 
 GO
-/****** Object:  StoredProcedure [Maestros].[usp_InsUpd_SeriesCajero]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Maestros].[usp_InsUpd_SeriesCajero]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -4027,7 +4148,7 @@ END
 
 
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_Detalles]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_Detalles]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -4160,7 +4281,7 @@ as
 			  WHERE [IdNC] = @Id
 		end
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_DetallesVenta]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_DetallesVenta]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -4182,7 +4303,7 @@ else
 	SELECT Almacen, Fecha, IdArticulo, Descripcion, Cantidad, Precio, Total, PrecioCompra, Costo, Proveedor
 	FROM	[DW].[v_DetallesVentas] where Fecha between @fi and @ff and IdAlmacen = @tienda
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_KardexGeneral]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_KardexGeneral]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -4216,7 +4337,7 @@ from
 where cast(a.Fecha as date) between @FechaInicial and @FechaFinal
 group by a.IdAlmacen, a.Almacen, a.Familia, a.Linea, a.Codigo, a.Articulo, a.PrecioCompra, a.PrecioVenta, b.SaldoInicial, b.ValorizadoInicial, b.SaldoFinal, b.ValorizadoFinal
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_KardexGeneralFinal]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_KardexGeneralFinal]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -4287,7 +4408,7 @@ end
 	
 
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_KardexGeneralGrilla]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_KardexGeneralGrilla]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -4357,7 +4478,7 @@ end
 	
 
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_KardexGeneralGrilla_10]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_KardexGeneralGrilla_10]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -4428,7 +4549,7 @@ end
 	
 
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_KardexGeneralGrilla_3]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_KardexGeneralGrilla_3]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -4499,7 +4620,7 @@ end
 	
 
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_KardexGeneralGrilla_5]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_KardexGeneralGrilla_5]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -4570,7 +4691,7 @@ end
 	
 
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_LibroVentas]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_LibroVentas]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -4634,7 +4755,7 @@ from @reporte a inner join (
 
 select * from @reporte
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_LibroVentasContable]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_LibroVentasContable]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -4874,7 +4995,7 @@ as
 			Order by [Ser.Doc. o Maq.Reg.], Fecha, [Cód Doc]
 		end
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_RankingVendedores]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_RankingVendedores]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -4941,7 +5062,7 @@ else
 		group by convert(varchar, fecha, 3)
 	end
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_ResumenCierreDeCajaDetallado]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_ResumenCierreDeCajaDetallado]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -5025,7 +5146,7 @@ as
 	  FROM [Movimientos].[ResumenCierreDeCaja] RCC
 	 where RCC.IdUsuario = @IdUsuario and RCC.IdAlmacen = @IdAlmacen and cast(RCC.Fecha as date) = @Fecha AND RCC.IdGrupo = 8
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_ResumenCierreDeCajaResumido]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_ResumenCierreDeCajaResumido]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -5051,7 +5172,7 @@ as
 	 GROUP BY RCC.IdGrupo, RCC.[Grupo], RCC.[Grupo]
 	 order by IdGrupo
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_get_v_ResumenCierreDeCaja_2]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_get_v_ResumenCierreDeCaja_2]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -5074,7 +5195,7 @@ end
 	
 
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_InsUpd_ComprobanteDeVenta]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_InsUpd_ComprobanteDeVenta]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -5292,7 +5413,7 @@ END
 
 
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_InsUpd_IngresoEgreso]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_InsUpd_IngresoEgreso]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -5443,7 +5564,7 @@ END
 
 
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_InsUpd_NotaDeCredito]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_InsUpd_NotaDeCredito]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -5615,7 +5736,7 @@ BEGIN
 END
 
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_InsUpd_OrdenDeCompra]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_InsUpd_OrdenDeCompra]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -5771,7 +5892,7 @@ END
 
 
 GO
-/****** Object:  StoredProcedure [Movimientos].[usp_InsUpd_ResumenCierreDeCaja]    Script Date: 06/02/2025 20:01:49 ******/
+/****** Object:  StoredProcedure [Movimientos].[usp_InsUpd_ResumenCierreDeCaja]    Script Date: 24/12/2025 06:33:07 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -5816,7 +5937,6 @@ END
 GO
 EXEC sys.sp_addextendedproperty @name=N'MS_Description', @value=N'Eventos CRUD' , @level0type=N'SCHEMA',@level0name=N'Auditoria', @level1type=N'TABLE',@level1name=N'Eventos'
 GO
-
 EXEC sys.sp_addextendedproperty @name=N'MS_DiagramPane1', @value=N'[0E232FF0-B466-11cf-A24F-00AA00A3EFFF, 1.00]
 Begin DesignProperties = 
    Begin PaneConfigurations = 

@@ -86,6 +86,21 @@ namespace GSCommerceAPI.Controllers
                                    Tipo = tp.Tipo
                                }).ToListAsync();
 
+            // Obtener estado SUNAT del comprobante
+            var estadoSunat = await _context.Comprobantes
+                .Where(c => c.IdComprobante == id)
+                .Select(c => new { c.EnviadoSunat, c.Estado, c.RespuestaSunat })
+                .FirstOrDefaultAsync();
+
+            string estadoSunatDescripcion = "PENDIENTE";
+            if (estadoSunat != null)
+            {
+                if (estadoSunat.EnviadoSunat.HasValue && estadoSunat.EnviadoSunat.Value)
+                    estadoSunatDescripcion = estadoSunat.Estado ? "ACEPTADO" : "RECHAZADO";
+                else if (!string.IsNullOrWhiteSpace(estadoSunat.RespuestaSunat))
+                    estadoSunatDescripcion = "RECHAZADO";
+            }
+
             var venta = new VentaDTO
             {
                 IdTipoDocumento = cabecera.IdTipoDocumento,
@@ -124,7 +139,8 @@ namespace GSCommerceAPI.Controllers
                 NombreCajero = nombreCajero,
                 NombreVendedor = nombreVendedor,
                 Pagos = pagos,
-                Vuelto = pagos.FirstOrDefault(p => p.Vuelto.HasValue)?.Vuelto ?? 0m
+                Vuelto = pagos.FirstOrDefault(p => p.Vuelto.HasValue)?.Vuelto ?? 0m,
+                EstadoSunat = estadoSunatDescripcion
             };
 
             return Ok(venta);
@@ -366,28 +382,67 @@ namespace GSCommerceAPI.Controllers
             [FromQuery] int? idAlmacen
         )
         {
+            var desdeDate = desde.Date;
             var hastaExcl = hasta.Date.AddDays(1);
 
-            // 1) Trae líneas con total y costo de línea correcto
+            // ========== CÁLCULO DE VENTAS (igual que reporte-total-tiendas) ==========
+            var ventasQuery = _context.VCierreVentaDiaria1s
+                .AsNoTracking()
+                .Where(v => v.Fecha >= desdeDate && v.Fecha < hastaExcl)
+                .Where(v => !idAlmacen.HasValue || v.IdAlmacen == idAlmacen.Value);
+
+            // Excluir documentos anulados según la misma lógica que reporte-total-tiendas
+            ventasQuery = from v in ventasQuery
+                          join c in _context.ComprobanteDeVentaCabeceras
+                              on new { v.IdAlmacen, v.Serie, v.Numero }
+                              equals new { c.IdAlmacen, c.Serie, c.Numero }
+                          where !(c.Estado == "A" &&
+                                  (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                                  c.FechaHoraUsuarioAnula.HasValue &&
+                                  c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
+                          select v;
+
+            var ventas = await ventasQuery.ToListAsync();
+
+            var montosVenta = ventas
+                .GroupBy(v => v.IdAlmacen)
+                .Select(g =>
+                {
+                    decimal vEfectivo = 0m, vTarjeta = 0m;
+                    foreach (var v in g)
+                    {
+                        var tipo = v.Descripcion.Split(' ')[0];
+                        switch (tipo)
+                        {
+                            case "Efectivo":
+                                vEfectivo += v.Soles - (v.Vuelto ?? 0m);
+                                break;
+                            case "Tarjeta":
+                            case "Online":
+                                vTarjeta += v.Soles;
+                                break;
+                        }
+                    }
+                    return new { IdAlmacen = g.Key, Venta = vEfectivo + vTarjeta };
+                })
+                .ToDictionary(x => x.IdAlmacen, x => x.Venta);
+
+            // ========== CÁLCULO DE COSTOS ==========
             var lineas =
                 from d in _context.VDetallesVentas
-                where d.Fecha >= desde.Date && d.Fecha < hastaExcl
+                where d.Fecha >= desdeDate && d.Fecha < hastaExcl
                       && (!idAlmacen.HasValue || d.IdAlmacen == idAlmacen.Value)
                 select new
                 {
                     d.IdAlmacen,
                     d.Almacen,
                     Total = d.Total ?? 0m,
-
-                    // Si Costo ya viene por línea, úsalo; si fuera unitario, multiplicamos.
-                    // Nota: Convertimos Cantidad a decimal de forma segura.
                     CostoLineaBruto = (d.Costo ?? 0m) != 0m
                         ? (d.Costo ?? 0m)
                         : (d.PrecioCompra * (decimal)(d.Cantidad ?? 0))
                 };
 
-            // 2) Alinea el signo del costo con el signo del total de la línea
-            var montos = await
+            var montosCosto = await
                 (from x in lineas
                  let costoAjustado = x.Total >= 0m ? x.CostoLineaBruto : -x.CostoLineaBruto
                  group new { x.Total, costoAjustado } by new { x.IdAlmacen, x.Almacen } into g
@@ -395,17 +450,27 @@ namespace GSCommerceAPI.Controllers
                  {
                      g.Key.IdAlmacen,
                      Tienda = g.Key.Almacen,
-                     Venta = g.Sum(s => s.Total),
                      Costo = g.Sum(s => s.costoAjustado)
                  })
                 .ToListAsync();
+
+            // ========== COMBINAR VENTAS Y COSTOS ==========
+            var montos = montosCosto
+                .Select(x => new
+                {
+                    x.IdAlmacen,
+                    x.Tienda,
+                    Venta = montosVenta.ContainsKey(x.IdAlmacen) ? montosVenta[x.IdAlmacen] : 0m,
+                    x.Costo
+                })
+                .ToList();
 
             var totalVenta = montos.Sum(x => x.Venta);
 
             var resultado = montos
                 .Select(x =>
                 {
-                    var utilidadMonto = x.Venta - x.Costo; // Utilidad Monto = SUM(Total) - SUM(Costo)
+                    var utilidadMonto = x.Venta - x.Costo;
                     var pUtil = x.Venta != 0m ? Math.Round((double)(utilidadMonto / x.Venta) * 100, 2) : 0;
                     var pVenta = totalVenta > 0m ? Math.Round((double)(x.Venta / totalVenta) * 100, 2) : 0;
 
@@ -830,6 +895,7 @@ namespace GSCommerceAPI.Controllers
                 .Select(v => new VentaConsultaDTO
                 {
                     IdComprobante = v.IdComprobante,
+                    IdTipoDocumento = v.IdTipoDocumento,
                     TipoDocumento = v.IdTipoDocumento == 1 ? "BOLETA" :
                                     v.IdTipoDocumento == 2 ? "FACTURA" :
                                     v.IdTipoDocumento == 5 ? "BOLETA M" :
@@ -961,13 +1027,59 @@ namespace GSCommerceAPI.Controllers
             if (cabecera == null)
                 return NotFound();
 
+            var comp = await _context.Comprobantes
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+            
+            // Aplicar la misma lógica que en ReenviarSunat para determinar si cambiará el correlativo
+            bool nuncaLlegoASunat = false;
+            
+            if (comp == null)
+            {
+                nuncaLlegoASunat = true;
+            }
+            else if (string.IsNullOrWhiteSpace(comp.RespuestaSunat))
+            {
+                nuncaLlegoASunat = true;
+            }
+            else if (comp.RespuestaSunat.Contains("[-2]") ||
+                     comp.RespuestaSunat.Contains("\"-2\"") ||
+                     comp.RespuestaSunat.Contains("Error general al enviar a SUNAT") ||
+                     comp.RespuestaSunat.Contains("Error de conexión"))
+            {
+                nuncaLlegoASunat = true;
+            }
+            else if (comp.EnviadoSunat == false && comp.FechaEnvio == null)
+            {
+                nuncaLlegoASunat = true;
+            }
+
             var serieCorr = await _context.SerieCorrelativos
                 .FirstOrDefaultAsync(s => s.IdAlmacen == cabecera.IdAlmacen &&
                                           s.IdTipoDocumentoVenta == cabecera.IdTipoDocumento &&
                                           s.Serie == cabecera.Serie);
 
-            int nuevoNumero = serieCorr != null ? serieCorr.Correlativo + 1 : cabecera.Numero + 1;
-            return Ok(nuevoNumero);
+            int numero;
+            bool cambiara;
+            
+            if (nuncaLlegoASunat)
+            {
+                // Mantener el mismo número
+                numero = cabecera.Numero;
+                cambiara = false;
+            }
+            else
+            {
+                // Generar nuevo número
+                numero = serieCorr != null ? serieCorr.Correlativo + 1 : cabecera.Numero + 1;
+                cambiara = true;
+            }
+
+            return Ok(new 
+            { 
+                numero = numero,
+                cambiara = cambiara,
+                numeroActual = cabecera.Numero
+            });
         }
 
         [HttpGet("siguiente-correlativo-disponible")]
@@ -2505,19 +2617,40 @@ namespace GSCommerceAPI.Controllers
 
             var comp = await _context.Comprobantes
                 .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
-            // if (comp == null || string.IsNullOrWhiteSpace(comp.RespuestaSunat))
-            //   return BadRequest("El comprobante no ha sido rechazado por SUNAT.");
-            // Verificar si el rechazo anterior fue código "-2" (error al leer XML, no llegó a SUNAT)
-            bool esErrorLecturaXml = false;
-            if (comp != null && !string.IsNullOrWhiteSpace(comp.RespuestaSunat))
+            
+            // Verificar si el comprobante realmente llegó a SUNAT
+            // NO cambiar correlativo si:
+            // - comp es NULL o RespuestaSUNAT es NULL/vacío (nunca se envió o falló antes de llegar)
+            // - Contiene error [-2] (error al leer XML)
+            // - Contiene errores de conexión
+            // - EnviadoSunat es false y no hay fecha de envío (nunca se intentó enviar)
+            bool nuncaLlegoASunat = false;
+            
+            if (comp == null)
             {
-                // El formato es: "SUNAT respondió: [-2] Error al leer XML: ..."
-                esErrorLecturaXml = comp.RespuestaSunat.Contains("[-2]") ||
-                                   comp.RespuestaSunat.Contains("\"-2\"");
+                nuncaLlegoASunat = true;
+            }
+            else if (string.IsNullOrWhiteSpace(comp.RespuestaSunat))
+            {
+                // RespuestaSunat es NULL o vacío = nunca llegó a SUNAT
+                nuncaLlegoASunat = true;
+            }
+            else if (comp.RespuestaSunat.Contains("[-2]") ||
+                     comp.RespuestaSunat.Contains("\"-2\"") ||
+                     comp.RespuestaSunat.Contains("Error general al enviar a SUNAT") ||
+                     comp.RespuestaSunat.Contains("Error de conexión"))
+            {
+                // Errores de conexión o lectura = nunca llegó a SUNAT
+                nuncaLlegoASunat = true;
+            }
+            else if (comp.EnviadoSunat == false && comp.FechaEnvio == null)
+            {
+                // No se intentó enviar = nunca llegó a SUNAT
+                nuncaLlegoASunat = true;
             }
 
-            // Solo cambiar el correlativo si NO es error de lectura XML
-            if (!esErrorLecturaXml)
+            // Solo cambiar el correlativo si SÍ llegó a SUNAT pero fue rechazado
+            if (!nuncaLlegoASunat)
             {
                 // Obtener correlativo actual y asignar nuevo número
                 var serieCorr = await _context.SerieCorrelativos

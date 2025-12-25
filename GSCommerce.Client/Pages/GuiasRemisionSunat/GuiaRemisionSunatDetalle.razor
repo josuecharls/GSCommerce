@@ -1,0 +1,377 @@
+@page "/guias-remision-sunat/detalle/{Id:int}"
+@using GSCommerce.Client.Models.SUNAT
+@using GSCommerce.Client.Services
+@inject GuiaRemisionSunatService GuiaService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">
+            <i class="bi bi-file-text text-primary me-2"></i>Detalle de Guía de Remisión
+        </h3>
+        <button class="btn btn-outline-secondary" @onclick="Volver">
+            <i class="bi bi-arrow-left me-1"></i> Volver
+        </button>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+            <p class="mt-2">Cargando guía...</p>
+        </div>
+    }
+    else if (guia == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>Guía no encontrada
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Datos del documento -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-file-text me-2"></i>Documento</span>
+                        <span class="badge bg-light text-dark fs-5">@guia.NumeroFormateado</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <p class="mb-1"><small class="text-muted">Fecha Emisión</small></p>
+                                <p class="fw-bold">@guia.FechaEmision.ToString("dd/MM/yyyy")</p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-1"><small class="text-muted">Estado</small></p>
+                                @if (guia.Estado == "A")
+                                {
+                                    <span class="badge bg-danger fs-6">Anulado</span>
+                                }
+                                else if (guia.Estado == "E")
+                                {
+                                    <span class="badge bg-success fs-6">Emitido</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning text-dark fs-6">Pendiente</span>
+                                }
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-1"><small class="text-muted">Estado SUNAT</small></p>
+                                @switch (guia.EstadoSunat)
+                                {
+                                    case "ACEPTADO":
+                                        <span class="badge bg-success fs-6"><i class="bi bi-check-circle me-1"></i>Aceptado</span>
+                                        break;
+                                    case "RECHAZADO":
+                                        <span class="badge bg-danger fs-6"><i class="bi bi-x-circle me-1"></i>Rechazado</span>
+                                        break;
+                                    case "ENVIADO":
+                                        <span class="badge bg-info fs-6"><i class="bi bi-send me-1"></i>Enviado</span>
+                                        break;
+                                    case "ERROR":
+                                        <span class="badge bg-danger fs-6"><i class="bi bi-exclamation-triangle me-1"></i>Error</span>
+                                        break;
+                                    default:
+                                        <span class="badge bg-secondary fs-6"><i class="bi bi-clock me-1"></i>Pendiente</span>
+                                        break;
+                                }
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(guia.Observaciones))
+                        {
+                            <hr />
+                            <p class="mb-1"><small class="text-muted">Observaciones</small></p>
+                            <p class="mb-0">@guia.Observaciones</p>
+                        }
+                    </div>
+                </div>
+
+                <!-- Remitente y Destinatario -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-success text-white">
+                                <i class="bi bi-building me-2"></i>Remitente
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-1"><strong>@guia.RazonSocialRemitente</strong></p>
+                                <p class="mb-1"><small class="text-muted">RUC:</small> @guia.RucRemitente</p>
+                                <p class="mb-0"><small class="text-muted">Dirección:</small> @guia.DireccionRemitente</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-info text-white">
+                                <i class="bi bi-person me-2"></i>Destinatario
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-1"><strong>@guia.RazonSocialDestinatario</strong></p>
+                                <p class="mb-1"><small class="text-muted">Doc:</small> @guia.NumeroDocumentoDestinatario</p>
+                                <p class="mb-0"><small class="text-muted">Dirección:</small> @guia.DireccionLlegada</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Datos del traslado -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <i class="bi bi-truck me-2"></i>Datos del Traslado
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <p class="mb-1"><small class="text-muted">Motivo</small></p>
+                                <p class="fw-bold">@guia.MotivoTraslado - @guia.DescripcionMotivoTraslado</p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-1"><small class="text-muted">Modalidad</small></p>
+                                <p class="fw-bold">@(guia.ModalidadTraslado == "01" ? "Transporte Público" : "Transporte Privado")</p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-1"><small class="text-muted">Fecha Inicio Traslado</small></p>
+                                <p class="fw-bold">@guia.FechaInicioTraslado.ToString("dd/MM/yyyy")</p>
+                            </div>
+                            <div class="col-md-3">
+                                <p class="mb-1"><small class="text-muted">Peso Bruto</small></p>
+                                <p class="fw-bold">@guia.PesoBrutoTotal.ToString("N2") @guia.UnidadMedidaPeso</p>
+                            </div>
+                            <div class="col-md-3">
+                                <p class="mb-1"><small class="text-muted">Bultos</small></p>
+                                <p class="fw-bold">@(guia.NumeroBultos ?? 0)</p>
+                            </div>
+                            @if (guia.ModalidadTraslado == "02")
+                            {
+                                <div class="col-md-3">
+                                    <p class="mb-1"><small class="text-muted">Placa Vehículo</small></p>
+                                    <p class="fw-bold">@guia.PlacaVehiculo</p>
+                                </div>
+                                <div class="col-md-3">
+                                    <p class="mb-1"><small class="text-muted">Conductor</small></p>
+                                    <p class="fw-bold">@guia.NombreConductor @guia.ApellidoConductor</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="col-md-6">
+                                    <p class="mb-1"><small class="text-muted">Transportista</small></p>
+                                    <p class="fw-bold">@guia.RazonSocialTransportista (@guia.RucTransportista)</p>
+                                </div>
+                            }
+                        </div>
+                        <hr />
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><small class="text-muted"><i class="bi bi-geo-alt-fill text-success me-1"></i>Punto de Partida</small></p>
+                                <p class="mb-0">[@guia.UbigeoPartida] @guia.DireccionPartida</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><small class="text-muted"><i class="bi bi-geo-alt text-danger me-1"></i>Punto de Llegada</small></p>
+                                <p class="mb-0">[@guia.UbigeoLlegada] @guia.DireccionLlegada</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detalle de artículos -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-dark text-white">
+                        <i class="bi bi-box-seam me-2"></i>Bienes Transportados
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Código</th>
+                                    <th>Descripción</th>
+                                    <th class="text-end">Cantidad</th>
+                                    <th>Unidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var det in guia.Detalles)
+                                {
+                                    <tr>
+                                        <td>@det.Item</td>
+                                        <td><code>@det.IdArticulo</code></td>
+                                        <td>@det.DescripcionArticulo</td>
+                                        <td class="text-end fw-bold">@det.Cantidad.ToString("N2")</td>
+                                        <td>@det.UnidadMedida</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>Total artículos:</strong></td>
+                                    <td class="text-end"><strong>@guia.Detalles.Sum(d => d.Cantidad).ToString("N2")</strong></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Estado SUNAT -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-cloud-check me-2"></i>Estado SUNAT
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(guia.HashSunat))
+                        {
+                            <p class="mb-2"><small class="text-muted">Hash:</small></p>
+                            <p class="text-break mb-3"><code>@guia.HashSunat</code></p>
+                        }
+
+                        @if (!string.IsNullOrEmpty(guia.TicketSunat))
+                        {
+                            <p class="mb-2"><small class="text-muted">Ticket:</small></p>
+                            <p class="mb-3"><code>@guia.TicketSunat</code></p>
+                        }
+
+                        @if (!string.IsNullOrEmpty(guia.RespuestaSunat))
+                        {
+                            <p class="mb-2"><small class="text-muted">Respuesta SUNAT:</small></p>
+                            <div class="alert @(guia.EstadoSunat == "ACEPTADO" ? "alert-success" : "alert-warning") mb-0">
+                                @guia.RespuestaSunat
+                            </div>
+                        }
+
+                        @if (string.IsNullOrEmpty(guia.RespuestaSunat) && !guia.EnviadoSunat)
+                        {
+                            <div class="alert alert-secondary mb-0">
+                                <i class="bi bi-info-circle me-2"></i>Esta guía aún no ha sido enviada a SUNAT.
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Acciones -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <i class="bi bi-gear me-2"></i>Acciones
+                    </div>
+                    <div class="card-body d-grid gap-2">
+                        @if (guia.Estado != "A" && !guia.EnviadoSunat)
+                        {
+                            <button class="btn btn-warning" @onclick="Editar">
+                                <i class="bi bi-pencil me-2"></i>Editar Guía
+                            </button>
+                        }
+
+                        @if (guia.Estado != "A" && guia.EstadoSunat != "ACEPTADO")
+                        {
+                            <button class="btn btn-primary" @onclick="EnviarSunat" disabled="@enviando">
+                                @if (enviando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-send me-2"></i>Enviar a SUNAT
+                            </button>
+                        }
+
+                        @if (!string.IsNullOrEmpty(guia.TicketSunat) && guia.EstadoSunat == "ENVIADO")
+                        {
+                            <button class="btn btn-secondary" @onclick="ConsultarEstado">
+                                <i class="bi bi-arrow-repeat me-2"></i>Consultar Estado
+                            </button>
+                        }
+
+                        @if (guia.Estado != "A" && guia.EstadoSunat != "ACEPTADO")
+                        {
+                            <button class="btn btn-danger" @onclick="Anular">
+                                <i class="bi bi-x-circle me-2"></i>Anular Guía
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private GuiaRemisionSunatDTO? guia;
+    private bool cargando = false;
+    private bool enviando = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarGuia();
+    }
+
+    private async Task CargarGuia()
+    {
+        cargando = true;
+        try
+        {
+            guia = await GuiaService.ObtenerGuiaAsync(Id);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void Editar()
+    {
+        Navigation.NavigateTo($"/guias-remision-sunat/editar/{Id}");
+    }
+
+    private async Task EnviarSunat()
+    {
+        var confirmar = await JS.InvokeAsync<bool>("confirm", "¿Está seguro de enviar esta guía a SUNAT?");
+        if (!confirmar) return;
+
+        enviando = true;
+        try
+        {
+            var (ok, mensaje, _) = await GuiaService.EnviarSunatAsync(Id);
+            await JS.InvokeVoidAsync("alert", mensaje);
+            await CargarGuia();
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+
+    private async Task ConsultarEstado()
+    {
+        var (ok, codigo, mensaje) = await GuiaService.ConsultarEstadoSunatAsync(Id);
+        await JS.InvokeVoidAsync("alert", $"[{codigo}] {mensaje}");
+        await CargarGuia();
+    }
+
+    private async Task Anular()
+    {
+        var confirmar = await JS.InvokeAsync<bool>("confirm", "¿Está seguro de anular esta guía?");
+        if (!confirmar) return;
+
+        var (ok, mensaje) = await GuiaService.AnularGuiaAsync(Id);
+        await JS.InvokeVoidAsync("alert", mensaje);
+        
+        if (ok)
+        {
+            await CargarGuia();
+        }
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/guias-remision-sunat");
+    }
+}
+
+

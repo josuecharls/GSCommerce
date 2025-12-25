@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace GSCommerceAPI.Models;
@@ -34,8 +34,6 @@ public partial class MovimientosCabecera
     public DateTime? FechaHoraConfirma { get; set; }
 
     public string Estado { get; set; } = null!;
-
-    public virtual ICollection<GuiaRemisionCabecera> GuiaRemisionCabeceras { get; set; } = new List<GuiaRemisionCabecera>();
 
     public virtual Almacen IdAlmacenNavigation { get; set; } = null!;
 
