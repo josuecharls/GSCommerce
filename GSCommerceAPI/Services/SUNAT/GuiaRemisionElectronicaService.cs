@@ -1216,15 +1216,21 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
         // Peso bruto - DEBE IR ANTES de SpecialInstructions
         sb.AppendLine($"<cbc:GrossWeightMeasure unitCode={q}{dto.UnidadMedidaPeso}{q}>{pesoTotal:F3}</cbc:GrossWeightMeasure>");
 
-        // Cantidad de bultos - DEBE IR ANTES de SpecialInstructions
-        if (dto.NumeroBultos.HasValue && dto.NumeroBultos > 0)
+        // Indicador de vehículo M1/L - IMPORTANTE: Si está activo, SUNAT prohíbe enviar datos del conductor
+        // y la cantidad de bultos (Error 3455)
+        bool esVehiculoM1L = dto.EsVehiculoM1L; // Viene del formulario
+        
+        // Cantidad de bultos - SOLO si NO es vehículo M1L (SUNAT lo prohíbe con M1L)
+        if (!esVehiculoM1L && dto.NumeroBultos.HasValue && dto.NumeroBultos > 0)
         {
             sb.AppendLine($"<cbc:TotalTransportHandlingUnitQuantity>{dto.NumeroBultos}</cbc:TotalTransportHandlingUnitQuantity>");
         }
 
-        // SpecialInstructions DESPUÉS de TotalTransportHandlingUnitQuantity
-        var indicadorVehiculo = "M1L"; // Siempre M1L según ejemplo real
-        sb.AppendLine($"<cbc:SpecialInstructions>SUNAT_Envio_IndicadorTrasladoVehiculo{indicadorVehiculo}</cbc:SpecialInstructions>");
+        // SpecialInstructions - Indicador de traslado M1L
+        if (esVehiculoM1L)
+        {
+            sb.AppendLine("<cbc:SpecialInstructions>SUNAT_Envio_IndicadorTrasladoVehiculoM1L</cbc:SpecialInstructions>");
+        }
 
         // Etapa del envío - Con ID según ejemplo real
         sb.AppendLine("<cac:ShipmentStage>");
@@ -1251,14 +1257,13 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
             sb.AppendLine("</cac:CarrierParty>");
         }
 
-        // Datos del conductor - Según ejemplo real
-        if (dto.ModalidadTraslado == "02" && !string.IsNullOrEmpty(dto.NumeroDocumentoConductor))
+        // Datos del conductor - SOLO si NO es vehículo M1L
+        // REGLA SUNAT: Si usas el indicador SUNAT_Envio_IndicadorTrasladoVehiculoM1L, 
+        // NO DEBES enviar los datos del conductor (Error 3455)
+        if (!esVehiculoM1L && dto.ModalidadTraslado == "02" && !string.IsNullOrEmpty(dto.NumeroDocumentoConductor))
         {
-            // Transporte privado: llenar datos del conductor
-            // El schemeID del conductor debe tener los atributos del catálogo 06
-            // IMPORTANTE: SUNAT GRE 2.0 requiere código de 2 dígitos (Ej: "01" para DNI, no "1")
+            // Transporte privado SIN indicador M1L: llenar datos del conductor
             var tipoDocConductorRaw = dto.TipoDocumentoConductor ?? "1";
-            // Normalizar a 2 dígitos si es un número de 1 dígito
             var tipoDocConductor = tipoDocConductorRaw.Length == 1 && char.IsDigit(tipoDocConductorRaw[0]) 
                 ? tipoDocConductorRaw.PadLeft(2, '0') 
                 : tipoDocConductorRaw;
@@ -1275,11 +1280,7 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
             }
             sb.AppendLine("</cac:DriverPerson>");
         }
-        else
-        {
-            // Transporte público: DriverPerson vacío según ejemplo
-            sb.AppendLine("<cac:DriverPerson/>");
-        }
+        // Si es M1L, NO incluimos DriverPerson en absoluto (ni siquiera vacío)
 
         sb.AppendLine("</cac:ShipmentStage>");
 

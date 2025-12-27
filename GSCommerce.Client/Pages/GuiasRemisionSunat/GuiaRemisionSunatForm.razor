@@ -7,6 +7,7 @@
 @inject AlmacenService AlmacenService
 @inject ArticuloService ArticuloService
 @inject AuthService AuthService
+@inject ReniecService ReniecService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -90,19 +91,40 @@
                                     <option value="7">Pasaporte</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label">Número Doc.</label>
-                                <input type="text" class="form-control" @bind="guia.NumeroDocumentoDestinatario" maxlength="11" />
+                                <div class="input-group">
+                                    <input type="text" class="form-control" @bind="guia.NumeroDocumentoDestinatario" 
+                                           maxlength="11" placeholder="@(guia.TipoDocumentoDestinatario == "6" ? "20XXXXXXXXX" : "DNI")" />
+                                    @if (guia.TipoDocumentoDestinatario == "6")
+                                    {
+                                        <button class="btn btn-outline-primary" type="button" @onclick="BuscarRucDestinatario" 
+                                                disabled="@buscandoRuc" title="Buscar datos del RUC">
+                                            @if (buscandoRuc)
+                                            {
+                                                <span class="spinner-border spinner-border-sm"></span>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-search"></i>
+                                            }
+                                        </button>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrEmpty(mensajeRuc))
+                                {
+                                    <small class="@(rucEncontrado ? "text-success" : "text-danger")">@mensajeRuc</small>
+                                }
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-5">
                                 <label class="form-label">Razón Social / Nombre</label>
                                 <input type="text" class="form-control" @bind="guia.RazonSocialDestinatario" />
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <label class="form-label">Ubigeo Destino</label>
                                 <input type="text" class="form-control" @bind="guia.UbigeoLlegada" placeholder="150101" maxlength="6" />
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-9">
                                 <label class="form-label">Dirección Destino</label>
                                 <input type="text" class="form-control" @bind="guia.DireccionLlegada" />
                             </div>
@@ -143,7 +165,8 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Nro. Bultos</label>
-                                <input type="number" class="form-control" @bind="guia.NumeroBultos" />
+                                <input type="number" class="form-control" @bind="guia.NumeroBultos" 
+                                       disabled="@guia.EsVehiculoM1L" title="@(guia.EsVehiculoM1L ? "No aplica para vehículos M1/L" : "")" />
                             </div>
                             @if (guia.MotivoTraslado == "13")
                             {
@@ -153,6 +176,15 @@
                                            placeholder="Obligatorio para motivo 'Otros'" />
                                 </div>
                             }
+                            <div class="col-12">
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" id="chkM1L" @bind="guia.EsVehiculoM1L" />
+                                    <label class="form-check-label" for="chkM1L">
+                                        <strong>Vehículo categoría M1 o L</strong>
+                                        <small class="text-muted d-block">Automóviles, camionetas, motos. Si activa esta opción, no se requieren datos del conductor.</small>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -180,25 +212,43 @@
                         {
                             <div class="row g-3">
                                 <div class="col-md-3">
-                                    <label class="form-label">Placa Vehículo</label>
-                                    <input type="text" class="form-control" @bind="guia.PlacaVehiculo" maxlength="7" placeholder="ABC-123" />
+                                    <label class="form-label">Placa Vehículo <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" @bind="guia.PlacaVehiculo" maxlength="7" placeholder="ABC123" />
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">DNI Conductor</label>
-                                    <input type="text" class="form-control" @bind="guia.NumeroDocumentoConductor" maxlength="8" />
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Nombres</label>
-                                    <input type="text" class="form-control" @bind="guia.NombreConductor" />
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Apellidos</label>
-                                    <input type="text" class="form-control" @bind="guia.ApellidoConductor" />
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Licencia Conducir</label>
-                                    <input type="text" class="form-control" @bind="guia.LicenciaConductor" />
-                                </div>
+                                @if (!guia.EsVehiculoM1L)
+                                {
+                                    <div class="col-12">
+                                        <div class="alert alert-info py-2 mb-2">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            <small>Datos del conductor requeridos para vehículos que NO son M1/L (camiones, buses, etc.)</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">DNI Conductor <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" @bind="guia.NumeroDocumentoConductor" maxlength="8" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Nombres <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" @bind="guia.NombreConductor" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Apellidos <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" @bind="guia.ApellidoConductor" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Licencia Conducir <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" @bind="guia.LicenciaConductor" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="col-md-9">
+                                        <div class="alert alert-secondary py-2 mb-0">
+                                            <i class="bi bi-car-front me-1"></i>
+                                            <small>Vehículo M1/L seleccionado: No se requieren datos del conductor para SUNAT.</small>
+                                        </div>
+                                    </div>
+                                }
                             </div>
                         }
                     </div>
@@ -331,6 +381,9 @@
     private bool esEdicion => Id.HasValue && Id.Value > 0;
     private bool cargando = false;
     private bool guardando = false;
+    private bool buscandoRuc = false;
+    private string mensajeRuc = "";
+    private bool rucEncontrado = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -522,7 +575,103 @@
             JS.InvokeVoidAsync("alert", "Agregue al menos un artículo a transportar");
             return false;
         }
+        
+        // Validaciones de transporte privado
+        if (guia.ModalidadTraslado == "02")
+        {
+            if (string.IsNullOrWhiteSpace(guia.PlacaVehiculo))
+            {
+                JS.InvokeVoidAsync("alert", "Ingrese la placa del vehículo");
+                return false;
+            }
+            
+            // Si NO es vehículo M1/L, se requieren datos del conductor
+            if (!guia.EsVehiculoM1L)
+            {
+                if (string.IsNullOrWhiteSpace(guia.NumeroDocumentoConductor))
+                {
+                    JS.InvokeVoidAsync("alert", "Ingrese el DNI del conductor");
+                    return false;
+                }
+                if (string.IsNullOrWhiteSpace(guia.NombreConductor))
+                {
+                    JS.InvokeVoidAsync("alert", "Ingrese los nombres del conductor");
+                    return false;
+                }
+                if (string.IsNullOrWhiteSpace(guia.ApellidoConductor))
+                {
+                    JS.InvokeVoidAsync("alert", "Ingrese los apellidos del conductor");
+                    return false;
+                }
+                if (string.IsNullOrWhiteSpace(guia.LicenciaConductor))
+                {
+                    JS.InvokeVoidAsync("alert", "Ingrese la licencia del conductor");
+                    return false;
+                }
+            }
+        }
+        
         return true;
+    }
+
+    private async Task BuscarRucDestinatario()
+    {
+        if (string.IsNullOrWhiteSpace(guia.NumeroDocumentoDestinatario) || 
+            guia.NumeroDocumentoDestinatario.Length != 11)
+        {
+            mensajeRuc = "Ingrese un RUC válido de 11 dígitos";
+            rucEncontrado = false;
+            return;
+        }
+
+        buscandoRuc = true;
+        mensajeRuc = "";
+        rucEncontrado = false;
+
+        try
+        {
+            var datos = await ReniecService.ObtenerDatosCompletosRUC(guia.NumeroDocumentoDestinatario);
+            
+            if (datos != null)
+            {
+                // Auto-llenar datos del destinatario
+                guia.RazonSocialDestinatario = datos.RazonSocial ?? "";
+                guia.DireccionLlegada = datos.DireccionCompleta ?? datos.direccion ?? "";
+                
+                // Usar ubigeo_sunat si existe, sino el último elemento del array ubigeo
+                if (!string.IsNullOrEmpty(datos.UbigeoSunat))
+                {
+                    guia.UbigeoLlegada = datos.UbigeoSunat;
+                }
+                else if (datos.ubigeo != null && datos.ubigeo.Length >= 3)
+                {
+                    guia.UbigeoLlegada = datos.ubigeo[2]; // El tercer elemento es el ubigeo completo
+                }
+
+                mensajeRuc = $"✓ {datos.estado} - {datos.condicion}";
+                rucEncontrado = datos.estado == "ACTIVO" && datos.condicion == "HABIDO";
+                
+                if (!rucEncontrado)
+                {
+                    mensajeRuc = $"⚠ {datos.estado} - {datos.condicion}";
+                }
+            }
+            else
+            {
+                mensajeRuc = "RUC no encontrado";
+                rucEncontrado = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeRuc = $"Error: {ex.Message}";
+            rucEncontrado = false;
+        }
+        finally
+        {
+            buscandoRuc = false;
+            StateHasChanged();
+        }
     }
 
     private void Volver()

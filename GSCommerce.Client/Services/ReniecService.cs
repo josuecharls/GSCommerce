@@ -105,6 +105,8 @@ namespace GSCommerce.Client.Services
 
         public class RucData
         {
+            public string? ruc { get; set; }
+
             [JsonPropertyName("nombre_o_razon_social")]
             public string? RazonSocial { get; set; }
 
@@ -114,6 +116,57 @@ namespace GSCommerce.Client.Services
 
             [JsonPropertyName("direccion_completa")]
             public string? DireccionCompleta { get; set; }
+
+            public string? departamento { get; set; }
+            public string? provincia { get; set; }
+            public string? distrito { get; set; }
+
+            [JsonPropertyName("ubigeo_sunat")]
+            public string? UbigeoSunat { get; set; }
+
+            // Array de ubigeo [depto, prov, dist] - usamos el tercer elemento
+            public string[]? ubigeo { get; set; }
+
+            [JsonPropertyName("es_agente_de_retencion")]
+            public string? EsAgenteRetencion { get; set; }
+
+            [JsonPropertyName("es_buen_contribuyente")]
+            public string? EsBuenContribuyente { get; set; }
+        }
+
+        /// <summary>
+        /// Obtiene datos completos del RUC para auto-llenado de formularios
+        /// </summary>
+        public async Task<RucData?> ObtenerDatosCompletosRUC(string ruc)
+        {
+            try
+            {
+                var url = $"https://apiperu.dev/api/ruc/{ruc}?api_token={token}";
+                var response = await _httpClient.GetAsync(url);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"Error en la API: {response.StatusCode}");
+                    return null;
+                }
+
+                var jsonResponse = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Respuesta RUC completa: {jsonResponse}");
+
+                var resultado = JsonSerializer.Deserialize<RucRespuesta>(jsonResponse);
+
+                if (resultado?.success == true)
+                {
+                    return resultado.data;
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al consultar RUC: {ex.Message}");
+                return null;
+            }
         }
     }
 }

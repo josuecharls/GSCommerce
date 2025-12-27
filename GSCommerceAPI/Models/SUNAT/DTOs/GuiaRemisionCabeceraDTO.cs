@@ -51,6 +51,9 @@ public class GuiaRemisionCabeceraDTO
     public string? ApellidoConductor { get; set; }
     public string? LicenciaConductor { get; set; }
     
+    // Indicador de vehículo M1/L (autos, motos) - Si es true, no se envían datos del conductor a SUNAT
+    public bool EsVehiculoM1L { get; set; } = true;
+    
     // Punto de partida
     public string UbigeoPartida { get; set; } = string.Empty;
     public string DireccionPartida { get; set; } = string.Empty;
