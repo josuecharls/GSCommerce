@@ -48,16 +48,29 @@
                                 <input type="date" class="form-control" @bind="guia.FechaEmision" />
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Tienda / Almacén Origen</label>
+                                <label class="form-label">Tienda / Almacén Emisor</label>
                                 <select class="form-select" @bind="guia.IdAlmacen" @bind:after="OnAlmacenChange">
                                     <option value="">Seleccione...</option>
                                     @foreach (var alm in almacenes)
                                     {
-                                        <option value="@alm.IdAlmacen">@alm.Nombre</option>
+                                        <option value="@alm.IdAlmacen">@alm.Nombre - RUC: @alm.Ruc</option>
                                     }
                                 </select>
                             </div>
                         </div>
+                        @if (!string.IsNullOrEmpty(guia.RucRemitente))
+                        {
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <div class="alert alert-info mb-0 py-2">
+                                        <i class="bi bi-building me-2"></i>
+                                        <strong>Emisor:</strong> @guia.RazonSocialRemitente (RUC: @guia.RucRemitente)
+                                        <br/>
+                                        <small class="text-muted">Este RUC se usará para firmar y enviar la guía a SUNAT</small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
                     </div>
                 </div>
 
@@ -132,10 +145,14 @@
                                 <label class="form-label">Nro. Bultos</label>
                                 <input type="number" class="form-control" @bind="guia.NumeroBultos" />
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Descripción Motivo</label>
-                                <input type="text" class="form-control" @bind="guia.DescripcionMotivoTraslado" />
-                            </div>
+                            @if (guia.MotivoTraslado == "13")
+                            {
+                                <div class="col-md-6">
+                                    <label class="form-label">Descripción Motivo <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" @bind="guia.DescripcionMotivoTraslado" 
+                                           placeholder="Obligatorio para motivo 'Otros'" />
+                                </div>
+                            }
                         </div>
                     </div>
                 </div>

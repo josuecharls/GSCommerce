@@ -102,6 +102,30 @@ public class GuiaRemisionSunatService
         }
     }
 
+    /// <summary>
+    /// Anular una GRE ya aceptada en SUNAT (Comunicación de Baja)
+    /// </summary>
+    public async Task<(bool Ok, string Mensaje, string? Ticket)> AnularGuiaSunatAsync(int id, string motivoBaja)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync($"guias-remision-sunat/{id}/anular-sunat", new { motivoBaja });
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<EnviarSunatResponse>();
+                return (true, result?.Mensaje ?? "Baja comunicada", result?.Ticket);
+            }
+            
+            var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+            return (false, error?.Mensaje ?? "Error al comunicar baja a SUNAT", null);
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message, null);
+        }
+    }
+
     public async Task<(bool Ok, string Mensaje, string? Ticket)> EnviarSunatAsync(int id)
     {
         try

@@ -14,6 +14,11 @@ public interface IGuiaRemisionElectronicaService
     Task<(bool exito, string ticket, string mensaje)> EnviarGuiaRemisionSunatAsync(int idGuiaRemision);
     Task<(bool exito, string codigo, string mensaje)> ConsultarEstadoSunatAsync(int idGuiaRemision);
     Task<byte[]?> GenerarPdfGuiaAsync(int idGuiaRemision);
+    
+    /// <summary>
+    /// Anula una GRE ya aceptada en SUNAT mediante Comunicación de Baja
+    /// </summary>
+    Task<(bool exito, string ticket, string mensaje)> AnularGuiaRemisionSunatAsync(int idGuiaRemision, string motivoBaja);
 }
 
 

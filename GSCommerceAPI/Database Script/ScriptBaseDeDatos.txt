@@ -1844,6 +1844,22 @@ CREATE TABLE [Almacen].[GuiaRemisionCabecera](
 	[IdProveedor] [int] NULL,
 	[IdTipoDocumento] [int] NULL,
 	[IdAlmacenDestino] [int] NULL,
+	MotivoTraslado VARCHAR(2) DEFAULT '01',
+    DescripcionMotivoTraslado VARCHAR(500) NULL,
+    ModalidadTraslado VARCHAR(2) DEFAULT '02',
+    FechaInicioTraslado DATE NULL,
+    PesoBrutoTotal DECIMAL(12,2) DEFAULT 0,
+    UnidadMedidaPeso VARCHAR(5) DEFAULT 'KGM',
+    NumeroBultos INT NULL,
+    RucTransportista VARCHAR(11) NULL,
+    RazonSocialTransportista VARCHAR(200) NULL,
+    PlacaVehiculo VARCHAR(10) NULL,
+    TipoDocumentoConductor VARCHAR(1) DEFAULT '1',
+    NumeroDocumentoConductor VARCHAR(15) NULL,
+    NombreConductor VARCHAR(100) NULL,
+    ApellidoConductor VARCHAR(100) NULL,
+    LicenciaConductor VARCHAR(20) NULL,
+
  CONSTRAINT [PK_GuiaRemisionCabecera] PRIMARY KEY CLUSTERED 
 (
 	[IdGuiaRemision] ASC

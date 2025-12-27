@@ -1030,6 +1030,46 @@ public partial class SyscharlesContext : DbContext
             entity.Property(e => e.TipoDestinatario)
                 .HasMaxLength(9)
                 .IsUnicode(false);
+            entity.Property(e => e.MotivoTraslado)
+                .HasMaxLength(2)
+                .IsUnicode(false);
+            entity.Property(e => e.DescripcionMotivoTraslado)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+            entity.Property(e => e.ModalidadTraslado)
+                .HasMaxLength(2)
+                .IsUnicode(false);
+            entity.Property(e => e.FechaInicioTraslado)
+                .HasColumnType("date");
+            entity.Property(e => e.PesoBrutoTotal)
+                .HasColumnType("decimal(12, 2)");
+            entity.Property(e => e.UnidadMedidaPeso)
+                .HasMaxLength(5)
+                .IsUnicode(false);
+            entity.Property(e => e.RucTransportista)
+                .HasMaxLength(11)
+                .IsUnicode(false);
+            entity.Property(e => e.RazonSocialTransportista)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+            entity.Property(e => e.PlacaVehiculo)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.TipoDocumentoConductor)
+                .HasMaxLength(1)
+                .IsUnicode(false);
+            entity.Property(e => e.NumeroDocumentoConductor)
+                .HasMaxLength(15)
+                .IsUnicode(false);
+            entity.Property(e => e.NombreConductor)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.ApellidoConductor)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.LicenciaConductor)
+                .HasMaxLength(20)
+                .IsUnicode(false);
         });
 
         modelBuilder.Entity<GuiaRemisionDetalle>(entity =>

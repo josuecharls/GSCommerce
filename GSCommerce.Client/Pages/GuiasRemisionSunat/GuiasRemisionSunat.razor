@@ -157,10 +157,17 @@
                                             </button>
                                         }
                                         
-                                        @if (g.Estado != "A" && g.EstadoSunat != "ACEPTADO")
+                                        @if (g.Estado != "A" && g.EstadoSunat != "ACEPTADO" && g.EstadoSunat != "ANULADO")
                                         {
                                             <button class="btn btn-outline-danger" @onclick="() => AnularGuia(g.IdGuiaRemision)" title="Anular">
                                                 <i class="bi bi-trash"></i>
+                                            </button>
+                                        }
+                                        
+                                        @if (g.Estado != "A" && g.EstadoSunat == "ACEPTADO")
+                                        {
+                                            <button class="btn btn-outline-danger" @onclick="() => AnularGuiaSunat(g.IdGuiaRemision)" title="Comunicar Baja a SUNAT">
+                                                <i class="bi bi-x-octagon"></i>
                                             </button>
                                         }
                                     </div>
@@ -305,6 +312,38 @@
         if (ok)
         {
             await Buscar();
+        }
+    }
+
+    private async Task AnularGuiaSunat(int id)
+    {
+        var motivo = await JS.InvokeAsync<string>("prompt", "Ingrese el motivo de la baja:");
+        
+        if (string.IsNullOrWhiteSpace(motivo))
+        {
+            await JS.InvokeVoidAsync("alert", "Debe ingresar un motivo para la baja.");
+            return;
+        }
+
+        var confirmar = await JS.InvokeAsync<bool>("confirm", 
+            $"¿Está seguro de comunicar la BAJA de esta guía a SUNAT?\n\nMotivo: {motivo}\n\nEsta acción no se puede deshacer.");
+        
+        if (!confirmar) return;
+
+        enviando = true;
+        try
+        {
+            var (ok, mensaje, ticket) = await GuiaService.AnularGuiaSunatAsync(id, motivo);
+            await JS.InvokeVoidAsync("alert", mensaje);
+            
+            if (ok)
+            {
+                await Buscar();
+            }
+        }
+        finally
+        {
+            enviando = false;
         }
     }
 

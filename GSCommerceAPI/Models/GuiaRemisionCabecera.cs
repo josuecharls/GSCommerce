@@ -40,6 +40,24 @@ public partial class GuiaRemisionCabecera
     public int? IdTipoDocumento { get; set; }
 
     public int? IdAlmacenDestino { get; set; }
+    public string? MotivoTraslado { get; set; }
+    public string? DescripcionMotivoTraslado { get; set; }
+    public string? ModalidadTraslado { get; set; }
+    public DateTime? FechaInicioTraslado { get; set; }
+    public decimal? PesoBrutoTotal { get; set; }
+    public string? UnidadMedidaPeso { get; set; }
+    public int? NumeroBultos { get; set; }
+    
+    public string? RucTransportista { get; set; }
+    public string? RazonSocialTransportista { get; set; }
+    
+    public string? PlacaVehiculo { get; set; }
+    
+    public string? TipoDocumentoConductor { get; set; }
+    public string? NumeroDocumentoConductor { get; set; }
+    public string? NombreConductor { get; set; }
+    public string? ApellidoConductor { get; set; }
+    public string? LicenciaConductor { get; set; }
 
     public virtual ICollection<GuiaRemisionDetalle> GuiaRemisionDetalles { get; set; } = new List<GuiaRemisionDetalle>();
 }

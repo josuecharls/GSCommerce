@@ -94,7 +94,7 @@ public class GuiaRemisionSunatController : ControllerBase
     }
 
     /// <summary>
-    /// Anular guía de remisión
+    /// Anular guía de remisión (local, no enviada a SUNAT)
     /// </summary>
     [HttpPut("{id}/anular")]
     public async Task<IActionResult> AnularGuia(int id)
@@ -105,6 +105,24 @@ public class GuiaRemisionSunatController : ControllerBase
             return BadRequest(new { mensaje });
 
         return Ok(new { mensaje });
+    }
+
+    /// <summary>
+    /// Anular guía de remisión en SUNAT (Comunicación de Baja)
+    /// Para guías ya aceptadas por SUNAT
+    /// </summary>
+    [HttpPost("{id}/anular-sunat")]
+    public async Task<IActionResult> AnularGuiaSunat(int id, [FromBody] AnularGuiaRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.MotivoBaja))
+            return BadRequest(new { mensaje = "Debe indicar el motivo de la baja" });
+
+        var (exito, ticket, mensaje) = await _guiaService.AnularGuiaRemisionSunatAsync(id, request.MotivoBaja);
+
+        if (!exito)
+            return BadRequest(new { mensaje });
+
+        return Ok(new { mensaje, ticket });
     }
 
     /// <summary>
@@ -169,6 +187,14 @@ public class GuiaRemisionSunatController : ControllerBase
     {
         return Ok(CatalogoTipoDocumentoIdentidad.Tipos.Select(t => new { codigo = t.Key, descripcion = t.Value }));
     }
+}
+
+/// <summary>
+/// Request para anular una GRE en SUNAT
+/// </summary>
+public class AnularGuiaRequest
+{
+    public string MotivoBaja { get; set; } = "";
 }
 
 
