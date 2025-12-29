@@ -144,6 +144,37 @@ namespace GSCommerce.Client.Services
                 throw;
             }
         }
+
+        public async Task<bool> ActualizarMetaMensual(int id, decimal metaMensual)
+        {
+            try
+            {
+                var request = new ActualizarMetaMensualRequest { MetaMensual = metaMensual };
+                var response = await _httpClient.PutAsJsonAsync($"metas-mensuales/{id}", request);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al actualizar meta mensual: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> ActualizarDetalles(int id, List<DetalleActualizacion> detalles)
+        {
+            try
+            {
+                var request = new ActualizarDetallesRequest { Detalles = detalles };
+                var response = await _httpClient.PutAsJsonAsync($"metas-mensuales/{id}/detalles", request);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al actualizar detalles: {ex.Message}");
+                return false;
+            }
+        }
     }
 }
+
 

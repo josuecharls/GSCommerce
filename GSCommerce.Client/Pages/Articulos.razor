@@ -242,11 +242,13 @@
                     </div>
                 </div>
                 <div class="modal-footer justify-content-center">
-                    <button class="btn btn-info me-2" 
-                            @onclick="AbrirModalSeleccionVarianteImpresion"
-                            disabled="@(!tieneVariantes)">
-                        <i class="bi bi-palette"></i> Elegir Variante
-                    </button>
+                    @if (variantesDisponiblesImpresion.Count > 1)
+                    {
+                        <button class="btn btn-info me-2" 
+                                @onclick="AbrirModalSeleccionVarianteImpresion">
+                            <i class="bi bi-palette"></i> Elegir Variante
+                        </button>
+                    }
                     <button class="btn btn-success" @onclick="PrintBarcode">Imprimir</button>
                     <button class="btn btn-secondary" @onclick="CloseBarcodeModal">Cerrar</button>
                 </div>
@@ -510,8 +512,19 @@
         {
             // Cargar variantes del artículo
             variantesDisponiblesImpresion = await ArticuloVarianteService.ObtenerVariantesPorArticulo(barcodeArticulo.IdArticulo);
-            varianteSeleccionadaImpresion = null;
-            descripcionParaImpresion = barcodeArticulo.DescripcionCorta ?? barcodeArticulo.Descripcion;
+            
+            // Si hay exactamente 1 variante, seleccionarla automáticamente
+            if (variantesDisponiblesImpresion.Count == 1)
+            {
+                varianteSeleccionadaImpresion = variantesDisponiblesImpresion[0];
+                descripcionParaImpresion = $"{barcodeArticulo.DescripcionCorta} C/{varianteSeleccionadaImpresion.Color} T/{varianteSeleccionadaImpresion.Talla}";
+            }
+            else
+            {
+                varianteSeleccionadaImpresion = null;
+                descripcionParaImpresion = barcodeArticulo.DescripcionCorta ?? barcodeArticulo.Descripcion;
+            }
+            
             showBarcodeModal = true;
         }
     }
@@ -532,15 +545,26 @@
         var desc = Uri.EscapeDataString(descripcionParaImpresion);
         var precio = barcodeArticulo.PrecioVenta.ToString(CultureInfo.InvariantCulture);
         
+        // Determinar el código a imprimir
+        // Si hay múltiples variantes y hay una seleccionada, incluir sufijo -N
+        string codigoParaImprimir = barcodeArticulo.IdArticulo;
+        
+        if (varianteSeleccionadaImpresion != null && variantesDisponiblesImpresion.Count > 1)
+        {
+            // Encontrar el índice de la variante seleccionada (1-based)
+            var indice = variantesDisponiblesImpresion.FindIndex(v => v.IdVariante == varianteSeleccionadaImpresion.IdVariante) + 1;
+            codigoParaImprimir = $"{barcodeArticulo.IdArticulo}-{indice}";
+        }
+        
         if (varianteSeleccionadaImpresion != null)
         {
             var color = Uri.EscapeDataString(varianteSeleccionadaImpresion.Color);
             var talla = Uri.EscapeDataString(varianteSeleccionadaImpresion.Talla);
-            Navigation.NavigateTo($"/barcode-print/{barcodeArticulo.IdArticulo}/{desc}/{precio}/{color}/{talla}", true);
+            Navigation.NavigateTo($"/barcode-print/{codigoParaImprimir}/{desc}/{precio}/{color}/{talla}", true);
         }
         else
         {
-            Navigation.NavigateTo($"/barcode-print/{barcodeArticulo.IdArticulo}/{desc}/{precio}", true);
+            Navigation.NavigateTo($"/barcode-print/{codigoParaImprimir}/{desc}/{precio}", true);
         }
     }
 

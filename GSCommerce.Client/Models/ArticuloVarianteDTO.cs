@@ -10,5 +10,7 @@
 
         public string Talla { get; set; } = null!;
 
+        public string? CodigoBarras { get; set; }
+
     }
 }

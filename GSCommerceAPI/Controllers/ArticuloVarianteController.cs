@@ -27,6 +27,29 @@ namespace GSCommerceAPI.Controllers
             return Ok(variantes);
         }
 
+        // GET: api/ArticuloVariante/barcode/{codigoBarras}
+        // Busca una variante por su código de barras único
+        [HttpGet("barcode/{codigoBarras}")]
+        public async Task<ActionResult<object>> GetVariantePorCodigoBarras(string codigoBarras)
+        {
+            var variante = await _context.ArticuloVariantes
+                .Where(v => v.CodigoBarras == codigoBarras)
+                .Select(v => new
+                {
+                    v.IdVariante,
+                    v.IdArticulo,
+                    v.Color,
+                    v.Talla,
+                    v.CodigoBarras
+                })
+                .FirstOrDefaultAsync();
+
+            if (variante == null)
+                return NotFound();
+
+            return Ok(variante);
+        }
+
         // POST: api/ArticuloVariante
         [HttpPost]
         public async Task<ActionResult<ArticuloVariante>> PostVariante(ArticuloVariante variante)

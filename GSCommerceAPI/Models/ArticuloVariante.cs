@@ -15,6 +15,8 @@ public partial class ArticuloVariante
 
     public string Talla { get; set; } = null!;
 
+    public string? CodigoBarras { get; set; }
+
     [JsonIgnore]
     [BindNever]
     public virtual Articulo? IdArticuloNavigation { get; set; } = null!;

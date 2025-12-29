@@ -34,6 +34,27 @@ namespace GSCommerce.Client.Services
             }
         }
 
+        /// <summary>
+        /// Busca una variante por su código de barras único.
+        /// Retorna null si no existe.
+        /// </summary>
+        public async Task<ArticuloVarianteDTO?> BuscarPorCodigoBarras(string codigoBarras)
+        {
+            try
+            {
+                var response = await _http.GetAsync($"{baseUrl}/barcode/{codigoBarras}");
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<ArticuloVarianteDTO>();
+                }
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public async Task<bool> EliminarVariante(int idVariante)
         {
             var response = await _http.DeleteAsync($"{baseUrl}/{idVariante}");

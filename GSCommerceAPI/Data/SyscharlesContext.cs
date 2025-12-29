@@ -462,6 +462,9 @@ public partial class SyscharlesContext : DbContext
             entity.Property(e => e.Talla)
                 .HasMaxLength(100)
                 .IsUnicode(false);
+            entity.Property(e => e.CodigoBarras)
+                .HasMaxLength(50)
+                .IsUnicode(false);
 
             entity.HasOne(d => d.IdArticuloNavigation).WithMany(p => p.ArticuloVariantes)
                 .HasForeignKey(d => d.IdArticulo)

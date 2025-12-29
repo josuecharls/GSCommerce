@@ -45,19 +45,23 @@ public class MetaMensualController : ControllerBase
             .ThenBy(m => m.IdAlmacen)
             .ToListAsync();
 
+        // Filtrar PRINCIPAL después de cargar los datos (evita problemas de traducción SQL)
+        metas = metas.Where(m => !string.Equals(m.IdAlmacenNavigation?.Nombre, "PRINCIPAL", StringComparison.OrdinalIgnoreCase)).ToList();
+
         var resultado = new List<MetaMensualDTO>();
+
 
         foreach (var meta in metas)
         {
-            // Actualizar ventas reales antes de retornar
-            await ActualizarVentasReales(meta);
+            // Actualizar ventas reales antes de retornar y obtener conteo de clientes
+            var clientesPorFecha = await ActualizarVentasReales(meta);
 
             var ventaAcumulada = meta.MetaMensualDetalles
                 .Where(d => d.VentaReal.HasValue)
                 .Sum(d => d.VentaReal.Value);
 
             var porcentajeCumplimiento = meta.Meta > 0
-                ? (ventaAcumulada / meta.Meta) * 100
+                ? Math.Round((ventaAcumulada / meta.Meta) * 100, 1)
                 : 0;
 
             resultado.Add(new MetaMensualDTO
@@ -67,13 +71,13 @@ public class MetaMensualController : ControllerBase
                 NombreAlmacen = meta.IdAlmacenNavigation.Nombre,
                 Anio = meta.Anio,
                 Mes = meta.Mes,
-                MetaMensual = meta.Meta,
+                MetaMensual = Math.Round(meta.Meta, 0),
                 Estado = meta.Estado,
                 FechaCreacion = meta.FechaCreacion,
                 FechaEnvio = meta.FechaEnvio,
                 FechaAprobacion = meta.FechaAprobacion,
                 Observaciones = meta.Observaciones,
-                VentaAcumulada = ventaAcumulada,
+                VentaAcumulada = Math.Round(ventaAcumulada, 0),
                 PorcentajeCumplimiento = porcentajeCumplimiento,
                 Detalles = meta.MetaMensualDetalles
                     .OrderBy(d => d.Fecha)
@@ -81,12 +85,13 @@ public class MetaMensualController : ControllerBase
                     {
                         IdMetaMensualDetalle = d.IdMetaMensualDetalle,
                         Fecha = d.Fecha,
-                        MetaDiaria = d.MetaDiaria,
-                        VentaReal = d.VentaReal,
+                        MetaDiaria = Math.Round(d.MetaDiaria, 0),
+                        VentaReal = d.VentaReal.HasValue ? Math.Round(d.VentaReal.Value, 0) : null,
                         PorcentajeCumplimiento = d.PorcentajeCumplimiento,
                         DiaSemana = (int)d.Fecha.DayOfWeek,
                         NumeroSemana = GetNumeroSemanaFromDateOnly(d.Fecha),
-                        NumeroQuincena = d.Fecha.Day <= 15 ? 1 : 2
+                        NumeroQuincena = d.Fecha.Day <= 15 ? 1 : 2,
+                        NumeroClientes = clientesPorFecha.TryGetValue(d.Fecha, out var clientes) ? clientes : null
                     })
                     .ToList()
             });
@@ -106,14 +111,14 @@ public class MetaMensualController : ControllerBase
         if (meta == null)
             return NotFound();
 
-        await ActualizarVentasReales(meta);
+        var clientesPorFecha = await ActualizarVentasReales(meta);
 
         var ventaAcumulada = meta.MetaMensualDetalles
             .Where(d => d.VentaReal.HasValue)
             .Sum(d => d.VentaReal.Value);
 
         var porcentajeCumplimiento = meta.Meta > 0
-            ? (ventaAcumulada / meta.Meta) * 100
+            ? Math.Round((ventaAcumulada / meta.Meta) * 100, 1)
             : 0;
 
         var dto = new MetaMensualDTO
@@ -123,13 +128,13 @@ public class MetaMensualController : ControllerBase
             NombreAlmacen = meta.IdAlmacenNavigation.Nombre,
             Anio = meta.Anio,
             Mes = meta.Mes,
-            MetaMensual = meta.Meta,
+            MetaMensual = Math.Round(meta.Meta, 0),
             Estado = meta.Estado,
             FechaCreacion = meta.FechaCreacion,
             FechaEnvio = meta.FechaEnvio,
             FechaAprobacion = meta.FechaAprobacion,
             Observaciones = meta.Observaciones,
-            VentaAcumulada = ventaAcumulada,
+            VentaAcumulada = Math.Round(ventaAcumulada, 0),
             PorcentajeCumplimiento = porcentajeCumplimiento,
             Detalles = meta.MetaMensualDetalles
                 .OrderBy(d => d.Fecha)
@@ -137,12 +142,13 @@ public class MetaMensualController : ControllerBase
                 {
                     IdMetaMensualDetalle = d.IdMetaMensualDetalle,
                     Fecha = d.Fecha,
-                    MetaDiaria = d.MetaDiaria,
-                    VentaReal = d.VentaReal,
+                    MetaDiaria = Math.Round(d.MetaDiaria, 0),
+                    VentaReal = d.VentaReal.HasValue ? Math.Round(d.VentaReal.Value, 0) : null,
                     PorcentajeCumplimiento = d.PorcentajeCumplimiento,
                     DiaSemana = (int)d.Fecha.DayOfWeek,
                     NumeroSemana = GetNumeroSemanaFromDateOnly(d.Fecha),
-                    NumeroQuincena = d.Fecha.Day <= 15 ? 1 : 2
+                    NumeroQuincena = d.Fecha.Day <= 15 ? 1 : 2,
+                    NumeroClientes = clientesPorFecha.TryGetValue(d.Fecha, out var clientes) ? clientes : null
                 })
                 .ToList()
         };
@@ -266,6 +272,67 @@ public class MetaMensualController : ControllerBase
         meta.IdUsuarioAprobacion = userId;
         meta.FechaAprobacion = DateTime.Now;
         meta.Observaciones = request.Observaciones;
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> ActualizarMetaMensual(int id, [FromBody] ActualizarMetaMensualRequest request)
+    {
+        if (request == null)
+            return BadRequest("Datos inválidos");
+
+        // Verificar que sea administrador
+        var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+        if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+            return Forbid("Solo los administradores pueden modificar metas");
+
+        var meta = await _context.MetaMensuals
+            .Include(m => m.MetaMensualDetalles)
+            .FirstOrDefaultAsync(m => m.IdMetaMensual == id);
+        
+        if (meta == null)
+            return NotFound();
+
+        // Actualizar meta mensual (redondeada)
+        meta.Meta = Math.Round(request.MetaMensual, 0);
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpPut("{id}/detalles")]
+    public async Task<IActionResult> ActualizarDetalles(int id, [FromBody] ActualizarDetallesRequest request)
+    {
+        if (request == null || request.Detalles == null || !request.Detalles.Any())
+            return BadRequest("Datos inválidos");
+
+        // Verificar que sea administrador
+        var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+        if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+            return Forbid("Solo los administradores pueden modificar metas");
+
+        var meta = await _context.MetaMensuals
+            .Include(m => m.MetaMensualDetalles)
+            .FirstOrDefaultAsync(m => m.IdMetaMensual == id);
+        
+        if (meta == null)
+            return NotFound();
+
+        // Actualizar cada detalle
+        foreach (var detalleUpdate in request.Detalles)
+        {
+            var detalle = meta.MetaMensualDetalles.FirstOrDefault(d => d.IdMetaMensualDetalle == detalleUpdate.IdMetaMensualDetalle);
+            if (detalle != null)
+            {
+                detalle.MetaDiaria = Math.Round(detalleUpdate.MetaDiaria, 0);
+            }
+        }
+
+        // Recalcular meta mensual como suma de cuotas diarias
+        meta.Meta = Math.Round(meta.MetaMensualDetalles.Sum(d => d.MetaDiaria), 0);
+        
         await _context.SaveChangesAsync();
 
         return NoContent();
@@ -1121,7 +1188,7 @@ public class MetaMensualController : ControllerBase
         return detalles;
     }
 
-    private async Task ActualizarVentasReales(MetaMensual meta)
+    private async Task<Dictionary<DateOnly, int>> ActualizarVentasReales(MetaMensual meta)
     {
         var fechaInicio = new DateTime(meta.Anio, meta.Mes, 1);
         var fechaFin = fechaInicio.AddMonths(1);
@@ -1147,7 +1214,7 @@ public class MetaMensualController : ControllerBase
         var ventas = await ventasQuery.ToListAsync();
 
         // Procesar ventas válidas
-        var ventasValidas = new List<(DateOnly Fecha, decimal Total)>();
+        var ventasValidas = new List<(DateOnly Fecha, decimal Total, string Serie, int Numero)>();
         foreach (var venta in ventas)
         {
             var fechaVenta = DateOnly.FromDateTime(venta.Fecha);
@@ -1157,7 +1224,7 @@ public class MetaMensualController : ControllerBase
                 var total = tipo == "Efectivo"
                     ? venta.Soles - (venta.Vuelto ?? 0)
                     : venta.Soles;
-                ventasValidas.Add((fechaVenta, total));
+                ventasValidas.Add((fechaVenta, total, venta.Serie, venta.Numero));
             }
         }
 
@@ -1165,14 +1232,24 @@ public class MetaMensualController : ControllerBase
             .GroupBy(v => v.Fecha)
             .ToDictionary(g => g.Key, g => g.Sum(v => v.Total));
 
+        // Contar clientes únicos por fecha (comprobantes únicos Serie+Numero)
+        var clientesPorFecha = ventasValidas
+            .GroupBy(v => v.Fecha)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(v => (v.Serie, v.Numero)).Distinct().Count()
+            );
+
         foreach (var detalle in meta.MetaMensualDetalles)
         {
             if (ventasPorFecha.TryGetValue(detalle.Fecha, out var ventaReal))
             {
-                detalle.VentaReal = ventaReal;
-                detalle.PorcentajeCumplimiento = detalle.MetaDiaria > 0
-                    ? (ventaReal / detalle.MetaDiaria) * 100
+                detalle.VentaReal = Math.Round(ventaReal, 0);
+                // Limitar porcentaje a 999.99 para evitar overflow en la BD (decimal(5,2))
+                var porcentaje = detalle.MetaDiaria > 0
+                    ? Math.Round((ventaReal / detalle.MetaDiaria) * 100, 1)
                     : 0;
+                detalle.PorcentajeCumplimiento = Math.Min(porcentaje, 999.99m);
             }
             else
             {
@@ -1181,7 +1258,10 @@ public class MetaMensualController : ControllerBase
             }
         }
 
+
         await _context.SaveChangesAsync();
+        
+        return clientesPorFecha;
     }
 
     private static int GetNumeroSemana(DateTime fecha)

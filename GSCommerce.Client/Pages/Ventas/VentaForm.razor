@@ -762,10 +762,26 @@ else
         if (string.IsNullOrWhiteSpace(codigoBusqueda))
             return;
 
-        var codigo = codigoBusqueda.Trim().PadLeft(6, '0');
+        var codigoOriginal = codigoBusqueda.Trim();
         codigoBusqueda = string.Empty;
         ultimaEntrada = DateTime.MinValue;
         entradaManual = false;
+
+        // PASO 1: Detectar si tiene formato "XXXXXX-N" (código con índice de variante)
+        string codigoArticulo = codigoOriginal;
+        int? indiceVariante = null;
+        
+        if (codigoOriginal.Contains("-"))
+        {
+            var partes = codigoOriginal.Split('-');
+            if (partes.Length == 2 && int.TryParse(partes[1], out int idx))
+            {
+                codigoArticulo = partes[0];
+                indiceVariante = idx; // El índice viene del código de barras (1, 2, 3...)
+            }
+        }
+
+        var codigo = codigoArticulo.PadLeft(6, '0');
 
         int stockDisponible = 0;
         if (idAlmacenActual != null)
@@ -787,7 +803,7 @@ else
 
         string descripcion = articulo.Descripcion;
         decimal precioUnitario;
-        bool esPromo = false;          //flag para evitar doble descuento
+        bool esPromo = false;
 
         if (idAlmacenActual != null)
         {
@@ -795,7 +811,6 @@ else
             if (desc != null)
             {
                 esPromo = true;
-
                 precioUnitario = (decimal)(desc.PrecioFinal ??
                                  (double)(articulo.PrecioVenta * (1 - (decimal)desc.DescuentoPorc / 100m)));
             }
@@ -821,11 +836,32 @@ else
             precioUnitario = Math.Round(precioEnDolares, 2);
         }
 
-        // Variantes - MOSTRAR POPUP RÁPIDO
+        // Obtener variantes del artículo
         var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
+
+        // CASO 1: Código con sufijo de variante (ej: 001001-2)
+        if (indiceVariante.HasValue && variantes.Any())
+        {
+            // Buscar la variante por índice (1-based)
+            if (indiceVariante.Value >= 1 && indiceVariante.Value <= variantes.Count)
+            {
+                var varianteSeleccionada = variantes[indiceVariante.Value - 1]; // Convertir a 0-based
+                var descripcionVariante = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {varianteSeleccionada.Color} {varianteSeleccionada.Talla}";
+                ActualizarArticuloSeleccionado(articulo, descripcionVariante);
+                await AgregarArticuloALaVenta(codigo, articulo, descripcionVariante, precioUnitario, esPromo, stockDisponible);
+                return;
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", $"❌ Variante {indiceVariante.Value} no existe. El artículo tiene {variantes.Count} variante(s).");
+                return;
+            }
+        }
+
+        // CASO 2: Código sin sufijo pero con variantes
         if (variantes.Any())
         {
-            // Si hay exactamente una variante, agregarla automáticamente sin mostrar el modal
+            // Si hay exactamente una variante, agregarla automáticamente
             if (variantes.Count == 1)
             {
                 var unica = variantes[0];
@@ -835,7 +871,7 @@ else
                 return;
             }
 
-            // Guardar datos pendientes y mostrar popup
+            // Múltiples variantes sin sufijo - mostrar popup
             articuloPendiente = articulo;
             variantesPendientes = variantes;
             codigoArticuloPendiente = codigo;
@@ -846,7 +882,6 @@ else
             mostrarSeleccionVariante = true;
             await InvokeAsync(StateHasChanged);
 
-            // Enfocar el popup para capturar teclas usando JavaScript
             await Task.Delay(150);
             try
             {
@@ -854,7 +889,6 @@ else
             }
             catch
             {
-                // Si falla, usar JavaScript
                 await JS.InvokeVoidAsync("eval", @"
                     setTimeout(function() {
                         var popup = document.querySelector('.variante-popup');
@@ -865,7 +899,7 @@ else
             return;
         }
 
-        // Si no hay variantes, continuar con el flujo normal
+        // CASO 3: Sin variantes - flujo normal
         ActualizarArticuloSeleccionado(articulo, descripcion);
         await AgregarArticuloALaVenta(codigo, articulo, descripcion, precioUnitario, esPromo, stockDisponible);
     }

@@ -10,6 +10,7 @@ namespace GSCommerce.Client.Models
         public int DiaSemana { get; set; } // 0=Domingo, 6=Sábado
         public int NumeroSemana { get; set; }
         public int NumeroQuincena { get; set; } // 1 o 2
+        public int? NumeroClientes { get; set; } // Número de comprobantes de venta
     }
 }
 

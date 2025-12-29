@@ -945,10 +945,22 @@ else
     private void ImprimirVariante(ArticuloVarianteDTO variante)
     {
         var precio = articulo.PrecioVenta.ToString(CultureInfo.InvariantCulture);
-        var desc = Uri.EscapeDataString($"{articulo.DescripcionCorta} {variante.Color} {variante.Talla}");
+        var desc = Uri.EscapeDataString($"{articulo.DescripcionCorta} C/{variante.Color} T/{variante.Talla}");
         var color = Uri.EscapeDataString(variante.Color);
         var talla = Uri.EscapeDataString(variante.Talla);
-        Navigation.NavigateTo($"/barcode-print/{articulo.IdArticulo}/{desc}/{precio}/{color}/{talla}", true);
+        
+        // Determinar el código a imprimir
+        // Si hay múltiples variantes, incluir sufijo -N
+        string codigoParaImprimir = articulo.IdArticulo;
+        
+        if (variantes.Count > 1)
+        {
+            // Encontrar el índice de la variante seleccionada (1-based)
+            var indice = variantes.FindIndex(v => v.IdVariante == variante.IdVariante) + 1;
+            codigoParaImprimir = $"{articulo.IdArticulo}-{indice}";
+        }
+        
+        Navigation.NavigateTo($"/barcode-print/{codigoParaImprimir}/{desc}/{precio}/{color}/{talla}", true);
         mostrarModalSeleccionVarianteImpresion = false;
     }
 

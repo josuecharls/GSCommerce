@@ -37,7 +37,7 @@
                     <label class="form-label">Almacén</label>
                     <select class="form-select" @bind="idAlmacenFiltro" @bind:after="Buscar" disabled="@cargando">
                         <option value="0">Todos</option>
-                        @foreach (var almacen in almacenes)
+                        @foreach (var almacen in almacenes.Where(a => !string.Equals(a.Nombre, "PRINCIPAL", StringComparison.OrdinalIgnoreCase)))
                         {
                             <option value="@almacen.IdAlmacen">@almacen.Nombre</option>
                         }
@@ -75,70 +75,106 @@ else if (!metas.Any())
 }
 else
 {
-    <div class="table-responsive">
-        <table class="table table-bordered align-middle">
-            <thead class="table-light">
-                <tr class="text-center">
-                    <th>Almacén</th>
-                    <th>Período</th>
-                    <th>Meta Mensual</th>
-                    <th>Venta Acumulada</th>
-                    <th>Cumplimiento</th>
-                    <th>Estado</th>
-                    <th>Fecha Creación</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var meta in metas)
-                {
-                    <tr>
-                        <td class="fw-bold">@meta.NombreAlmacen</td>
-                        <td>@cultura.TextInfo.ToTitleCase(new DateTime(meta.Anio, meta.Mes, 1).ToString("MMMM", cultura)) @meta.Anio</td>
-                        <td class="text-end">S/ @meta.MetaMensual.ToString("N2")</td>
-                        <td class="text-end">S/ @(meta.VentaAcumulada?.ToString("N2") ?? "0.00")</td>
-                        <td class="text-end">
-                            <span class="badge @(meta.PorcentajeCumplimiento >= 100 ? "bg-success" : meta.PorcentajeCumplimiento >= 80 ? "bg-warning" : "bg-danger")">
-                                @(meta.PorcentajeCumplimiento?.ToString("N2") ?? "0.00")%
-                            </span>
-                        </td>
-                        <td>
-                            <span class="badge @(meta.Estado == "APROBADA" ? "bg-success" : meta.Estado == "ENVIADA" ? "bg-info" : meta.Estado == "RECHAZADA" ? "bg-danger" : "bg-secondary")">
-                                @meta.Estado
-                            </span>
-                        </td>
-                        <td>@meta.FechaCreacion.ToString("dd/MM/yyyy")</td>
-                        <td class="text-center">
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button class="btn btn-outline-primary" @onclick="() => VerDetalle(meta)" title="Ver Detalle">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <button class="btn btn-outline-success" @onclick="() => ExportarExcelMeta(meta.IdMetaMensual)" title="Exportar Meta Individual">
-                                    <i class="bi bi-file-earmark-excel"></i>
-                                </button>
-                                @if (meta.Estado == "PENDIENTE" && PuedeEnviar(meta))
-                                {
-                                    <button class="btn btn-outline-info" @onclick="() => EnviarPropuesta(meta)" title="Enviar Propuesta">
-                                        <i class="bi bi-send"></i>
-                                    </button>
-                                }
-                                @if (string.Equals(meta.Estado?.Trim(), "ENVIADA", StringComparison.OrdinalIgnoreCase) && esAdministrador)
-                                {
-                                    <button class="btn btn-outline-success" @onclick="() => MostrarModalAprobar(meta, true)" title="Aprobar">
-                                        <i class="bi bi-check-circle"></i>
-                                    </button>
-                                    <button class="btn btn-outline-danger" @onclick="() => MostrarModalAprobar(meta, false)" title="Rechazar">
-                                        <i class="bi bi-x-circle"></i>
-                                    </button>
-                                }
-                            </div>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white text-center">
+            <h4 class="mb-0">BALANCE MENSUAL</h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle mb-0">
+                    <thead style="background-color: #FFFF00;">
+                        <tr class="text-center">
+                            <th style="background-color: #FF0000; color: white; border: 2px solid #FF0000;">ALMACEN</th>
+                            <th style="border: 2px solid #000;">CUOTA</th>
+                            <th style="border: 2px solid #000;">VENTA REAL</th>
+                            <th style="border: 2px solid #000;">DIFERENCIA</th>
+                            <th style="border: 2px solid #000;">%</th>
+                            <th style="border: 2px solid #000;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var meta in metas)
+                        {
+                            var diferencia = (meta.VentaAcumulada ?? 0) - meta.MetaMensual;
+                            var esNegativo = diferencia < 0;
+                            <tr>
+                                <td class="fw-bold" style="background-color: #FFFF00; border: 2px solid #FF0000;">@meta.NombreAlmacen</td>
+                                <td class="text-end">
+                                    @if (esAdministrador && editandoCuotaMensual == meta.IdMetaMensual)
+                                    {
+                                        <input type="number" class="form-control form-control-sm text-end" 
+                                               @bind="cuotaMensualEditada" @bind:event="oninput"
+                                               @onblur="() => GuardarCuotaMensual(meta)" 
+                                               @onkeydown="@(e => { if (e.Key == "Enter") GuardarCuotaMensual(meta); })"
+                                               style="width: 120px;" />
+                                    }
+                                    else
+                                    {
+                                        <span @ondblclick="() => IniciarEdicionCuotaMensual(meta)">S/ @meta.MetaMensual.ToString("N0")</span>
+                                    }
+                                </td>
+                                <td class="text-end">S/ @((meta.VentaAcumulada ?? 0).ToString("N0"))</td>
+                                <td class="text-end @(esNegativo ? "text-danger" : "text-success")">
+                                    @(esNegativo ? "-" : "")S/ @Math.Abs(diferencia).ToString("N0")
+                                </td>
+                                <td class="text-end">
+                                    <span class="@(meta.PorcentajeCumplimiento >= 100 ? "text-success" : meta.PorcentajeCumplimiento >= 80 ? "text-warning" : "text-danger")">
+                                        @((meta.PorcentajeCumplimiento ?? 0).ToString("N1"))%
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button class="btn btn-outline-primary" @onclick="() => VerDetalle(meta)" title="Ver Detalle">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button class="btn btn-outline-success" @onclick="() => ExportarExcelMeta(meta.IdMetaMensual)" title="Exportar Excel">
+                                            <i class="bi bi-file-earmark-excel"></i>
+                                        </button>
+                                        @if (meta.Estado == "PENDIENTE" && PuedeEnviar(meta))
+                                        {
+                                            <button class="btn btn-outline-info" @onclick="() => EnviarPropuesta(meta)" title="Enviar Propuesta">
+                                                <i class="bi bi-send"></i>
+                                            </button>
+                                        }
+                                        @if (string.Equals(meta.Estado?.Trim(), "ENVIADA", StringComparison.OrdinalIgnoreCase) && esAdministrador)
+                                        {
+                                            <button class="btn btn-outline-success" @onclick="() => MostrarModalAprobar(meta, true)" title="Aprobar">
+                                                <i class="bi bi-check-circle"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" @onclick="() => MostrarModalAprobar(meta, false)" title="Rechazar">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot style="background-color: #FFFF00; font-weight: bold;">
+                        @{
+                            var totalCuota = metas.Sum(m => m.MetaMensual);
+                            var totalVentaReal = metas.Sum(m => m.VentaAcumulada ?? 0);
+                            var totalDiferencia = totalVentaReal - totalCuota;
+                            var porcentajeTotal = totalCuota > 0 ? (totalVentaReal / totalCuota) * 100 : 0;
+                            var esDiferenciaNegativa = totalDiferencia < 0;
+                        }
+                        <tr class="text-center">
+                            <td class="fw-bold" style="background-color: #FFFF00;">TOTALES</td>
+                            <td class="text-end" style="background-color: #FFFF00;">S/@totalCuota.ToString("N0")</td>
+                            <td class="text-end" style="background-color: #FFFF00;">S/ @totalVentaReal.ToString("N0")</td>
+                            <td class="text-end @(esDiferenciaNegativa ? "text-danger" : "text-success")" style="background-color: #FFFF00;">
+                                S/ @totalDiferencia.ToString("N0")
+                            </td>
+                            <td class="text-end" style="background-color: #FFFF00;">@porcentajeTotal.ToString("N1")%</td>
+                            <td style="background-color: #FFFF00;"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
     </div>
 }
+
 
 <!-- Modal Crear Meta -->
 @if (mostrarModalCrear)
@@ -297,67 +333,106 @@ else
     <div class="modal fade show" style="display: block;" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Detalle de Meta - @metaDetalle.NombreAlmacen</h5>
-                    <button type="button" class="btn-close" @onclick="CerrarModalDetalle"></button>
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">@metaDetalle.NombreAlmacen - @cultura.TextInfo.ToTitleCase(new DateTime(metaDetalle.Anio, metaDetalle.Mes, 1).ToString("MMMM", cultura)) @metaDetalle.Anio</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalDetalle"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <strong>Período:</strong> @cultura.TextInfo.ToTitleCase(new DateTime(metaDetalle.Anio, metaDetalle.Mes, 1).ToString("MMMM", cultura)) @metaDetalle.Anio
-                        </div>
-                        <div class="col-md-4">
-                            <strong>Meta Mensual:</strong> S/ @metaDetalle.MetaMensual.ToString("N2")
-                        </div>
-                        <div class="col-md-4">
-                            <strong>Estado:</strong> 
-                            <span class="badge @(metaDetalle.Estado == "APROBADA" ? "bg-success" : metaDetalle.Estado == "ENVIADA" ? "bg-info" : metaDetalle.Estado == "RECHAZADA" ? "bg-danger" : "bg-secondary")">
-                                @metaDetalle.Estado
-                            </span>
-                        </div>
-                    </div>
-                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
-                        <table class="table table-sm table-bordered">
-                            <thead class="table-light sticky-top">
+                    @{
+                        var totalCuotaDetalle = metaDetalle.Detalles.Sum(d => d.MetaDiaria);
+                        var totalVentaDetalle = metaDetalle.Detalles.Sum(d => d.VentaReal ?? 0);
+                        var totalDiferenciaDetalle = totalVentaDetalle - totalCuotaDetalle;
+                        var totalClientes = metaDetalle.Detalles.Sum(d => d.NumeroClientes ?? 0);
+                    }
+                    <!-- Summary Section (like image 3) -->
+                    <div class="mb-3">
+                        <table class="table table-bordered" style="width: auto;">
+                            <tbody>
                                 <tr>
-                                    <th>Fecha</th>
-                                    <th>Día</th>
-                                    <th>Meta Diaria</th>
-                                    <th>Venta Real</th>
-                                    <th>Cumplimiento %</th>
-                                    <th>Quincena</th>
-                                    <th>Semana</th>
+                                    <td class="fw-bold" style="background-color: #FFFF00;">META MENSUAL</td>
+                                    <td class="text-end">S/ @totalCuotaDetalle.ToString("N0")</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold" style="background-color: #FFFF00;">AVANCE DE LA META MENSUAL</td>
+                                    <td class="text-end">S/ @totalVentaDetalle.ToString("N0")</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold" style="background-color: #FFFF00;">DIFERENCIA</td>
+                                    <td class="text-end @(totalDiferenciaDetalle >= 0 ? "text-success" : "text-danger")">
+                                        S/ @totalDiferenciaDetalle.ToString("N0")
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Detail Table (like image 2) -->
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead style="background-color: #FFFF00;" class="sticky-top">
+                                <tr class="text-center">
+                                    <th style="border: 2px solid #000;">DIA (@metaDetalle.Anio)</th>
+                                    <th style="border: 2px solid #000;">CUOTA</th>
+                                    <th style="border: 2px solid #000;">TOTAL DE VENTA</th>
+                                    <th style="border: 2px solid #000;">DIFERENCIA</th>
+                                    <th style="border: 2px solid #000;">N° CLIENTES</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var detalle in metaDetalle.Detalles)
                                 {
+                                    var diferenciaDetalle = (detalle.VentaReal ?? 0) - detalle.MetaDiaria;
+                                    var esNegativoDetalle = diferenciaDetalle < 0;
+                                    var diaNombre = cultura.TextInfo.ToTitleCase(detalle.Fecha.ToDateTime(TimeOnly.MinValue).ToString("dddd", cultura));
                                     <tr>
-                                        <td>@detalle.Fecha.ToString("dd/MM/yyyy")</td>
-                                        <td>@detalle.Fecha.ToString("dddd", cultura)</td>
-                                        <td class="text-end">S/ @detalle.MetaDiaria.ToString("N2")</td>
-                                        <td class="text-end">S/ @(detalle.VentaReal?.ToString("N2") ?? "0.00")</td>
+                                        <td>@diaNombre @detalle.Fecha.Day.ToString("D2")</td>
                                         <td class="text-end">
-                                            @if (detalle.PorcentajeCumplimiento.HasValue)
+                                            @if (esAdministrador && editandoCuotaDiaria == detalle.IdMetaMensualDetalle)
                                             {
-                                                <span class="badge @(detalle.PorcentajeCumplimiento >= 100 ? "bg-success" : detalle.PorcentajeCumplimiento >= 80 ? "bg-warning" : "bg-danger")">
-                                                    @detalle.PorcentajeCumplimiento.Value.ToString("N2")%
-                                                </span>
+                                                <input type="number" class="form-control form-control-sm text-end"
+                                                       @bind="cuotaDiariaEditada" @bind:event="oninput"
+                                                       @onblur="() => GuardarCuotaDiaria(detalle)"
+                                                       @onkeydown="@(e => { if (e.Key == "Enter") GuardarCuotaDiaria(detalle); })"
+                                                       style="width: 100px;" />
                                             }
                                             else
                                             {
-                                                <span class="text-muted">-</span>
+                                                <span @ondblclick="() => IniciarEdicionCuotaDiaria(detalle)">S/ @detalle.MetaDiaria.ToString("N0")</span>
                                             }
                                         </td>
-                                        <td class="text-center">Q@(detalle.NumeroQuincena)</td>
-                                        <td class="text-center">S@(detalle.NumeroSemana)</td>
+                                        <td class="text-end">S/ @((detalle.VentaReal ?? 0).ToString("N0"))</td>
+                                        <td class="text-end @(esNegativoDetalle ? "text-danger" : "text-success")">
+                                            @(esNegativoDetalle ? "-" : "")S/ @Math.Abs(diferenciaDetalle).ToString("N0")
+                                        </td>
+                                        <td class="text-center">@(detalle.NumeroClientes ?? 0)</td>
                                     </tr>
                                 }
                             </tbody>
+                            <tfoot style="background-color: #FFFF00; font-weight: bold;">
+                                <tr class="text-center">
+                                    <td class="fw-bold">TOTALES</td>
+                                    <td class="text-end">S/ @totalCuotaDetalle.ToString("N0")</td>
+                                    <td class="text-end">S/ @totalVentaDetalle.ToString("N0")</td>
+                                    <td class="text-end @(totalDiferenciaDetalle >= 0 ? "text-success" : "text-danger")">
+                                        S/ @totalDiferenciaDetalle.ToString("N0")
+                                    </td>
+                                    <td class="text-center">@totalClientes</td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
                 <div class="modal-footer">
+                    @if (esAdministrador && detallesModificados.Any())
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="GuardarTodosDetalles" disabled="@guardando">
+                            @if (guardando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            <i class="bi bi-save"></i> Guardar Cambios
+                        </button>
+                    }
                     <button type="button" class="btn btn-secondary" @onclick="CerrarModalDetalle">Cerrar</button>
                     <button type="button" class="btn btn-success" @onclick="() => ExportarExcelMeta(metaDetalle.IdMetaMensual)">
                         <i class="bi bi-file-earmark-excel"></i> Exportar Excel
@@ -368,6 +443,7 @@ else
     </div>
     <div class="modal-backdrop fade show"></div>
 }
+
 
 @code {
     private readonly CultureInfo cultura = CultureInfo.CreateSpecificCulture("es-PE");
@@ -391,6 +467,14 @@ else
     private MetaMensualDTO? metaDetalle;
     private bool aprobarMeta;
     private string? observacionesAprobacion;
+    
+    // Variables para edición inline
+    private int? editandoCuotaMensual;
+    private decimal cuotaMensualEditada;
+    private int? editandoCuotaDiaria;
+    private decimal cuotaDiariaEditada;
+    private HashSet<int> detallesModificados = new();
+
 
     private IEnumerable<int> aniosDisponibles => Enumerable.Range(anioActual - 1, 3).OrderByDescending(a => a);
 
@@ -410,7 +494,8 @@ else
         cargando = true;
         try
         {
-            var idAlmacen = esAdministrador && idAlmacenFiltro > 0 ? idAlmacenFiltro : (int?)null;
+            // Si idAlmacenFiltro es 0 (Todos), pasar null para obtener todas las metas
+            int? idAlmacen = idAlmacenFiltro > 0 ? idAlmacenFiltro : null;
             metas = await MetaMensualService.ObtenerMetas(anioSeleccionado, mesSeleccionado, idAlmacen);
         }
         finally
@@ -616,6 +701,8 @@ private bool PuedeEnviar(MetaMensualDTO meta)
     {
         mostrarModalDetalle = false;
         metaDetalle = null;
+        editandoCuotaDiaria = null;
+        detallesModificados.Clear();
     }
 
     private async Task ExportarExcelMeta(int idMetaMensual)
@@ -661,7 +748,106 @@ private bool PuedeEnviar(MetaMensualDTO meta)
             await JS.InvokeVoidAsync("alert", $"❌ Error al exportar: {ex.Message}");
         }
     }
+
+    // Métodos para edición de cuota mensual
+    private void IniciarEdicionCuotaMensual(MetaMensualDTO meta)
+    {
+        if (!esAdministrador) return;
+        editandoCuotaMensual = meta.IdMetaMensual;
+        cuotaMensualEditada = meta.MetaMensual;
+    }
+
+    private async Task GuardarCuotaMensual(MetaMensualDTO meta)
+    {
+        if (editandoCuotaMensual != meta.IdMetaMensual) return;
+        
+        editandoCuotaMensual = null;
+        
+        if (cuotaMensualEditada == meta.MetaMensual) return;
+        
+        guardando = true;
+        try
+        {
+            var exito = await MetaMensualService.ActualizarMetaMensual(meta.IdMetaMensual, cuotaMensualEditada);
+            if (exito)
+            {
+                meta.MetaMensual = Math.Round(cuotaMensualEditada, 0);
+                await JS.InvokeVoidAsync("alert", "✅ Cuota mensual actualizada correctamente");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "❌ No se pudo actualizar la cuota mensual");
+            }
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    // Métodos para edición de cuota diaria
+    private void IniciarEdicionCuotaDiaria(MetaMensualDetalleDTO detalle)
+    {
+        if (!esAdministrador) return;
+        editandoCuotaDiaria = detalle.IdMetaMensualDetalle;
+        cuotaDiariaEditada = detalle.MetaDiaria;
+    }
+
+    private void GuardarCuotaDiaria(MetaMensualDetalleDTO detalle)
+    {
+        if (editandoCuotaDiaria != detalle.IdMetaMensualDetalle) return;
+        
+        editandoCuotaDiaria = null;
+        
+        if (cuotaDiariaEditada != detalle.MetaDiaria)
+        {
+            detalle.MetaDiaria = Math.Round(cuotaDiariaEditada, 0);
+            detallesModificados.Add(detalle.IdMetaMensualDetalle);
+        }
+    }
+
+    private async Task GuardarTodosDetalles()
+    {
+        if (metaDetalle == null || !detallesModificados.Any()) return;
+        
+        guardando = true;
+        try
+        {
+            var detallesActualizar = metaDetalle.Detalles
+                .Where(d => detallesModificados.Contains(d.IdMetaMensualDetalle))
+                .Select(d => new DetalleActualizacion
+                {
+                    IdMetaMensualDetalle = d.IdMetaMensualDetalle,
+                    MetaDiaria = d.MetaDiaria
+                })
+                .ToList();
+            
+            var exito = await MetaMensualService.ActualizarDetalles(metaDetalle.IdMetaMensual, detallesActualizar);
+            if (exito)
+            {
+                detallesModificados.Clear();
+                // Actualizar la meta mensual local con la suma de cuotas
+                metaDetalle.MetaMensual = metaDetalle.Detalles.Sum(d => d.MetaDiaria);
+                // Actualizar también en la lista principal
+                var metaEnLista = metas.FirstOrDefault(m => m.IdMetaMensual == metaDetalle.IdMetaMensual);
+                if (metaEnLista != null)
+                {
+                    metaEnLista.MetaMensual = metaDetalle.MetaMensual;
+                }
+                await JS.InvokeVoidAsync("alert", "✅ Cuotas diarias actualizadas correctamente");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "❌ No se pudieron actualizar las cuotas diarias");
+            }
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
 }
+
 
 
 
