@@ -9,6 +9,7 @@
 @inject ArticuloVarianteService ArticuloVarianteService
 @inject AuthService AuthService
 @inject ReniecService ReniecService
+@inject SerieGuiaRemisionService SerieGuiaService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -43,7 +44,12 @@
                         <div class="row g-3">
                             <div class="col-md-3">
                                 <label class="form-label">Serie</label>
-                                <input type="text" class="form-control" @bind="guia.Serie" placeholder="T001" maxlength="4" />
+                                <input type="text" class="form-control bg-light" value="@guia.Serie" readonly 
+                                       title="La serie se asigna automáticamente según el almacén seleccionado" />
+                                @if (!string.IsNullOrEmpty(mensajeErrorSerie))
+                                {
+                                    <small class="text-danger">@mensajeErrorSerie</small>
+                                }
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Fecha Emisión</label>
@@ -397,6 +403,7 @@
     private bool buscandoRuc = false;
     private string mensajeRuc = "";
     private bool rucEncontrado = false;
+    private string mensajeErrorSerie = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -429,8 +436,8 @@
             }
             else
             {
-                // Valores por defecto
-                guia.Serie = "T001";
+                // Valores por defecto (la serie se asigna al seleccionar almacén)
+                guia.Serie = "";
                 guia.FechaEmision = DateTime.Today;
                 guia.FechaInicioTraslado = DateTime.Today;
                 guia.MotivoTraslado = "01";
@@ -451,6 +458,9 @@
 
     private async Task OnAlmacenChange()
     {
+        mensajeErrorSerie = "";
+        guia.Serie = "";
+        
         if (guia.IdAlmacen.HasValue)
         {
             var alm = almacenes.FirstOrDefault(a => a.IdAlmacen == guia.IdAlmacen.Value);
@@ -463,8 +473,20 @@
                 guia.DireccionPartida = alm.Direccion ?? "";
                 guia.UbigeoPartida = alm.Ubigeo ?? "";
             }
+            
+            // Buscar la serie asignada a este almacén
+            var serieAlmacen = await SerieGuiaService.ObtenerPorAlmacenAsync(guia.IdAlmacen.Value);
+            if (serieAlmacen != null)
+            {
+                guia.Serie = serieAlmacen.Serie;
+                mensajeErrorSerie = "";
+            }
+            else
+            {
+                guia.Serie = "";
+                mensajeErrorSerie = "⚠ Este almacén no tiene serie de guía configurada";
+            }
         }
-        await Task.CompletedTask;
     }
 
     private void AgregarDetalle()

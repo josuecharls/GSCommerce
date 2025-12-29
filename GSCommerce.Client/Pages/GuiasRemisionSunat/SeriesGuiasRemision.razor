@@ -1,0 +1,314 @@
+@page "/series-guias-remision"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject AlmacenService AlmacenService
+@inject SerieGuiaRemisionService SerieService
+@inject IJSRuntime JS
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">
+            <i class="bi bi-truck text-primary me-2"></i>
+            Series de Guías de Remisión por Almacén
+        </h3>
+        <button class="btn btn-primary" @onclick="NuevaSerie">
+            <i class="bi bi-plus-lg me-1"></i> Nueva Serie
+        </button>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+            <p class="mt-2">Cargando...</p>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Almacén</th>
+                            <th>Serie</th>
+                            <th class="text-center">Correlativo</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (series.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-5">
+                                    <i class="bi bi-inbox display-4 d-block mb-2"></i>
+                                    No hay series configuradas. Haga clic en "Nueva Serie" para agregar una.
+                                </td>
+                            </tr>
+                        }
+                        @foreach (var s in series)
+                        {
+                            <tr>
+                                <td>
+                                    <i class="bi bi-building me-1 text-muted"></i>
+                                    @s.NombreAlmacen
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary fs-6">@s.Serie</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-secondary">@s.Correlativo</span>
+                                </td>
+                                <td class="text-center">
+                                    @if (s.Estado)
+                                    {
+                                        <span class="badge bg-success">ACTIVO</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">INACTIVO</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-warning btn-sm me-1" @onclick="() => Editar(s)" title="Editar">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" @onclick="() => Eliminar(s)" title="Eliminar">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @if (almacenesSinSerie.Count > 0)
+        {
+            <div class="alert alert-warning mt-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>@almacenesSinSerie.Count almacén(es) sin serie asignada:</strong>
+                @string.Join(", ", almacenesSinSerie.Select(a => a.Nombre))
+            </div>
+        }
+    }
+</div>
+
+<!-- Modal de formulario -->
+@if (mostrarModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-truck me-2"></i>
+                        @(esNuevo ? "Nueva" : "Editar") Serie de Guía de Remisión
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                </div>
+                <EditForm Model="@formulario" OnValidSubmit="Guardar">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Almacén</label>
+                            @if (esNuevo)
+                            {
+                                <select class="form-select" @bind="formulario.IdAlmacen">
+                                    <option value="0">-- Seleccione un almacén --</option>
+                                    @foreach (var alm in almacenesSinSerie)
+                                    {
+                                        <option value="@alm.IdAlmacen">@alm.Nombre</option>
+                                    }
+                                </select>
+                                <ValidationMessage For="() => formulario.IdAlmacen" />
+                            }
+                            else
+                            {
+                                <input type="text" class="form-control" value="@formulario.NombreAlmacen" disabled />
+                            }
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Serie</label>
+                            <input type="text" class="form-control" @bind="formulario.Serie" 
+                                   maxlength="4" placeholder="T001" disabled="@(!esNuevo)"
+                                   style="text-transform: uppercase;" />
+                            <ValidationMessage For="() => formulario.Serie" />
+                            <small class="text-muted">Formato recomendado: T001, T002, etc.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Correlativo Actual</label>
+                            <input type="number" class="form-control" @bind="formulario.Correlativo" min="0" />
+                            <ValidationMessage For="() => formulario.Correlativo" />
+                            <small class="text-muted">El siguiente número a usar será @(formulario.Correlativo + 1)</small>
+                        </div>
+                        @if (!esNuevo)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label">Estado</label>
+                                <select class="form-select" @bind="formulario.Estado">
+                                    <option value="true">ACTIVO</option>
+                                    <option value="false">INACTIVO</option>
+                                </select>
+                            </div>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                        <button type="submit" class="btn btn-success" disabled="@guardando">
+                            @if (guardando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            Guardar
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<SerieGuiaRemisionDTO> series = new();
+    private List<AlmacenDTO> almacenes = new();
+    private List<AlmacenDTO> almacenesSinSerie = new();
+    
+    private SerieGuiaRemisionDTO formulario = new();
+    private bool mostrarModal = false;
+    private bool esNuevo = true;
+    private bool cargando = true;
+    private bool guardando = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        try
+        {
+            series = await SerieService.ObtenerTodasAsync();
+            almacenes = await AlmacenService.GetAlmacenes() ?? new();
+            
+            // Filtrar almacenes que no tienen serie asignada
+            var almacenesConSerie = series.Select(s => s.IdAlmacen).ToHashSet();
+            almacenesSinSerie = almacenes
+                .Where(a => !almacenesConSerie.Contains(a.IdAlmacen) && a.Estado)
+                .ToList();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void NuevaSerie()
+    {
+        formulario = new SerieGuiaRemisionDTO
+        {
+            Estado = true,
+            Serie = GenerarSugerenciaSerie()
+        };
+        esNuevo = true;
+        mostrarModal = true;
+    }
+
+    private string GenerarSugerenciaSerie()
+    {
+        if (series.Count == 0) return "T001";
+        
+        // Buscar el número más alto y sugerir el siguiente
+        var maxNumero = series
+            .Where(s => s.Serie.StartsWith("T") && s.Serie.Length == 4)
+            .Select(s => int.TryParse(s.Serie.Substring(1), out var n) ? n : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+        
+        return $"T{(maxNumero + 1):D3}";
+    }
+
+    private void Editar(SerieGuiaRemisionDTO serie)
+    {
+        formulario = new SerieGuiaRemisionDTO
+        {
+            IdSerieGuiaRemision = serie.IdSerieGuiaRemision,
+            IdAlmacen = serie.IdAlmacen,
+            NombreAlmacen = serie.NombreAlmacen,
+            Serie = serie.Serie,
+            Correlativo = serie.Correlativo,
+            Estado = serie.Estado
+        };
+        esNuevo = false;
+        mostrarModal = true;
+    }
+
+    private async Task Guardar()
+    {
+        if (esNuevo && formulario.IdAlmacen <= 0)
+        {
+            await JS.InvokeVoidAsync("alert", "Seleccione un almacén");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(formulario.Serie))
+        {
+            await JS.InvokeVoidAsync("alert", "Ingrese la serie");
+            return;
+        }
+
+        guardando = true;
+        try
+        {
+            bool exito;
+            string mensaje;
+
+            if (esNuevo)
+            {
+                (exito, mensaje) = await SerieService.CrearSerieAsync(formulario);
+            }
+            else
+            {
+                (exito, mensaje) = await SerieService.ActualizarSerieAsync(formulario);
+            }
+
+            await JS.InvokeVoidAsync("alert", mensaje);
+
+            if (exito)
+            {
+                CerrarModal();
+                await CargarDatos();
+            }
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task Eliminar(SerieGuiaRemisionDTO serie)
+    {
+        var confirmar = await JS.InvokeAsync<bool>("confirm", $"¿Desea eliminar la serie {serie.Serie} del almacén {serie.NombreAlmacen}?");
+        if (!confirmar) return;
+
+        var (exito, mensaje) = await SerieService.EliminarSerieAsync(serie.IdSerieGuiaRemision);
+        await JS.InvokeVoidAsync("alert", mensaje);
+
+        if (exito)
+        {
+            await CargarDatos();
+        }
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        formulario = new();
+    }
+}
