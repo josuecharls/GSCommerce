@@ -165,6 +165,16 @@
                     </tr>
                 }
             </tbody>
+            <tfoot>
+                <tr class="table-dark fw-bold">
+                    <td colspan="5" class="text-end">TOTALES (@ventas.Count comprobantes):</td>
+                    <td>S/ @ventas.Sum(v => v.SubTotal).ToString("N2")</td>
+                    <td>S/ @ventas.Sum(v => v.Igv).ToString("N2")</td>
+                    <td>S/ @ventas.Sum(v => v.Total).ToString("N2")</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+
         </table>
     </div>
 }

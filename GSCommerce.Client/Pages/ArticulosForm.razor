@@ -692,9 +692,9 @@ else
     {
         // Color y Talla ahora se manejan con variantes, no se incluyen en la descripción base
         articulo.Descripcion =
-            $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo}".Trim();
+            $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Detalle}".Trim();
         articulo.DescripcionCorta =
-            $"{articulo.Familia} {articulo.Marca} {articulo.Modelo}".Trim();
+            $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Detalle}".Trim();
     }
 
     private async Task SaveArticulo()
