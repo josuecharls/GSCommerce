@@ -6,6 +6,7 @@
 @inject GuiaRemisionSunatService GuiaService
 @inject AlmacenService AlmacenService
 @inject ArticuloService ArticuloService
+@inject ArticuloVarianteService ArticuloVarianteService
 @inject AuthService AuthService
 @inject ReniecService ReniecService
 @inject NavigationManager Navigation
@@ -310,11 +311,23 @@
                                             <td>@det.Item</td>
                                             <td>
                                                 <input type="text" class="form-control form-control-sm" 
-                                                       @bind="det.IdArticulo" style="width: 70px;" />
+                                                       value="@det.IdArticulo" 
+                                                       @onchange="async (e) => await OnCodigoArticuloChange(det, e.Value?.ToString() ?? string.Empty)" 
+                                                       style="width: 80px;" />
                                             </td>
                                             <td>
-                                                <input type="text" class="form-control form-control-sm" 
-                                                       @bind="det.DescripcionArticulo" />
+                                                @if (det.ExisteEnBD)
+                                                {
+                                                    <input type="text" class="form-control form-control-sm bg-light" 
+                                                           value="@det.DescripcionArticulo" readonly 
+                                                           title="Artículo de la BD - descripción no editable" />
+                                                }
+                                                else
+                                                {
+                                                    <input type="text" class="form-control form-control-sm" 
+                                                           @bind="det.DescripcionArticulo" 
+                                                           placeholder="Descripción del artículo" />
+                                                }
                                             </td>
                                             <td>
                                                 <input type="number" class="form-control form-control-sm" 
@@ -473,6 +486,95 @@
         {
             guia.Detalles[i].Item = i + 1;
         }
+    }
+
+    /// <summary>
+    /// Busca un artículo por código (con soporte para variantes).
+    /// Formato: XXXXXX o XXXXXX-N donde N es el índice de la variante (1-based)
+    /// </summary>
+    private async Task OnCodigoArticuloChange(GuiaRemisionDetalleItemDTO det, string codigo)
+    {
+        det.IdArticulo = codigo;
+        det.ExisteEnBD = false;
+        det.DescripcionArticulo = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(codigo))
+        {
+            return;
+        }
+
+        try
+        {
+            // Parsear el código para extraer el ID base y el índice de variante
+            string idArticuloBase = codigo;
+            int? varianteIndex = null;
+
+            // Verificar si tiene formato XXXXXX-N
+            if (codigo.Contains("-"))
+            {
+                var partes = codigo.Split('-');
+                if (partes.Length == 2 && int.TryParse(partes[1], out int idx))
+                {
+                    idArticuloBase = partes[0];
+                    varianteIndex = idx;
+                }
+            }
+
+            // Formatear el ID a 6 caracteres
+            var idFormateado = idArticuloBase.PadLeft(6, '0');
+
+            // Buscar el artículo en la BD
+            var articulo = await ArticuloService.GetArticuloById(idFormateado);
+
+            if (articulo == null)
+            {
+                // Artículo no existe en la BD - permitir descripción manual
+                det.ExisteEnBD = false;
+                return;
+            }
+
+            // Artículo existe - construir descripción
+            det.ExisteEnBD = true;
+            string descripcionBase = articulo.Descripcion ?? articulo.DescripcionCorta ?? "";
+
+            // Si tiene índice de variante, buscar la variante específica
+            if (varianteIndex.HasValue)
+            {
+                var variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(idFormateado);
+                
+                if (variantes != null && variantes.Count > 0)
+                {
+                    // El índice es 1-based
+                    if (varianteIndex.Value >= 1 && varianteIndex.Value <= variantes.Count)
+                    {
+                        var variante = variantes[varianteIndex.Value - 1];
+                        det.DescripcionArticulo = $"{descripcionBase} C/{variante.Color} T/{variante.Talla}";
+                    }
+                    else
+                    {
+                        // Índice fuera de rango - usar descripción base
+                        det.DescripcionArticulo = descripcionBase;
+                    }
+                }
+                else
+                {
+                    // No tiene variantes - usar descripción base
+                    det.DescripcionArticulo = descripcionBase;
+                }
+            }
+            else
+            {
+                // Sin índice de variante - usar descripción base
+                det.DescripcionArticulo = descripcionBase;
+            }
+        }
+        catch
+        {
+            // Error al buscar - permitir descripción manual
+            det.ExisteEnBD = false;
+        }
+
+        StateHasChanged();
     }
 
     private async Task Guardar()

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using GSCommerceAPI.Services.SUNAT;
 using GSCommerceAPI.Models.SUNAT.DTOs;
+using QuestPDF.Fluent;
 
 namespace GSCommerceAPI.Controllers;
 
@@ -186,6 +187,34 @@ public class GuiaRemisionSunatController : ControllerBase
     public IActionResult ObtenerTiposDocumento()
     {
         return Ok(CatalogoTipoDocumentoIdentidad.Tipos.Select(t => new { codigo = t.Key, descripcion = t.Value }));
+    }
+
+    /// <summary>
+    /// Generar y descargar PDF de la guía de remisión
+    /// </summary>
+    [HttpGet("{id}/pdf")]
+    [AllowAnonymous]
+    public async Task<IActionResult> DescargarPdf(int id)
+    {
+        try
+        {
+            var guia = await _guiaService.ObtenerGuiaRemisionAsync(id);
+            
+            if (guia == null)
+                return NotFound(new { mensaje = "Guía de remisión no encontrada" });
+
+            // Generar el PDF
+            var document = new GuiaRemisionDocument(guia);
+            var pdf = document.GeneratePdf();
+
+            var nombreArchivo = $"GRE_{guia.Serie}-{guia.Numero:D8}.pdf";
+            
+            return File(pdf, "application/pdf", nombreArchivo);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { mensaje = $"Error al generar PDF: {ex.Message}" });
+        }
     }
 }
 

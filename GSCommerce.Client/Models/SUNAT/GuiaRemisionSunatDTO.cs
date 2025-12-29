@@ -86,6 +86,10 @@ public class GuiaRemisionDetalleItemDTO
     public decimal Cantidad { get; set; }
     public string UnidadMedida { get; set; } = "NIU";
     public decimal? PesoUnitario { get; set; }
+    /// <summary>
+    /// Indica si el artículo existe en la base de datos. Si es true, la descripción no es editable.
+    /// </summary>
+    public bool ExisteEnBD { get; set; } = false;
 }
 
 public class CatalogoItemDTO

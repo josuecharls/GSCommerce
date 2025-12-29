@@ -169,6 +169,9 @@
                                             <button class="btn btn-outline-danger" @onclick="() => AnularGuiaSunat(g.IdGuiaRemision)" title="Comunicar Baja a SUNAT">
                                                 <i class="bi bi-x-octagon"></i>
                                             </button>
+                                            <button class="btn btn-outline-success" @onclick="() => DescargarPdf(g.IdGuiaRemision)" title="Descargar PDF">
+                                                <i class="bi bi-file-earmark-pdf"></i>
+                                            </button>
                                         }
                                     </div>
                                 </td>
@@ -363,6 +366,12 @@
             page++;
             await Buscar();
         }
+    }
+
+    private async Task DescargarPdf(int id)
+    {
+        // Abrir el PDF en una nueva pestaña
+        await JS.InvokeVoidAsync("open", $"/api/guias-remision-sunat/{id}/pdf", "_blank");
     }
 }
 
