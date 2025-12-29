@@ -103,6 +103,49 @@ namespace GSCommerce.Client.Services
             }
         }
 
+        /// <summary>
+        /// Obtiene ventas con filtros de selección múltiple para almacenes y tipos de documento
+        /// </summary>
+        public async Task<List<VentaConsultaDTO>> ObtenerVentasMultiAsync(
+            DateTime desde, DateTime hasta, 
+            List<int>? almacenIds = null, 
+            List<int>? tipoDocIds = null)
+        {
+            try
+            {
+                string url = $"ventas/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+                
+                if (almacenIds != null && almacenIds.Count > 0)
+                    url += $"&almacenIds={string.Join(",", almacenIds)}";
+                
+                if (tipoDocIds != null && tipoDocIds.Count > 0)
+                    url += $"&tipoDocIds={string.Join(",", tipoDocIds)}";
+
+                return await _httpClient.GetFromJsonAsync<List<VentaConsultaDTO>>(url) ?? new();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al listar ventas (multi): {ex.Message}");
+                return new();
+            }
+        }
+
+        /// <summary>
+        /// Busca un comprobante por Serie y Número sin restricción de fecha
+        /// </summary>
+        public async Task<List<VentaConsultaDTO>> BuscarPorSerieNumeroAsync(string serie, int numero)
+        {
+            try
+            {
+                string url = $"ventas/buscar-serie-numero?serie={serie}&numero={numero}";
+                return await _httpClient.GetFromJsonAsync<List<VentaConsultaDTO>>(url) ?? new();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al buscar por serie/número: {ex.Message}");
+                return new();
+            }
+        }
 
         public async Task<bool> RegistrarYEnviarVentaAsync(VentaRegistroDTO venta)
         {
@@ -296,6 +339,31 @@ namespace GSCommerce.Client.Services
             
             var errorMsg = await response.Content.ReadAsStringAsync();
             return (false, errorMsg);
+        }
+
+        /// <summary>
+        /// Actualiza los detalles de una BOLETA M antes de reenviar a SUNAT
+        /// </summary>
+        public async Task<VentaDTO?> ActualizarDetallesVentaAsync(int idComprobante, List<VentaDetalleDTO> detalles)
+        {
+            try
+            {
+                var response = await _httpClient.PutAsJsonAsync($"ventas/{idComprobante}/detalles", detalles);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<VentaDTO>();
+                }
+                
+                var error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error al actualizar detalles: {error}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al actualizar detalles: {ex.Message}");
+                return null;
+            }
         }
 
         public async Task<bool> AnularTicketAsync(int idComprobante, AnulacionTicketDTO dto)

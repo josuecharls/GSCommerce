@@ -1201,8 +1201,9 @@ else
             // En boletas, DNI o sin nada
             venta.TipoDocumento = venta.DocumentoCliente.Length == 8 ? "1" : "0";
         }
-        // Luego de registrar correctamente, envía a SUNAT (si no es TICKET)
-        if (tipoDoc.Abreviatura != "TK")
+        // Luego de registrar correctamente, envía a SUNAT (si no es TICKET ni BOLETA M)
+        // BOLETA M se reenviará manualmente desde la ventana de consulta de ventas
+        if (tipoDoc.Abreviatura != "TK" && tipoDoc.Descripcion != "BOLETA M")
         {
             await JS.InvokeVoidAsync("console.log", "Enviando a SUNAT...", new
             {

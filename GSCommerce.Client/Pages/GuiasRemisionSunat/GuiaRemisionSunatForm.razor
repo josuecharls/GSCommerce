@@ -560,6 +560,22 @@
             JS.InvokeVoidAsync("alert", "Ingrese la razón social del destinatario");
             return false;
         }
+        
+        // Validación especial: Motivo 04 (Traslado entre establecimientos de la misma empresa)
+        // El RUC del destinatario debe ser el mismo que el del remitente
+        if (guia.MotivoTraslado == "04")
+        {
+            if (guia.TipoDocumentoDestinatario != "6")
+            {
+                JS.InvokeVoidAsync("alert", "Para traslado entre establecimientos, el destinatario debe tener RUC (no DNI)");
+                return false;
+            }
+            if (guia.NumeroDocumentoDestinatario != guia.RucRemitente)
+            {
+                JS.InvokeVoidAsync("alert", $"Para traslado entre establecimientos de la misma empresa, el RUC del destinatario debe ser igual al del remitente ({guia.RucRemitente})");
+                return false;
+            }
+        }
         if (string.IsNullOrWhiteSpace(guia.UbigeoLlegada))
         {
             JS.InvokeVoidAsync("alert", "Ingrese el ubigeo de destino");

@@ -840,13 +840,36 @@ namespace GSCommerceAPI.Controllers
             // opcional: buscar por documento del cliente
             [FromQuery] string? dniruc,
             // opcional: filtrar por cajero (IdUsuario)
-            [FromQuery] int? idUsuario
+            [FromQuery] int? idUsuario,
+            // NUEVO: filtros múltiples (IDs separados por coma)
+            [FromQuery] string? almacenIds,
+            [FromQuery] string? tipoDocIds
         )
         {
             var inicio = (desde?.Date) ?? DateTime.Today;
             var finExcl = ((hasta?.Date) ?? inicio).AddDays(1);
 
             var query = _context.VVenta1s.Where(v => v.Fecha >= inicio && v.Fecha < finExcl);
+
+            // Parsear almacenIds múltiples
+            List<int>? listaAlmacenIds = null;
+            if (!string.IsNullOrWhiteSpace(almacenIds))
+            {
+                listaAlmacenIds = almacenIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => int.TryParse(s.Trim(), out var id) ? id : 0)
+                    .Where(id => id > 0)
+                    .ToList();
+            }
+
+            // Parsear tipoDocIds múltiples
+            List<int>? listaTipoDocIds = null;
+            if (!string.IsNullOrWhiteSpace(tipoDocIds))
+            {
+                listaTipoDocIds = tipoDocIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => int.TryParse(s.Trim(), out var id) ? id : 0)
+                    .Where(id => id > 0)
+                    .ToList();
+            }
 
             // Filtro por almacén según cargo
             var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
@@ -871,6 +894,11 @@ namespace GSCommerceAPI.Controllers
                     return Ok(new List<VentaConsultaDTO>());
                 }
             }
+            else if (listaAlmacenIds != null && listaAlmacenIds.Count > 0)
+            {
+                // Filtro por múltiples almacenes
+                query = query.Where(v => listaAlmacenIds.Contains(v.IdAlmacen));
+            }
             else if (idAlmacen.HasValue && idAlmacen.Value > 0)
             {
                 query = query.Where(v => v.IdAlmacen == idAlmacen.Value);
@@ -882,10 +910,17 @@ namespace GSCommerceAPI.Controllers
                 query = query.Where(v => v.IdCajero == idUsuario.Value);
             }
 
-            // Filtro por tipo de documento
-            var tipo = tipoDoc ?? idTipoDocAlias;
-            if (tipo.HasValue)
-                query = query.Where(v => v.IdTipoDocumento == tipo.Value);
+            // Filtro por tipo de documento (múltiple o simple)
+            if (listaTipoDocIds != null && listaTipoDocIds.Count > 0)
+            {
+                query = query.Where(v => listaTipoDocIds.Contains(v.IdTipoDocumento));
+            }
+            else
+            {
+                var tipo = tipoDoc ?? idTipoDocAlias;
+                if (tipo.HasValue)
+                    query = query.Where(v => v.IdTipoDocumento == tipo.Value);
+            }
 
             // Filtro por documento del cliente (DNI/RUC)
             if (!string.IsNullOrWhiteSpace(dniruc))
@@ -1015,6 +1050,167 @@ namespace GSCommerceAPI.Controllers
                 }
             }
 
+            return Ok(ventas);
+        }
+
+        /// <summary>
+        /// Busca un comprobante por Serie y Número sin restricción de fecha
+        /// </summary>
+        [HttpGet("buscar-serie-numero")]
+        [Authorize]
+        public async Task<IActionResult> BuscarPorSerieNumero(
+            [FromQuery] string serie,
+            [FromQuery] int numero)
+        {
+            if (string.IsNullOrWhiteSpace(serie))
+                return BadRequest("La serie es requerida");
+            
+            // Normalizar serie (remover prefijo B o F si existe)
+            var serieNormalizada = serie.TrimStart('B', 'b', 'F', 'f');
+            
+            var query = _context.VVenta1s.Where(v => v.Serie == serieNormalizada && v.Numero == numero);
+            
+            // Aplicar filtros de seguridad según cargo
+            var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+            {
+                var userIdClaim = User.FindFirst("userId")?.Value;
+                if (int.TryParse(userIdClaim, out var userId))
+                {
+                    var userAlmacen = await _context.Usuarios
+                        .Where(u => u.IdUsuario == userId)
+                        .Select(u => u.IdPersonalNavigation != null ? (int?)u.IdPersonalNavigation.IdAlmacen : null)
+                        .FirstOrDefaultAsync();
+                    
+                    if (!userAlmacen.HasValue) return Ok(new List<VentaConsultaDTO>());
+                    query = query.Where(v => v.IdAlmacen == userAlmacen.Value);
+                }
+                else
+                {
+                    return Ok(new List<VentaConsultaDTO>());
+                }
+            }
+            
+            var ventas = await query
+                .Select(v => new VentaConsultaDTO
+                {
+                    IdComprobante = v.IdComprobante,
+                    IdTipoDocumento = v.IdTipoDocumento,
+                    TipoDocumento = v.IdTipoDocumento == 1 ? "BOLETA" :
+                                    v.IdTipoDocumento == 2 ? "FACTURA" :
+                                    v.IdTipoDocumento == 5 ? "BOLETA M" :
+                                    v.IdTipoDocumento == 6 ? "FACTURA M" :
+                                    v.IdTipoDocumento == 4 ? "TICKET" : "OTRO",
+                    Serie = v.Serie,
+                    Numero = v.Numero,
+                    Fecha = v.Fecha,
+                    DocumentoCliente = v.Dniruc ?? string.Empty,
+                    NombreCliente = v.Nombre,
+                    Total = v.Total,
+                    Estado = v.Estado
+                })
+                .ToListAsync();
+            
+            // Enriquecer con datos adicionales si se encontró
+            if (ventas.Any())
+            {
+                var ids = ventas.Select(v => v.IdComprobante).ToList();
+                
+                var montos = await _context.ComprobanteDeVentaCabeceras
+                    .Where(c => ids.Contains(c.IdComprobante))
+                    .Select(c => new { c.IdComprobante, c.SubTotal, c.Igv, c.GeneroNc })
+                    .ToDictionaryAsync(c => c.IdComprobante);
+                
+                foreach (var v in ventas)
+                {
+                    if (montos.TryGetValue(v.IdComprobante, out var m))
+                    {
+                        v.SubTotal = m.SubTotal;
+                        v.Igv = m.Igv;
+                        v.GeneroNC = string.IsNullOrWhiteSpace(m.GeneroNc) ? null : m.GeneroNc;
+                    }
+                }
+                
+                // Obtener información de vendedoras
+                var vendedoresInfo = await (from c in _context.ComprobanteDeVentaCabeceras
+                                           join p in _context.Personals on c.IdVendedor equals p.IdPersonal into vendedorJoin
+                                           from vendedor in vendedorJoin.DefaultIfEmpty()
+                                           where ids.Contains(c.IdComprobante)
+                                           select new { 
+                                               c.IdComprobante, 
+                                               NombreVendedor = vendedor != null ? 
+                                                   ((vendedor.Nombres ?? "") + " " + (vendedor.Apellidos ?? "")).Trim() : null
+                                           })
+                                           .ToDictionaryAsync(x => x.IdComprobante);
+
+                foreach (var v in ventas)
+                {
+                    if (vendedoresInfo.TryGetValue(v.IdComprobante, out var vendedorInfo))
+                    {
+                        v.NombreVendedor = vendedorInfo.NombreVendedor;
+                    }
+                }
+                
+                // Agrupar formas de pago
+                var pagosList = await (from p in _context.VDetallePagoVenta1s
+                                       join tp in _context.TipoPagoVenta on p.IdTipoPagoVenta equals tp.IdTipoPagoVenta
+                                       where ids.Contains(p.IdComprobante)
+                                       select new DetallePagoDTO
+                                       {
+                                           IdDetallePagoVenta = p.IdDetallePagoVenta,
+                                           IdComprobante = p.IdComprobante,
+                                           IdTipoPagoVenta = p.IdTipoPagoVenta,
+                                           Soles = p.Soles,
+                                           Dolares = p.Dolares,
+                                           Datos = p.Datos,
+                                           Vuelto = p.Vuelto,
+                                           PorcentajeTarjetaSoles = p.PorcentajeTarjetaSoles,
+                                           PorcentajeTarjetaDolares = p.PorcentajeTarjetaDolares,
+                                           FormaPago = tp.Descripcion,
+                                           Monto = p.Soles > 0 ? p.Soles : p.Dolares,
+                                           CodigoVerificacion = p.Datos,
+                                           Tipo = tp.Tipo
+                                       }).ToListAsync();
+
+                var pagosAgrupados = pagosList
+                    .GroupBy(p => p.IdComprobante)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                foreach (var v in ventas)
+                {
+                    if (pagosAgrupados.TryGetValue(v.IdComprobante, out var pagos))
+                    {
+                        v.FormaPago = string.Join(", ", pagos.Select(p => p.FormaPago));
+                        v.Pagos = pagos;
+                    }
+                }
+                
+                // Estado SUNAT de los comprobantes
+                var estadosSunat = await _context.Comprobantes
+                    .Where(c => ids.Contains(c.IdComprobante))
+                    .Select(c => new { c.IdComprobante, c.EnviadoSunat, c.Estado, c.RespuestaSunat })
+                    .ToDictionaryAsync(c => c.IdComprobante, c => c);
+
+                foreach (var v in ventas)
+                {
+                    if (estadosSunat.TryGetValue(v.IdComprobante, out var est))
+                    {
+                        v.DescripcionSunat = est.RespuestaSunat;
+                        if (est.EnviadoSunat.HasValue && est.EnviadoSunat.Value)
+                            v.EstadoSunat = est.Estado ? "ACEPTADO" : "RECHAZADO";
+                        else if (!string.IsNullOrWhiteSpace(est.RespuestaSunat))
+                            v.EstadoSunat = "RECHAZADO";
+                        else
+                            v.EstadoSunat = "PENDIENTE";
+                    }
+                    else
+                    {
+                        v.EstadoSunat = "PENDIENTE";
+                        v.DescripcionSunat = null;
+                    }
+                }
+            }
+            
             return Ok(ventas);
         }
 
@@ -2597,6 +2793,110 @@ namespace GSCommerceAPI.Controllers
                 .ToList();
 
             return Ok(fechas);
+        }
+
+        /// <summary>
+        /// Actualiza los detalles de una BOLETA M pendiente de envío a SUNAT
+        /// </summary>
+        [HttpPut("{id}/detalles")]
+        [Authorize]
+        public async Task<IActionResult> ActualizarDetallesVenta(int id, [FromBody] List<GSCommerce.Client.Models.VentaDetalleDTO> detalles)
+        {
+            var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+                return Forbid();
+
+            // Obtener la cabecera de la venta
+            var cab = await _context.ComprobanteDeVentaCabeceras
+                .FirstOrDefaultAsync(c => c.IdComprobante == id);
+            
+            if (cab == null)
+                return NotFound("Comprobante no encontrado.");
+
+            // Solo permitir edición de BOLETA M (IdTipoDocumento = 5)
+            if (cab.IdTipoDocumento != 5)
+                return BadRequest("Solo se puede editar BOLETA M.");
+
+            // Verificar que no esté ya enviada a SUNAT
+            var comp = await _context.Comprobantes
+                .FirstOrDefaultAsync(c => c.IdComprobante == id);
+            
+            if (comp != null && comp.EnviadoSunat == true && !string.IsNullOrEmpty(comp.RespuestaSunat) && !comp.RespuestaSunat.Contains("Error"))
+                return BadRequest("El comprobante ya fue enviado a SUNAT y no puede ser editado.");
+
+            // Validar que haya al menos un detalle
+            if (detalles == null || !detalles.Any())
+                return BadRequest("Debe haber al menos un artículo.");
+
+            // Eliminar detalles actuales
+            var detallesActuales = await _context.ComprobanteDeVentaDetalles
+                .Where(d => d.IdComprobante == id)
+                .ToListAsync();
+            
+            _context.ComprobanteDeVentaDetalles.RemoveRange(detallesActuales);
+
+            // Insertar nuevos detalles
+            int itemNum = 1;
+            decimal totalVenta = 0m;
+            
+            foreach (var det in detalles)
+            {
+                var nuevoDetalle = new ComprobanteDeVentaDetalle
+                {
+                    IdComprobante = id,
+                    Item = itemNum++,
+                    IdArticulo = det.CodigoItem,
+                    Descripcion = det.DescripcionItem,
+                    UnidadMedida = det.UnidadMedida ?? "NIU",
+                    Cantidad = (int)det.Cantidad,
+                    Precio = det.PrecioUnitario,
+                    PorcentajeDescuento = det.PorcentajeDescuento,
+                    Total = det.Total
+                };
+                
+                _context.ComprobanteDeVentaDetalles.Add(nuevoDetalle);
+                totalVenta += det.Total;
+            }
+
+            // Recalcular totales de la cabecera
+            // IGV es 18% del total (precio ya incluye IGV)
+            decimal igv = cab.IdAlmacen == 1024 ? 0m : Math.Round(totalVenta - (totalVenta / 1.18m), 2);
+            decimal subTotal = totalVenta - igv;
+
+            cab.SubTotal = subTotal;
+            cab.Igv = igv;
+            cab.Total = totalVenta;
+            cab.Apagar = totalVenta;
+
+            await _context.SaveChangesAsync();
+
+            // Retornar los datos actualizados
+            var ventaActualizada = new GSCommerce.Client.Models.VentaDTO
+            {
+                IdTipoDocumento = cab.IdTipoDocumento,
+                Serie = cab.Serie,
+                Numero = cab.Numero,
+                Fecha = cab.Fecha,
+                Dniruc = cab.Dniruc,
+                Nombre = cab.Nombre,
+                SubTotal = cab.SubTotal,
+                Igv = cab.Igv,
+                Total = cab.Total,
+                IdAlmacen = cab.IdAlmacen,
+                Detalles = detalles.Select((d, idx) => new GSCommerce.Client.Models.VentaDetalleDTO
+                {
+                    Item = idx + 1,
+                    CodigoItem = d.CodigoItem,
+                    DescripcionItem = d.DescripcionItem,
+                    UnidadMedida = d.UnidadMedida,
+                    Cantidad = d.Cantidad,
+                    PrecioUnitario = d.PrecioUnitario,
+                    PorcentajeDescuento = d.PorcentajeDescuento,
+                    Total = d.Total
+                }).ToList()
+            };
+
+            return Ok(ventaActualizada);
         }
 
         [HttpPost("reenviar-sunat/{idComprobante:int}")]

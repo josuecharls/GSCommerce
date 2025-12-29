@@ -13,29 +13,101 @@
 <div class="row g-3 mb-3">
     @if (cargo == "ADMINISTRADOR")
     {
+        @* Multi-select Almacenes *@
         <div class="col-md-3">
-            <label>Almacén:</label>
-            <select class="form-control" @bind="selectedAlmacen">
-                <option value="0">General</option>
-                @foreach (var a in almacenes)
-                {
-                    <option value="@a.IdAlmacen">@a.Nombre</option>
-                }
-            </select>
+            <label class="form-label">Almacén:</label>
+            <div class="dropdown w-100">
+                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center" 
+                        type="button" 
+                        data-bs-toggle="dropdown" 
+                        data-bs-auto-close="outside"
+                        aria-expanded="false">
+                    <span>@(selectedAlmacenIds.Count == 0 ? "Todos" : $"{selectedAlmacenIds.Count} seleccionados")</span>
+                </button>
+                <ul class="dropdown-menu w-100" style="max-height: 300px; overflow-y: auto;">
+                    <li>
+                        <div class="dropdown-item">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="almTodos" 
+                                       checked="@(selectedAlmacenIds.Count == 0)"
+                                       @onchange="ToggleAllAlmacenes" />
+                                <label class="form-check-label fw-bold" for="almTodos">Todos</label>
+                            </div>
+                        </div>
+                    </li>
+                    <li><hr class="dropdown-divider" /></li>
+                    @foreach (var a in almacenes)
+                    {
+                        <li>
+                            <div class="dropdown-item">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" 
+                                           id="@($"alm_{a.IdAlmacen}")"
+                                           checked="@selectedAlmacenIds.Contains(a.IdAlmacen)"
+                                           @onchange="() => ToggleAlmacen(a.IdAlmacen)" />
+                                    <label class="form-check-label" for="@($"alm_{a.IdAlmacen}")">@a.Nombre</label>
+                                </div>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </div>
         </div>
+
+        @* Multi-select Tipo Documento *@
         <div class="col-md-2">
-            <label>Desde:</label>
+            <label class="form-label">Tipo Doc:</label>
+            <div class="dropdown w-100">
+                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center" 
+                        type="button" 
+                        data-bs-toggle="dropdown" 
+                        data-bs-auto-close="outside"
+                        aria-expanded="false">
+                    <span>@(selectedTipoDocIds.Count == 0 ? "Todos" : $"{selectedTipoDocIds.Count} seleccionados")</span>
+                </button>
+                <ul class="dropdown-menu w-100">
+                    <li>
+                        <div class="dropdown-item">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="tdTodos" 
+                                       checked="@(selectedTipoDocIds.Count == 0)"
+                                       @onchange="ToggleAllTipoDocs" />
+                                <label class="form-check-label fw-bold" for="tdTodos">Todos</label>
+                            </div>
+                        </div>
+                    </li>
+                    <li><hr class="dropdown-divider" /></li>
+                    @foreach (var td in tiposDocumento)
+                    {
+                        <li>
+                            <div class="dropdown-item">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" 
+                                           id="@($"td_{td.Id}")"
+                                           checked="@selectedTipoDocIds.Contains(td.Id)"
+                                           @onchange="() => ToggleTipoDoc(td.Id)" />
+                                    <label class="form-check-label" for="@($"td_{td.Id}")">@td.Nombre</label>
+                                </div>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <label class="form-label">Desde:</label>
             <InputDate @bind-Value="desde" class="form-control" />
         </div>
         <div class="col-md-2">
-            <label>Hasta:</label>
+            <label class="form-label">Hasta:</label>
             <InputDate @bind-Value="hasta" class="form-control" />
         </div>
-        <div class="col-md-2 d-flex align-items-end">
-            <button class="btn btn-primary w-100" @onclick="Buscar"><i class="bi bi-search"></i> Buscar</button>
+        <div class="col-md-1 d-flex align-items-end">
+            <button class="btn btn-primary w-100" @onclick="Buscar"><i class="bi bi-search"></i></button>
         </div>
-        <div class="col-md-3 d-flex align-items-end">
-            <button class="btn btn-success w-100" @onclick="ExportarExcel"><i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel</button>
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-success w-100" @onclick="ExportarExcel"><i class="bi bi-file-earmark-excel-fill"></i> Excel</button>
         </div>
     }
     else
@@ -109,12 +181,58 @@ else
     private List<AlmacenDTO> almacenes = new();
     private int selectedAlmacen;
 
+    // Multi-select collections
+    private HashSet<int> selectedAlmacenIds = new();
+    private HashSet<int> selectedTipoDocIds = new();
+
+    // Tipos de documento disponibles
+    private List<(int Id, string Nombre)> tiposDocumento = new()
+    {
+        (1, "BOLETA"),
+        (2, "FACTURA"),
+        (4, "TICKET"),
+        (5, "BOLETA M")
+    };
+
+    private void ToggleAlmacen(int id)
+    {
+        if (selectedAlmacenIds.Contains(id))
+            selectedAlmacenIds.Remove(id);
+        else
+            selectedAlmacenIds.Add(id);
+    }
+
+    private void ToggleAllAlmacenes()
+    {
+        selectedAlmacenIds.Clear();
+    }
+
+    private void ToggleTipoDoc(int id)
+    {
+        if (selectedTipoDocIds.Contains(id))
+            selectedTipoDocIds.Remove(id);
+        else
+            selectedTipoDocIds.Add(id);
+    }
+
+    private void ToggleAllTipoDocs()
+    {
+        selectedTipoDocIds.Clear();
+    }
+
     private async Task Buscar()
     {
-        int? filtroAlmacen = cargo == "ADMINISTRADOR"
-            ? (selectedAlmacen == 0 ? (int?)null : selectedAlmacen)
-            : selectedAlmacen;
-        ventas = await VentaService.ObtenerVentasAsync(desde, hasta, filtroAlmacen);
+        if (cargo == "ADMINISTRADOR")
+        {
+            // Usar el nuevo método multi-select
+            var almIds = selectedAlmacenIds.Count > 0 ? selectedAlmacenIds.ToList() : null;
+            var tdIds = selectedTipoDocIds.Count > 0 ? selectedTipoDocIds.ToList() : null;
+            ventas = await VentaService.ObtenerVentasMultiAsync(desde, hasta, almIds, tdIds);
+        }
+        else
+        {
+            ventas = await VentaService.ObtenerVentasAsync(desde, hasta, selectedAlmacen);
+        }
     }
 
     private async Task ExportarExcel()
@@ -122,40 +240,36 @@ else
         var headers = new[] { "Tipo Doc", "Comprobante", "Fecha", "ClienteDoc", "Cliente", "SubTotal", "IGV", "Total", "Estado" };
         var rows = new List<object[]>();
 
-        var almacenesExcel = new List<AlmacenDTO>();
+        List<VentaConsultaDTO> datos;
+        
         if (cargo == "ADMINISTRADOR")
         {
-            almacenesExcel = selectedAlmacen > 0
-                ? almacenes.Where(a => a.IdAlmacen == selectedAlmacen).ToList()
-                : almacenes;
+            var almIds = selectedAlmacenIds.Count > 0 ? selectedAlmacenIds.ToList() : null;
+            var tdIds = selectedTipoDocIds.Count > 0 ? selectedTipoDocIds.ToList() : null;
+            datos = await VentaService.ObtenerVentasMultiAsync(desde, hasta, almIds, tdIds);
         }
         else
         {
-            var alm = await AlmacenService.GetAlmacenById(selectedAlmacen);
-            if (alm != null) almacenesExcel.Add(alm);
+            datos = await VentaService.ObtenerVentasAsync(desde, hasta, selectedAlmacen);
         }
 
-        foreach (var alm in almacenesExcel)
+        foreach (var v in datos)
         {
-            var datos = await VentaService.ObtenerVentasAsync(desde, hasta, alm.IdAlmacen);
-            foreach (var v in datos)
+            var prefijo = v.TipoDocumento.StartsWith("F") ? "F" :
+                          v.TipoDocumento.StartsWith("B") ? "B" : "";
+            var comprobante = $"{prefijo}{v.Serie}-{v.Numero:D8}";
+            rows.Add(new object[]
             {
-                var prefijo = v.TipoDocumento.StartsWith("F") ? "F" :
-                              v.TipoDocumento.StartsWith("B") ? "B" : "";
-                var comprobante = $"{prefijo}{v.Serie}-{v.Numero:D8}";
-                rows.Add(new object[]
-                {
-                    v.TipoDocumento,
-                    comprobante,
-                    v.Fecha.ToString("dd/MM/yyyy"),
-                    v.DocumentoCliente,
-                    v.NombreCliente,
-                    v.SubTotal,
-                    v.Igv,
-                    v.Total,
-                    v.Estado
-                });
-            }
+                v.TipoDocumento,
+                comprobante,
+                v.Fecha.ToString("dd/MM/yyyy"),
+                v.DocumentoCliente,
+                v.NombreCliente,
+                v.SubTotal,
+                v.Igv,
+                v.Total,
+                v.Estado
+            });
         }
 
         await JS.InvokeVoidAsync("exportToExcel", headers, rows.ToArray(), $"VentasDetalladas_{DateTime.Now:yyyyMMdd_HHmmss}");
@@ -168,7 +282,6 @@ else
         {
             var lista = await AlmacenService.GetAlmacenes();
             if (lista != null) almacenes = lista;
-            selectedAlmacen = 0;
         }
         else
         {

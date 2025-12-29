@@ -27,6 +27,37 @@
     </div>
 }
 
+<div class="card mb-3">
+    <div class="card-header bg-light py-2">
+        <i class="bi bi-receipt"></i> Búsqueda Directa por Comprobante
+    </div>
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Serie:</label>
+                <input type="text" class="form-control form-control-sm" @bind="serieBusqueda" 
+                       placeholder="001" maxlength="4" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Número:</label>
+                <input type="number" class="form-control form-control-sm" @bind="numeroBusqueda" 
+                       placeholder="12345678" />
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-success btn-sm w-100" @onclick="BuscarPorSerieNumero">
+                    <i class="bi bi-search"></i> Buscar Comprobante
+                </button>
+            </div>
+            @if (!string.IsNullOrEmpty(mensajeBusquedaDirecta))
+            {
+                <div class="col-md-5">
+                    <div class="alert alert-warning mb-0 py-1 small">@mensajeBusquedaDirecta</div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
 <div class="row mb-3">
     @if (cargo == "ADMINISTRADOR")
     {
@@ -81,7 +112,86 @@
     <div class="@(cargo == "ADMINISTRADOR" ? (selectedAlmacen > 0 ? "col-md-12 col-lg-1" : "col-md-12 col-lg-3") : "col-md-4") d-flex align-items-end">
         <button class="btn btn-primary w-100" @onclick="BuscarVentas"><i class="bi bi-search"></i> Buscar</button>
     </div>
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col-md-12 col-lg-2 d-flex align-items-end mt-2">
+            @{
+                var pendientes = ventas.Where(v => 
+                    v.TipoDocumento != "TICKET" && 
+                    v.TipoDocumento != "BOLETA M" &&
+                    (v.EstadoSunat == "PENDIENTE" || v.EstadoSunat == "RECHAZADO")).ToList();
+            }
+            <button class="btn btn-warning w-100" 
+                    @onclick="ReenviarMasivoSunat"
+                    disabled="@(reenviandoMasivo || !pendientes.Any())">
+                @if (reenviandoMasivo)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    <span> @progresoReenvio/@totalReenvio</span>
+                }
+                else
+                {
+                    <i class="bi bi-send"></i>
+                    <span> Reenviar Pendientes (@pendientes.Count)</span>
+                }
+            </button>
+        </div>
+    }
 </div>
+
+@if (mostrarModalResultados)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.5)">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Resultados de Reenvío Masivo a SUNAT</h5>
+                    <button type="button" class="btn-close" @onclick="() => mostrarModalResultados = false"></button>
+                </div>
+                <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                    @{
+                        var exitosos = resultadosReenvioMasivo.Count(r => r.Exito);
+                        var fallidos = resultadosReenvioMasivo.Count(r => !r.Exito);
+                    }
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="alert alert-success mb-0 py-2">
+                                <strong>✅ Exitosos:</strong> @exitosos
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="alert alert-danger mb-0 py-2">
+                                <strong>❌ Fallidos:</strong> @fallidos
+                            </div>
+                        </div>
+                    </div>
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Comprobante</th>
+                                <th>Estado</th>
+                                <th>Mensaje</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in resultadosReenvioMasivo)
+                            {
+                                <tr class="@(r.Exito ? "table-success" : "table-danger")">
+                                    <td>@r.Comprobante</td>
+                                    <td>@(r.Exito ? "✅ Aceptado" : "❌ Error")</td>
+                                    <td>@r.Mensaje</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => mostrarModalResultados = false">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <table class="table table-bordered">
     <thead>
@@ -222,7 +332,16 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Reenviar SUNAT</h5>
+                    <h5 class="modal-title">
+                        @if (ventaSeleccionada.TipoDocumento == "BOLETA M" && modoEdicionActivo)
+                        {
+                            <span>✏️ Editar BOLETA M</span>
+                        }
+                        else
+                        {
+                            <span>Reenviar SUNAT</span>
+                        }
+                    </h5>
                     <button type="button" class="btn-close" @onclick="CancelarReenvio"></button>
                 </div>
                 <div class="modal-body">
@@ -246,11 +365,28 @@
                             </div>
                         }
                     }
+                    
+                    @* Botón para activar modo edición solo para BOLETA M *@
+                    @if (ventaSeleccionada.TipoDocumento == "BOLETA M" && !modoEdicionActivo)
+                    {
+                        <div class="mb-3">
+                            <button class="btn btn-warning btn-sm" @onclick="ActivarModoEdicion">
+                                <i class="bi bi-pencil"></i> Editar Artículos
+                            </button>
+                        </div>
+                    }
+                    
                     <table class="table table-sm">
                         <thead>
                             <tr>
                                 <th>Producto</th>
-                                <th>Cantidad</th>
+                                <th style="width: 100px;">Cantidad</th>
+                                <th style="width: 100px;">P. Unit.</th>
+                                <th style="width: 100px;">Total</th>
+                                @if (modoEdicionActivo)
+                                {
+                                    <th style="width: 60px;"></th>
+                                }
                             </tr>
                         </thead>
                         <tbody>
@@ -258,11 +394,37 @@
                             {
                                 <tr>
                                     <td>@det.DescripcionItem</td>
-                                    <td>@det.Cantidad</td>
+                                    <td>
+                                        @if (modoEdicionActivo)
+                                        {
+                                            <input type="number" class="form-control form-control-sm" 
+                                                   min="1" 
+                                                   value="@det.Cantidad"
+                                                   @onchange="@(e => CambiarCantidadDetalle(det, e))" />
+                                        }
+                                        else
+                                        {
+                                            @det.Cantidad
+                                        }
+                                    </td>
+                                    <td>@det.PrecioUnitario.ToString("N2")</td>
+                                    <td>@det.Total.ToString("N2")</td>
+                                    @if (modoEdicionActivo)
+                                    {
+                                        <td>
+                                            <button class="btn btn-outline-danger btn-sm" 
+                                                    title="Eliminar"
+                                                    disabled="@(ventaReenvio.Detalles.Count <= 1)"
+                                                    @onclick="@(() => EliminarDetalle(det))">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    }
                                 </tr>
                             }
                         </tbody>
                     </table>
+                    
                     <div class="mt-3">
                         <p><strong>Subtotal:</strong> @ventaReenvio.SubTotal.ToString("C", new System.Globalization.CultureInfo("es-PE"))</p>
                         <p>
@@ -274,10 +436,32 @@
                         </p>
                         <p><strong>Total:</strong> @ventaReenvio.Total.ToString("C", new System.Globalization.CultureInfo("es-PE"))</p>
                     </div>
+                    
+                    @if (modoEdicionActivo && cambiosPendientes)
+                    {
+                        <div class="alert alert-warning mt-2">
+                            <i class="bi bi-exclamation-triangle"></i> Tiene cambios sin guardar. Guarde antes de emitir.
+                        </div>
+                    }
                 </div>
                 <div class="modal-footer">
+                    @if (modoEdicionActivo)
+                    {
+                        <button class="btn btn-success" @onclick="GuardarCambiosDetalles" disabled="@guardandoCambios">
+                            @if (guardandoCambios)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check"></i>
+                            }
+                            Guardar Cambios
+                        </button>
+                        <button class="btn btn-outline-secondary" @onclick="CancelarEdicion">Cancelar Edición</button>
+                    }
                     <button class="btn btn-info" @onclick="ImprimirBoletaReenvio">Imprimir</button>
-                    <button class="btn btn-primary" @onclick="ConfirmarReenvio">Emitir</button>
+                    <button class="btn btn-primary" @onclick="ConfirmarReenvio" disabled="@(modoEdicionActivo && cambiosPendientes)">Emitir</button>
                     <button class="btn btn-secondary" @onclick="CancelarReenvio">Cancelar</button>
                 </div>
             </div>
@@ -335,6 +519,24 @@
     private List<TipoPagoVentaDTO> tiposPago = new();
     private int idVentaAnulacion;
 
+    // Variables para búsqueda directa por Serie/Número
+    private string serieBusqueda = string.Empty;
+    private int? numeroBusqueda;
+
+    // Variables para reenvío masivo a SUNAT
+    private bool reenviandoMasivo;
+    private int progresoReenvio;
+    private int totalReenvio;
+    private List<(string Comprobante, bool Exito, string Mensaje)> resultadosReenvioMasivo = new();
+    private bool mostrarModalResultados;
+    private string mensajeBusquedaDirecta = string.Empty;
+
+    // Variables para edición de BOLETA M
+    private bool modoEdicionActivo;
+    private bool cambiosPendientes;
+    private bool guardandoCambios;
+    private List<VentaDetalleDTO>? detallesBackup;
+
     protected override async Task OnInitializedAsync()
     {
         cargo = await AuthService.GetUserCargo() ?? string.Empty;
@@ -389,6 +591,31 @@
 
         ventas = await ventaService.ObtenerVentasAsync(desde, hasta, filtroAlmacen, filtroTipoDoc, filtroCajero);
         CalcularResumen();
+        mensajeBusquedaDirecta = string.Empty; // Limpiar mensaje de búsqueda directa
+    }
+
+    private async Task BuscarPorSerieNumero()
+    {
+        mensajeBusquedaDirecta = string.Empty;
+        
+        if (string.IsNullOrWhiteSpace(serieBusqueda) || !numeroBusqueda.HasValue)
+        {
+            mensajeBusquedaDirecta = "Ingrese Serie y Número";
+            return;
+        }
+        
+        var resultado = await ventaService.BuscarPorSerieNumeroAsync(serieBusqueda.Trim(), numeroBusqueda.Value);
+        
+        if (resultado != null && resultado.Any())
+        {
+            ventas = resultado;
+            CalcularResumen();
+        }
+        else
+        {
+            ventas = new();
+            mensajeBusquedaDirecta = $"No se encontró comprobante {serieBusqueda}-{numeroBusqueda:D8}";
+        }
     }
 
     private void CalcularResumen()
@@ -545,7 +772,194 @@
         ventaReenvio = null;
         ventaSeleccionada = null;
         infoCorrelativoReenvio = null;
+        modoEdicionActivo = false;
+        cambiosPendientes = false;
+        detallesBackup = null;
     }
+
+    // ========== Métodos de edición de BOLETA M ==========
+    
+    private void ActivarModoEdicion()
+    {
+        if (ventaReenvio == null) return;
+        
+        // Crear backup de los detalles originales
+        detallesBackup = ventaReenvio.Detalles.Select(d => new VentaDetalleDTO
+        {
+            Item = d.Item,
+            CodigoItem = d.CodigoItem,
+            DescripcionItem = d.DescripcionItem,
+            UnidadMedida = d.UnidadMedida,
+            Cantidad = d.Cantidad,
+            PrecioUnitario = d.PrecioUnitario,
+            PorcentajeDescuento = d.PorcentajeDescuento,
+            Total = d.Total
+        }).ToList();
+        
+        modoEdicionActivo = true;
+        cambiosPendientes = false;
+    }
+
+    private void CambiarCantidadDetalle(VentaDetalleDTO det, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int nuevaCantidad) && nuevaCantidad > 0)
+        {
+            det.Cantidad = nuevaCantidad;
+            det.Total = Math.Round(det.Cantidad * det.PrecioUnitario, 2);
+            RecalcularTotalesVenta();
+            cambiosPendientes = true;
+        }
+    }
+
+    private void EliminarDetalle(VentaDetalleDTO det)
+    {
+        if (ventaReenvio == null || ventaReenvio.Detalles.Count <= 1) return;
+        
+        ventaReenvio.Detalles.Remove(det);
+        
+        // Renumerar items
+        int item = 1;
+        foreach (var d in ventaReenvio.Detalles)
+        {
+            d.Item = item++;
+        }
+        
+        RecalcularTotalesVenta();
+        cambiosPendientes = true;
+    }
+
+    private void RecalcularTotalesVenta()
+    {
+        if (ventaReenvio == null) return;
+        
+        decimal totalVenta = ventaReenvio.Detalles.Sum(d => d.Total);
+        
+        // IGV es 18% del total (precio ya incluye IGV), excepto almacén 1024
+        if (ventaReenvio.IdAlmacen == 1024)
+        {
+            ventaReenvio.Igv = 0m;
+            ventaReenvio.SubTotal = totalVenta;
+        }
+        else
+        {
+            ventaReenvio.Igv = Math.Round(totalVenta - (totalVenta / 1.18m), 2);
+            ventaReenvio.SubTotal = totalVenta - ventaReenvio.Igv;
+        }
+        
+        ventaReenvio.Total = totalVenta;
+    }
+
+    private async Task GuardarCambiosDetalles()
+    {
+        if (ventaReenvio == null || ventaSeleccionada == null) return;
+        
+        guardandoCambios = true;
+        StateHasChanged();
+        
+        try
+        {
+            var resultado = await ventaService.ActualizarDetallesVentaAsync(
+                ventaSeleccionada.IdComprobante, 
+                ventaReenvio.Detalles);
+            
+            if (resultado != null)
+            {
+                // Actualizar con los datos del servidor
+                ventaReenvio.SubTotal = resultado.SubTotal;
+                ventaReenvio.Igv = resultado.Igv;
+                ventaReenvio.Total = resultado.Total;
+                ventaReenvio.Detalles = resultado.Detalles;
+                
+                cambiosPendientes = false;
+                await JS.InvokeVoidAsync("alert", "✅ Cambios guardados correctamente.");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "❌ Error al guardar los cambios.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"❌ Error: {ex.Message}");
+        }
+        finally
+        {
+            guardandoCambios = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CancelarEdicion()
+    {
+        if (ventaReenvio != null && detallesBackup != null)
+        {
+            // Restaurar detalles originales
+            ventaReenvio.Detalles = detallesBackup;
+            RecalcularTotalesVenta();
+        }
+        
+        modoEdicionActivo = false;
+        cambiosPendientes = false;
+        detallesBackup = null;
+    }
+
+    private async Task ReenviarMasivoSunat()
+    {
+        // Filtrar solo boletas/facturas pendientes o rechazadas (excluir TICKET y BOLETA M)
+        var pendientes = ventas.Where(v => 
+            v.TipoDocumento != "TICKET" && 
+            v.TipoDocumento != "BOLETA M" &&
+            (v.EstadoSunat == "PENDIENTE" || v.EstadoSunat == "RECHAZADO")).ToList();
+
+        if (!pendientes.Any())
+        {
+            await JS.InvokeVoidAsync("alert", "No hay comprobantes pendientes para reenviar.");
+            return;
+        }
+
+        // Confirmar con el usuario
+        var confirmar = await JS.InvokeAsync<bool>("confirm", 
+            $"¿Desea reenviar {pendientes.Count} comprobante(s) pendiente(s) a SUNAT?\n\nEste proceso puede tomar varios minutos.");
+        
+        if (!confirmar) return;
+
+        // Iniciar proceso
+        reenviandoMasivo = true;
+        progresoReenvio = 0;
+        totalReenvio = pendientes.Count;
+        resultadosReenvioMasivo = new();
+        StateHasChanged();
+
+        foreach (var venta in pendientes)
+        {
+            progresoReenvio++;
+            StateHasChanged();
+
+            var nombreComprobante = $"{venta.Serie}-{venta.Numero:D8}";
+            
+            try
+            {
+                var (ok, msg) = await ventaService.ReenviarSunatAsync(venta.IdComprobante);
+                resultadosReenvioMasivo.Add((nombreComprobante, ok, msg ?? (ok ? "Aceptado" : "Error desconocido")));
+            }
+            catch (Exception ex)
+            {
+                resultadosReenvioMasivo.Add((nombreComprobante, false, $"Error: {ex.Message}"));
+            }
+
+            // Pequeña pausa entre envíos para no saturar
+            await Task.Delay(500);
+        }
+
+        // Finalizar y mostrar resultados
+        reenviandoMasivo = false;
+        mostrarModalResultados = true;
+        StateHasChanged();
+
+        // Actualizar la lista de ventas
+        await BuscarVentas();
+    }
+
 
     private async Task AbrirAnulacion(VentaConsultaDTO v)
     {
