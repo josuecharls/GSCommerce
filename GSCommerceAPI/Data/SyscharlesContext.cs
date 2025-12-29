@@ -72,6 +72,8 @@ public partial class SyscharlesContext : DbContext
 
     public virtual DbSet<DetallePagoVentum> DetallePagoVenta { get; set; }
 
+    public virtual DbSet<DireccionRuc> DireccionRucs { get; set; }
+
     public virtual DbSet<Evento> Eventos { get; set; }
 
     public virtual DbSet<GuiaRemisionCabecera> GuiaRemisionCabeceras { get; set; }
@@ -726,6 +728,22 @@ public partial class SyscharlesContext : DbContext
             entity.Property(e => e.Descripcion)
                 .HasMaxLength(100)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<DireccionRuc>(entity =>
+        {
+            entity.HasKey(e => e.IdDireccionRuc);
+            entity.ToTable("DireccionRuc", "Maestros");
+            entity.Property(e => e.Ruc).HasMaxLength(11).IsUnicode(false);
+            entity.Property(e => e.RazonSocial).HasMaxLength(200).IsUnicode(false);
+            entity.Property(e => e.Direccion).HasMaxLength(300).IsUnicode(false);
+            entity.Property(e => e.Ubigeo).HasMaxLength(6).IsUnicode(false).IsFixedLength();
+            entity.Property(e => e.Departamento).HasMaxLength(50).IsUnicode(false);
+            entity.Property(e => e.Provincia).HasMaxLength(50).IsUnicode(false);
+            entity.Property(e => e.Distrito).HasMaxLength(50).IsUnicode(false);
+            entity.Property(e => e.Alias).HasMaxLength(100).IsUnicode(false);
+            entity.Property(e => e.EsDefault).HasDefaultValue(false);
+            entity.Property(e => e.FechaCreacion).HasColumnType("datetime").HasDefaultValueSql("(getdate())");
         });
 
         modelBuilder.Entity<Comprobante>(entity =>

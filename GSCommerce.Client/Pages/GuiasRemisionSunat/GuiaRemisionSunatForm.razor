@@ -12,6 +12,7 @@
 @inject SerieGuiaRemisionService SerieGuiaService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject DireccionRucService DireccionService
 
 <div class="container-fluid py-3">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -133,7 +134,28 @@
                             </div>
                             <div class="col-md-9">
                                 <label class="form-label">Dirección Destino</label>
-                                <input type="text" class="form-control" @bind="guia.DireccionLlegada" />
+                                <div class="input-group">
+                                    <select class="form-select" value="@guia.DireccionLlegada" @onchange="OnDireccionDestinoChange">
+                                        <option value="">-- Seleccione una dirección --</option>
+                                        @foreach (var dir in direccionesDestino)
+                                        {
+                                            <option value="@dir.Direccion">@dir.DescripcionCompleta</option>
+                                        }
+                                        @if (!direccionesDestino.Any(d => d.Direccion == guia.DireccionLlegada) && !string.IsNullOrEmpty(guia.DireccionLlegada))
+                                        {
+                                            <option value="@guia.DireccionLlegada">@guia.DireccionLlegada</option>
+                                        }
+                                    </select>
+                                    <button class="btn btn-outline-secondary" type="button" @onclick="() => AbrirModalDireccion(false)" 
+                                            disabled="@(string.IsNullOrEmpty(guia.NumeroDocumentoDestinatario) || guia.TipoDocumentoDestinatario != "6")"
+                                            title="Agregar nueva dirección para este RUC">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
+                                </div>
+                                @if (string.IsNullOrEmpty(guia.NumeroDocumentoDestinatario))
+                                {
+                                    <small class="text-muted">Ingrese RUC para gestionar direcciones</small>
+                                }
                             </div>
                         </div>
                     </div>
@@ -207,7 +229,20 @@
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <label class="form-label">RUC Transportista</label>
-                                    <input type="text" class="form-control" @bind="guia.RucTransportista" maxlength="11" />
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" @bind="guia.RucTransportista" maxlength="11" />
+                                        <button class="btn btn-outline-primary" type="button" @onclick="BuscarRucTransportista" 
+                                                disabled="@buscandoRucTransportista" title="Buscar transportista">
+                                            @if (buscandoRucTransportista)
+                                            {
+                                                <span class="spinner-border spinner-border-sm"></span>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-search"></i>
+                                            }
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="col-md-8">
                                     <label class="form-label">Razón Social Transportista</label>
@@ -274,7 +309,24 @@
                             </div>
                             <div class="col-md-9">
                                 <label class="form-label">Dirección</label>
-                                <input type="text" class="form-control" @bind="guia.DireccionPartida" />
+                                <div class="input-group">
+                                    <select class="form-select" value="@guia.DireccionPartida" @onchange="OnDireccionPartidaChange">
+                                        <option value="">-- Seleccione una dirección --</option>
+                                        @foreach (var dir in direccionesPartida)
+                                        {
+                                            <option value="@dir.Direccion">@dir.DescripcionCompleta</option>
+                                        }
+                                        @if (!direccionesPartida.Any(d => d.Direccion == guia.DireccionPartida) && !string.IsNullOrEmpty(guia.DireccionPartida))
+                                        {
+                                            <option value="@guia.DireccionPartida">@guia.DireccionPartida</option>
+                                        }
+                                    </select>
+                                    <button class="btn btn-outline-secondary" type="button" @onclick="() => AbrirModalDireccion(true)" 
+                                            disabled="@string.IsNullOrEmpty(guia.RucRemitente)"
+                                            title="Agregar nueva dirección para este RUC">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -387,6 +439,65 @@
             </div>
         </div>
     }
+
+    <!-- Modal Nueva Dirección -->
+    @if (mostrarModalDireccion)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5)">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">Agregar Dirección para @(esDireccionRemitente ? "Remitente" : "Destinatario")</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalDireccion"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">RUC Asociado</label>
+                            <input type="text" class="form-control bg-light" value="@nuevaDireccion.Ruc" readonly />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Alias (Opcional)</label>
+                            <input type="text" class="form-control" @bind="nuevaDireccion.Alias" placeholder="Ej: Sucursal Centro, Almacén A" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Dirección <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" @bind="nuevaDireccion.Direccion" />
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label">Ubigeo <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" @bind="nuevaDireccion.Ubigeo" maxlength="6" />
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Dep/Prov/Dist</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" placeholder="Departamento" @bind="nuevaDireccion.Departamento" />
+                                    <input type="text" class="form-control" placeholder="Provincia" @bind="nuevaDireccion.Provincia" />
+                                    <input type="text" class="form-control" placeholder="Distrito" @bind="nuevaDireccion.Distrito" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" id="chkDefault" @bind="nuevaDireccion.EsDefault">
+                            <label class="form-check-label" for="chkDefault">
+                                Establecer como dirección predeterminada
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalDireccion">Cancelar</button>
+                        <button type="button" class="btn btn-primary" @onclick="GuardarDireccion" disabled="@guardandoDireccion">
+                            @if (guardandoDireccion)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            Guardar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
@@ -404,6 +515,15 @@
     private string mensajeRuc = "";
     private bool rucEncontrado = false;
     private string mensajeErrorSerie = "";
+    
+    // Variables para gestión de direcciones
+    private List<DireccionRucDTO> direccionesDestino = new();
+    private List<DireccionRucDTO> direccionesPartida = new();
+    private bool mostrarModalDireccion = false;
+    private bool esDireccionRemitente = false;
+    private DireccionRucDTO nuevaDireccion = new();
+    private bool guardandoDireccion = false;
+    private bool buscandoRucTransportista = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -472,6 +592,9 @@
                 guia.UbigeoRemitente = alm.Ubigeo ?? "";
                 guia.DireccionPartida = alm.Direccion ?? "";
                 guia.UbigeoPartida = alm.Ubigeo ?? "";
+
+                // Cargar direcciones del remitente
+                await CargarDireccionesRemitente();
             }
             
             // Buscar la serie asignada a este almacén
@@ -795,6 +918,9 @@
                 {
                     mensajeRuc = $"⚠ {datos.estado} - {datos.condicion}";
                 }
+
+                // Cargar direcciones guardadas
+                await CargarDireccionesDestinatario();
             }
             else
             {
@@ -818,6 +944,156 @@
     {
         Navigation.NavigateTo("/guias-remision-sunat");
     }
+
+    #region Gestión de Direcciones
+    private async Task CargarDireccionesRemitente()
+    {
+        if (!string.IsNullOrEmpty(guia.RucRemitente))
+        {
+            direccionesPartida = await DireccionService.ObtenerDireccionesPorRuc(guia.RucRemitente);
+        }
+    }
+
+    private async Task CargarDireccionesDestinatario()
+    {
+        if (!string.IsNullOrEmpty(guia.NumeroDocumentoDestinatario))
+        {
+            direccionesDestino = await DireccionService.ObtenerDireccionesPorRuc(guia.NumeroDocumentoDestinatario);
+            
+            // Si hay default y el campo está vacío, usarlo
+            if (string.IsNullOrEmpty(guia.DireccionLlegada))
+            {
+                var def = direccionesDestino.FirstOrDefault(d => d.EsDefault);
+                if (def != null)
+                {
+                    guia.DireccionLlegada = def.Direccion;
+                    guia.UbigeoLlegada = def.Ubigeo;
+                }
+            }
+        }
+    }
+
+    private void OnDireccionDestinoChange(ChangeEventArgs e)
+    {
+        var dirSeleccionada = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(dirSeleccionada))
+        {
+            guia.DireccionLlegada = dirSeleccionada;
+            var dirObj = direccionesDestino.FirstOrDefault(d => d.Direccion == dirSeleccionada);
+            if (dirObj != null)
+            {
+                guia.UbigeoLlegada = dirObj.Ubigeo;
+            }
+        }
+    }
+
+    private void OnDireccionPartidaChange(ChangeEventArgs e)
+    {
+        var dirSeleccionada = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(dirSeleccionada))
+        {
+            guia.DireccionPartida = dirSeleccionada;
+            var dirObj = direccionesPartida.FirstOrDefault(d => d.Direccion == dirSeleccionada);
+            if (dirObj != null)
+            {
+                guia.UbigeoPartida = dirObj.Ubigeo;
+            }
+        }
+    }
+
+    private void AbrirModalDireccion(bool esRemitente)
+    {
+        esDireccionRemitente = esRemitente;
+        string ruc = esRemitente ? guia.RucRemitente : guia.NumeroDocumentoDestinatario;
+        string razonSocial = esRemitente ? guia.RazonSocialRemitente : guia.RazonSocialDestinatario;
+
+        if (string.IsNullOrEmpty(ruc)) return;
+
+        nuevaDireccion = new DireccionRucDTO
+        {
+            Ruc = ruc,
+            RazonSocial = razonSocial,
+            Direccion = esRemitente ? guia.DireccionPartida : guia.DireccionLlegada,
+            Ubigeo = esRemitente ? guia.UbigeoPartida : guia.UbigeoLlegada,
+            EsDefault = false
+        };
+        mostrarModalDireccion = true;
+    }
+
+    private void CerrarModalDireccion()
+    {
+        mostrarModalDireccion = false;
+    }
+
+    private async Task GuardarDireccion()
+    {
+        if (string.IsNullOrWhiteSpace(nuevaDireccion.Direccion) || string.IsNullOrWhiteSpace(nuevaDireccion.Ubigeo))
+        {
+            await JS.InvokeVoidAsync("alert", "Ingrese dirección y ubigeo");
+            return;
+        }
+
+        guardandoDireccion = true;
+        try
+        {
+            var result = await DireccionService.CrearDireccion(nuevaDireccion);
+            if (result != null)
+            {
+                if (esDireccionRemitente)
+                {
+                    await CargarDireccionesRemitente();
+                    guia.DireccionPartida = result.Direccion;
+                    guia.UbigeoPartida = result.Ubigeo;
+                }
+                else
+                {
+                    await CargarDireccionesDestinatario();
+                    guia.DireccionLlegada = result.Direccion;
+                    guia.UbigeoLlegada = result.Ubigeo;
+                }
+                CerrarModalDireccion();
+            }
+        }
+        finally
+        {
+            guardandoDireccion = false;
+        }
+    }
+    
+    private async Task BuscarRucTransportista()
+    {
+        if (string.IsNullOrWhiteSpace(guia.RucTransportista) || guia.RucTransportista.Length != 11)
+        {
+            await JS.InvokeVoidAsync("alert", "Ingrese un RUC de transporte válido");
+            return;
+        }
+
+        buscandoRucTransportista = true;
+        try
+        {
+            var datos = await ReniecService.ObtenerNombrePorRUC(guia.RucTransportista);
+            if (!string.IsNullOrEmpty(datos) && datos != "RUC NO ENCONTRADO" && !datos.StartsWith("ERROR"))
+            {
+                // El servicio devuelve "Razon Social (ESTADO)", limpiamos el estado
+                var nombre = datos;
+                int idxPar = datos.LastIndexOf('(');
+                if (idxPar > 0)
+                {
+                    nombre = datos.Substring(0, idxPar).Trim();
+                }
+                guia.RazonSocialTransportista = nombre;
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "RUC no encontrado o error en consulta");
+            }
+        }
+        finally
+        {
+            buscandoRucTransportista = false;
+        }
+    }
+    #endregion
 }
 
 
