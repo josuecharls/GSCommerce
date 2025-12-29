@@ -122,15 +122,25 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
     {
         try
         {
-            // Obtener correlativo
-            var ultimoNumero = await _context.GuiaRemisionCabeceras
-                .Where(g => g.Serie == dto.Serie)
-                .MaxAsync(g => (int?)g.Numero) ?? 0;
+            // Validar que el almacén tenga serie asignada
+            if (!dto.IdAlmacen.HasValue)
+                return (false, "Debe seleccionar un almacén de origen", 0);
+            
+            var serieAlmacen = await _context.SerieGuiaRemisions
+                .FirstOrDefaultAsync(s => s.IdAlmacen == dto.IdAlmacen.Value && s.Estado);
+            
+            if (serieAlmacen == null)
+                return (false, $"El almacén seleccionado no tiene serie de guía de remisión configurada. Configure una en Administración > Series Guías Remisión.", 0);
+            
+            // Incrementar correlativo y obtener número
+            serieAlmacen.Correlativo++;
+            serieAlmacen.FechaModificacion = DateTime.Now;
+            var numeroGuia = serieAlmacen.Correlativo;
 
             var guia = new GuiaRemisionCabecera
             {
-                Serie = dto.Serie,
-                Numero = ultimoNumero + 1,
+                Serie = serieAlmacen.Serie,
+                Numero = numeroGuia,
                 Fecha = dto.FechaEmision,
                 DireccionOrigen = dto.DireccionPartida,
                 Dpdorigen = dto.UbigeoPartida,
@@ -195,7 +205,7 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
 
             await _context.SaveChangesAsync();
 
-            return (true, "Guía de remisión creada correctamente", guia.IdGuiaRemision);
+            return (true, $"Guía de remisión {serieAlmacen.Serie}-{numeroGuia:D8} creada correctamente", guia.IdGuiaRemision);
         }
         catch (Exception ex)
         {

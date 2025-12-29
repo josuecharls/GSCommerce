@@ -122,6 +122,8 @@ public partial class SyscharlesContext : DbContext
 
     public virtual DbSet<SerieCorrelativo> SerieCorrelativos { get; set; }
 
+    public virtual DbSet<SerieGuiaRemision> SerieGuiaRemisions { get; set; }
+
     public virtual DbSet<StockAlmacen> StockAlmacens { get; set; }
 
     public virtual DbSet<StockIcabk> StockIcabks { get; set; }
@@ -1806,6 +1808,27 @@ public partial class SyscharlesContext : DbContext
                 .HasForeignKey(d => d.IdTipoDocumentoVenta)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_SerieCorrelativo_TipoDocumentoVenta");
+        });
+
+        modelBuilder.Entity<SerieGuiaRemision>(entity =>
+        {
+            entity.HasKey(e => e.IdSerieGuiaRemision);
+
+            entity.ToTable("SerieGuiaRemision", "Maestros");
+
+            entity.Property(e => e.Serie)
+                .HasMaxLength(4)
+                .IsUnicode(false);
+            entity.Property(e => e.FechaCreacion)
+                .HasColumnType("datetime")
+                .HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.FechaModificacion)
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.IdAlmacenNavigation).WithMany()
+                .HasForeignKey(d => d.IdAlmacen)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_SerieGuiaRemision_Almacen");
         });
 
         modelBuilder.Entity<StockAlmacen>(entity =>
