@@ -1,7 +1,8 @@
 ﻿@page "/barcode-print/{codigo}/{descripcion}"
 @page "/barcode-print/{codigo}/{descripcion}/{precio}"
 @page "/barcode-print/{codigo}/{descripcion}/{precio}/{color?}/{talla?}"
-
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject IJSRuntime JS
 
 <style>

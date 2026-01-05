@@ -1,6 +1,8 @@
 ﻿@page "/diario-resumido"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "CAJERO,ADMINISTRADOR")]
 @inject ResumenService ResumenService
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService

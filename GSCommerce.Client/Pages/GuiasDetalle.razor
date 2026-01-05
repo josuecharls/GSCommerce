@@ -2,6 +2,8 @@
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject MovimientoGuiaService MovimientoGuiaService
 @inject NavigationManager Navigation
 @inject AlmacenService AlmacenService

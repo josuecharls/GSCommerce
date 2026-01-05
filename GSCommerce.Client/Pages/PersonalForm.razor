@@ -2,6 +2,8 @@
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @using System.Net.Http.Headers
 @inject PersonalService PersonalService
 @inject AlmacenService AlmacenService
@@ -10,7 +12,7 @@
 @inject HttpClient Http
 @inject AuthService AuthService
 
-<h3>Nuevo Empleado</h3>
+<h3>@(isCajero ? "Nuevo Vendedor" : "Nuevo Empleado")</h3>
 
 <EditForm Model="personal" OnValidSubmit="SavePersonal">
     <DataAnnotationsValidator />

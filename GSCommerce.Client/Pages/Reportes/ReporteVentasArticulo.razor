@@ -4,6 +4,8 @@
 @using GSCommerce.Client.Models.DTOs.Reportes
 @using GSCommerce.Client.Services
 @using System.Linq
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject ArticuloService ArticuloService
 @inject ReporteService ReporteService
 @inject IJSRuntime JS

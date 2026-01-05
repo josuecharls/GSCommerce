@@ -1,6 +1,6 @@
 ﻿@page "/series-cajero"
-@**@
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Models.Series
 @using GSCommerce.Client.Services

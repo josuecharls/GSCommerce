@@ -1,6 +1,6 @@
 ﻿@page "/guias"
-@**@
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject AuthService AuthService
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
@@ -138,7 +138,9 @@
     {
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("tipo", out var tipoQuery))
-            tipoFiltro = tipoQuery;
+        {
+            _tipoFiltro = tipoQuery.ToString();
+        }
 
         // Obtén el almacén real del usuario
         //idAlmacenUsuario = await AuthService.GetIdAlmacenAsync();

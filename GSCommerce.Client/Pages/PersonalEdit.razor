@@ -1,6 +1,8 @@
 ﻿@page "/personal/edit/{id:int}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject PersonalService PersonalService
 @inject NavigationManager Navigation
 @inject HttpClient Http

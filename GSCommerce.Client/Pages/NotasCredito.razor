@@ -1,5 +1,6 @@
 ﻿@page "/notass-credito"
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "CAJERO,ADMINISTRADOR")]
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject NotaCreditoService ncService

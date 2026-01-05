@@ -1,0 +1,82 @@
+@page "/hubs/ventas-caja"
+@using Microsoft.AspNetCore.Authorization
+@using GSCommerce.Client.Components
+@using GSCommerce.Client.Services
+@attribute [Authorize(Roles = "ADMINISTRADOR,CAJERO")]
+@inject AuthService AuthService
+
+<h3 class="mb-4">
+    <i class="bi bi-cash-coin me-2"></i>
+    Ventas y Caja
+</h3>
+<p class="text-muted mb-4">Operaciones de venta y gestión de caja</p>
+
+<div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+    
+    @if (cargo == "CAJERO")
+    {
+        <div class="col">
+            <HubCard 
+                Title="Apertura/Cierre Caja" 
+                Description="Gestionar apertura y cierre"
+                IconClass="bi-cash-coin"
+                Url="/cajita" />
+        </div>
+
+        <div class="col">
+            <HubCard 
+                Title="Liquidación Caja" 
+                Description="Liquidación de venta diaria"
+                IconClass="bi-file-text"
+                Url="/caja/liquidacion" />
+        </div>
+    }
+
+    <div class="col">
+        <HubCard 
+            Title="Consultar Ventas" 
+            Description="Ver historial de ventas"
+            IconClass="bi-receipt"
+            Url="/ventas" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Notas de Crédito" 
+            Description="Gestionar notas de crédito"
+            IconClass="bi-file-earmark-excel"
+            Url="/notass-credito" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Ingresos/Egresos" 
+            Description="Registrar ingresos y egresos"
+            IconClass="bi-cash-stack"
+            Url="/ingresos-egresos" />
+    </div>
+
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col">
+            <HubCard 
+                Title="Listado Caja" 
+                Description="Ver listado de cajas"
+                IconClass="bi-journal-text"
+                Url="/caja/listado" />
+        </div>
+    }
+
+</div>
+
+@code {
+    private string? cargo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo();
+    }
+}
+
+
+

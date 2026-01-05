@@ -5,6 +5,8 @@
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Models.DTOs.Reportes
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject ReporteService ReporteService
 @inject AlmacenService AlmacenService
 @inject AuthService AuthService

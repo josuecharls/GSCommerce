@@ -1,6 +1,8 @@
 ﻿@page "/articulo-variante/{idArticulo}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject ArticuloService ArticuloService
 @inject ArticuloVarianteService ArticuloVarianteService
 @inject ComplementoService ComplementoService

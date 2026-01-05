@@ -1,6 +1,8 @@
 ﻿@page "/guias/edit/{id:int}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject MovimientoGuiaService MovimientoGuiaService
 @inject NavigationManager Navigation
 @inject AlmacenService AlmacenService

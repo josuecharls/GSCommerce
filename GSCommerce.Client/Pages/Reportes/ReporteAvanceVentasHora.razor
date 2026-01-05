@@ -5,6 +5,8 @@
 @using GSCommerce.Client.Services
 @using System.Linq
 @using Blazored.LocalStorage
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject ReporteService ReporteService
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService

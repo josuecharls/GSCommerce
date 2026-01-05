@@ -1,6 +1,8 @@
 ﻿@page "/almacen-cuentas/{id:int}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject AlmacenCuentaService CuentaService
 @inject AlmacenService AlmacenService
 @inject NavigationManager Navigation

@@ -1,6 +1,6 @@
 ﻿@page "/caja/listado"
-@**@
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using Microsoft.AspNetCore.Components.Forms

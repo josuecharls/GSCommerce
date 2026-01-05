@@ -15,11 +15,6 @@
     <link rel="icon" type="image/png" href="LogoGSC.ico" />
     <link href="GSCommerce.Client.styles.css" rel="stylesheet" />
     <link rel="manifest" href="manifest.json" />
-    <script>
-        if (window.location.pathname === "/") {
-            window.location.replace("/login");
-        }
-    </script>
 </head>
 
 <body>
@@ -161,6 +156,7 @@
             }
         };
     </script>
+    <script src="js/sessionSync.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
     <script>
         // Verificar conexión periódicamente y limpiar cache si es necesario

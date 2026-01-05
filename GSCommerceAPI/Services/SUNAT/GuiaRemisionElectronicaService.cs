@@ -25,7 +25,8 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
     // ============================================
     // true = Ambiente BETA (pruebas con Nubefact)
     // false = Ambiente PRODUCCIÓN (SUNAT real)
-    private const bool ES_AMBIENTE_BETA = true;
+    // false = Ambiente PRODUCCIÓN (SUNAT real)
+    private const bool ES_AMBIENTE_BETA = false;
     
     // ===== NUEVA API REST SUNAT GRE =====
     // Endpoints BETA (Nubefact - servicio de pruebas gratuito)
@@ -71,7 +72,7 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
         else
         {
             // Credenciales reales del almacén
-            //return ($"{ruc}{usuarioSolReal}", claveSolReal ?? "");
+            return ($"{ruc}{usuarioSolReal}", claveSolReal ?? "");
         }
     }
 
@@ -102,9 +103,9 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
     }
 
     /// <summary>
-    /// Obtiene el Client ID y Secret según el ambiente configurado
+    /// Obtiene el Client ID y Secret según el ambiente configurado y el RUC
     /// </summary>
-    private (string clientId, string clientSecret) ObtenerClientCredentials()
+    private (string clientId, string clientSecret) ObtenerClientCredentials(string ruc)
     {
         if (ES_AMBIENTE_BETA)
         {
@@ -112,9 +113,14 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
         }
         else
         {
-            // En producción, obtener de configuración o base de datos
-            // TODO: Configurar credenciales de producción
-            return ("", "");
+            // Credenciales de producción hardcodeadas por RUC
+            return ruc switch
+            {
+                "20611555203" => ("b4990969-7ea3-4b1b-bea7-8cafb613f4f7", "LIEL4xzTgh9QiO681XVyXw=="),
+                "20611746751" => ("3ecdb4dc-6821-4f0a-97ef-8f00446db769", "W83w/cbxzzn437lEUCGJ5g=="),
+                "20606834048" => ("9d0dc07e-9ca8-4f5f-b36c-70ff72f55adf", "Z1mz70La/DM55lEomU/KWw=="),
+                _ => ("", "") // RUC no configurado
+            };
         }
     }
 
@@ -782,7 +788,10 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
     {
         try
         {
-            var (clientId, clientSecret) = ObtenerClientCredentials();
+            var (clientId, clientSecret) = ObtenerClientCredentials(ruc);
+            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
+                return (false, "", $"No hay credenciales API configuradas para el RUC {ruc}");
+
             var tokenEndpoint = ObtenerTokenEndpoint(clientId);
 
             Console.WriteLine($"[SUNAT-GRE] ========================================");

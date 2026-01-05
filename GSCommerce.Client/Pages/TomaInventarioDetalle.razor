@@ -1,6 +1,8 @@
 ﻿@page "/toma-inventarios/detalle/{id:int}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject TomaInventariosService TIService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS

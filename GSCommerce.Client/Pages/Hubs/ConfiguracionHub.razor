@@ -1,0 +1,97 @@
+@page "/hubs/configuracion"
+@using Microsoft.AspNetCore.Authorization
+@using GSCommerce.Client.Components
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
+
+<h3 class="mb-4">
+    <i class="bi bi-gear me-2"></i>
+    Configuración
+</h3>
+<p class="text-muted mb-4">Administración y configuraciones del sistema</p>
+
+<div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+    
+    <div class="col">
+        <HubCard 
+            Title="Series y Correlativos" 
+            Description="Configurar series de documentos"
+            IconClass="bi-card-list"
+            Url="/series-correlativos" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Series Guías Remisión" 
+            Description="Configurar series de guías"
+            IconClass="bi-truck"
+            Url="/series-guias-remision" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Series Cajero" 
+            Description="Asignar series a cajeros"
+            IconClass="bi-list-nested"
+            Url="/series-cajero" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Tipo de Cambio" 
+            Description="Gestionar tipo de cambio"
+            IconClass="bi-cash-coin"
+            Url="/admin/tipocambio" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Moneda Tienda" 
+            Description="Configurar moneda por tienda"
+            IconClass="bi-currency-exchange"
+            Url="/moneda-almacen" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="IGV Tienda" 
+            Description="Configurar IGV por tienda"
+            IconClass="bi-percent"
+            Url="/igv-almacen" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Descuentos" 
+            Description="Gestionar descuentos"
+            IconClass="bi-percent"
+            Url="/descuentos" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Cajeros" 
+            Description="Administrar cajeros"
+            IconClass="bi-person"
+            Url="/cajeros" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Administradores" 
+            Description="Administrar administradores"
+            IconClass="bi-person-gear"
+            Url="/administradores" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Cambiar Contraseña" 
+            Description="Cambiar tu contraseña"
+            IconClass="bi-key"
+            Url="/cambiar-password" />
+    </div>
+
+</div>
+
+
+

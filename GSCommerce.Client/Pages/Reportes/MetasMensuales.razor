@@ -3,6 +3,8 @@
 @using GSCommerce.Client.Components
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject MetaMensualService MetaMensualService
 @inject AlmacenService AlmacenService
 @inject AuthService AuthService

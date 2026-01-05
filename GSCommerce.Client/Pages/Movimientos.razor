@@ -1,4 +1,6 @@
 ﻿@page "/movimientos"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @using GSCommerce.Client.Services
 @inject NavigationManager Navigation
 @inject AuthService AuthService

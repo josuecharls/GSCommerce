@@ -1,6 +1,8 @@
 ﻿@page "/caja/liquidacion"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "CAJERO,ADMINISTRADOR")]
 @inject CajaService CajaService
 @inject AuthService AuthService
 

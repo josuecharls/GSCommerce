@@ -1,6 +1,6 @@
 ﻿@page "/toma-inventarios"
-@**@
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject TomaInventariosService TIService

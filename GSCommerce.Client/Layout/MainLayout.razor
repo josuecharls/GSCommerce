@@ -6,7 +6,7 @@
 @using System.Linq
 @using System
 @inherits LayoutComponentBase
-@implements IDisposable
+@implements IAsyncDisposable
 
 <div class="page">
     <div class="sidebar">
@@ -15,44 +15,33 @@
     <main>
         <div class="main">
             <div class="top-row d-flex align-items-center px-3 py-2 shadow-sm bg-light" style="gap: 1rem;">
+                <div class="text-muted">
+                    <i class="bi bi-person-circle me-2"></i>
+                    <span class="fw-bold">@cargo</span>
+                </div>
+                
                 @if (cargo == "ADMINISTRADOR")
                 {
-                    <NavLink class="topbar-item text-primary text-decoration-none" href="series-correlativos">
-                        <i class="bi bi-card-list me-1"></i>Series y Correlativos
-                    </NavLink>
-                    <NavLink class="topbar-item text-primary text-decoration-none" href="series-guias-remision">
-                        <i class="bi bi-truck me-1"></i>Series Guías Remisión
-                    </NavLink>
-                    <NavLink class="topbar-item text-primary text-decoration-none" href="/admin/tipocambio">
-                        <i class="bi bi-cash-coin me-1"></i>Tipo de Cambio
-                    </NavLink>
-                    <NavLink class="topbar-item text-primary text-decoration-none" href="/moneda-almacen">
-                        <i class="bi bi-currency-exchange me-1"></i>Moneda Tienda
-                    </NavLink>
-                    <NavLink class="topbar-item text-primary text-decoration-none" href="/reportes">
-                        <i class="bi bi-bar-chart me-1"></i>Reportes
-                    </NavLink>
                     <NavLink class="topbar-item text-primary text-decoration-none" href="/diario-resumido">
-                        <i class="bi bi-file-earmark-check me-1"></i>Resumen Cajeros
+                        <i class="bi bi-file-earmark-check me-1"></i>Resumen Diario
                     </NavLink>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="/comprobantes-sunat">
-                            <span class="bi bi-file-earmark-text" aria-hidden="true"></span> Comprobantes SUNAT
-                        </NavLink>
-                    </div>
-                    <NavLink class="topbar-item text-primary text-decoration-none" href="/guias-remision-sunat">
-                        <i class="bi bi-truck me-1"></i>Guías de Remisión Electrónica
+                    <NavLink class="topbar-item text-primary text-decoration-none" href="/hubs/configuracion">
+                        <i class="bi bi-gear me-1"></i>Configuración
                     </NavLink>
                 }
                 @if (cargo == "CAJERO")
                 {
                     <NavLink class="topbar-item text-primary text-decoration-none" href="/diario-resumido">
-                        <i class="bi bi-journal-text me-1"></i>Resumen Diario Caja
-                    </NavLink>
-                    <NavLink class="nav-link" href="/ingresos-egresos">
-                        <i class="bi bi-cash-stack"></i> Ingresos/Egresos
+                        <i class="bi bi-file-earmark-check me-1"></i>Resumen Diario
                     </NavLink>
                 }
+                @if (cargo == "ALMACEN")
+                {
+                    <NavLink class="topbar-item text-primary text-decoration-none" href="/stock">
+                        <i class="bi bi-box-seam me-1"></i>Stock
+                    </NavLink>
+                }
+                
                 <div class="ms-auto">
                     <button class="btn btn-primary btn-sm" @onclick="Logout">
                         <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
@@ -134,6 +123,9 @@
     
     @* Modal de Notificación de Transferencias *@
     <ModalNotificacionTransferencia />
+    
+    @* Modal de Sesión Expirada *@
+    <SessionExpiredModal Show="@mostrarModalSesionExpirada" OnClose="@CerrarModalSesionExpirada" />
 </div>
 
 @code {
@@ -142,6 +134,7 @@
     [Inject] NavigationManager Navigation { get; set; } = null!;
     [Inject] StockService StockService { get; set; } = null!;
     [Inject] ILocalStorageService LocalStorage { get; set; } = null!;
+    [Inject] SessionSyncService SessionSyncService { get; set; } = null!;
 
     private string? cargo;
 
@@ -165,10 +158,17 @@
     private bool disposed;
     private const int StockCriticoUmbral = 10;
     private const int MaxArticulosAlert = 5;
+    
+    // Variable para modal de sesión expirada
+    private bool mostrarModalSesionExpirada = false;
 
     protected override async Task OnInitializedAsync()
     {
         cargo = await AuthService.GetUserCargo();
+
+        // Inicializar session sync
+        SessionSyncService.SessionEndedInAnotherWindow += OnSessionEndedInAnotherWindow;
+        await SessionSyncService.StartListeningAsync();
 
         if (cargo == "CAJERO")
         {
@@ -187,6 +187,17 @@
             Navigation.LocationChanged += HandleLocationChanged;
             await ConsultarAlertaReposicionAsync();
         }
+    }
+    
+    private void OnSessionEndedInAnotherWindow()
+    {
+        mostrarModalSesionExpirada = true;
+        InvokeAsync(StateHasChanged);
+    }
+    
+    private void CerrarModalSesionExpirada()
+    {
+        mostrarModalSesionExpirada = false;
     }
 
     // Métodos para alerta de stock crítico (CAJEROS)
@@ -371,10 +382,12 @@
         Navigation.NavigateTo("/login", forceLoad: true);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         disposed = true;
         Navigation.LocationChanged -= HandleLocationChanged;
+        SessionSyncService.SessionEndedInAnotherWindow -= OnSessionEndedInAnotherWindow;
+        await SessionSyncService.DisposeAsync();
     }
 
     // Métodos auxiliares

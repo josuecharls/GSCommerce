@@ -1,0 +1,97 @@
+@inject NavigationManager Navigation
+
+<div class="hub-card" @onclick="NavigateToUrl">
+    <div class="hub-card-icon">
+        <i class="bi @IconClass"></i>
+    </div>
+    <h5 class="hub-card-title">@Title</h5>
+    <p class="hub-card-description">@Description</p>
+</div>
+
+<style>
+    .hub-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid #e9ecef;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 200px;
+    }
+
+    .hub-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        border-color: #0d6efd;
+    }
+
+    .hub-card-icon {
+        font-size: 3.5rem;
+        color: #0d6efd;
+        margin-bottom: 1rem;
+    }
+
+    .hub-card:hover .hub-card-icon {
+        transform: scale(1.1);
+        transition: transform 0.3s ease;
+    }
+
+    .hub-card-title {
+        font-weight: 600;
+        color: #212529;
+        margin-bottom: 0.5rem;
+        font-size: 1.25rem;
+    }
+
+    .hub-card-description {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 0;
+    }
+
+    @@media (max-width: 768px) {
+        .hub-card {
+            min-height: 150px;
+            padding: 1.5rem;
+        }
+
+        .hub-card-icon {
+            font-size: 2.5rem;
+        }
+
+        .hub-card-title {
+            font-size: 1.1rem;
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string Description { get; set; } = "";
+
+    [Parameter]
+    public string IconClass { get; set; } = "bi-circle";
+
+    [Parameter]
+    public string Url { get; set; } = "";
+
+    private void NavigateToUrl()
+    {
+        if (!string.IsNullOrEmpty(Url))
+        {
+            Navigation.NavigateTo(Url);
+        }
+    }
+}
+
+
+

@@ -3,6 +3,8 @@
 @using GSCommerce.Client.Services
 @using System.Linq
 @using System
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject KardexDetalladoService KardexDetalladoService
 @inject AlmacenService AlmacenService
 @inject AuthService AuthService

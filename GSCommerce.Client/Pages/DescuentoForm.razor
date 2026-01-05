@@ -1,6 +1,6 @@
 ﻿@page "/descuento-form/{idAlmacen:int}/{idArticulo?}"
-@**@
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject ArticuloService ArticuloService

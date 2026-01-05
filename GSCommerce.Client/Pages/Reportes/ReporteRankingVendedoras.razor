@@ -5,6 +5,8 @@
 @using GSCommerce.Client.Services
 @using System.Text
 @using System.Linq
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject ReporteService ReporteService
 @inject AlmacenService AlmacenService
 @inject AuthService AuthService

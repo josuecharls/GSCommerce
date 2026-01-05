@@ -1,36 +1,80 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
-<CascadingAuthenticationState>
-    <Router AppAssembly="@typeof(App).Assembly">
-        <Found Context="routeData">
-            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                <NotAuthorized>
-                    @if (authenticationState?.User.Identity?.IsAuthenticated ?? false)
-                    {
-                        <p class="text-danger text-center mt-5">SE REPORTÓ AL ADMINISTRADOR EL INGRESO A UNA PAGINA RESTRINGIDA</p>
-                    }
-                    else
-                    {
-                        <RedirectToLogin />
-                    }
-                </NotAuthorized>
-                <Authorizing>
-                    <p class="text-center mt-5">⏳ Restaurando sesión...</p>
-                </Authorizing>
-            </AuthorizeRouteView>
-        </Found>
-        <NotFound>
-            <LayoutView Layout="@typeof(MainLayout)">
-                <p class="text-danger text-center mt-5">Página no encontrada</p>
-            </LayoutView>
-        </NotFound>
-    </Router>
-</CascadingAuthenticationState>
+@if (!isInitialized)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100vh; background: #f8f9fa;">
+        <div class="text-center">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="text-muted">⏳ Iniciando aplicación...</p>
+        </div>
+    </div>
+}
+else
+{
+    <CascadingAuthenticationState>
+        <Router AppAssembly="@typeof(App).Assembly">
+            <Found Context="routeData">
+                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                    <NotAuthorized>
+                        @if (authenticationState?.User.Identity?.IsAuthenticated ?? false)
+                        {
+                            <p class="text-danger text-center mt-5">SE REPORTÓ AL ADMINISTRADOR EL INGRESO A UNA PAGINA RESTRINGIDA</p>
+                        }
+                        else
+                        {
+                            <RedirectToLogin />
+                        }
+                    </NotAuthorized>
+                    <Authorizing>
+                        <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary mb-3" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="text-muted">⏳ Verificando autenticación...</p>
+                            </div>
+                        </div>
+                    </Authorizing>
+                </AuthorizeRouteView>
+            </Found>
+            <NotFound>
+                <LayoutView Layout="@typeof(MainLayout)">
+                    <p class="text-danger text-center mt-5">Página no encontrada</p>
+                </LayoutView>
+            </NotFound>
+        </Router>
+    </CascadingAuthenticationState>
+}
 
 @code {
     [CascadingParameter] private Task<AuthenticationState>? authenticationStateTask { get; set; }
     private AuthenticationState? authenticationState;
+    private bool isInitialized = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Asegurar que el AuthenticationStateProvider esté inicializado
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            authenticationState = authState;
+            
+            // Pequeño delay para asegurar que todo esté completamente cargado
+            await Task.Delay(100);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error inicializando auth state: {ex.Message}");
+        }
+        finally
+        {
+            isInitialized = true;
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {

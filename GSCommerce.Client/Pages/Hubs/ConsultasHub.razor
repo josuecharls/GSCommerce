@@ -1,0 +1,41 @@
+@page "/hubs/consultas"
+@using Microsoft.AspNetCore.Authorization
+@using GSCommerce.Client.Components
+@attribute [Authorize(Roles = "ADMINISTRADOR,CAJERO,ALMACEN")]
+
+<h3 class="mb-4">
+    <i class="bi bi-search me-2"></i>
+    Consultas
+</h3>
+<p class="text-muted mb-4">Consultas y búsquedas del sistema</p>
+
+<div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+    
+    <div class="col">
+        <HubCard 
+            Title="Kardex General" 
+            Description="Consultar kardex de productos"
+            IconClass="bi-journal-text"
+            Url="/kardex" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Kardex Detallado" 
+            Description="Kardex con detalle completo"
+            IconClass="bi-file-text"
+            Url="/kardex-detallado" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Control de Stock" 
+            Description="Ver stock de artículos"
+            IconClass="bi-box-seam"
+            Url="/stock" />
+    </div>
+
+</div>
+
+
+

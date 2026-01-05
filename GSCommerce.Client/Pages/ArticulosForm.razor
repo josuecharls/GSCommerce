@@ -4,6 +4,8 @@
 @using GSCommerce.Client.Services
 @using System.Globalization
 @using System.Linq
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject ArticuloService ArticuloService
 @inject ProveedorService ProveedorService
 @inject ComplementoService ComplementoService

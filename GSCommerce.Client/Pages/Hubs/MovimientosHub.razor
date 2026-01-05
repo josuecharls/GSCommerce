@@ -1,0 +1,51 @@
+@page "/hubs/movimientos"
+@using Microsoft.AspNetCore.Authorization
+@using GSCommerce.Client.Components
+@attribute [Authorize(Roles = "ADMINISTRADOR,CAJERO,ALMACEN")]
+
+<h3 class="mb-4">
+    <i class="bi bi-arrow-left-right me-2"></i>
+    Movimientos
+</h3>
+<p class="text-muted mb-4">Gestión de movimientos de inventario</p>
+
+<div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+    
+    <div class="col">
+        <HubCard 
+            Title="Guías de Ingreso" 
+            Description="Registrar ingresos al almacén"
+            IconClass="bi-box-arrow-in-down"
+            Url="/guias?tipo=Ingreso" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Guías de Salida" 
+            Description="Registrar salidas del almacén"
+            IconClass="bi-box-arrow-up"
+            Url="/guias?tipo=Egreso" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Guías de Transferencia" 
+            Description="Transferencias entre almacenes"
+            IconClass="bi-arrow-left-right"
+            Url="/guias?tipo=Transferencia" />
+    </div>
+
+    <div class="col">
+        <HubCard 
+            Title="Toma de Inventarios" 
+            Description="Realizar toma de inventario"
+            IconClass="bi-clipboard-check"
+            Url="/toma-inventarios" />
+    </div>
+
+</div>
+
+@code {
+}
+
+

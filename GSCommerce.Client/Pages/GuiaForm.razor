@@ -1,7 +1,7 @@
 @page "/guias-form/{tipo}"
 @page "/guias-form/{tipo}/{idOC:int?}"
-@**@
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @using Microsoft.AspNetCore.Components.Web
 @inject NavigationManager Navigation
 @inject MovimientoGuiaService MovimientoGuiaService

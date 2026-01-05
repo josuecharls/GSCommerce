@@ -1,6 +1,6 @@
 ﻿@page "/descuentos"
-@**@
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
 @using Microsoft.AspNetCore.WebUtilities
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services

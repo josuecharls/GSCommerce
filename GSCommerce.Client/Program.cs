@@ -19,7 +19,7 @@ builder.Services.AddScoped<ComprobantesSunatService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<CustomAuthStateProvider>();
-builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());
 builder.Services.AddScoped<MovimientoGuiaService>();
 builder.Services.AddScoped<OrdenCompraService>();
 builder.Services.AddScoped<StockService>();
@@ -53,6 +53,7 @@ builder.Services.AddScoped<MetaMensualService>();
 builder.Services.AddScoped<GuiaRemisionSunatService>();
 builder.Services.AddScoped<SerieGuiaRemisionService>();
 builder.Services.AddScoped<DireccionRucService>();
+builder.Services.AddScoped<SessionSyncService>();
 builder.Services.AddAuthorizationCore();
 
 // Configurar HttpClient para conectarse al backend

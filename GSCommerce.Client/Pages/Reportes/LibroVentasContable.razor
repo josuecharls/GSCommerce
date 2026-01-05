@@ -1,6 +1,8 @@
 ﻿@page "/reportes/libro-ventas-contable"
 @using GSCommerce.Client.Components
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "CONTADOR,ADMINISTRADOR")]
 @inject IJSRuntime JS
 @inject AlmacenService AlmacenService
 

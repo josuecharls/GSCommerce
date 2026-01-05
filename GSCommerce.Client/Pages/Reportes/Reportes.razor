@@ -1,5 +1,7 @@
 ﻿@page "/reportes"
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject NavigationManager Navigation
 @inject AuthService AuthService
 

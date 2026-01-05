@@ -1,0 +1,55 @@
+@using GSCommerce.Client.Services
+@inject NavigationManager Navigation
+@inject CustomAuthStateProvider AuthStateProvider
+
+@if (Show)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Sesión Cerrada
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">
+                        <strong>Se ha cerrado sesión en otra ventana o pestaña.</strong>
+                    </p>
+                    <p class="mb-0">
+                        Por seguridad, esta ventana también cerrará su sesión. Haga clic en el botón para ir a la página de inicio de sesión.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" @onclick="GoToLogin">
+                        <i class="bi bi-box-arrow-in-right me-1"></i>
+                        Ir a Inicio de Sesión
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool Show { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private async Task GoToLogin()
+    {
+        // Clean up authentication state
+        await AuthStateProvider.MarkUserAsLoggedOut();
+        
+        // Close modal
+        Show = false;
+        await OnClose.InvokeAsync();
+        
+        // Navigate to login
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}
+

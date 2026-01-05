@@ -234,19 +234,16 @@ public class CajaController : ControllerBase
                         v.Fecha >= fechaInicio &&
                         v.Fecha <= fechaFin);
 
-        if (actual.Fecha == DateOnly.FromDateTime(DateTime.Today))
-        {
-            ventasQuery = from v in ventasQuery
-                          join c in _context.ComprobanteDeVentaCabeceras
-                              on new { v.IdAlmacen, v.Serie, v.Numero }
-                              equals new { c.IdAlmacen, c.Serie, c.Numero }
-                          where !(c.Estado == "A" &&
-                                  (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
-                                  c.FechaHoraUsuarioAnula.HasValue &&
-                                  c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
-                                  c.FechaHoraUsuarioAnula.Value <= fechaFin)
-                          select v;
-        }
+        ventasQuery = from v in ventasQuery
+                      join c in _context.ComprobanteDeVentaCabeceras
+                          on new { v.IdAlmacen, v.Serie, v.Numero }
+                          equals new { c.IdAlmacen, c.Serie, c.Numero }
+                      where !(c.Estado == "A" &&
+                              (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                              c.FechaHoraUsuarioAnula.HasValue &&
+                              c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
+                              c.FechaHoraUsuarioAnula.Value <= fechaFin)
+                      select v;
 
         var ventas = await ventasQuery.ToListAsync();
 

@@ -14,6 +14,8 @@ namespace GSCommerce.Client.Services
         private readonly ILocalStorageService _localStorage;
         private readonly AuthService _authService;
         private ClaimsPrincipal _currentUser = new ClaimsPrincipal(new ClaimsIdentity());
+        private Task<AuthenticationState>? _authenticationStateTask;
+        private bool _isInitialized = false;
 
         public CustomAuthStateProvider(ILocalStorageService localStorage, AuthService authService)
         {
@@ -23,8 +25,32 @@ namespace GSCommerce.Client.Services
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
+            // Si ya tenemos un task de inicialización en progreso, esperarlo
+            if (_authenticationStateTask != null && !_isInitialized)
+            {
+                return await _authenticationStateTask;
+            }
+
+            // Si ya está inicializado, devolver el estado actual
+            if (_isInitialized)
+            {
+                return new AuthenticationState(_currentUser);
+            }
+
+            // Primera inicialización
+            _authenticationStateTask = LoadAuthenticationStateAsync();
+            var result = await _authenticationStateTask;
+            _isInitialized = true;
+            return result;
+        }
+
+        private async Task<AuthenticationState> LoadAuthenticationStateAsync()
+        {
             try
             {
+                // Pequeño delay para asegurar que localStorage esté listo
+                await Task.Delay(50);
+
                 var token = await _localStorage.GetItemAsync<string>("authToken");
                 var cargo = await _localStorage.GetItemAsync<string>("Cargo");
 
@@ -112,6 +138,7 @@ namespace GSCommerce.Client.Services
             await _localStorage.SetItemAsync("authToken", token);
             await _localStorage.SetItemAsync("Cargo", cargo);
 
+            _isInitialized = true;
             NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(_currentUser)));
         }
 
@@ -121,6 +148,8 @@ namespace GSCommerce.Client.Services
             await _localStorage.RemoveItemAsync("refreshToken");
             await _localStorage.RemoveItemAsync("Cargo");
             _currentUser = new ClaimsPrincipal(new ClaimsIdentity());
+            _isInitialized = true;
+            _authenticationStateTask = null;
             NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(_currentUser)));
         }
 

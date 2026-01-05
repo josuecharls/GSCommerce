@@ -1,6 +1,6 @@
 ﻿@page "/almacen"
-@**@
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject AlmacenService AlmacenService

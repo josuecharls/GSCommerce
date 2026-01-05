@@ -1,6 +1,6 @@
 ﻿@page "/estado-sunat"
-@**@
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @using GSCommerce.Client.Models.SUNAT
 @inject HttpClient Http
 @inject IJSRuntime JS

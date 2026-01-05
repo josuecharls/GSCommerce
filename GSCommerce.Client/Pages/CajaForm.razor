@@ -1,6 +1,8 @@
 ﻿@page "/cajita"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "CAJERO,ADMINISTRADOR")]
 @inject HttpClient Http
 @inject CajaService CajaService
 @inject AuthService AuthService
@@ -48,7 +50,21 @@ else
         </div>
         <div class="mb-3">
             <label>Fondo Fijo:</label>
-            <input type="number" class="form-control" @bind="fondoFijo" min="0" step="0.01" />
+            <div class="d-flex gap-2 align-items-center">
+                <input type="number" class="form-control" @bind="fondoFijo" min="0" step="0.01" disabled="@(!editandoFondoFijo)" />
+                @if (!editandoFondoFijo)
+                {
+                    <button class="btn btn-primary" @onclick="HabilitarEdicionFondoFijo" type="button">
+                        <i class="bi bi-pencil"></i> Editar
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-success" @onclick="GuardarFondoFijo" type="button">
+                        <i class="bi bi-check-lg"></i> Guardar
+                    </button>
+                }
+            </div>
         </div>
         <div class="mb-3">
             <label>Observación:</label>
@@ -94,6 +110,8 @@ else
     }
 
     private decimal fondoFijo = 100.00m;
+    private decimal fondoFijoAnterior = 100.00m;
+    private bool editandoFondoFijo = false;
     private string observacion = string.Empty;
     private int idApertura = 0;
     private int idUsuario;
@@ -152,13 +170,19 @@ else
         if (anterior != null && anterior.Estado == "C")
         {
             saldoAnterior = anterior.SaldoFinal;
+            fondoFijoAnterior = anterior.FondoFijo;
+            fondoFijo = anterior.FondoFijo;
             esPrimeraApertura = false;
         }
         else
         {
             saldoAnterior = 0;
+            fondoFijoAnterior = 100.00m;
+            fondoFijo = 100.00m;
             esPrimeraApertura = true;
         }
+        
+        editandoFondoFijo = false;
     }
 
     private async Task AperturarCaja()
@@ -217,5 +241,25 @@ else
 
         var url = $"{Http.BaseAddress}caja/arqueo-pdf/{idApertura}";
         await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    private void HabilitarEdicionFondoFijo()
+    {
+        editandoFondoFijo = true;
+    }
+
+    private async Task GuardarFondoFijo()
+    {
+        if (fondoFijo <= 0)
+        {
+            await JS.InvokeVoidAsync("alert", "El fondo fijo debe ser mayor a 0");
+            return;
+        }
+
+        // Guardar el fondo fijo actualizado
+        fondoFijoAnterior = fondoFijo;
+        editandoFondoFijo = false;
+        
+        await JS.InvokeVoidAsync("alert", "Fondo fijo actualizado correctamente");
     }
 }

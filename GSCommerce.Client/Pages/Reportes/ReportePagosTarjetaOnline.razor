@@ -4,6 +4,8 @@
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Models.DTOs.Reportes
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
 @inject ReporteService ReporteService
 @inject AuthService AuthService
 @inject AlmacenService AlmacenService

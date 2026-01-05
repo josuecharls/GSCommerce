@@ -1,8 +1,9 @@
-﻿<h3>Cajeros</h3>
-@page "/cajeros"
-@**@
+﻿@page "/cajeros"
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
 @using GSCommerce.Client.Models
+
+<h3>Cajeros</h3>
 @using GSCommerce.Client.Services
 @inject UsuarioService UsuarioService
 @inject AuthService AuthService

@@ -1,6 +1,6 @@
 ﻿@page "/personal"
-@**@
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject PersonalService PersonalService
@@ -13,7 +13,7 @@
 <h3><i class="bi bi-person-arms-up"></i>  Gestión de Personal</h3>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <button @onclick="CreateNewPersonal" class="btn btn-success">+ Nuevo Empleado</button>
+    <button @onclick="CreateNewPersonal" class="btn btn-success">@(isCajero ? "+ Nuevo Vendedor" : "+ Nuevo Empleado")</button>
     <div class="d-flex align-items-center gap-3">
         <div class="form-check">
             <input class="form-check-input"
@@ -74,20 +74,17 @@
                         <button @onclick="() => EditPersonal(p.IdPersonal)" class="btn btn-warning btn-sm me-1">
                             <i class="bi bi-pencil-square"></i>
                         </button>
-                        @if (!isCajero)
+                        @if (p.Estado)
                         {
-                            @if (p.Estado)
-                            {
-                                <button @onclick="() => ConfirmInhabilitarPersonal(p.IdPersonal, p.Nombres)" class="btn btn-danger btn-sm">
-                                    <i class="bi bi-person-x"></i> Inhabilitar
-                                </button>
-                            }
-                            else
-                            {
-                                <button @onclick="() => ConfirmHabilitarPersonal(p.IdPersonal, p.Nombres)" class="btn btn-success btn-sm">
-                                    <i class="bi bi-person-check"></i> Habilitar
-                                </button>
-                            }
+                            <button @onclick="() => ConfirmInhabilitarPersonal(p.IdPersonal, p.Nombres)" class="btn btn-danger btn-sm">
+                                <i class="bi bi-person-x"></i> Inhabilitar
+                            </button>
+                        }
+                        else
+                        {
+                            <button @onclick="() => ConfirmHabilitarPersonal(p.IdPersonal, p.Nombres)" class="btn btn-success btn-sm">
+                                <i class="bi bi-person-check"></i> Habilitar
+                            </button>
                         }
                     </td>
                 </tr>
@@ -188,6 +185,7 @@
     private bool sortAscending = true;
     private bool isCajero = false;
     private bool incluirInactivos = false;
+    private int? idAlmacenUsuario;
 
     private void ShowPhoto(int id)
     {
@@ -270,9 +268,6 @@
 
     private async Task StatusChangeConfirmed()
     {
-        if (isCajero)
-            return;
-
         if (!isDeleting && statusPersonalId > 0)
         {
             isDeleting = true;
@@ -361,6 +356,10 @@
     {
         var cargo = await AuthService.GetUserCargo();
         isCajero = string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase);
+        if (isCajero)
+        {
+            idAlmacenUsuario = await AuthService.GetUserAlmacenId();
+        }
         await LoadPersonals();
     }
 
@@ -369,7 +368,15 @@
         try
         {
             var response = await PersonalService.GetPersonalList(currentPage, pageSize, searchTerm, incluirInactivos);
-            personalList = SortList(response.Data);
+            
+            // Si es CAJERO, filtrar solo vendedores de su almacén
+            var filteredData = isCajero 
+                ? response.Data.Where(p => 
+                    string.Equals(p.Cargo, "VENDEDOR", StringComparison.OrdinalIgnoreCase) 
+                    && p.IdAlmacen == idAlmacenUsuario).ToList()
+                : response.Data;
+            
+            personalList = SortList(filteredData);
             totalPages = response.TotalPages;
         }
         catch (Exception ex)

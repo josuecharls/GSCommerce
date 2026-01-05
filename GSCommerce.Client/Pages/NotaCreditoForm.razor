@@ -1,6 +1,6 @@
 ﻿@page "/nota-credito/{tipo}/{idComprobante:int}"
-@**@
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "CAJERO,ADMINISTRADOR")]
 @using System.Linq
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services

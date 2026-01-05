@@ -1,6 +1,8 @@
 ﻿@page "/administradores"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
 @inject UsuarioService UsuarioService
 @inject IJSRuntime JS
 

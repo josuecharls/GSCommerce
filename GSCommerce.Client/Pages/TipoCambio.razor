@@ -1,6 +1,6 @@
 ﻿@page "/admin/tipocambio"
-@**@
 @using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject TipoCambioService tipoCambioService

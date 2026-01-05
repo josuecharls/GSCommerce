@@ -1,6 +1,8 @@
 ﻿@page "/"
 @using GSCommerce.Client.Services
 @using GSCommerce.Client.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject IJSRuntime JS
 
 <h1>Bienvenido a GSCommerce</h1>

@@ -1,0 +1,79 @@
+@page "/hubs/maestros"
+@using Microsoft.AspNetCore.Authorization
+@using GSCommerce.Client.Components
+@using GSCommerce.Client.Services
+@attribute [Authorize(Roles = "ADMINISTRADOR,CAJERO,ALMACEN")]
+@inject AuthService AuthService
+
+<h3 class="mb-4">
+    <i class="bi bi-database me-2"></i>
+    Maestros
+</h3>
+<p class="text-muted mb-4">Gestión de datos maestros del sistema</p>
+
+<div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+    
+    @if (cargo == "ADMINISTRADOR" || cargo == "ALMACEN")
+    {
+        <div class="col">
+            <HubCard 
+                Title="Artículos" 
+                Description="Gestionar artículos y productos"
+                IconClass="bi-cart4"
+                Url="/articulos" />
+        </div>
+    }
+
+    <div class="col">
+        <HubCard 
+            Title="Clientes" 
+            Description="Administrar clientes"
+            IconClass="bi-person-fill"
+            Url="/clientes" />
+    </div>
+
+    @if (cargo == "ADMINISTRADOR" || cargo == "ALMACEN")
+    {
+        <div class="col">
+            <HubCard 
+                Title="Proveedores" 
+                Description="Gestionar proveedores"
+                IconClass="bi-box-seam-fill"
+                Url="/proveedor" />
+        </div>
+    }
+
+    @if (cargo == "ADMINISTRADOR" || cargo == "CAJERO")
+    {
+        <div class="col">
+            <HubCard 
+                Title="Personal" 
+                Description="@(cargo == "CAJERO" ? "Ver vendedores" : "Administrar personal")"
+                IconClass="bi-people-fill"
+                Url="/personal" />
+        </div>
+    }
+
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col">
+            <HubCard 
+                Title="Almacenes" 
+                Description="Gestionar almacenes"
+                IconClass="bi-building"
+                Url="/almacen" />
+        </div>
+    }
+
+</div>
+
+@code {
+    private string? cargo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo();
+    }
+}
+
+

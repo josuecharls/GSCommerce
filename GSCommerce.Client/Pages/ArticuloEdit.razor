@@ -1,6 +1,8 @@
 ﻿@page "/articulo/edit/{id}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject ArticuloService ArticuloService
 @inject ProveedorService ProveedorService
 @inject ComplementoService ComplementoService

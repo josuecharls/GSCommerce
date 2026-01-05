@@ -2,6 +2,8 @@
 @using GSCommerce.Client.Models.SUNAT
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
 @inject ComprobantesSunatService CompService
 @inject AlmacenService AlmacenService
 @inject TipoDocumentoVentaService TipoDocService
