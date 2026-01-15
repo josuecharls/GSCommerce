@@ -164,32 +164,21 @@ public class ReporteAvanceHoraEmailService : IReporteAvanceHoraEmailService
             .Where(r => r is not null)
             .ToList();
 
-        for (var index = 0; index < entradas.Count; index++)
+        decimal totalDia = 0m;
+
+        foreach (var entrada in entradas)
         {
-            var entrada = entradas[index];
             var etiquetaAlmacen = ObtenerEtiquetaAlmacen(entrada);
+            var montoDia = Convert.ToDecimal(entrada.Reporte.TotalVentasDia);
+            totalDia += montoDia;
 
-            sb.AppendLine($"Almacén: {etiquetaAlmacen}");
-            //sb.AppendLine($"Avance en la hora: S/ {entrada.Reporte.TotalVentas.ToString("N2", culture)}");
-            sb.AppendLine($"Avance acumulado del día: S/ {entrada.Reporte.TotalVentasDia.ToString("N2", culture)}");
-            //sb.AppendLine($"Tickets en la hora: {entrada.Reporte.Tickets}");
-            //sb.AppendLine($"Tickets acumulados del día: {entrada.Reporte.TicketsDia}");
-
-            if (index < entradas.Count - 1)
-            {
-                sb.AppendLine();
-                sb.AppendLine(new string('=', 27));
-                sb.AppendLine();
-            }
+            sb.AppendLine($"{etiquetaAlmacen}: S/ {montoDia.ToString("N2", culture)}");
         }
+
+        sb.AppendLine($"TOTAL : S/ {totalDia.ToString("N2", culture)}");
 
         if (!string.IsNullOrWhiteSpace(options.AdditionalMessage))
         {
-            if (entradas.Count > 0)
-            {
-                sb.AppendLine();
-            }
-
             sb.AppendLine(options.AdditionalMessage);
         }
 

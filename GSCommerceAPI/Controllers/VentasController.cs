@@ -615,9 +615,16 @@ namespace GSCommerceAPI.Controllers
                 cursor = cursor.AddMonths(1);
             }
 
+            var principalIds = await _context.Almacens
+                .AsNoTracking()
+                .Where(a => a.Nombre != null && a.Nombre.Trim().ToUpper() == "PRINCIPAL")
+                .Select(a => a.IdAlmacen)
+                .ToListAsync();
+
             // Catálogos
             var almacenesDic = await _context.Almacens
                 .AsNoTracking()
+                .Where(a => !principalIds.Contains(a.IdAlmacen))
                 .ToDictionaryAsync(a => a.IdAlmacen, a => a.Nombre);
 
             var arts = await _context.Articulos
@@ -631,7 +638,8 @@ namespace GSCommerceAPI.Controllers
                 .AsNoTracking()
                 .Where(d => req.Ids.Contains(d.IdArticulo)
                          && d.IdComprobanteNavigation.Fecha >= desde
-                         && d.IdComprobanteNavigation.Fecha < hastaExclusiva)
+                         && d.IdComprobanteNavigation.Fecha < hastaExclusiva
+                         && !principalIds.Contains(d.IdComprobanteNavigation.IdAlmacen))
                 .Select(d => new {
                     d.IdArticulo,
                     d.IdComprobanteNavigation.IdAlmacen,
@@ -654,7 +662,8 @@ namespace GSCommerceAPI.Controllers
                             && k.TipoMovimiento == "I"
                             && (k.Origen == null || !EF.Functions.Like(k.Origen, "ANULACIÓN%"))
                             && k.Fecha >= desde
-                            && k.Fecha < hastaExclusiva)
+                            && k.Fecha < hastaExclusiva
+                            && !principalIds.Contains(k.IdAlmacen))
                 .Select(k => new
                 {
                     k.IdArticulo,
@@ -720,7 +729,8 @@ namespace GSCommerceAPI.Controllers
             // Stock actual
             var stock = await _context.StockAlmacens
                 .AsNoTracking()
-                .Where(s => req.Ids.Contains(s.IdArticulo))
+                .Where(s => req.Ids.Contains(s.IdArticulo)
+                            && !principalIds.Contains(s.IdAlmacen))
                 .Select(s => new { s.IdArticulo, s.IdAlmacen, s.Stock })
                 .ToListAsync();
 
