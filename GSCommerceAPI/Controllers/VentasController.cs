@@ -2807,6 +2807,7 @@ namespace GSCommerceAPI.Controllers
 
         /// <summary>
         /// Actualiza los detalles de una BOLETA M pendiente de envío a SUNAT
+        /// Incluye ajuste de stock y registro en Kardex
         /// </summary>
         [HttpPut("{id}/detalles")]
         [Authorize]
@@ -2838,75 +2839,178 @@ namespace GSCommerceAPI.Controllers
             if (detalles == null || !detalles.Any())
                 return BadRequest("Debe haber al menos un artículo.");
 
-            // Eliminar detalles actuales
-            var detallesActuales = await _context.ComprobanteDeVentaDetalles
-                .Where(d => d.IdComprobante == id)
-                .ToListAsync();
-            
-            _context.ComprobanteDeVentaDetalles.RemoveRange(detallesActuales);
-
-            // Insertar nuevos detalles
-            int itemNum = 1;
-            decimal totalVenta = 0m;
-            
-            foreach (var det in detalles)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                var nuevoDetalle = new ComprobanteDeVentaDetalle
+                // Obtener detalles actuales para comparar y ajustar stock
+                var detallesActuales = await _context.ComprobanteDeVentaDetalles
+                    .Where(d => d.IdComprobante == id)
+                    .ToListAsync();
+
+                // Crear diccionarios para comparar cantidades
+                var cantidadesAnteriores = detallesActuales
+                    .GroupBy(d => d.IdArticulo)
+                    .ToDictionary(g => g.Key, g => g.Sum(d => d.Cantidad));
+
+                var cantidadesNuevas = detalles
+                    .GroupBy(d => d.CodigoItem)
+                    .ToDictionary(g => g.Key, g => (int)g.Sum(d => d.Cantidad));
+
+                // Obtener todos los artículos involucrados (anteriores y nuevos)
+                var todosLosArticulos = cantidadesAnteriores.Keys
+                    .Union(cantidadesNuevas.Keys)
+                    .Distinct()
+                    .ToList();
+
+                var origenKardex = $"Edición BOLETA M: {cab.Serie}-{cab.Numero}";
+
+                // Ajustar stock por cada artículo
+                foreach (var idArticulo in todosLosArticulos)
                 {
-                    IdComprobante = id,
-                    Item = itemNum++,
-                    IdArticulo = det.CodigoItem,
-                    Descripcion = det.DescripcionItem,
-                    UnidadMedida = det.UnidadMedida ?? "NIU",
-                    Cantidad = (int)det.Cantidad,
-                    Precio = det.PrecioUnitario,
-                    PorcentajeDescuento = det.PorcentajeDescuento,
-                    Total = det.Total
-                };
+                    var cantidadAnterior = cantidadesAnteriores.GetValueOrDefault(idArticulo, 0);
+                    var cantidadNueva = cantidadesNuevas.GetValueOrDefault(idArticulo, 0);
+                    var diferencia = cantidadNueva - cantidadAnterior;
+
+                    if (diferencia == 0) continue; // No hay cambio
+
+                    var stock = await _context.StockAlmacens
+                        .FirstOrDefaultAsync(s => s.IdAlmacen == cab.IdAlmacen && s.IdArticulo == idArticulo);
+
+                    var saldoInicial = stock?.Stock ?? 0;
+
+                    if (stock == null)
+                    {
+                        // Crear registro de stock si no existe
+                        stock = new StockAlmacen
+                        {
+                            IdAlmacen = cab.IdAlmacen,
+                            IdArticulo = idArticulo,
+                            Stock = 0,
+                            StockMinimo = 0
+                        };
+                        _context.StockAlmacens.Add(stock);
+                    }
+
+                    // Obtener precio del artículo para el valor en Kardex
+                    var precioArticulo = detalles.FirstOrDefault(d => d.CodigoItem == idArticulo)?.PrecioUnitario
+                        ?? detallesActuales.FirstOrDefault(d => d.IdArticulo == idArticulo)?.Precio
+                        ?? 0m;
+
+                    if (diferencia > 0)
+                    {
+                        // Se agregó cantidad: descontar stock (Egreso)
+                        stock.Stock -= diferencia;
+                        var saldoFinal = stock.Stock;
+
+                        _context.Kardices.Add(new Kardex
+                        {
+                            IdAlmacen = cab.IdAlmacen,
+                            IdArticulo = idArticulo,
+                            TipoMovimiento = "E",
+                            Fecha = DateTime.Now,
+                            SaldoInicial = saldoInicial,
+                            Cantidad = diferencia,
+                            SaldoFinal = saldoFinal,
+                            Valor = precioArticulo,
+                            Origen = origenKardex,
+                            NoKardexGeneral = false
+                        });
+                    }
+                    else
+                    {
+                        // Se quitó cantidad: devolver stock (Ingreso)
+                        var cantidadDevolver = Math.Abs(diferencia);
+                        stock.Stock += cantidadDevolver;
+                        var saldoFinal = stock.Stock;
+
+                        _context.Kardices.Add(new Kardex
+                        {
+                            IdAlmacen = cab.IdAlmacen,
+                            IdArticulo = idArticulo,
+                            TipoMovimiento = "I",
+                            Fecha = DateTime.Now,
+                            SaldoInicial = saldoInicial,
+                            Cantidad = cantidadDevolver,
+                            SaldoFinal = saldoFinal,
+                            Valor = precioArticulo,
+                            Origen = origenKardex,
+                            NoKardexGeneral = false
+                        });
+                    }
+                }
+
+                // Eliminar detalles actuales
+                _context.ComprobanteDeVentaDetalles.RemoveRange(detallesActuales);
+
+                // Insertar nuevos detalles
+                int itemNum = 1;
+                decimal totalVenta = 0m;
                 
-                _context.ComprobanteDeVentaDetalles.Add(nuevoDetalle);
-                totalVenta += det.Total;
-            }
-
-            // Recalcular totales de la cabecera
-            // IGV es 18% del total (precio ya incluye IGV)
-            decimal igv = cab.IdAlmacen == 1024 ? 0m : Math.Round(totalVenta - (totalVenta / 1.18m), 2);
-            decimal subTotal = totalVenta - igv;
-
-            cab.SubTotal = subTotal;
-            cab.Igv = igv;
-            cab.Total = totalVenta;
-            cab.Apagar = totalVenta;
-
-            await _context.SaveChangesAsync();
-
-            // Retornar los datos actualizados
-            var ventaActualizada = new GSCommerce.Client.Models.VentaDTO
-            {
-                IdTipoDocumento = cab.IdTipoDocumento,
-                Serie = cab.Serie,
-                Numero = cab.Numero,
-                Fecha = cab.Fecha,
-                Dniruc = cab.Dniruc,
-                Nombre = cab.Nombre,
-                SubTotal = cab.SubTotal,
-                Igv = cab.Igv,
-                Total = cab.Total,
-                IdAlmacen = cab.IdAlmacen,
-                Detalles = detalles.Select((d, idx) => new GSCommerce.Client.Models.VentaDetalleDTO
+                foreach (var det in detalles)
                 {
-                    Item = idx + 1,
-                    CodigoItem = d.CodigoItem,
-                    DescripcionItem = d.DescripcionItem,
-                    UnidadMedida = d.UnidadMedida,
-                    Cantidad = d.Cantidad,
-                    PrecioUnitario = d.PrecioUnitario,
-                    PorcentajeDescuento = d.PorcentajeDescuento,
-                    Total = d.Total
-                }).ToList()
-            };
+                    var nuevoDetalle = new ComprobanteDeVentaDetalle
+                    {
+                        IdComprobante = id,
+                        Item = itemNum++,
+                        IdArticulo = det.CodigoItem,
+                        Descripcion = det.DescripcionItem,
+                        UnidadMedida = det.UnidadMedida ?? "NIU",
+                        Cantidad = (int)det.Cantidad,
+                        Precio = det.PrecioUnitario,
+                        PorcentajeDescuento = det.PorcentajeDescuento,
+                        Total = det.Total
+                    };
+                    
+                    _context.ComprobanteDeVentaDetalles.Add(nuevoDetalle);
+                    totalVenta += det.Total;
+                }
 
-            return Ok(ventaActualizada);
+                // Recalcular totales de la cabecera
+                // IGV es 18% del total (precio ya incluye IGV)
+                decimal igv = cab.IdAlmacen == 1024 ? 0m : Math.Round(totalVenta - (totalVenta / 1.18m), 2);
+                decimal subTotal = totalVenta - igv;
+
+                cab.SubTotal = subTotal;
+                cab.Igv = igv;
+                cab.Total = totalVenta;
+                cab.Apagar = totalVenta;
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Retornar los datos actualizados
+                var ventaActualizada = new GSCommerce.Client.Models.VentaDTO
+                {
+                    IdTipoDocumento = cab.IdTipoDocumento,
+                    Serie = cab.Serie,
+                    Numero = cab.Numero,
+                    Fecha = cab.Fecha,
+                    Dniruc = cab.Dniruc,
+                    Nombre = cab.Nombre,
+                    SubTotal = cab.SubTotal,
+                    Igv = cab.Igv,
+                    Total = cab.Total,
+                    IdAlmacen = cab.IdAlmacen,
+                    Detalles = detalles.Select((d, idx) => new GSCommerce.Client.Models.VentaDetalleDTO
+                    {
+                        Item = idx + 1,
+                        CodigoItem = d.CodigoItem,
+                        DescripcionItem = d.DescripcionItem,
+                        UnidadMedida = d.UnidadMedida,
+                        Cantidad = d.Cantidad,
+                        PrecioUnitario = d.PrecioUnitario,
+                        PorcentajeDescuento = d.PorcentajeDescuento,
+                        Total = d.Total
+                    }).ToList()
+                };
+
+                return Ok(ventaActualizada);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, $"Error al actualizar detalles: {ex.Message}");
+            }
         }
 
         [HttpPost("reenviar-sunat/{idComprobante:int}")]

@@ -11,6 +11,7 @@
 @inject IJSRuntime JS
 @using System.Linq
 @inject TipoPagoVentaService TipoPagoVentaService
+@inject ArticuloService ArticuloService
 
 <h3>Ventas Registradas</h3>
 @if (cargo == "ADMINISTRADOR" || cargo == "CAJERO")
@@ -427,6 +428,40 @@
                         </tbody>
                     </table>
                     
+                    @if (modoEdicionActivo)
+                    {
+                        <div class="mb-3">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-auto">
+                                    <label class="form-label small mb-1">Código:</label>
+                                    <input type="text" class="form-control form-control-sm" 
+                                           style="width: 120px;"
+                                           @bind="codigoArticuloAgregar" 
+                                           placeholder="Código" />
+                                </div>
+                                <div class="col-auto">
+                                    <button class="btn btn-success btn-sm" 
+                                            @onclick="AgregarArticuloPorCodigo"
+                                            disabled="@agregandoArticulo">
+                                        @if (agregandoArticulo)
+                                        {
+                                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-plus-circle"></i>
+                                        }
+                                        Agregar
+                                    </button>
+                                </div>
+                            </div>
+                            @if (!string.IsNullOrEmpty(mensajeErrorAgregar))
+                            {
+                                <div class="alert alert-warning py-1 mt-2 small">@mensajeErrorAgregar</div>
+                            }
+                        </div>
+                    }
+                    
                     <div class="mt-3">
                         <p><strong>Subtotal:</strong> @ventaReenvio.SubTotal.ToString("C", new System.Globalization.CultureInfo("es-PE"))</p>
                         <p>
@@ -469,6 +504,7 @@
             </div>
         </div>
     </div>
+    
 }
 
 @if (mostrarModalAnulacion && ventaAnulacion != null)
@@ -538,6 +574,9 @@
     private bool cambiosPendientes;
     private bool guardandoCambios;
     private List<VentaDetalleDTO>? detallesBackup;
+    private string codigoArticuloAgregar = string.Empty;
+    private string mensajeErrorAgregar = string.Empty;
+    private bool agregandoArticulo;
 
     protected override async Task OnInitializedAsync()
     {
@@ -903,6 +942,72 @@
         modoEdicionActivo = false;
         cambiosPendientes = false;
         detallesBackup = null;
+    }
+
+    private async Task AgregarArticuloPorCodigo()
+    {
+        if (ventaReenvio == null) return;
+        
+        mensajeErrorAgregar = string.Empty;
+        
+        if (string.IsNullOrWhiteSpace(codigoArticuloAgregar))
+        {
+            mensajeErrorAgregar = "Ingrese un código de artículo";
+            return;
+        }
+        
+        agregandoArticulo = true;
+        StateHasChanged();
+        
+        try
+        {
+            // Buscar artículo por código
+            var articulo = await ArticuloService.BuscarPorCodigoAsync(codigoArticuloAgregar.Trim());
+            
+            if (articulo == null)
+            {
+                mensajeErrorAgregar = $"No se encontró artículo con código: {codigoArticuloAgregar}";
+                return;
+            }
+            
+            // Verificar si el artículo ya existe en los detalles
+            var existente = ventaReenvio.Detalles.FirstOrDefault(d => d.CodigoItem == articulo.IdArticulo);
+            if (existente != null)
+            {
+                // Si ya existe, incrementar cantidad
+                existente.Cantidad += 1;
+                existente.Total = Math.Round(existente.Cantidad * existente.PrecioUnitario, 2);
+            }
+            else
+            {
+                // Agregar nuevo detalle
+                var nuevoDetalle = new VentaDetalleDTO
+                {
+                    Item = ventaReenvio.Detalles.Count + 1,
+                    CodigoItem = articulo.IdArticulo,
+                    DescripcionItem = articulo.Descripcion ?? string.Empty,
+                    UnidadMedida = "NIU",
+                    Cantidad = 1,
+                    PrecioUnitario = articulo.PrecioVenta ?? 0,
+                    PorcentajeDescuento = 0,
+                    Total = articulo.PrecioVenta ?? 0
+                };
+                ventaReenvio.Detalles.Add(nuevoDetalle);
+            }
+            
+            RecalcularTotalesVenta();
+            cambiosPendientes = true;
+            codigoArticuloAgregar = string.Empty; // Limpiar input
+        }
+        catch (Exception ex)
+        {
+            mensajeErrorAgregar = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            agregandoArticulo = false;
+            StateHasChanged();
+        }
     }
 
     private async Task ReenviarMasivoSunat()
