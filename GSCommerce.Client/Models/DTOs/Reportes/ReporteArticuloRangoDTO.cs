@@ -1,4 +1,4 @@
-﻿namespace GSCommerce.Client.Models.DTOs.Reportes;
+namespace GSCommerce.Client.Models.DTOs.Reportes;
 
 public class ReporteArticuloRangoDTO
 {
@@ -9,6 +9,7 @@ public class ReporteArticuloRangoDTO
     public List<MesColDTO> Meses { get; set; } = new();
     public List<FilaAlmacenDTO> Filas { get; set; } = new();
     public TotalesFilaDTO Totales { get; set; } = new();
+    public int StockPrincipal { get; set; }
 }
 
 public class MesColDTO

@@ -633,13 +633,16 @@ namespace GSCommerceAPI.Controllers
                 .Select(a => new { a.IdArticulo, a.Descripcion, a.PrecioCompra, a.PrecioVenta })
                 .ToListAsync();
 
-            // Ventas por mes x almacén
+            // Ventas por mes x almacén (excluye comprobantes anulados sin NC o marcados para excluir)
             var ventas = await _context.ComprobanteDeVentaDetalles
                 .AsNoTracking()
                 .Where(d => req.Ids.Contains(d.IdArticulo)
                          && d.IdComprobanteNavigation.Fecha >= desde
                          && d.IdComprobanteNavigation.Fecha < hastaExclusiva
-                         && !principalIds.Contains(d.IdComprobanteNavigation.IdAlmacen))
+                         && !principalIds.Contains(d.IdComprobanteNavigation.IdAlmacen)
+                         && !(d.IdComprobanteNavigation.Estado == "A"
+                              && (string.IsNullOrEmpty(d.IdComprobanteNavigation.GeneroNc)
+                                  || d.IdComprobanteNavigation.ExcluirDeEstadisticas)))
                 .Select(d => new {
                     d.IdArticulo,
                     d.IdComprobanteNavigation.IdAlmacen,
@@ -726,13 +729,21 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToList();
 
-            // Stock actual
+            // Stock actual (excluyendo PRINCIPAL)
             var stock = await _context.StockAlmacens
                 .AsNoTracking()
                 .Where(s => req.Ids.Contains(s.IdArticulo)
                             && !principalIds.Contains(s.IdAlmacen))
                 .Select(s => new { s.IdArticulo, s.IdAlmacen, s.Stock })
                 .ToListAsync();
+
+            // Stock en almacén PRINCIPAL (IdAlmacen = 1009)
+            const int idAlmacenPrincipal = 1009;
+            var stockPrincipal = await _context.StockAlmacens
+                .AsNoTracking()
+                .Where(s => req.Ids.Contains(s.IdArticulo)
+                            && s.IdAlmacen == idAlmacenPrincipal)
+                .ToDictionaryAsync(s => s.IdArticulo, s => s.Stock);
 
             var respuesta = new List<Models.Reportes.ReporteArticuloRangoDTO>();
 
@@ -804,7 +815,8 @@ namespace GSCommerceAPI.Controllers
                     PrecioVenta = art.PrecioVenta,
                     Meses = meses,
                     Filas = filas.OrderBy(f => f.NombreAlmacen).ToList(),
-                    Totales = tot
+                    Totales = tot,
+                    StockPrincipal = stockPrincipal.TryGetValue(art.IdArticulo, out var stPrinc) ? stPrinc : 0
                 });
             }
 
