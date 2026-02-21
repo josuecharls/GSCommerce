@@ -3018,6 +3018,24 @@ namespace GSCommerceAPI.Controllers
                 cab.Total = totalVenta;
                 cab.Apagar = totalVenta;
 
+                // --- ACTUALIZAR PAGO ORIGINAL (Para que cuadre en Arqueos de Caja) ---
+                var pagosOriginales = await _context.DetallePagoVenta
+                    .Where(p => p.IdComprobante == id)
+                    .OrderBy(p => p.IdDetallePagoVenta)
+                    .ToListAsync();
+
+                if (pagosOriginales.Any())
+                {
+                    // Si existe al menos un pago, asignamos toda la diferencia al primer pago para cuadrar la caja
+                    var primerPago = pagosOriginales.First();
+                    decimal diferenciaTotal = totalVenta - pagosOriginales.Sum(p => p.Soles);
+                    
+                    if (diferenciaTotal != 0)
+                    {
+                        primerPago.Soles += diferenciaTotal;
+                    }
+                }
+
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
