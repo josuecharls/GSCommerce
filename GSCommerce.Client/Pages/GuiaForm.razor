@@ -27,7 +27,7 @@ else
     <div class="card p-4 mb-3">
         <div class="row">
             <div class="col-md-4">
-                <label class="form-label"><i class="bi bi-box-seam-fill"></i> Almacén</label>
+                <label class="form-label"><i class="bi bi-box-seam-fill"></i> @(tipo == "Transferencia" ? "Almacén de Origen" : "Almacén")</label>
                 <select class="form-control" @bind="guia.IdAlmacen">
                     <option disabled value="0">-- Seleccionar --</option>
                     @foreach (var a in almacenes)
@@ -42,7 +42,7 @@ else
                 <div class="col-md-4">
                     <label class="form-label">Almacén Destino</label>
                     <select class="form-control" @bind="guia.IdAlmacenDestinoOrigen">
-                        <option disabled value="0">-- Seleccionar --</option>
+                        <option disabled value="">-- Seleccionar --</option>
                         @foreach (var a in almacenes)
                         {
                             <option value="@a.IdAlmacen">@a.Nombre</option>
@@ -375,6 +375,27 @@ else
             {
                 await MostrarAlerta("Debe ingresar al menos un artículo con cantidad válida.");
                 return;
+            }
+
+            if (guia.IdAlmacen == 0)
+            {
+                await MostrarAlerta(tipo == "Transferencia" ? "Seleccione el Almacén de Origen." : "Seleccione el Almacén.");
+                return;
+            }
+
+            if (tipo == "Transferencia")
+            {
+                if (guia.IdAlmacenDestinoOrigen == null || guia.IdAlmacenDestinoOrigen == 0)
+                {
+                    await MostrarAlerta("Seleccione el Almacén Destino.");
+                    return;
+                }
+
+                if (guia.IdAlmacen == guia.IdAlmacenDestinoOrigen)
+                {
+                    await MostrarAlerta("El Almacén de Origen y el Almacén Destino no pueden ser el mismo.");
+                    return;
+                }
             }
 
             // Asegura que los items estén correctamente enumerados
