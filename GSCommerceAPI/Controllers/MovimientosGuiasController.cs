@@ -538,11 +538,9 @@ namespace GSCommerceAPI.Controllers
 
             // Revertir stock si:
             // - No es transferencia (siempre revertir)
-            // - Es transferencia y el estado anterior era "E" (emitido) - revertir
-            // - Es transferencia y el estado anterior era "C" (confirmado) - revertir (nuevo)
+            // - Es transferencia y el estado anterior era "C" (confirmado) - revertir
             bool DebeRevertirStock(bool esTransferenciaMovimiento, string estadoAnterior)
                 => !esTransferenciaMovimiento || 
-                   string.Equals(estadoAnterior, "E", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(estadoAnterior, "C", StringComparison.OrdinalIgnoreCase);
 
             async Task AjustarStockYkardex(MovimientosCabecera mov)
