@@ -729,13 +729,13 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToList();
 
-            // Faltantes por Toma de Inventario (pérdidas/robos) - se restan del ingreso
-            var faltantesRaw = await _context.Kardices
+            // Egresos (Faltantes por Toma de Inventario, Transferencias de egreso, Guías de salida) - se restan del ingreso
+            var egresosRaw = await _context.Kardices
                 .AsNoTracking()
                 .Where(k => req.Ids.Contains(k.IdArticulo)
                             && k.TipoMovimiento == "E"
                             && k.Origen != null
-                            && EF.Functions.Like(k.Origen, "Faltante por Toma de Inventario%")
+                            && !EF.Functions.Like(k.Origen, "Venta:%")
                             && k.Fecha >= desde
                             && k.Fecha < hastaExclusiva
                             && !principalIds.Contains(k.IdAlmacen))
@@ -747,15 +747,15 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToListAsync();
 
-            var faltantesDict = faltantesRaw
+            var egresosDict = egresosRaw
                 .ToDictionary(x => (x.IdArticulo, x.IdAlmacen), x => x.Cant);
 
-            // Ingreso Neto = Ingreso Bruto - Faltantes por inventario
+            // Ingreso Neto = Ingreso Bruto - Egresos (Faltantes, Transferencias, Guías de Salida)
             var ingresosAgg = ingresosAggBruto
                 .Select(x => new {
                     x.IdArticulo,
                     x.IdAlmacen,
-                    Cant = x.Cant - (faltantesDict.TryGetValue((x.IdArticulo, x.IdAlmacen), out var falt) ? falt : 0),
+                    Cant = x.Cant - (egresosDict.TryGetValue((x.IdArticulo, x.IdAlmacen), out var egreso) ? egreso : 0),
                     x.Fch
                 })
                 .ToList();
