@@ -7,6 +7,9 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
+    <meta name="description"
+        content="GSCommerce es el sistema avanzado de gestión, ventas y control de inventario de GSHOP." />
+    <meta name="keywords" content="GSCommerce, GSHOP, sistema de ventas, punto de venta, inventario, ERP" />
     <title>GSCommerce Sistema</title>
     <base href="/" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -26,7 +29,7 @@
         <div class="loading-progress-text"></div>
     </div>
 
-    <div id="blazor-error-ui">
+    <div id="blazor-error-ui" style="display: none;" aria-hidden="true">
         An unhandled error has occurred.
         <a href="" class="reload">Reload</a>
         <a class="dismiss">🗙</a>
@@ -125,17 +128,18 @@
     <script src="js/printHelper.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script src="js/export.js?v=2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script>
-        window.generateBarcode = function(elementId, code) {
+        window.generateBarcode = function (elementId, code) {
             try {
                 const element = document.getElementById(elementId);
                 if (!element) return;
-                
+
                 // Limpiar contenido previo
                 element.innerHTML = '';
-                
+
                 // Generar código de barras Code128 con alta calidad para impresión
                 JsBarcode(element, code, {
                     format: "CODE128",
@@ -145,7 +149,7 @@
                     margin: 5,         // Margen alrededor
                     background: "#ffffff",
                     lineColor: "#000000",
-                    valid: function(valid) {
+                    valid: function (valid) {
                         if (!valid) {
                             console.error("Código de barras inválido:", code);
                         }
@@ -162,7 +166,7 @@
         // Verificar conexión periódicamente y limpiar cache si es necesario
         let lastConnectionCheck = Date.now();
         const CONNECTION_CHECK_INTERVAL = 30000; // 30 segundos
-        
+
         async function checkConnection() {
             try {
                 const response = await fetch('/_framework/blazor.boot.json', {
@@ -190,19 +194,19 @@
                 }
             }
         }
-        
+
         // Verificar conexión cada 30 segundos
         setInterval(checkConnection, CONNECTION_CHECK_INTERVAL);
-        
+
         // Manejar eventos de visibilidad para verificar cuando la página vuelve a estar activa
-        document.addEventListener('visibilitychange', function() {
+        document.addEventListener('visibilitychange', function () {
             if (!document.hidden) {
                 checkConnection();
             }
         });
-        
+
         // Manejar errores de carga de Blazor
-        window.addEventListener('error', function(e) {
+        window.addEventListener('error', function (e) {
             if (e.message && e.message.includes('blazor')) {
                 console.error('Error de Blazor detectado, recargando...');
                 setTimeout(() => {
