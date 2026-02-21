@@ -57,7 +57,7 @@
                     <td>@g.NombreAlmacen</td>
                     <td>@g.Fecha.ToString("yyyy-MM-dd")</td>
                     <td>
-                        @if (g.Estado == "A")
+                        @if (g.Estado?.Trim() == "A")
                         {
                             <span class="badge bg-danger">Anulado</span>
                         }
@@ -70,10 +70,10 @@
                         <button @onclick="() => VerDetalle(g.IdMovimiento)" class="btn btn-info btn-sm me-1">
                             <i class="bi bi-eye"></i> Ver Detalle
                         </button>
-                        <button @onclick="() => EditGuia(g.IdMovimiento)" class="btn btn-warning btn-sm me-1" disabled="@(g.Estado == "A" || EsTransferenciaConfirmada(g))">
+                        <button @onclick="() => EditGuia(g.IdMovimiento)" class="btn btn-warning btn-sm me-1" disabled="@(g.Estado?.Trim() == "A" || EsTransferenciaConfirmada(g))">
                             <i class="bi bi-pencil-square"></i> Editar
                         </button>
-                        <button class="btn btn-danger btn-sm me-1" @onclick="() => AnularGuia(g.IdMovimiento)" disabled="@(g.Estado == "A")">
+                        <button class="btn btn-danger btn-sm me-1" @onclick="() => AnularGuia(g.IdMovimiento)" disabled="@(g.Estado?.Trim() == "A")">
                             🛑 Anular
                         </button>
                         @if (EsPendienteDeRecepcion(g, idAlmacenUsuario))
