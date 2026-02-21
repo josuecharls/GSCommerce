@@ -35,6 +35,7 @@
             <tr>
                 <th>Código</th>
                 <th>Nombre</th>
+                <th class="text-end">Stock Sist.</th>
                 <th class="text-end">Cantidad</th>
                 <th class="text-end">Sobrante</th>
                 <th class="text-end">Faltante</th>
@@ -47,11 +48,12 @@
                 <tr>
                     <td>@d.IdArticulo</td>
                     <td>@d.Nombre</td>
+                    <td class="text-end text-muted">@d.StockActual</td>
                     <td class="text-end">
                         <InputNumber class="form-control form-control-sm text-end" @bind-Value="d.Cantidad" />
                     </td>
-                    <td class="text-end">@(d.Sobrante ?? 0)</td>
-                    <td class="text-end">@(d.Faltante ?? 0)</td>
+                    <td class="text-end fw-bold text-success">@(d.Sobrante ?? (d.Cantidad > d.StockActual ? d.Cantidad - d.StockActual : 0))</td>
+                    <td class="text-end fw-bold text-danger">@(d.Faltante ?? (d.Cantidad < d.StockActual ? d.StockActual - d.Cantidad : 0))</td>
                     <td class="text-center">
                         <button class="btn btn-sm btn-primary" @onclick="() => ActualizarDetalle(d)"><i class="bi bi-floppy2"></i> </button>
                     </td>

@@ -10,5 +10,6 @@
         public int? Sobrante { get; set; }
         public int? Faltante { get; set; }
         public string? Nombre { get; set; }
+        public int StockActual { get; set; }
     }
 }

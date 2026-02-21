@@ -64,6 +64,10 @@
                         {
                             <button class="btn btn-sm btn-warning me-1" @onclick="() => ReemplazarStock(t.IdTomaInventario)" disabled="@(aplicandoId == t.IdTomaInventario)"><i class="bi bi-box-seam-fill"></i>  Aplicar</button>
                         }
+                        else if (t.EstadoToma == "Aplicado")
+                        {
+                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Aplicado</span>
+                        }
                     </td>
                 </tr>
             }

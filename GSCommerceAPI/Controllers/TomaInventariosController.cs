@@ -73,21 +73,39 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("{id}/detalles")]
         public async Task<IActionResult> GetDetalles(int id)
         {
-            var detalles = await _context.TomaInventarioDetalles
+            var toma = await _context.TomaInventarios.FindAsync(id);
+            if (toma == null)
+                return NotFound();
+
+            var detallesRaw = await _context.TomaInventarioDetalles
                 .Where(d => d.IdTomaInventario == id)
                 .Include(d => d.IdArticuloNavigation)
-                .Select(d => new
+                .ToListAsync();
+
+            var idsArticulos = detallesRaw.Select(d => d.IdArticulo).ToList();
+
+            var stocks = await _context.StockAlmacens
+                .Where(s => s.IdAlmacen == toma.IdAlmacen && idsArticulos.Contains(s.IdArticulo))
+                .ToDictionaryAsync(s => s.IdArticulo, s => s.Stock);
+
+            var detalles = detallesRaw.Select(d => {
+                var stockActual = stocks.TryGetValue(d.IdArticulo, out var s) ? s : 0;
+                var dif = d.Cantidad - stockActual;
+
+                return new
                 {
                     d.IdTomaInventarioDetalle,
                     d.IdTomaInventario,
                     d.IdArticulo,
                     d.Cantidad,
                     d.Estado,
-                    d.Sobrante,
-                    d.Faltante,
-                    Nombre = d.IdArticuloNavigation.Descripcion
-                })
-                .ToListAsync();
+                    Sobrante = toma.EstadoToma == "Aplicado" ? d.Sobrante : null,
+                    Faltante = toma.EstadoToma == "Aplicado" ? d.Faltante : null,
+                    Nombre = d.IdArticuloNavigation?.Descripcion,
+                    StockActual = stockActual
+                };
+            }).ToList();
+
             return Ok(detalles);
         }
 
@@ -208,6 +226,7 @@ namespace GSCommerceAPI.Controllers
                 stock.Stock = d.Cantidad;
             }
 
+            toma.EstadoToma = "Aplicado";
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -321,6 +340,7 @@ namespace GSCommerceAPI.Controllers
                 stock.Stock = 0;
             }
 
+            toma.EstadoToma = "Aplicado";
             await _context.SaveChangesAsync();
             return NoContent();
         }
