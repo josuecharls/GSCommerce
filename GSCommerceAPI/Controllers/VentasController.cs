@@ -719,13 +719,44 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToList();
 
-            var ingresosAgg = ingresosFiltrados
+            var ingresosAggBruto = ingresosFiltrados
                 .GroupBy(x => new { x.IdArticulo, x.IdAlmacen })
                 .Select(g => new {
                     g.Key.IdArticulo,
                     g.Key.IdAlmacen,
                     Cant = g.Sum(x => x.Cantidad),
                     Fch = g.Min(x => x.Fecha)
+                })
+                .ToList();
+
+            // Faltantes por Toma de Inventario (pérdidas/robos) - se restan del ingreso
+            var faltantesRaw = await _context.Kardices
+                .AsNoTracking()
+                .Where(k => req.Ids.Contains(k.IdArticulo)
+                            && k.TipoMovimiento == "E"
+                            && k.Origen != null
+                            && EF.Functions.Like(k.Origen, "Faltante por Toma de Inventario%")
+                            && k.Fecha >= desde
+                            && k.Fecha < hastaExclusiva
+                            && !principalIds.Contains(k.IdAlmacen))
+                .GroupBy(k => new { k.IdArticulo, k.IdAlmacen })
+                .Select(g => new {
+                    g.Key.IdArticulo,
+                    g.Key.IdAlmacen,
+                    Cant = g.Sum(x => x.Cantidad)
+                })
+                .ToListAsync();
+
+            var faltantesDict = faltantesRaw
+                .ToDictionary(x => (x.IdArticulo, x.IdAlmacen), x => x.Cant);
+
+            // Ingreso Neto = Ingreso Bruto - Faltantes por inventario
+            var ingresosAgg = ingresosAggBruto
+                .Select(x => new {
+                    x.IdArticulo,
+                    x.IdAlmacen,
+                    Cant = x.Cant - (faltantesDict.TryGetValue((x.IdArticulo, x.IdAlmacen), out var falt) ? falt : 0),
+                    x.Fch
                 })
                 .ToList();
 

@@ -988,9 +988,9 @@
                     DescripcionItem = articulo.Descripcion ?? string.Empty,
                     UnidadMedida = "NIU",
                     Cantidad = 1,
-                    PrecioUnitario = articulo.PrecioVenta ?? 0,
+                    PrecioUnitario = articulo.PrecioVenta,
                     PorcentajeDescuento = 0,
-                    Total = articulo.PrecioVenta ?? 0
+                    Total = articulo.PrecioVenta
                 };
                 ventaReenvio.Detalles.Add(nuevoDetalle);
             }
