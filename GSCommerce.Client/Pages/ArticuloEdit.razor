@@ -126,42 +126,6 @@
                     </div>
                 </div>
 
-                <!-- COLOR -->
-                <div class="mb-3">
-                    <label class="form-label">Color</label>
-                    <div class="input-group">
-                        <select class="form-control" @bind="articulo.Color" @bind:after="ActualizarDescripcion">
-                            <option value="">-- Seleccionar --</option>
-                            @foreach (var c in colores)
-                            {
-                                <option value="@c.Descripcion">@c.Descripcion</option>
-                            }
-                        </select>
-                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
-                                @onclick='() => OpenNuevoComplemento("COLOR")'>
-                            +
-                        </button>
-                    </div>
-                </div>
-
-                <!-- TALLA -->
-                <div class="mb-3">
-                    <label class="form-label">Talla</label>
-                    <div class="input-group">
-                        <select class="form-control" @bind="articulo.Talla" @bind:after="ActualizarDescripcion">
-                            <option value="">-- Seleccionar --</option>
-                            @foreach (var c in tallas)
-                            {
-                                <option value="@c.Descripcion">@c.Descripcion</option>
-                            }
-                        </select>
-                        <button class="btn btn-outline-primary" type="button" title="Nuevo"
-                                @onclick='() => OpenNuevoComplemento("TALLA")'>
-                            +
-                        </button>
-                    </div>
-                </div>
-
                 <!-- ESTACION -->
                 <div class="mb-3">
                     <label class="form-label">Estación</label>
@@ -201,20 +165,12 @@
                 <!-- VARIANTES COLOR/TALLA -->
                 <div class="mb-3">
                     <label class="form-label">Variantes Color/Talla</label>
-                    <div class="input-group">
-                        <button class="btn btn-outline-primary w-100" type="button" 
-                                @onclick="AbrirModalVariantes">
-                            <i class="bi bi-palette"></i> Gestionar Variantes
-                            @if (variantes.Any())
-                            {
-                                <span class="badge bg-success ms-2">@variantes.Count</span>
-                            }
-                        </button>
+                    <div class="alert alert-info py-2 mb-0" role="alert">
+                        Si desea editar variantes de talla y color vaya a:<br />
+                        <a href="/articulo-variante/@articulo.IdArticulo" class="alert-link">
+                            <i class="bi bi-box-arrow-up-right"></i> Gestión de variantes para @articulo.IdArticulo
+                        </a>
                     </div>
-                    @if (variantes.Any())
-                    {
-                        <small class="text-muted">@variantes.Count variante(s) registrada(s)</small>
-                    }
                 </div>
             </div> <!-- /col-md-6 izquierda -->
             <!-- Derecha -->
@@ -265,6 +221,15 @@
                     <img src="@articulo.Foto" class="img-thumbnail" width="100" style="display: @(string.IsNullOrEmpty(articulo.Foto) ? "none" : "block")" />
                     <InputFile OnChange="UploadImage" accept="image/*" />
                 </div>
+
+                <!-- Código de barras -->
+                <div class="mb-3 text-center">
+                    <label class="form-label">Código de Barras</label><br />
+                    <img src="https://barcode.tec-it.com/barcode.ashx?data=@(articulo.IdArticulo)&code=Code93" class="img-thumbnail" width="150" />
+                    <div><strong>@articulo.IdArticulo</strong></div>
+                    <button class="btn btn-success mt-2 me-2" @onclick="PrintBarcode"><i class="bi bi-printer"></i> Imprimir</button>
+                    <button class="btn btn-info mt-2" @onclick="() => mostrarModalQR = true"><i class="bi bi-qr-code"></i> QR</button>
+                </div>
             </div> <!-- /col-md-6 derecha -->
         </div> <!-- /row -->
         <!-- Botones -->
@@ -277,6 +242,98 @@
 else
 {
     <p>Cargando...</p>
+}
+
+<!-- Modal QR (2-up) -->
+@if (mostrarModalQR)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content p-4 text-center">
+                <h4><i class="bi bi-qr-code"></i> Código QR</h4>
+                <hr />
+                <div class="etiqueta-imprimir">
+                    <div class="label">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@(articulo.IdArticulo)" />
+                        <div class="desc">@articulo.DescripcionCorta</div>
+                        <div class="code">Código: @articulo.IdArticulo</div>
+                    </div>
+                    <div class="label">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=@(articulo.IdArticulo)" />
+                        <div class="desc">@articulo.DescripcionCorta</div>
+                        <div class="code">Código: @articulo.IdArticulo</div>
+                    </div>
+                </div>
+                <div class="mt-3 no-print">
+                    <button class="btn btn-success me-2" @onclick="Imprimir"><i class="bi bi-printer"></i> Imprimir</button>
+                    <button class="btn btn-secondary" @onclick="() => mostrarModalQR = false"><i class="bi bi-x-lg"></i> Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @@media print {
+            @@page {
+                size: 100mm 50mm;
+                margin: 0;
+            }
+
+            body * {
+                visibility: hidden !important;
+            }
+
+            .etiqueta-imprimir, .etiqueta-imprimir * {
+                visibility: visible !important;
+            }
+
+            .etiqueta-imprimir {
+                position: fixed;
+                inset: 0;
+                width: 100mm;
+                height: 50mm;
+                display: flex;
+                gap: 3mm;
+            }
+
+            .label {
+                width: calc((100mm - 3mm)/2);
+                height: 50mm;
+                border: 1px solid #000;
+                border-radius: .8mm;
+                padding: 1.2mm;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                gap: 1mm;
+                justify-content: center;
+                align-items: center;
+            }
+
+                .label img {
+                    width: 22mm;
+                    height: 22mm;
+                    object-fit: contain;
+                    display: block;
+                }
+
+            .desc {
+                font-weight: 700;
+                font-size: 8pt;
+                line-height: 1.15;
+                text-align: center;
+            }
+
+            .code {
+                font-size: 7pt;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
 }
 
 <!-- Modal: Nuevo Complemento -->
@@ -315,112 +372,54 @@ else
 
 <ProveedorBuscarModal @bind-Mostrar="mostrarProveedorModal" OnSeleccionado="ProveedorSeleccionado" />
 
-<!-- Modal: Gestionar Variantes -->
-@if (mostrarModalVariantes)
+<!-- Modal: Seleccionar Variante para Impresión -->
+@if (mostrarModalSeleccionVarianteImpresion)
 {
-    <div class="modal-backdrop fade show" style="z-index: 10000;"></div>
-    <div class="modal d-block" tabindex="-1" style="z-index: 10001;">
-        <div class="modal-dialog modal-lg">
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal d-block" tabindex="-1">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-palette"></i> Variantes de Color/Talla - @articulo.IdArticulo</h5>
-                    <button type="button" class="btn-close" @onclick="CerrarModalVariantes"></button>
+                    <h5 class="modal-title">Seleccionar Variante para Imprimir</h5>
+                    <button type="button" class="btn-close" @onclick="() => mostrarModalSeleccionVarianteImpresion = false"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted small mb-3">Agregue las combinaciones de color y talla para este artículo</p>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-5">
-                            <label class="form-label">Color</label>
-                            <div class="input-group">
-                                <select class="form-select" @bind="nuevaVariante.Color">
-                                    <option value="">-- Seleccionar Color --</option>
-                                    @foreach (var c in colores)
-                                    {
-                                        <option value="@c.Descripcion">@c.Descripcion</option>
-                                    }
-                                </select>
-                                <button class="btn btn-outline-primary" type="button" title="Nuevo Color"
-                                        @onclick='() => OpenNuevoComplementoDesdeModal("COLOR")'>
-                                    +
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-5">
-                            <label class="form-label">Talla</label>
-                            <div class="input-group">
-                                <select class="form-select" @bind="nuevaVariante.Talla">
-                                    <option value="">-- Seleccionar Talla --</option>
-                                    @foreach (var t in tallas)
-                                    {
-                                        <option value="@t.Descripcion">@t.Descripcion</option>
-                                    }
-                                </select>
-                                <button class="btn btn-outline-primary" type="button" title="Nueva Talla"
-                                        @onclick='() => OpenNuevoComplementoDesdeModal("TALLA")'>
-                                    +
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-2 d-flex align-items-end">
-                            <button class="btn btn-success w-100" @onclick="AgregarVariante">
-                                <i class="bi bi-plus-lg"></i> Agregar
+                    <p class="mb-3">Seleccione la variante que desea imprimir:</p>
+                    <div class="list-group">
+                        @foreach (var variante in variantes)
+                        {
+                            <button type="button" 
+                                    class="list-group-item list-group-item-action"
+                                    @onclick="() => ImprimirVariante(variante)">
+                                <strong>@variante.Color</strong> - <strong>@variante.Talla</strong>
                             </button>
-                        </div>
+                        }
                     </div>
-
-                    @if (variantes.Any())
-                    {
-                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-                            <table class="table table-sm table-bordered">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Color</th>
-                                        <th>Talla</th>
-                                        <th style="width: 100px;">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var v in variantes)
-                                    {
-                                        <tr>
-                                            <td>@v.Color</td>
-                                            <td>@v.Talla</td>
-                                            <td>
-                                                <button class="btn btn-danger btn-sm w-100" 
-                                                        @onclick="() => EliminarVariante(v.IdVariante)"
-                                                        title="Eliminar">
-                                                    <i class="bi bi-trash"></i> Eliminar
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> No hay variantes registradas. Agregue combinaciones de color y talla arriba.
-                        </div>
-                    }
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="CerrarModalVariantes">Cerrar</button>
+                    <button class="btn btn-secondary" @onclick="() => mostrarModalSeleccionVarianteImpresion = false">Cancelar</button>
                 </div>
             </div>
         </div>
     </div>
 }
 
+
+
 @code {
     [Parameter] public string id { get; set; } = string.Empty;
+
+    [SupplyParameterFromQuery]
+    public int? page { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? search { get; set; }
 
     private ArticuloDTO articulo = new();
     private bool isLoading = true;
     private bool mostrarProveedorModal = false;
-    private bool mostrarModalVariantes = false;
+    private bool mostrarModalQR = false;
+    private bool mostrarModalSeleccionVarianteImpresion = false;
 
     // Complementos
     private List<ComplementoDTO> familias = new();
@@ -533,17 +532,9 @@ else
         {
             await ReloadTipo(nuevoTipo);
             
-            // Si viene del modal de variantes, actualizar el campo correspondiente
+            // Si viene del modal de variantes (ahora obsoleto en Edit, pero mantenemos por seguridad sin acceder a nuevaVariante)
             if (vieneDelModalVariantes)
             {
-                if (nuevoTipo == "COLOR")
-                {
-                    nuevaVariante.Color = creado.Descripcion;
-                }
-                else if (nuevoTipo == "TALLA")
-                {
-                    nuevaVariante.Talla = creado.Descripcion;
-                }
                 vieneDelModalVariantes = false;
             }
             else
@@ -576,59 +567,76 @@ else
     private void ActualizarDescripcion()
     {
         articulo.Descripcion =
-            $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Color} {articulo.Talla}".Trim();
+            $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Detalle}".Trim();
         articulo.DescripcionCorta =
-            $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Color} {articulo.Talla}".Trim();
+            $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Detalle}".Trim();
+    }
+
+    private async Task Imprimir()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
+    private async Task PrintBarcode()
+    {
+        if (variantes.Any())
+        {
+            mostrarModalSeleccionVarianteImpresion = true;
+        }
+        else
+        {
+            var url = $"/print-barcode/{articulo.IdArticulo}/{Uri.EscapeDataString(articulo.DescripcionCorta)}";
+            await JS.InvokeVoidAsync("open", url, "_blank");
+        }
+    }
+
+    private async Task ImprimirVariante(ArticuloVarianteDTO variante)
+    {
+        mostrarModalSeleccionVarianteImpresion = false;
+        
+        // Obtener el índice de la variante (1-based) para el sufijo
+        var index = variantes.IndexOf(variante) + 1;
+        
+        // Crear el código con el sufijo (ej. "-1", "-2")
+        string codigoVariante = $"{articulo.IdArticulo}-{index}";
+        
+        string descripcionCortaVariante = $"{articulo.DescripcionCorta} {variante.Color} {variante.Talla}";
+        
+        var url = $"/print-barcode/{codigoVariante}/{Uri.EscapeDataString(descripcionCortaVariante)}";
+        await JS.InvokeVoidAsync("open", url, "_blank");
     }
 
     private async Task SaveArticulo()
     {
+        if (articulo.PrecioCompra == 0)
+        {
+            await JS.InvokeVoidAsync("alert", "⚠️ El Precio de Compra no puede ser 0.");
+            return;
+        }
+
+        if (articulo.PrecioVenta == 0)
+        {
+            await JS.InvokeVoidAsync("alert", "⚠️ El Precio de Venta no puede ser 0.");
+            return;
+        }
+
         if (articulo.UnidadAlmacen == "string")
             articulo.UnidadAlmacen = null;
 
         var ok = await ArticuloService.UpdateArticulo(articulo.IdArticulo, articulo);
-        if (ok) Navigation.NavigateTo("/articulos");
+        if (ok) 
+        {
+            // Retornar manteniendo el estado de la lista
+            var urlParams = new Dictionary<string, object?>();
+            if (page.HasValue && page > 1) urlParams["page"] = page;
+            if (!string.IsNullOrEmpty(search)) urlParams["search"] = search;
+            
+            var uri = Navigation.GetUriWithQueryParameters(Navigation.ToAbsoluteUri("/articulos").ToString(), urlParams);
+            Navigation.NavigateTo(uri.ToString());
+        }
     }
 
-    private ArticuloVarianteDTO nuevaVariante = new();
     private List<ArticuloVarianteDTO> variantes = new();
-
-    private async Task AgregarVariante()
-    {
-        if (string.IsNullOrWhiteSpace(nuevaVariante.Color) || string.IsNullOrWhiteSpace(nuevaVariante.Talla))
-        {
-            await JS.InvokeVoidAsync("alert", "⚠️ Debe seleccionar Color y Talla.");
-            return;
-        }
-
-        // Asegurar formato de 6 caracteres para IdArticulo
-        var idArticuloFormateado = articulo.IdArticulo?.PadLeft(6, '0') ?? articulo.IdArticulo;
-        nuevaVariante.IdArticulo = idArticuloFormateado;
-        nuevaVariante.IdVariante = 0; // Asegurar que sea 0 para que EF lo genere
-
-        var (exito, mensajeError) = await ArticuloVarianteService.RegistrarVariante(nuevaVariante);
-        if (exito)
-        {
-            await JS.InvokeVoidAsync("alert", "✅ Variante agregada correctamente.");
-            await CargarVariantes();
-            nuevaVariante = new();
-            StateHasChanged();
-        }
-        else
-        {
-            var mensaje = !string.IsNullOrEmpty(mensajeError) 
-                ? $"❌ Error al agregar la variante: {mensajeError}" 
-                : "❌ Error al agregar la variante.";
-            await JS.InvokeVoidAsync("alert", mensaje);
-        }
-    }
-
-    private async Task EliminarVariante(int idVar)
-    {
-        var exito = await ArticuloVarianteService.EliminarVariante(idVar);
-        if (exito)
-            await CargarVariantes();
-    }
 
     private async Task CargarVariantes()
     {
@@ -637,28 +645,6 @@ else
             var idArticuloFormateado = articulo.IdArticulo.PadLeft(6, '0');
             variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(idArticuloFormateado);
         }
-    }
-
-    private async Task AbrirModalVariantes()
-    {
-        if (string.IsNullOrEmpty(articulo.IdArticulo))
-            return;
-        
-        // Asegurar que colores y tallas estén cargados
-        if (!colores.Any())
-            colores = await ComplementoService.GetByTipo("COLOR");
-        if (!tallas.Any())
-            tallas = await ComplementoService.GetByTipo("TALLA");
-        
-        await CargarVariantes();
-        nuevaVariante = new();
-        mostrarModalVariantes = true;
-    }
-
-    private void CerrarModalVariantes()
-    {
-        mostrarModalVariantes = false;
-        nuevaVariante = new();
     }
 
     private async Task UploadImage(InputFileChangeEventArgs e)
@@ -702,6 +688,11 @@ else
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/articulos");
+        var urlParams = new Dictionary<string, object?>();
+        if (page.HasValue && page > 1) urlParams["page"] = page;
+        if (!string.IsNullOrEmpty(search)) urlParams["search"] = search;
+        
+        var uri = Navigation.GetUriWithQueryParameters(Navigation.ToAbsoluteUri("/articulos").ToString(), urlParams);
+        Navigation.NavigateTo(uri.ToString());
     }
 }

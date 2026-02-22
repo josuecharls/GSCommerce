@@ -19,7 +19,8 @@
                class="form-control"
                placeholder="Buscar por CÓDIGO o DESCRIPCIÓN..."
                @bind="searchTerm"
-               @onkeydown="@(e => { if (e.Key == "Enter") _ = SearchArticulos(); })" />
+               @bind:event="oninput"
+               @onkeypress="HandleKeyPress" />
         <button class="btn btn-primary" @onclick="SearchArticulos"><i class="bi bi-search"></i> Buscar</button>
     </div>
 </div>
@@ -328,6 +329,12 @@
 }
 
 @code {
+    [SupplyParameterFromQuery]
+    public int? page { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? search { get; set; }
+
     private List<ArticuloDTO> articuloList = new();
     private int currentPage = 1;
     private int pageSize = 10;
@@ -349,6 +356,16 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (page.HasValue && page.Value > 0)
+        {
+            currentPage = page.Value;
+        }
+        
+        if (!string.IsNullOrEmpty(search))
+        {
+            searchTerm = search;
+        }
+
         await LoadArticulos();
     }
 
@@ -359,10 +376,26 @@
             var response = await ArticuloService.GetArticulos(currentPage, pageSize, searchTerm);
             articuloList = SortList(response.Data);
             totalPages = response.TotalPages;
+
+            // Actualizar la URL sin recargar la página
+            var uri = Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+            {
+                { "page", currentPage > 1 ? currentPage : null },
+                { "search", !string.IsNullOrEmpty(searchTerm) ? searchTerm : null }
+            });
+            Navigation.NavigateTo(uri, forceLoad: false);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"❌ Error al cargar artículos: {ex.Message}");
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchArticulos();
         }
     }
 
@@ -397,12 +430,22 @@
 
     private void EditArticulo(string id)
     {
-        Navigation.NavigateTo($"/articulo/edit/{id}");
+        var uri = Navigation.GetUriWithQueryParameters(Navigation.ToAbsoluteUri($"/articulo/edit/{id}").ToString(), new Dictionary<string, object?>
+        {
+            { "page", currentPage > 1 ? currentPage : null },
+            { "search", !string.IsNullOrEmpty(searchTerm) ? searchTerm : null }
+        });
+        Navigation.NavigateTo(uri.ToString());
     }
 
     private void EditVariantes(string id)
     {
-        Navigation.NavigateTo($"/articulo-variante/{id}");
+        var uri = Navigation.GetUriWithQueryParameters(Navigation.ToAbsoluteUri($"/articulo-variante/{id}").ToString(), new Dictionary<string, object?>
+        {
+            { "page", currentPage > 1 ? currentPage : null },
+            { "search", !string.IsNullOrEmpty(searchTerm) ? searchTerm : null }
+        });
+        Navigation.NavigateTo(uri.ToString());
     }
 
     private void ConfirmDeleteArticulo(string id, string name)

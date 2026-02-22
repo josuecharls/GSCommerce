@@ -701,6 +701,18 @@ else
 
     private async Task SaveArticulo()
     {
+        if (articulo.PrecioCompra == 0)
+        {
+            await JS.InvokeVoidAsync("alert", "⚠️ El Precio de Compra no puede ser 0.");
+            return;
+        }
+
+        if (articulo.PrecioVenta == 0)
+        {
+            await JS.InvokeVoidAsync("alert", "⚠️ El Precio de Venta no puede ser 0.");
+            return;
+        }
+
         if (articulo.UnidadAlmacen == "string")
             articulo.UnidadAlmacen = null;
 
