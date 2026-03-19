@@ -1,4 +1,4 @@
-﻿@page "/articulo-form"
+@page "/articulo-form"
 @page "/articulo-form/{dummy}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
@@ -692,11 +692,24 @@ else
 
     private void ActualizarDescripcion()
     {
-        // Color y Talla ahora se manejan con variantes, no se incluyen en la descripción base
-        articulo.Descripcion =
+        var baseDesc =
             $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Detalle}".Trim();
-        articulo.DescripcionCorta =
+        var baseDescCorta =
             $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Detalle}".Trim();
+
+        // Si hay exactamente UNA variante, agregar su Color y Talla a la descripción
+        if (variantes.Count == 1)
+        {
+            var v = variantes[0];
+            var sufijo = $"{v.Color} {v.Talla}".Trim();
+            articulo.Descripcion     = string.IsNullOrEmpty(sufijo) ? baseDesc     : $"{baseDesc} {sufijo}".Trim();
+            articulo.DescripcionCorta = string.IsNullOrEmpty(sufijo) ? baseDescCorta : $"{baseDescCorta} {sufijo}".Trim();
+        }
+        else
+        {
+            articulo.Descripcion      = baseDesc;
+            articulo.DescripcionCorta = baseDescCorta;
+        }
     }
 
     private async Task SaveArticulo()
@@ -846,6 +859,7 @@ else
             variantesPendientes.Add(varianteTemp);
             variantes.Add(varianteTemp); // Agregar también a la lista visible
             nuevaVariante = new();
+            ActualizarDescripcion(); // ← sincronizar descripción si ahora hay 1 variante
             await JS.InvokeVoidAsync("alert", "✅ Variante agregada (se guardará al guardar el artículo).");
             StateHasChanged();
         }
@@ -860,6 +874,7 @@ else
                 await JS.InvokeVoidAsync("alert", "✅ Variante agregada correctamente.");
                 await CargarVariantes();
                 nuevaVariante = new();
+                ActualizarDescripcion(); // ← sincronizar descripción si ahora hay 1 variante
                 StateHasChanged();
             }
             else
@@ -882,6 +897,7 @@ else
             {
                 variantes.Remove(varianteAEliminar);
                 variantesPendientes.RemoveAll(v => v.IdVariante == id);
+                ActualizarDescripcion(); // ← limpiar descripción si ya no hay variante única
                 StateHasChanged();
             }
         }
@@ -892,6 +908,7 @@ else
             if (exito)
             {
                 await CargarVariantes();
+                ActualizarDescripcion(); // ← limpiar descripción si ya no hay variante única
                 StateHasChanged();
             }
         }

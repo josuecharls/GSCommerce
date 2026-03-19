@@ -902,6 +902,12 @@ else
         }
 
         // CASO 3: Sin variantes - flujo normal
+        // Si el artículo tiene Talla directo (artículos pre-variantes), incluirla en la descripción
+        if (!string.IsNullOrWhiteSpace(articulo.Talla) &&
+            !articulo.Talla.Equals("No Aplica", StringComparison.OrdinalIgnoreCase))
+        {
+            descripcion = $"{descripcion} {articulo.Talla}".Trim();
+        }
         ActualizarArticuloSeleccionado(articulo, descripcion);
         await AgregarArticuloALaVenta(codigo, articulo, descripcion, precioUnitario, esPromo, stockDisponible);
     }

@@ -1,4 +1,4 @@
-﻿@page "/articulo/edit/{id}"
+@page "/articulo/edit/{id}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using Microsoft.AspNetCore.Authorization
@@ -465,7 +465,8 @@ else
             }
         }
 
-        ActualizarDescripcion();
+        // ActualizarDescripcion() 
+        AjustarDescripcionVarianteUnica(); // si hay exactamente 1 variante, incluirla en la descripción
         isLoading = false;
     }
 
@@ -570,6 +571,61 @@ else
             $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Detalle}".Trim();
         articulo.DescripcionCorta =
             $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Detalle}".Trim();
+
+        // Si hay exactamente UNA variante, agregar su Color y Talla a la descripción
+        if (variantes.Count == 1)
+        {
+            var v = variantes[0];
+            var sufijo = $"{v.Color} {v.Talla}".Trim();
+            if (!string.IsNullOrEmpty(sufijo))
+            {
+                articulo.Descripcion      = $"{articulo.Descripcion} {sufijo}".Trim();
+                articulo.DescripcionCorta = $"{articulo.DescripcionCorta} {sufijo}".Trim();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Ajusta la descripción al cargar el artículo en modo edición:
+    /// si tiene exactamente UNA variante y la descripción no incluye ya
+    /// el Color/Talla de esa variante, los agrega (limpiando "No Aplica" antes).
+    /// </summary>
+    private void AjustarDescripcionVarianteUnica()
+    {
+        if (variantes.Count != 1) return;
+
+        var v = variantes[0];
+
+        // Limpiar "No Aplica" de la descripción base
+        static string Limpiar(string s) =>
+            s.Replace(" No Aplica", "", StringComparison.OrdinalIgnoreCase)
+             .Replace(" no aplica.", "", StringComparison.OrdinalIgnoreCase)
+             .Trim();
+
+        var descBase      = Limpiar(articulo.Descripcion ?? "");
+        var descCortaBase = Limpiar(articulo.DescripcionCorta ?? "");
+
+        var color = (v.Color ?? "").Trim();
+        var talla = (v.Talla ?? "").Trim();
+
+        // Agregar Color si no está ya
+        if (!string.IsNullOrEmpty(color) &&
+            !descBase.Contains(color, StringComparison.OrdinalIgnoreCase))
+        {
+            descBase      += " " + color;
+            descCortaBase += " " + color;
+        }
+
+        // Agregar Talla si no está ya
+        if (!string.IsNullOrEmpty(talla) &&
+            !descBase.Contains(talla, StringComparison.OrdinalIgnoreCase))
+        {
+            descBase      += " " + talla;
+            descCortaBase += " " + talla;
+        }
+
+        articulo.Descripcion      = descBase.Trim();
+        articulo.DescripcionCorta = descCortaBase.Trim();
     }
 
     private async Task Imprimir()

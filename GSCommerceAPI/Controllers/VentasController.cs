@@ -630,7 +630,7 @@ namespace GSCommerceAPI.Controllers
             var arts = await _context.Articulos
                 .AsNoTracking()
                 .Where(a => req.Ids.Contains(a.IdArticulo))
-                .Select(a => new { a.IdArticulo, a.Descripcion, a.PrecioCompra, a.PrecioVenta })
+                .Select(a => new { a.IdArticulo, a.Descripcion, a.PrecioCompra, a.PrecioVenta, a.Talla })
                 .ToListAsync();
 
             // Ventas por mes x almacén (excluye comprobantes anulados sin NC o marcados para excluir)
@@ -664,6 +664,7 @@ namespace GSCommerceAPI.Controllers
                 .Where(k => req.Ids.Contains(k.IdArticulo)
                             && k.TipoMovimiento == "I"
                             && (k.Origen == null || !EF.Functions.Like(k.Origen, "ANULACIÓN%"))
+                            && (k.Origen == null || !EF.Functions.Like(k.Origen, "Movimiento Almacen%"))
                             && k.Fecha >= desde
                             && k.Fecha < hastaExclusiva
                             && !principalIds.Contains(k.IdAlmacen))
@@ -684,7 +685,11 @@ namespace GSCommerceAPI.Controllers
                     x.IdAlmacen,
                     x.Cantidad,
                     x.Fecha,
-                    MovimientoId = TryObtenerIdMovimiento(x.Origen)
+                    // Para Sobrantes de Toma de Inventario el "Nro:" es el número del inventario,
+                    // no un IdMovimiento de MovimientosCabecera. No extraer para evitar falsos anulados.
+                    MovimientoId = (x.Origen != null && x.Origen.StartsWith("Sobrante", StringComparison.OrdinalIgnoreCase))
+                        ? (int?)null
+                        : TryObtenerIdMovimiento(x.Origen)
                 })
                 .ToList();
 
@@ -736,6 +741,7 @@ namespace GSCommerceAPI.Controllers
                             && k.TipoMovimiento == "E"
                             && k.Origen != null
                             && !EF.Functions.Like(k.Origen, "Venta:%")
+                            && !EF.Functions.Like(k.Origen, "ANULA%")
                             && k.Fecha >= desde
                             && k.Fecha < hastaExclusiva
                             && !principalIds.Contains(k.IdAlmacen))
@@ -838,10 +844,18 @@ namespace GSCommerceAPI.Controllers
                 tot.TotalVentas = tot.VentasPorMes.Values.Sum();
                 tot.PorcentajeVendida = tot.Ingreso > 0 ? Math.Round((decimal)tot.TotalVentas / tot.Ingreso * 100m, 2) : 0m;
 
+                var descConTalla = art.Descripcion;
+                if (!string.IsNullOrWhiteSpace(art.Talla) &&
+                    !art.Talla.Equals("No Aplica", StringComparison.OrdinalIgnoreCase) &&
+                    !descConTalla.Contains(art.Talla, StringComparison.OrdinalIgnoreCase))
+                {
+                    descConTalla = $"{descConTalla} {art.Talla}".Trim();
+                }
+
                 respuesta.Add(new Models.Reportes.ReporteArticuloRangoDTO
                 {
                     IdArticulo = art.IdArticulo,
-                    Descripcion = art.Descripcion,
+                    Descripcion = descConTalla,
                     PrecioCompra = art.PrecioCompra,
                     PrecioVenta = art.PrecioVenta,
                     Meses = meses,
@@ -2076,13 +2090,14 @@ namespace GSCommerceAPI.Controllers
             }
 
             var resultado = await q
-                .GroupBy(x => new { x.d.IdArticulo, x.d.Descripcion, x.a.Linea, x.a.Familia })
-                .Select(g => new TopArticuloDTO
+                .GroupBy(x => new { x.d.IdArticulo, x.d.Descripcion, x.a.Linea, x.a.Familia, x.a.Talla })
+                .Select(g => new
                 {
                     Codigo = g.Key.IdArticulo,
                     Descripcion = g.Key.Descripcion,
                     Linea = g.Key.Linea,
                     Familia = g.Key.Familia ?? string.Empty,
+                    Talla = g.Key.Talla,
                     TotalUnidadesVendidas = g.Sum(x => x.d.Cantidad),
                     TotalImporte = g.Sum(x => x.d.Total)
                 })
@@ -2091,7 +2106,29 @@ namespace GSCommerceAPI.Controllers
                 .Take(top)
                 .ToListAsync();
 
-            return Ok(resultado);
+            var resultadoFinal = resultado
+                .Select(item =>
+                {
+                    var desc = item.Descripcion ?? item.Codigo;
+                    if (!string.IsNullOrWhiteSpace(item.Talla) &&
+                        !item.Talla.Equals("No Aplica", StringComparison.OrdinalIgnoreCase) &&
+                        !desc.Contains(item.Talla, StringComparison.OrdinalIgnoreCase))
+                    {
+                        desc = $"{desc} {item.Talla}".Trim();
+                    }
+                    return new TopArticuloDTO
+                    {
+                        Codigo = item.Codigo,
+                        Descripcion = desc,
+                        Linea = item.Linea,
+                        Familia = item.Familia,
+                        TotalUnidadesVendidas = item.TotalUnidadesVendidas,
+                        TotalImporte = item.TotalImporte
+                    };
+                })
+                .ToList();
+
+            return Ok(resultadoFinal);
         }
 
         [Authorize]
@@ -2158,6 +2195,7 @@ namespace GSCommerceAPI.Controllers
                     Descripcion = g.Select(x => x.d.Descripcion).FirstOrDefault(),
                     Linea = g.Select(x => x.a.Linea).FirstOrDefault(),
                     Familia = g.Select(x => x.a.Familia).FirstOrDefault(),
+                    Talla = g.Select(x => x.a.Talla).FirstOrDefault(),
                     TotalUnidadesVendidas = g.Sum(x => x.d.Cantidad),
                     TotalImporte = g.Sum(x => x.d.Total)
                 })
@@ -2179,14 +2217,25 @@ namespace GSCommerceAPI.Controllers
             }
 
             var resultado = articulosAgrupados
-                .Select(item => new TopArticuloDTO
+                .Select(item =>
                 {
-                    Codigo = item.Codigo,
-                    Descripcion = LimpiarDescripcion(item.Descripcion, item.Codigo),
-                    Linea = item.Linea ?? string.Empty,
-                    Familia = item.Familia ?? string.Empty,
-                    TotalUnidadesVendidas = item.TotalUnidadesVendidas,
-                    TotalImporte = item.TotalImporte
+                    var desc = LimpiarDescripcion(item.Descripcion, item.Codigo);
+                    // Si el artículo tiene talla directa (pre-variantes) y no está ya en la descripción, agregarla
+                    if (!string.IsNullOrWhiteSpace(item.Talla) &&
+                        !item.Talla.Equals("No Aplica", StringComparison.OrdinalIgnoreCase) &&
+                        !desc.Contains(item.Talla, StringComparison.OrdinalIgnoreCase))
+                    {
+                        desc = $"{desc} {item.Talla}".Trim();
+                    }
+                    return new TopArticuloDTO
+                    {
+                        Codigo = item.Codigo,
+                        Descripcion = desc,
+                        Linea = item.Linea ?? string.Empty,
+                        Familia = item.Familia ?? string.Empty,
+                        TotalUnidadesVendidas = item.TotalUnidadesVendidas,
+                        TotalImporte = item.TotalImporte
+                    };
                 })
                 .ToList();
 
