@@ -153,7 +153,7 @@ else
             ? almacenes.Where(a => a.IdAlmacen == idAlmacenSeleccionado).ToList()
             : almacenes;
 
-        // Pre-cargar todos los datos primero
+        // Pre-cargar todos los datos
         var datosPorAlmacen = new List<(AlmacenDTO Almacen, List<RankingVendedoraDTO> Datos)>();
         foreach (var alm in almacenesPdf)
         {
@@ -162,203 +162,93 @@ else
                 datosPorAlmacen.Add((alm, datos));
         }
 
-        var sb = new StringBuilder();
+        // Cada sección es un string HTML independiente (se renderiza por separado para evitar cortes)
+        var sections = new List<string>();
 
-        // ─── ESTILOS GLOBALES ────────────────────────────────────────────────
-        sb.AppendLine(@"
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
-  .page-wrap { width: 780px; margin: 0 auto; background: #fff; padding: 0 0 32px 0; }
-
-  /* HEADER */
-  .pdf-header {
-    background: linear-gradient(135deg, #1a2f5e 0%, #2563eb 100%);
-    color: #fff;
-    padding: 28px 36px 22px 36px;
-    border-radius: 0 0 12px 12px;
-    margin-bottom: 24px;
-  }
-  .pdf-header h1 { font-size: 22px; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
-  .pdf-header .subtitle { font-size: 13px; opacity: .85; }
-  .pdf-header .periodo {
-    display: inline-block;
-    margin-top: 10px;
-    background: rgba(255,255,255,.18);
-    border-radius: 20px;
-    padding: 4px 16px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  /* SECCIÓN ALMACÉN */
-  .almacen-section { margin: 0 32px 28px 32px; }
-  .almacen-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #1a2f5e;
-    color: #fff;
-    padding: 9px 18px;
-    border-radius: 8px 8px 0 0;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: .5px;
-    text-transform: uppercase;
-  }
-  .almacen-title .icon { font-size: 16px; }
-
-  /* TABLA */
-  table { width: 100%; border-collapse: collapse; }
-  thead tr { background: #2563eb; color: #fff; }
-  thead th {
-    padding: 10px 12px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-  }
-  thead th:first-child { text-align: center; width: 42px; }
-  thead th:nth-child(3),
-  thead th:nth-child(4),
-  thead th:nth-child(5) { text-align: center; }
-
-  tbody tr { border-bottom: 1px solid #e2e8f0; }
-  tbody tr:nth-child(even) { background: #f8fafc; }
-  tbody tr:hover { background: #eff6ff; }
-  tbody td { padding: 9px 12px; font-size: 12px; color: #1e293b; vertical-align: middle; }
-  tbody td:first-child { text-align: center; font-weight: 700; }
-  tbody td:nth-child(4) { text-align: center; font-weight: 600; color: #2563eb; }
-  tbody td:nth-child(5) { text-align: right; font-weight: 700; color: #16a34a; font-size: 13px; }
-
-  /* MEDALLAS TOP 3 */
-  .medal-1 { background: linear-gradient(135deg, #fef9c3, #fde68a) !important; }
-  .medal-2 { background: linear-gradient(135deg, #f1f5f9, #e2e8f0) !important; }
-  .medal-3 { background: linear-gradient(135deg, #fff7ed, #fed7aa) !important; }
-
-  .rank-badge {
-    display: inline-block;
-    width: 26px; height: 26px;
-    border-radius: 50%;
-    line-height: 26px;
-    font-size: 11px;
-    font-weight: 700;
-    color: #fff;
-    text-align: center;
-  }
-  .rank-1 { background: #eab308; }
-  .rank-2 { background: #94a3b8; }
-  .rank-3 { background: #c2783c; }
-  .rank-other { background: #cbd5e1; color: #475569; }
-
-  /* ESTADO BADGE */
-  .badge-activo {
-    background: #dcfce7; color: #15803d;
-    padding: 2px 10px; border-radius: 12px;
-    font-size: 10px; font-weight: 700; text-transform: uppercase;
-  }
-  .badge-inactivo {
-    background: #fee2e2; color: #b91c1c;
-    padding: 2px 10px; border-radius: 12px;
-    font-size: 10px; font-weight: 700; text-transform: uppercase;
-  }
-
-  /* FILA TOTALES */
-  .totals-row td {
-    background: #1e3a8a !important;
-    color: #fff !important;
-    font-weight: 700 !important;
-    font-size: 12px !important;
-    padding: 10px 12px !important;
-    border-top: 2px solid #1a2f5e !important;
-  }
-  .totals-row td:nth-child(4) { color: #bfdbfe !important; text-align: center; }
-  .totals-row td:nth-child(5) { color: #86efac !important; text-align: right; font-size: 14px !important; }
-
-  /* SIN DATOS */
-  .no-data {
-    text-align: center;
-    padding: 20px;
-    color: #94a3b8;
-    font-size: 13px;
-    font-style: italic;
-    border: 1px dashed #cbd5e1;
-    border-radius: 0 0 8px 8px;
-  }
-
-  /* FOOTER */
-  .pdf-footer {
-    margin: 0 32px;
-    padding-top: 16px;
-    border-top: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: space-between;
-    font-size: 10px;
-    color: #94a3b8;
-  }
-</style>");
-
-        sb.AppendLine("<div class='page-wrap'>");
-
-        // ─── HEADER ────────────────────────────────────────────────────────
-        sb.AppendLine($@"
-<div class='pdf-header'>
-  <h1>&#x1F3C6; RANKING DE VENDEDORAS</h1>
-  <div class='subtitle'>Reporte de desempeño por ventas realizadas</div>
-  <div class='periodo'>&#x1F4C5; Periodo: {desde:dd/MM/yyyy} &nbsp;&#x2192;&nbsp; {hasta:dd/MM/yyyy}</div>
+        // ─── SECCIÓN 1: HEADER ─────────────────────────────────────────────
+        sections.Add($@"
+<div style='font-family:Segoe UI,Arial,sans-serif;background:linear-gradient(135deg,#5e2f8a 0%,#7a42bb 100%);color:#fff;padding:24px 36px 20px 36px;border-radius:0 0 12px 12px;position:relative;'>
+  <img src='data:image/png;base64,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' style='position:absolute;top:70px;right:20px;width:30px;height:30px;border-radius:8px;'/>
+  <div style='font-size:22px;font-weight:700;letter-spacing:1px;margin-bottom:4px;display:flex;align-items:center;gap:10px;'><svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24' fill='white'><path d='M19 5h-2V3H7v2H5C3.9 5 3 5.9 3 7v1c0 2.55 1.92 4.63 4.39 4.94C8.02 14.44 9.37 15.57 11 15.9V18H9v2h6v-2h-2v-2.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z'/></svg> RANKING DE VENDEDORAS</div>
+  <div style='font-size:13px;opacity:.85;'>Reporte de desempeño por ventas realizadas</div>
+  <div style='display:inline-block;margin-top:10px;background:rgba(255,255,255,.18);border-radius:20px;padding:4px 16px;font-size:12px;font-weight:600;'>
+    <svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='white' style='vertical-align:middle;margin-right:4px;'><path d='M19 3h-1V1h-2v2H8V1H6v2H5C3.89 3 3 3.9 3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z'/></svg> Periodo: {desde:dd/MM/yyyy} &nbsp;&rarr;&nbsp; {hasta:dd/MM/yyyy}
+  </div>
 </div>");
 
-        // ─── SECCIONES POR ALMACÉN ─────────────────────────────────────────
+        // ─── SECCIÓN POR ALMACÉN (una por cada tienda) ─────────────────────
         foreach (var (alm, datos) in datosPorAlmacen)
         {
             var totalMonto    = datos.Sum(d => d.TotalVentas);
             var totalCantidad = datos.Sum(d => d.VentasRealizadas);
 
-            sb.AppendLine("<div class='almacen-section'>");
-            sb.AppendLine($"<div class='almacen-title'><span class='icon'>&#x1F3EA;</span>{alm.Nombre}</div>");
-            sb.AppendLine("<table>");
-            sb.AppendLine("<thead><tr><th>#</th><th>Vendedora</th><th>Estado</th><th>Ventas</th><th>Monto Total</th></tr></thead>");
-            sb.AppendLine("<tbody>");
+            var sb = new StringBuilder();
+            sb.AppendLine($@"
+<div style='font-family:Segoe UI,Arial,sans-serif;margin:8px 0 0 0;'>
+  <div style='background:#f1f5f9;color:#334155;padding:9px 18px;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border:1px solid #e2e8f0;border-bottom:none;'>
+    <svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='#64748b' style='vertical-align:middle;margin-right:6px;'><path d='M20 4H4v2h16V4zM21 14v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zM12 18H6v-4h6v4z'/></svg> {System.Net.WebUtility.HtmlEncode(alm.Nombre)}
+  </div>
+  <table style='width:100%;border-collapse:collapse;border:1px solid #e2e8f0;'>
+    <thead>
+      <tr style='background:#f8fafc;color:#475569;'>
+        <th style='padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;text-align:center;width:42px;'>#</th>
+        <th style='padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;text-align:left;'>Vendedora</th>
+        <th style='padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;text-align:center;'>Estado</th>
+        <th style='padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;text-align:center;'>Ventas</th>
+        <th style='padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;text-align:right;'>Monto Total</th>
+      </tr>
+    </thead>
+    <tbody>");
 
             var index = 1;
             foreach (var d in datos)
             {
-                var rowClass  = index == 1 ? "medal-1" : index == 2 ? "medal-2" : index == 3 ? "medal-3" : "";
-                var badgeClass = index == 1 ? "rank-1" : index == 2 ? "rank-2" : index == 3 ? "rank-3" : "rank-other";
-                var estadoBadge = d.Activo
-                    ? "<span class='badge-activo'>Activo</span>"
-                    : "<span class='badge-inactivo'>Inactivo</span>";
+                var rowBg = index == 1 ? "#fefce8"
+                          : index == 2 ? "#f8fafc"
+                          : index == 3 ? "#fffbf7"
+                          : index % 2 == 0 ? "#fdfdfd" : "#ffffff";
 
-                sb.AppendLine($@"<tr class='{rowClass}'>
-  <td><span class='rank-badge {badgeClass}'>{index}</span></td>
-  <td>{System.Net.WebUtility.HtmlEncode(d.Vendedora)}</td>
-  <td style='text-align:center'>{estadoBadge}</td>
-  <td>{d.VentasRealizadas}</td>
-  <td>S/ {d.TotalVentas:N2}</td>
-</tr>");
+                var badgeBg    = index == 1 ? "#facc15" : index == 2 ? "#cbd5e1" : index == 3 ? "#dd6b20" : "#e2e8f0";
+                var badgeColor = index <= 3 ? "#fff" : "#64748b";
+
+                var estadoStyle = d.Activo
+                    ? "background:#dcfce7;color:#15803d;padding:2px 10px;border-radius:12px;font-size:10px;font-weight:700;"
+                    : "background:#fee2e2;color:#b91c1c;padding:2px 10px;border-radius:12px;font-size:10px;font-weight:700;";
+                var estadoTexto = d.Activo ? "ACTIVO" : "INACTIVO";
+
+                sb.AppendLine($@"
+      <tr style='background:{rowBg};border-bottom:1px solid #e2e8f0;'>
+        <td style='padding:9px 12px;text-align:center;vertical-align:middle;'>
+          <span style='display:inline-block;width:26px;height:26px;border-radius:50%;background:{badgeBg};color:{badgeColor};font-size:11px;font-weight:700;text-align:center;line-height:26px;'>{index}</span>
+        </td>
+        <td style='padding:9px 12px;font-size:12px;color:#1e293b;vertical-align:middle;'>{System.Net.WebUtility.HtmlEncode(d.Vendedora)}</td>
+        <td style='padding:9px 12px;text-align:center;vertical-align:middle;'><span style='{estadoStyle}'>{estadoTexto}</span></td>
+        <td style='padding:9px 12px;font-size:12px;font-weight:600;color:#334155;text-align:center;vertical-align:middle;'>{d.VentasRealizadas}</td>
+        <td style='padding:9px 12px;font-size:13px;font-weight:700;color:#15803d;text-align:right;vertical-align:middle;'>S/ {d.TotalVentas:N2}</td>
+      </tr>");
                 index++;
             }
 
-            // Fila de totales
-            sb.AppendLine($@"<tr class='totals-row'>
-  <td colspan='3'><strong>TOTAL ALMACÉN</strong></td>
-  <td>{totalCantidad}</td>
-  <td>S/ {totalMonto:N2}</td>
-</tr>");
+            sb.AppendLine($@"
+      <tr style='background:#f8fafc;border-top:2px solid #cbd5e1;'>
+        <td colspan='3' style='padding:10px 12px;font-size:12px;font-weight:700;color:#334155;'>TOTAL ALMACEN</td>
+        <td style='padding:10px 12px;font-size:12px;font-weight:700;color:#334155;text-align:center;'>{totalCantidad}</td>
+        <td style='padding:10px 12px;font-size:14px;font-weight:700;color:#0f766e;text-align:right;'>S/ {totalMonto:N2}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>");
 
-            sb.AppendLine("</tbody></table>");
-            sb.AppendLine("</div>"); // almacen-section
+            sections.Add(sb.ToString());
         }
 
-        // ─── FOOTER ────────────────────────────────────────────────────────
-        sb.AppendLine($@"
-<div class='pdf-footer'>
-  <span>GSCommerce &mdash; Sistema de Gestión</span>
+        // ─── SECCIÓN FINAL: FOOTER ─────────────────────────────────────────
+        sections.Add($@"
+<div style='font-family:Segoe UI,Arial,sans-serif;padding-top:12px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;'>
+  <span>GSCommerce &mdash; Sistema de Gestion</span>
   <span>Generado el {DateTime.Now:dd/MM/yyyy} a las {DateTime.Now:HH:mm}</span>
 </div>");
 
-        sb.AppendLine("</div>"); // page-wrap
-
-        await JS.InvokeVoidAsync("generarPDFDesdeHTML", sb.ToString(), $"Ranking_Vendedoras_{DateTime.Now:yyyyMMdd_HHmmss}");
+        await JS.InvokeVoidAsync("generarPDFConSecciones", sections, $"Ranking_Vendedoras_{DateTime.Now:yyyyMMdd_HHmmss}");
     }
 }

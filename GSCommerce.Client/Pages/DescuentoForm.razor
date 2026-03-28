@@ -1,4 +1,4 @@
-﻿@page "/descuento-form/{idAlmacen:int}/{idArticulo?}"
+@page "/descuento-form/{idAlmacen:int}/{idArticulo?}"
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "ADMINISTRADOR")]
 @using GSCommerce.Client.Models
@@ -33,7 +33,7 @@
         </div>
         <div class="mb-3">
             <label class="form-label">Precio Final</label>
-            <input class="form-control" type="number" @bind="precioFinal" @oninput="Calcular" />
+            <input class="form-control" type="text" inputmode="decimal" value="@precioFinalStr" @oninput="Calcular" />
         </div>
         <div class="mb-3">
             <label class="form-label">% Descuento</label>
@@ -69,6 +69,7 @@ else
 
     private double precioVenta;
     private double precioFinal;
+    private string precioFinalStr = "";
     private double porcentaje;
 
     protected override async Task OnInitializedAsync()
@@ -94,6 +95,7 @@ else
                 articulo = a;
                 precioVenta = (double)a.PrecioVenta;
                 precioFinal = precioVenta;
+                precioFinalStr = precioVenta.ToString("0.##");
                 porcentaje = 0;
             }
         }
@@ -101,10 +103,12 @@ else
 
     private void Calcular(ChangeEventArgs e)
     {
-        if (double.TryParse(e.Value?.ToString(), out var val))
+        precioFinalStr = e.Value?.ToString() ?? "";
+        var normalized = precioFinalStr.Replace(",", ".");
+        if (double.TryParse(normalized, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var val))
         {
             precioFinal = val;
-            porcentaje = precioVenta == 0 ? 0 : (precioVenta - precioFinal) * 100 / precioVenta;
+            porcentaje = precioVenta == 0 ? 0 : Math.Round((precioVenta - precioFinal) * 100 / precioVenta, 2);
         }
     }
 

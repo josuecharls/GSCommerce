@@ -1,4 +1,4 @@
-﻿window.generarPDFDesdeHTML = async function (htmlString, nombreArchivo) {
+window.generarPDFDesdeHTML = async function (htmlString, nombreArchivo) {
     const { jsPDF } = window.jspdf;
 
     const pdf = new jsPDF({
@@ -43,3 +43,46 @@
 
     document.body.removeChild(tempDiv);
 };
+
+// Renderiza cada sección por separado y las distribuye en páginas sin cortar bloques
+window.generarPDFConSecciones = async function (htmlSections, nombreArchivo) {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+    const margin = 10;
+    const pageWidth  = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const usableWidth  = pageWidth  - margin * 2;
+    const usableHeight = pageHeight - margin * 2;
+
+    let currentY   = margin;
+    let firstSection = true;
+
+    for (const html of htmlSections) {
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = html;
+        tempDiv.style.position  = "absolute";
+        tempDiv.style.left      = "-9999px";
+        tempDiv.style.top       = "0";
+        document.body.appendChild(tempDiv);
+
+        const canvas = await html2canvas(tempDiv, { scale: 2, useCORS: true });
+        document.body.removeChild(tempDiv);
+
+        const imgData   = canvas.toDataURL("image/png");
+        const imgHeight = (canvas.height * usableWidth) / canvas.width;
+
+        // Si la sección no cabe en el espacio restante, salta a nueva página
+        if (!firstSection && currentY + imgHeight > usableHeight) {
+            pdf.addPage();
+            currentY = margin;
+        }
+
+        pdf.addImage(imgData, "PNG", margin, currentY, usableWidth, imgHeight);
+        currentY += imgHeight + 3; // pequeño espacio entre secciones
+        firstSection = false;
+    }
+
+    pdf.save(nombreArchivo + ".pdf");
+};
+

@@ -665,6 +665,7 @@ namespace GSCommerceAPI.Controllers
                             && k.TipoMovimiento == "I"
                             && (k.Origen == null || !EF.Functions.Like(k.Origen, "ANULACIÓN%"))
                             && (k.Origen == null || !EF.Functions.Like(k.Origen, "Movimiento Almacen%"))
+                            && (k.Origen == null || !EF.Functions.Like(k.Origen, "NC:%"))
                             && k.Fecha >= desde
                             && k.Fecha < hastaExclusiva
                             && !principalIds.Contains(k.IdAlmacen))
