@@ -1,4 +1,4 @@
-﻿@page "/estado-sunat"
+@page "/estado-sunat"
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @using GSCommerce.Client.Models.SUNAT
@@ -23,7 +23,7 @@
 
 @if (cargando)
 {
-    <p>⏳ Cargando datos...</p>
+    <p><span class="spinner-border spinner-border-sm me-2" role="status"></span> Cargando datos...</p>
 }
 else if (estados != null && estados.Any())
 {
@@ -68,7 +68,7 @@ else if (estados != null && estados.Any())
 }
 else
 {
-    <p>⚠️ No se encontraron resultados en el rango seleccionado.</p>
+    <p><i class="bi bi-exclamation-triangle me-2 text-warning"></i> No se encontraron resultados en el rango seleccionado.</p>
 }
 
 @code {

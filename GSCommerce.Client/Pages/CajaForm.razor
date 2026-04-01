@@ -1,4 +1,4 @@
-﻿@page "/cajita"
+@page "/cajita"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using Microsoft.AspNetCore.Authorization
@@ -127,7 +127,8 @@ else
 
         if (idAlmacen == 0)
         {
-            estadoCaja = "⚠️ Error: No se encontró almacén asignado.";
+            estadoCaja = "Error: No se encontró almacén asignado.";
+            mensajeError = "No se encontró almacén asignado.";
             cargando = false;
             return;
         }

@@ -1,4 +1,4 @@
-﻿@page "/descuentos"
+@page "/descuentos"
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "ADMINISTRADOR")]
 @using Microsoft.AspNetCore.WebUtilities
@@ -55,11 +55,11 @@
 </table>
 @if (descuentos?.Count > 0)
 {
-    <p class="text-success">🟢 Datos cargados correctamente.</p>
+    <p class="text-success"><i class="bi bi-check-circle-fill me-2"></i> Datos cargados correctamente.</p>
 }
 else
 {
-    <p class="text-danger">🔴 No se encontraron descuentos visibles para este almacén.</p>
+    <p class="text-danger"><i class="bi bi-exclamation-circle-fill me-2"></i> No se encontraron descuentos visibles para este almacén.</p>
 }
 
 @code {
