@@ -253,7 +253,7 @@ public partial class SyscharlesContext : DbContext
     public virtual DbSet<Xyz> Xyzs { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseSqlServer("Server=.;Database=SYSCHARLESTEST;User Id=sa;Password=123456;TrustServerCertificate=True;");
+        => optionsBuilder.UseSqlServer("Server=.;Database=SYSCHARLESTEST;User Id=sa;Password=4pfzqo0yE@;TrustServerCertificate=True;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

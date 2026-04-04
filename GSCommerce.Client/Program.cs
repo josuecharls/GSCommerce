@@ -57,7 +57,7 @@ builder.Services.AddScoped<SessionSyncService>();
 builder.Services.AddAuthorizationCore();
 
 // Configurar HttpClient para conectarse al backend
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://gscommerce.net/api/") });
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7246/api/") });
 
 var host = builder.Build();
 

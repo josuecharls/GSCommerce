@@ -49,7 +49,7 @@ builder.Services.AddHostedService<ReporteAvanceHoraEmailBackgroundService>();
 // Habilitar CORS para permitir llamadas desde el frontend
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
                      ?? (builder.Environment.IsDevelopment()
-                         ? new[] { "https://gscommerce.net/" }
+                         ? new[] { "https://localhost:7018", "http://localhost:5245" }
                          : Array.Empty<string>());
 
 if (allowedOrigins.Length == 0 && !builder.Environment.IsDevelopment())
