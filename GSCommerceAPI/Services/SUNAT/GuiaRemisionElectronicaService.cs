@@ -26,7 +26,7 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
     // true = Ambiente BETA (pruebas con Nubefact)
     // false = Ambiente PRODUCCIÓN (SUNAT real)
     // false = Ambiente PRODUCCIÓN (SUNAT real)
-    private const bool ES_AMBIENTE_BETA = false;
+    private const bool ES_AMBIENTE_BETA = true;
     
     // ===== NUEVA API REST SUNAT GRE =====
     // Endpoints BETA (Nubefact - servicio de pruebas gratuito)

@@ -18,6 +18,11 @@ namespace GSCommerceAPI.Services.SUNAT
 {
     public class FacturacionElectronicaService : IFacturacionElectronicaService
     {
+        // false = Produccion, true = Beta
+        private const bool ES_AMBIENTE_BETA = true;
+        private const string ENDPOINT_BETA = "https://e-beta.sunat.gob.pe/ol-ti-itcpfegem-beta/billService";
+        private const string ENDPOINT_PROD = "https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService";
+
         private readonly IWebHostEnvironment _env;
         private readonly SyscharlesContext _context;
         //_billServiceClient
@@ -205,6 +210,11 @@ namespace GSCommerceAPI.Services.SUNAT
 
         private async Task<(string usuarioSOL, string claveSOL)> ObtenerCredencialesSunatAsync(string rucEmisor)
         {
+            if (ES_AMBIENTE_BETA)
+            {
+                return ($"{rucEmisor}MODDATOS", "MODDATOS");
+            }
+
             var credenciales = await _context.Almacens
                 .Where(a => a.Ruc == rucEmisor)
                 .Select(a => new { a.UsuarioSol, a.ClaveSol })
@@ -855,7 +865,7 @@ namespace GSCommerceAPI.Services.SUNAT
             }
                 };
 
-                var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
+                var direccion = new EndpointAddress(ES_AMBIENTE_BETA ? ENDPOINT_BETA : ENDPOINT_PROD);
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
 
                 ws.Endpoint.EndpointBehaviors.Add(new SoapLogger
@@ -915,7 +925,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 binding.Security.Transport.ClientCredentialType = HttpClientCredentialType.None;
                 binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
 
-                var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
+                var direccion = new EndpointAddress(ES_AMBIENTE_BETA ? ENDPOINT_BETA : ENDPOINT_PROD);
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
 
                 ws.Endpoint.EndpointBehaviors.Add(new SoapLogger
@@ -976,7 +986,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 binding.Security.Transport.ClientCredentialType = HttpClientCredentialType.None;
                 binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
 
-                var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");//producción SUNAT
+                var direccion = new EndpointAddress(ES_AMBIENTE_BETA ? ENDPOINT_BETA : ENDPOINT_PROD);
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
 
                 ws.Endpoint.EndpointBehaviors.Add(new SoapLogger
@@ -1247,7 +1257,7 @@ namespace GSCommerceAPI.Services.SUNAT
             };
             binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
 
-            var endpoint = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
+            var endpoint = new EndpointAddress(ES_AMBIENTE_BETA ? ENDPOINT_BETA : ENDPOINT_PROD);
             var client = new billServiceClient(binding, endpoint);
 
             client.ClientCredentials.UserName.UserName = usuarioSOL;
