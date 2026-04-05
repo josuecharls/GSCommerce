@@ -3,6 +3,7 @@ using GSCommerce.Client.Models;
 using GSCommerce.Client.Models.DTOs.Reportes;
 using GSCommerce.Client.Models.SUNAT;
 using GSCommerceAPI.Data;
+using GSCommerceAPI.Helpers;
 using GSCommerceAPI.Models;
 using GSCommerceAPI.Services.Reportes;
 using GSCommerceAPI.Models.Reportes; // For VentaDiariaAlmacenDTO
@@ -251,7 +252,7 @@ namespace GSCommerceAPI.Controllers
                 foreach (var det in cabecera.ComprobanteDeVentaDetalles)
                 {
                     var stock = await _context.StockAlmacens
-                        .FirstOrDefaultAsync(s => s.IdAlmacen == cabecera.IdAlmacen && s.IdArticulo == det.IdArticulo);
+                        .FirstOrDefaultAsync(s => s.IdAlmacen == cabecera.IdAlmacen && s.IdArticulo == det.IdArticulo && s.IdVariante == det.IdVariante);
 
                     var saldoInicial = stock?.Stock ?? 0;
 
@@ -261,6 +262,7 @@ namespace GSCommerceAPI.Controllers
                         {
                             IdAlmacen = cabecera.IdAlmacen,
                             IdArticulo = det.IdArticulo,
+                            IdVariante = det.IdVariante,
                             Stock = 0,
                             StockMinimo = 0
                         };
@@ -276,6 +278,7 @@ namespace GSCommerceAPI.Controllers
                     {
                         IdAlmacen = cabecera.IdAlmacen,
                         IdArticulo = det.IdArticulo,
+                        IdVariante = det.IdVariante,
                         TipoMovimiento = "I",
                         Fecha = DateTime.Now,
                         SaldoInicial = saldoInicial,
@@ -767,21 +770,24 @@ namespace GSCommerceAPI.Controllers
                 })
                 .ToList();
 
-            // Stock actual (excluyendo PRINCIPAL)
+            // Stock actual (excluyendo PRINCIPAL) - sumar variantes
             var stock = await _context.StockAlmacens
                 .AsNoTracking()
                 .Where(s => req.Ids.Contains(s.IdArticulo)
                             && !principalIds.Contains(s.IdAlmacen))
-                .Select(s => new { s.IdArticulo, s.IdAlmacen, s.Stock })
+                .GroupBy(s => new { s.IdArticulo, s.IdAlmacen })
+                .Select(g => new { g.Key.IdArticulo, g.Key.IdAlmacen, Stock = g.Sum(s => s.Stock) })
                 .ToListAsync();
 
-            // Stock en almacén PRINCIPAL (IdAlmacen = 1009)
+            // Stock en almacén PRINCIPAL (IdAlmacen = 1009) - sumar variantes
             const int idAlmacenPrincipal = 1009;
             var stockPrincipal = await _context.StockAlmacens
                 .AsNoTracking()
                 .Where(s => req.Ids.Contains(s.IdArticulo)
                             && s.IdAlmacen == idAlmacenPrincipal)
-                .ToDictionaryAsync(s => s.IdArticulo, s => s.Stock);
+                .GroupBy(s => s.IdArticulo)
+                .Select(g => new { IdArticulo = g.Key, Stock = g.Sum(s => s.Stock) })
+                .ToDictionaryAsync(x => x.IdArticulo, x => x.Stock);
 
             var respuesta = new List<Models.Reportes.ReporteArticuloRangoDTO>();
 
@@ -1555,11 +1561,11 @@ namespace GSCommerceAPI.Controllers
             if (!cajaAbierta)
                 return BadRequest("No se puede registrar la venta porque la caja no está aperturada.");
 
-            // Verificar stock disponible por artículo
+            // Verificar stock disponible por artículo (y variante si aplica)
             foreach (var d in ventaRegistro.Detalles)
             {
                 var stock = await _context.StockAlmacens
-                    .FirstOrDefaultAsync(s => s.IdAlmacen == idAlmacen && s.IdArticulo == d.CodigoItem);
+                    .FirstOrDefaultAsync(s => s.IdAlmacen == idAlmacen && s.IdArticulo == d.CodigoItem && s.IdVariante == d.IdVariante);
 
                 if (stock == null || stock.Stock < d.Cantidad)
                 {
@@ -1665,6 +1671,7 @@ namespace GSCommerceAPI.Controllers
                         IdComprobante = cabecera.IdComprobante,
                         Item = detalle.Item,
                         IdArticulo = detalle.CodigoItem,
+                        IdVariante = detalle.IdVariante,
                         Descripcion = detalle.DescripcionItem,
                         UnidadMedida = "NIU", // Por ahora fijo
                         Cantidad = (int)detalle.Cantidad,
@@ -1676,7 +1683,7 @@ namespace GSCommerceAPI.Controllers
                     _context.ComprobanteDeVentaDetalles.Add(nuevoDetalle);
 
                     var stock = await _context.StockAlmacens
-                        .FirstOrDefaultAsync(s => s.IdAlmacen == idAlmacen && s.IdArticulo == detalle.CodigoItem);
+                        .FirstOrDefaultAsync(s => s.IdAlmacen == idAlmacen && s.IdArticulo == detalle.CodigoItem && s.IdVariante == detalle.IdVariante);
                     if (stock != null)
                     {
                         var saldoInicial = stock.Stock;
@@ -1689,6 +1696,7 @@ namespace GSCommerceAPI.Controllers
                         {
                             IdAlmacen = idAlmacen,
                             IdArticulo = detalle.CodigoItem,
+                            IdVariante = detalle.IdVariante,
                             TipoMovimiento = "E",
                             Fecha = DateTime.Now,
                             SaldoInicial = saldoInicial,
@@ -1924,7 +1932,7 @@ namespace GSCommerceAPI.Controllers
                                 .Sum(d => (int?)d.Cantidad) ?? 0,
                     Stock = _context.StockAlmacens
                                 .Where(s => s.IdArticulo == idArticulo && s.IdAlmacen == a.IdAlmacen)
-                                .Select(s => (int?)s.Stock)!.FirstOrDefault() ?? 0
+                                .Sum(s => (int?)s.Stock) ?? 0
                 }).ToListAsync();
 
             // Calcular porcentaje
@@ -2241,6 +2249,245 @@ namespace GSCommerceAPI.Controllers
                 .ToList();
 
             return Ok(resultado);
+        }
+
+        [Authorize]
+        [HttpGet("catalogo-marcas-articulos")]
+        public async Task<ActionResult<List<MarcaCatalogoDTO>>> GetCatalogoMarcasArticulos([FromQuery] string? q)
+        {
+            var raw = await _context.Articulos.AsNoTracking()
+                .Where(a => a.Estado && a.Marca != null && a.Marca != "")
+                .Select(a => a.Marca!)
+                .ToListAsync();
+
+            var grupos = raw
+                .Where(ReporteSeparacionTexto.EsDimensionConValor)
+                .GroupBy(ReporteSeparacionTexto.NormalizarClave)
+                .Where(g => !string.IsNullOrEmpty(g.Key))
+                .Select(g => new MarcaCatalogoDTO
+                {
+                    Clave = g.Key,
+                    Etiqueta = ReporteSeparacionTexto.EtiquetaCanonica(g)
+                })
+                .OrderBy(x => x.Etiqueta, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var t = q.Trim();
+                grupos = grupos
+                    .Where(x => x.Etiqueta.Contains(t, StringComparison.OrdinalIgnoreCase) ||
+                                x.Clave.Contains(t, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            return Ok(grupos);
+        }
+
+        [Authorize]
+        [HttpPost("reporte-separacion-por-marcas")]
+        public async Task<ActionResult<ReporteSeparacionDTO>> PostReporteSeparacionPorMarcas(
+            [FromBody] ReporteSeparacionPorMarcasRequest? body)
+        {
+            if (body?.MarcasClave == null || body.MarcasClave.Count == 0)
+            {
+                return BadRequest("Seleccione al menos una marca.");
+            }
+
+            var marcasSet = new HashSet<string>(
+                body.MarcasClave
+                    .Select(ReporteSeparacionTexto.NormalizarClave)
+                    .Where(k => k.Length > 0),
+                StringComparer.Ordinal);
+
+            if (marcasSet.Count == 0)
+            {
+                return BadRequest("Seleccione al menos una marca válida.");
+            }
+
+            var start = body.Desde.Date;
+            var end = body.Hasta.Date.AddDays(1);
+            var top = body.Top <= 0 ? 50 : body.Top;
+
+            var cargo = User.FindFirst("Cargo")?.Value;
+            var idAlmClaim = User.FindFirst("IdAlmacen")?.Value;
+            int? idAlmacenForzado = null;
+            if (string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(idAlmClaim, out var almCajero))
+            {
+                idAlmacenForzado = almCajero;
+            }
+
+            var baseQuery = from d in _context.ComprobanteDeVentaDetalles.AsNoTracking()
+                            join c in _context.ComprobanteDeVentaCabeceras.AsNoTracking() on d.IdComprobante equals c.IdComprobante
+                            join a in _context.Articulos.AsNoTracking() on d.IdArticulo equals a.IdArticulo
+                            where c.Fecha >= start && c.Fecha < end && c.Estado == "E"
+                            select new { d, c, a };
+
+            if (idAlmacenForzado.HasValue)
+            {
+                baseQuery = baseQuery.Where(x => x.c.IdAlmacen == idAlmacenForzado.Value);
+            }
+            else if (body.IdAlmacen.HasValue && body.IdAlmacen.Value > 0)
+            {
+                baseQuery = baseQuery.Where(x => x.c.IdAlmacen == body.IdAlmacen.Value);
+            }
+
+            var rows = await baseQuery
+                .Select(x => new
+                {
+                    x.d.Cantidad,
+                    x.d.Total,
+                    x.d.IdVariante,
+                    x.d.IdArticulo,
+                    Marca = x.a.Marca,
+                    TallaArt = x.a.Talla,
+                    ColorArt = x.a.Color
+                })
+                .ToListAsync();
+
+            var variantIds = rows.Where(r => r.IdVariante != null).Select(r => r.IdVariante!.Value).Distinct().ToList();
+            var variantDict = await _context.ArticuloVariantes.AsNoTracking()
+                .Where(v => variantIds.Contains(v.IdVariante))
+                .ToDictionaryAsync(v => v.IdVariante);
+
+            var tallaPuntos = new List<(string Raw, int Qty, decimal Total)>();
+            var colorPuntos = new List<(string Raw, int Qty, decimal Total)>();
+            var comboPuntos = new List<(string TallaRaw, string ColorRaw, int Qty, decimal Total)>();
+
+            foreach (var r in rows)
+            {
+                if (!ReporteSeparacionTexto.EsDimensionConValor(r.Marca))
+                {
+                    continue;
+                }
+
+                var claveMarca = ReporteSeparacionTexto.NormalizarClave(r.Marca);
+                if (string.IsNullOrEmpty(claveMarca) || !marcasSet.Contains(claveMarca))
+                {
+                    continue;
+                }
+
+                string talla;
+                string color;
+                if (r.IdVariante.HasValue &&
+                    variantDict.TryGetValue(r.IdVariante.Value, out var v) &&
+                    string.Equals(v.IdArticulo.Trim(), r.IdArticulo.Trim(), StringComparison.Ordinal))
+                {
+                    talla = v.Talla;
+                    color = v.Color;
+                }
+                else
+                {
+                    talla = r.TallaArt;
+                    color = r.ColorArt;
+                }
+
+                if (ReporteSeparacionTexto.EsDimensionConValor(talla))
+                {
+                    tallaPuntos.Add((talla.Trim(), r.Cantidad, r.Total));
+                }
+
+                if (ReporteSeparacionTexto.EsDimensionConValor(color))
+                {
+                    colorPuntos.Add((color.Trim(), r.Cantidad, r.Total));
+                }
+
+                if (body.IncluirCombinacionTallaColor &&
+                    ReporteSeparacionTexto.EsDimensionConValor(talla) &&
+                    ReporteSeparacionTexto.EsDimensionConValor(color))
+                {
+                    comboPuntos.Add((talla.Trim(), color.Trim(), r.Cantidad, r.Total));
+                }
+            }
+
+            static List<MetricaSeparacionDTO> BuildMetricasNormalizadas(
+                List<(string Raw, int Qty, decimal Total)> puntos,
+                int takeTop)
+            {
+                var agregados = puntos
+                    .Select(p => (Key: ReporteSeparacionTexto.NormalizarClave(p.Raw), p.Raw, p.Qty, p.Total))
+                    .Where(x => !string.IsNullOrEmpty(x.Key))
+                    .GroupBy(x => x.Key, StringComparer.Ordinal)
+                    .Select(g => (
+                        Nombre: ReporteSeparacionTexto.EtiquetaCanonica(g.Select(x => x.Raw)),
+                        Cantidad: g.Sum(x => x.Qty),
+                        TotalIngresos: g.Sum(x => x.Total)))
+                    .ToList();
+
+                var totalCantidad = agregados.Sum(x => x.Cantidad);
+                if (totalCantidad == 0)
+                {
+                    return new List<MetricaSeparacionDTO>();
+                }
+
+                return agregados
+                    .OrderByDescending(x => x.Cantidad)
+                    .Take(takeTop)
+                    .Select(x => new MetricaSeparacionDTO
+                    {
+                        Nombre = x.Nombre,
+                        CantidadVendida = x.Cantidad,
+                        TotalIngresos = x.TotalIngresos,
+                        Porcentaje = Math.Round(100m * x.Cantidad / totalCantidad, 2, MidpointRounding.AwayFromZero)
+                    })
+                    .ToList();
+            }
+
+            static List<MetricaSeparacionDTO> BuildMetricasCombinacionTallaColor(
+                List<(string TallaRaw, string ColorRaw, int Qty, decimal Total)> puntos,
+                int takeTop)
+            {
+                var agregados = puntos
+                    .Select(p => (
+                        Tk: ReporteSeparacionTexto.NormalizarClave(p.TallaRaw),
+                        Ck: ReporteSeparacionTexto.NormalizarClave(p.ColorRaw),
+                        p.TallaRaw,
+                        p.ColorRaw,
+                        p.Qty,
+                        p.Total))
+                    .Where(x => !string.IsNullOrEmpty(x.Tk) && !string.IsNullOrEmpty(x.Ck))
+                    .GroupBy(x => x.Tk + "\u001f" + x.Ck, StringComparer.Ordinal)
+                    .Select(g =>
+                    {
+                        var nombreTalla = ReporteSeparacionTexto.EtiquetaCanonica(g.Select(x => x.TallaRaw));
+                        var nombreColor = ReporteSeparacionTexto.EtiquetaCanonica(g.Select(x => x.ColorRaw));
+                        return (
+                            Nombre: $"{nombreTalla} — {nombreColor}",
+                            Cantidad: g.Sum(x => x.Qty),
+                            TotalIngresos: g.Sum(x => x.Total));
+                    })
+                    .ToList();
+
+                var totalCantidad = agregados.Sum(x => x.Cantidad);
+                if (totalCantidad == 0)
+                {
+                    return new List<MetricaSeparacionDTO>();
+                }
+
+                return agregados
+                    .OrderByDescending(x => x.Cantidad)
+                    .Take(takeTop)
+                    .Select(x => new MetricaSeparacionDTO
+                    {
+                        Nombre = x.Nombre,
+                        CantidadVendida = x.Cantidad,
+                        TotalIngresos = x.TotalIngresos,
+                        Porcentaje = Math.Round(100m * x.Cantidad / totalCantidad, 2, MidpointRounding.AwayFromZero)
+                    })
+                    .ToList();
+            }
+
+            var dto = new ReporteSeparacionDTO
+            {
+                VentasPorTalla = BuildMetricasNormalizadas(tallaPuntos, top),
+                VentasPorColor = BuildMetricasNormalizadas(colorPuntos, top),
+                VentasPorCombinacionTallaColor = body.IncluirCombinacionTallaColor
+                    ? BuildMetricasCombinacionTallaColor(comboPuntos, top)
+                    : new List<MetricaSeparacionDTO>()
+            };
+
+            return Ok(dto);
         }
 
         [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
@@ -2940,34 +3187,35 @@ namespace GSCommerceAPI.Controllers
                     .Where(d => d.IdComprobante == id)
                     .ToListAsync();
 
-                // Crear diccionarios para comparar cantidades
+                // Crear diccionarios para comparar cantidades agrupadas por (IdArticulo, IdVariante)
                 var cantidadesAnteriores = detallesActuales
-                    .GroupBy(d => d.IdArticulo)
+                    .GroupBy(d => (d.IdArticulo, d.IdVariante))
                     .ToDictionary(g => g.Key, g => g.Sum(d => d.Cantidad));
 
                 var cantidadesNuevas = detalles
-                    .GroupBy(d => d.CodigoItem)
+                    .GroupBy(d => (d.CodigoItem, d.IdVariante))
                     .ToDictionary(g => g.Key, g => (int)g.Sum(d => d.Cantidad));
 
-                // Obtener todos los artículos involucrados (anteriores y nuevos)
-                var todosLosArticulos = cantidadesAnteriores.Keys
-                    .Union(cantidadesNuevas.Keys)
+                // Obtener todas las claves (artículo + variante) involucradas
+                var todasLasClaves = cantidadesAnteriores.Keys
+                    .Select(k => (IdArticulo: k.IdArticulo, IdVariante: k.IdVariante))
+                    .Union(cantidadesNuevas.Keys.Select(k => (IdArticulo: k.CodigoItem, IdVariante: k.IdVariante)))
                     .Distinct()
                     .ToList();
 
                 var origenKardex = $"Edición BOLETA M: {cab.Serie}-{cab.Numero}";
 
-                // Ajustar stock por cada artículo
-                foreach (var idArticulo in todosLosArticulos)
+                // Ajustar stock por cada artículo + variante
+                foreach (var clave in todasLasClaves)
                 {
-                    var cantidadAnterior = cantidadesAnteriores.GetValueOrDefault(idArticulo, 0);
-                    var cantidadNueva = cantidadesNuevas.GetValueOrDefault(idArticulo, 0);
+                    var cantidadAnterior = cantidadesAnteriores.GetValueOrDefault((clave.IdArticulo, clave.IdVariante), 0);
+                    var cantidadNueva = cantidadesNuevas.GetValueOrDefault((clave.IdArticulo, clave.IdVariante), 0);
                     var diferencia = cantidadNueva - cantidadAnterior;
 
                     if (diferencia == 0) continue; // No hay cambio
 
                     var stock = await _context.StockAlmacens
-                        .FirstOrDefaultAsync(s => s.IdAlmacen == cab.IdAlmacen && s.IdArticulo == idArticulo);
+                        .FirstOrDefaultAsync(s => s.IdAlmacen == cab.IdAlmacen && s.IdArticulo == clave.IdArticulo && s.IdVariante == clave.IdVariante);
 
                     var saldoInicial = stock?.Stock ?? 0;
 
@@ -2977,7 +3225,8 @@ namespace GSCommerceAPI.Controllers
                         stock = new StockAlmacen
                         {
                             IdAlmacen = cab.IdAlmacen,
-                            IdArticulo = idArticulo,
+                            IdArticulo = clave.IdArticulo,
+                            IdVariante = clave.IdVariante,
                             Stock = 0,
                             StockMinimo = 0
                         };
@@ -2985,8 +3234,8 @@ namespace GSCommerceAPI.Controllers
                     }
 
                     // Obtener precio del artículo para el valor en Kardex
-                    var precioArticulo = detalles.FirstOrDefault(d => d.CodigoItem == idArticulo)?.PrecioUnitario
-                        ?? detallesActuales.FirstOrDefault(d => d.IdArticulo == idArticulo)?.Precio
+                    var precioArticulo = detalles.FirstOrDefault(d => d.CodigoItem == clave.IdArticulo && d.IdVariante == clave.IdVariante)?.PrecioUnitario
+                        ?? detallesActuales.FirstOrDefault(d => d.IdArticulo == clave.IdArticulo && d.IdVariante == clave.IdVariante)?.Precio
                         ?? 0m;
 
                     if (diferencia > 0)
@@ -2998,7 +3247,8 @@ namespace GSCommerceAPI.Controllers
                         _context.Kardices.Add(new Kardex
                         {
                             IdAlmacen = cab.IdAlmacen,
-                            IdArticulo = idArticulo,
+                            IdArticulo = clave.IdArticulo,
+                            IdVariante = clave.IdVariante,
                             TipoMovimiento = "E",
                             Fecha = DateTime.Now,
                             SaldoInicial = saldoInicial,
@@ -3019,7 +3269,8 @@ namespace GSCommerceAPI.Controllers
                         _context.Kardices.Add(new Kardex
                         {
                             IdAlmacen = cab.IdAlmacen,
-                            IdArticulo = idArticulo,
+                            IdArticulo = clave.IdArticulo,
+                            IdVariante = clave.IdVariante,
                             TipoMovimiento = "I",
                             Fecha = DateTime.Now,
                             SaldoInicial = saldoInicial,
@@ -3046,6 +3297,7 @@ namespace GSCommerceAPI.Controllers
                         IdComprobante = id,
                         Item = itemNum++,
                         IdArticulo = det.CodigoItem,
+                        IdVariante = det.IdVariante,
                         Descripcion = det.DescripcionItem,
                         UnidadMedida = det.UnidadMedida ?? "NIU",
                         Cantidad = (int)det.Cantidad,

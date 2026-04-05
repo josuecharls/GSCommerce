@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace GSCommerceAPI.Models;
@@ -26,6 +26,8 @@ public partial class Kardex
     public string Origen { get; set; } = null!;
 
     public bool? NoKardexGeneral { get; set; }
+
+    public int? IdVariante { get; set; }
 
     public virtual Almacen IdAlmacenNavigation { get; set; } = null!;
 

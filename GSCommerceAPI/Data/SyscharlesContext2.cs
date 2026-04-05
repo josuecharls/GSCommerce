@@ -1652,7 +1652,9 @@ public partial class SyscharlesContext : DbContext
 
         modelBuilder.Entity<StockAlmacen>(entity =>
         {
-            entity.HasKey(e => new { e.IdAlmacen, e.IdArticulo }).HasName("PK_Stock");
+            entity.HasKey(e => e.IdStock);
+
+            entity.HasIndex(e => new { e.IdAlmacen, e.IdArticulo, e.IdVariante }, "UX_StockAlmacen_Compuesto").IsUnique();
 
             entity.ToTable("StockAlmacen", "Movimientos");
 

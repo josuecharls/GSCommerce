@@ -1,4 +1,4 @@
-﻿
+
     namespace GSCommerce.Client.Models
     {
     public class VentaDetalleDTO
@@ -11,5 +11,6 @@
         public decimal PrecioUnitario { get; set; }
         public decimal PorcentajeDescuento { get; set; } // ejemplo: 0.05 = 5% de descuento
         public decimal Total { get; set; }
+        public int? IdVariante { get; set; }
     }
 }

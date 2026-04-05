@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -16,6 +16,8 @@ public partial class ArticuloVariante
     public string Talla { get; set; } = null!;
 
     public string? CodigoBarras { get; set; }
+
+    public byte[]? Foto { get; set; }
 
     [JsonIgnore]
     [BindNever]

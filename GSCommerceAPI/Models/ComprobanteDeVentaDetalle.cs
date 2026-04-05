@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace GSCommerceAPI.Models;
@@ -10,6 +10,8 @@ public partial class ComprobanteDeVentaDetalle
     public int Item { get; set; }
 
     public string IdArticulo { get; set; } = null!;
+
+    public int? IdVariante { get; set; }
 
     public string Descripcion { get; set; } = null!;
 
