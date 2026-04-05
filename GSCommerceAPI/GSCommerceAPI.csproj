@@ -38,6 +38,11 @@
     <Folder Include="Facturacion\" />
   </ItemGroup>
   <ItemGroup>
+    <None Update="Fuentes\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="System.ServiceModel.Primitives" Version="8.1.2" />
   </ItemGroup>
 </Project>
