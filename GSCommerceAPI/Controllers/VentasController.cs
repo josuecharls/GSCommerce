@@ -1562,13 +1562,13 @@ namespace GSCommerceAPI.Controllers
             if (!cajaAbierta)
                 return BadRequest("No se puede registrar la venta porque la caja no está aperturada.");
 
-            // Verificar stock disponible por artículo (y variante si aplica)
+            // Verificar stock disponible por artículo (y variante si aplica; ver IdVarianteUtil.ResolverStockLineaVentaAsync)
             foreach (var d in ventaRegistro.Detalles)
             {
-                var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                var resuelto = await IdVarianteUtil.ResolverStockLineaVentaAsync(
                     _context.StockAlmacens, idAlmacen, d.CodigoItem, d.IdVariante);
 
-                if (stock == null || stock.Stock < d.Cantidad)
+                if (resuelto == null || resuelto.Value.Fila.Stock < d.Cantidad)
                 {
                     return BadRequest($"Stock insuficiente para el artículo {d.DescripcionItem}");
                 }
@@ -1666,13 +1666,23 @@ namespace GSCommerceAPI.Controllers
                 // Insertar detalles, actualizar stock y registrar en Kardex
                 foreach (var detalle in ventaRegistro.Detalles)
                 {
+                    var resuelto = await IdVarianteUtil.ResolverStockLineaVentaAsync(
+                        _context.StockAlmacens, idAlmacen, detalle.CodigoItem, detalle.IdVariante);
+                    if (resuelto == null)
+                    {
+                        await transaction.RollbackAsync();
+                        return BadRequest($"Stock insuficiente para el artículo {detalle.DescripcionItem}");
+                    }
+
+                    var (stock, nvDet) = resuelto.Value;
+
                     var nuevoDetalle = new ComprobanteDeVentaDetalle
                     {
 
                         IdComprobante = cabecera.IdComprobante,
                         Item = detalle.Item,
                         IdArticulo = detalle.CodigoItem,
-                        IdVariante = IdVarianteUtil.Normalizar(detalle.IdVariante),
+                        IdVariante = nvDet,
                         Descripcion = detalle.DescripcionItem,
                         UnidadMedida = "NIU", // Por ahora fijo
                         Cantidad = (int)detalle.Cantidad,
@@ -1683,32 +1693,26 @@ namespace GSCommerceAPI.Controllers
 
                     _context.ComprobanteDeVentaDetalles.Add(nuevoDetalle);
 
-                    var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
-                        _context.StockAlmacens, idAlmacen, detalle.CodigoItem, detalle.IdVariante);
-                    if (stock != null)
+                    var saldoInicial = stock.Stock;
+                    stock.Stock -= (int)detalle.Cantidad;
+                    var saldoFinal = stock.Stock;
+
+                    var valor = detalle.PrecioUnitario * (1 - detalle.PorcentajeDescuento);
+
+                    _context.Kardices.Add(new Kardex
                     {
-                        var saldoInicial = stock.Stock;
-                        stock.Stock -= (int)detalle.Cantidad;
-                        var saldoFinal = stock.Stock;
-
-                        var valor = detalle.PrecioUnitario * (1 - detalle.PorcentajeDescuento);
-                        var nvDet = IdVarianteUtil.Normalizar(detalle.IdVariante);
-
-                        _context.Kardices.Add(new Kardex
-                        {
-                            IdAlmacen = idAlmacen,
-                            IdArticulo = detalle.CodigoItem,
-                            IdVariante = nvDet,
-                            TipoMovimiento = "E",
-                            Fecha = DateTime.Now,
-                            SaldoInicial = saldoInicial,
-                            Cantidad = (int)detalle.Cantidad,
-                            SaldoFinal = saldoFinal,
-                            Valor = valor,
-                            Origen = $"Venta: {cabecera.Serie}-{cabecera.Numero}",
-                            NoKardexGeneral = false
-                        });
-                    }
+                        IdAlmacen = idAlmacen,
+                        IdArticulo = detalle.CodigoItem,
+                        IdVariante = nvDet,
+                        TipoMovimiento = "E",
+                        Fecha = DateTime.Now,
+                        SaldoInicial = saldoInicial,
+                        Cantidad = (int)detalle.Cantidad,
+                        SaldoFinal = saldoFinal,
+                        Valor = valor,
+                        Origen = $"Venta: {cabecera.Serie}-{cabecera.Numero}",
+                        NoKardexGeneral = false
+                    });
                 }
 
                 // Insertar pagos

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GSCommerceAPI.Data;
+using GSCommerceAPI.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using GSCommerceAPI.Models;
 using GSCommerce.Client.Models;
@@ -240,6 +241,29 @@ namespace GSCommerceAPI.Controllers
                 .SumAsync(s => (int?)s.Stock) ?? 0;
 
             return Ok(new { cantidadTotal = total });
+        }
+
+        /// <summary>
+        /// Stock de la misma fila que usa la venta (<see cref="IdVarianteUtil.BuscarStockAlmacenAsync"/>):
+        /// artículo + almacén + variante (NULL en BD = sin variante). Evita usar la suma de todas las variantes como límite en POS.
+        /// </summary>
+        [HttpGet("cantidad-fila")]
+        public async Task<IActionResult> GetCantidadFilaStock(
+            [FromQuery] string codigoArticulo,
+            [FromQuery] int idAlmacen,
+            [FromQuery] int? idVariante = null,
+            CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(codigoArticulo) || idAlmacen <= 0)
+            {
+                return BadRequest(new { mensaje = "codigoArticulo e idAlmacen son requeridos." });
+            }
+
+            var codigo = codigoArticulo.Trim();
+            var resuelto = await IdVarianteUtil.ResolverStockLineaVentaAsync(
+                _context.StockAlmacens, idAlmacen, codigo, idVariante, ct);
+
+            return Ok(new { cantidad = resuelto?.Fila.Stock ?? 0 });
         }
 
         // ✅ GET: api/stock/reposition-alert
