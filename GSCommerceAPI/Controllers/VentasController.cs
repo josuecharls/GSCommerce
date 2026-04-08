@@ -2021,7 +2021,9 @@ namespace GSCommerceAPI.Controllers
                         join p in _context.Personals on c.IdVendedor equals p.IdPersonal
                         where c.Fecha.Date >= inicio.Date && c.Fecha.Date <= fin.Date
                               && c.Estado == "E"
-                        select new { c, p, TotalArticulos = c.ComprobanteDeVentaDetalles.Sum(d => d.Cantidad) };
+                        select new { c, p, TotalArticulos = c.ComprobanteDeVentaDetalles
+                            .Where(d => !d.Descripcion.Contains("DESCUENTO") && !d.Descripcion.Contains("DSCTO") && !d.Descripcion.Contains("DESC"))
+                            .Sum(d => (int?)d.Cantidad) ?? 0 };
 
             if (porAlmacen && idAlmacen.HasValue)
             {
