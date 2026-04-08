@@ -93,10 +93,41 @@ namespace GSCommerce.Client.Services
             }
         }
 
+        /// <summary>
+        /// Cantidad en la fila exacta (almacén + artículo + variante) que valida el registro de venta.
+        /// </summary>
+        public async Task<int> GetStockCantidadFila(string codigoArticulo, int idAlmacen, int? idVariante)
+        {
+            try
+            {
+                var baseUrl =
+                    $"stock/cantidad-fila?codigoArticulo={Uri.EscapeDataString(codigoArticulo.Trim())}&idAlmacen={idAlmacen}";
+                var url = idVariante is > 0
+                    ? $"{baseUrl}&idVariante={idVariante.Value}"
+                    : baseUrl;
+                var r = await _httpClient.GetFromJsonAsync<CantidadFilaResponse>(url);
+                return r?.Cantidad ?? 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error cantidad-fila stock: {ex.Message}");
+                // Sin IdVariante en StockDTO no podemos filtrar por variante en el listado; evitamos sobreestimar.
+                if (idVariante is > 0)
+                    return 0;
+                return await GetStockDisponible(codigoArticulo, idAlmacen);
+            }
+        }
+
         private sealed class CantidadTotalResponse
         {
             [JsonPropertyName("cantidadTotal")]
             public int CantidadTotal { get; set; }
+        }
+
+        private sealed class CantidadFilaResponse
+        {
+            [JsonPropertyName("cantidad")]
+            public int Cantidad { get; set; }
         }
 
         public async Task<int> GetStockDisponibleParaTransferencia(string codigoArticulo, int idAlmacen, int? idMovimientoExcluir = null)
