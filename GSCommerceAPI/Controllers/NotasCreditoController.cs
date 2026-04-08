@@ -230,6 +230,7 @@ namespace GSCommerceAPI.Controllers
                         IdNc = cabecera.IdNc,
                         Item = item++,
                         IdArticulo = d.IdArticulo.ToString(),
+                        IdVariante = d.IdVariante,
                         Descripcion = d.Descripcion,
                         UnidadMedida = d.UnidadMedida,
                         Cantidad = d.Cantidad,
@@ -269,13 +270,14 @@ namespace GSCommerceAPI.Controllers
                             IdMovimiento = mov.IdMovimiento,
                             Item = itemMov++,
                             IdArticulo = d.IdArticulo.ToString(),
+                            IdVariante = d.IdVariante,
                             DescripcionArticulo = d.Descripcion,
                             Cantidad = d.Cantidad,
                             Valor = d.Precio
                         });
 
                         var stock = await _context.StockAlmacens
-                            .FirstOrDefaultAsync(s => s.IdAlmacen == mov.IdAlmacen && s.IdArticulo == d.IdArticulo.ToString());
+                            .FirstOrDefaultAsync(s => s.IdAlmacen == mov.IdAlmacen && s.IdArticulo == d.IdArticulo.ToString() && s.IdVariante == d.IdVariante);
 
                         int saldoInicial;
                         int saldoFinal;
@@ -287,6 +289,7 @@ namespace GSCommerceAPI.Controllers
                             {
                                 IdAlmacen = mov.IdAlmacen,
                                 IdArticulo = d.IdArticulo.ToString(),
+                                IdVariante = d.IdVariante,
                                 Stock = d.Cantidad,
                                 StockMinimo = 0
                             });
@@ -304,6 +307,7 @@ namespace GSCommerceAPI.Controllers
                         {
                             IdAlmacen = mov.IdAlmacen,
                             IdArticulo = d.IdArticulo.ToString(),
+                            IdVariante = d.IdVariante,
                             TipoMovimiento = "I",
                             Fecha = DateTime.Now,
                             SaldoInicial = saldoInicial,

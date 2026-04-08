@@ -1,4 +1,4 @@
-﻿USE [SYSCHARLES]
+USE [SYSCHARLES]
 GO
 /****** Object:  Schema [Almacen]    Script Date: 24/12/2025 06:33:00 ******/
 CREATE SCHEMA [Almacen]
@@ -6073,4 +6073,52 @@ End
 ' , @level0type=N'SCHEMA',@level0name=N'Movimientos', @level1type=N'VIEW',@level1name=N'v_DetallePagoVenta_1'
 GO
 EXEC sys.sp_addextendedproperty @name=N'MS_DiagramPaneCount', @value=1 , @level0type=N'SCHEMA',@level0name=N'Movimientos', @level1type=N'VIEW',@level1name=N'v_DetallePagoVenta_1'
+GO
+
+-- =========================================================================
+-- SCRIPT DE MIGRACIÓN: IMPLEMENTACIÓN DE VARIANTES (Fase 1)
+-- =========================================================================
+
+-- 1. Agregar columna Foto a las variantes
+ALTER TABLE Maestros.ArticuloVariante
+ADD Foto VARBINARY(MAX) NULL;
+GO
+
+-- 2. Modificaciones transaccionales (Adición de IdVariante NULOS para histórico)
+ALTER TABLE Movimientos.Kardex ADD IdVariante INT NULL;
+ALTER TABLE Movimientos.ComprobanteDeVentaDetalle ADD IdVariante INT NULL;
+ALTER TABLE Movimientos.NotaDeCreditoDetalle ADD IdVariante INT NULL;
+ALTER TABLE Movimientos.OrdenDeCompraDetalle ADD IdVariante INT NULL;
+ALTER TABLE Almacen.MovimientosDetalle ADD IdVariante INT NULL;
+ALTER TABLE Almacen.GuiaRemisionDetalle ADD IdVariante INT NULL;
+GO
+
+-- 3. Modificación Estructural de StockAlmacen
+ALTER TABLE Movimientos.StockAlmacen DROP CONSTRAINT PK_Stock;
+ALTER TABLE Movimientos.StockAlmacen ADD IdStock INT IDENTITY(1,1) PRIMARY KEY;
+ALTER TABLE Movimientos.StockAlmacen ADD IdVariante INT NULL;
+CREATE UNIQUE NONCLUSTERED INDEX UX_StockAlmacen_Compuesto 
+ON Movimientos.StockAlmacen(IdAlmacen, IdArticulo, IdVariante);
+GO
+
+-- 4. Actualizar vistas dependientes para incluir IdVariante
+ALTER VIEW Movimientos.v_StockXAlmacen_1 AS
+SELECT
+    S.IdAlmacen,
+    Al.Nombre AS 'Almacen',
+    Ar.Familia,
+    Ar.Linea,
+    S.IdArticulo,
+    S.IdVariante,
+    Ar.Descripcion,
+    S.Stock,
+    S.StockMinimo,
+    Ar.PrecioCompra,
+    S.Stock * Ar.PrecioCompra AS 'ValorCompra',
+    ISNULL(d.[Precio Final], Ar.PrecioVenta) AS PrecioVenta,
+    S.Stock * ISNULL(d.[Precio Final], Ar.PrecioVenta) AS 'ValorVenta'
+FROM Movimientos.StockAlmacen S
+INNER JOIN Maestros.Almacen Al ON S.IdAlmacen = Al.IdAlmacen
+INNER JOIN Maestros.Articulo Ar ON S.IdArticulo = Ar.IdArticulo
+LEFT JOIN Movimientos.v_Descuentos d ON Ar.IdArticulo = d.IdArticulo AND Al.IdAlmacen = d.IdAlmacen;
 GO

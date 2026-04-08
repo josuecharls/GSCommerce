@@ -1,4 +1,4 @@
-﻿namespace GSCommerce.Client.Models
+namespace GSCommerce.Client.Models
 {
     public class StockDTO
     {

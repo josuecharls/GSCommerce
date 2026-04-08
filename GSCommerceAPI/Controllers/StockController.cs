@@ -186,8 +186,7 @@ namespace GSCommerceAPI.Controllers
                 // 1. Obtener stock actual del artículo en el almacén
                 var stockActual = await _context.VStockXalmacen1s
                     .Where(s => s.IdArticulo == codigoArticulo.Trim() && s.IdAlmacen == idAlmacen)
-                    .Select(s => s.Stock)
-                    .FirstOrDefaultAsync();
+                    .SumAsync(s => (int?)s.Stock) ?? 0;
 
                 if (stockActual == 0)
                 {

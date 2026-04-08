@@ -850,7 +850,7 @@ else
                 var varianteSeleccionada = variantes[indiceVariante.Value - 1]; // Convertir a 0-based
                 var descripcionVariante = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {varianteSeleccionada.Color} {varianteSeleccionada.Talla}";
                 ActualizarArticuloSeleccionado(articulo, descripcionVariante);
-                await AgregarArticuloALaVenta(codigo, articulo, descripcionVariante, precioUnitario, esPromo, stockDisponible);
+                await AgregarArticuloALaVenta(codigo, articulo, descripcionVariante, precioUnitario, esPromo, stockDisponible, varianteSeleccionada.IdVariante);
                 return;
             }
             else
@@ -869,7 +869,7 @@ else
                 var unica = variantes[0];
                 var descripcionVariante = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {unica.Color} {unica.Talla}";
                 ActualizarArticuloSeleccionado(articulo, descripcionVariante);
-                await AgregarArticuloALaVenta(codigo, articulo, descripcionVariante, precioUnitario, esPromo, stockDisponible);
+                await AgregarArticuloALaVenta(codigo, articulo, descripcionVariante, precioUnitario, esPromo, stockDisponible, unica.IdVariante);
                 return;
             }
 
@@ -909,7 +909,7 @@ else
             descripcion = $"{descripcion} {articulo.Talla}".Trim();
         }
         ActualizarArticuloSeleccionado(articulo, descripcion);
-        await AgregarArticuloALaVenta(codigo, articulo, descripcion, precioUnitario, esPromo, stockDisponible);
+        await AgregarArticuloALaVenta(codigo, articulo, descripcion, precioUnitario, esPromo, stockDisponible, null);
     }
 
     private string ObtenerClaseFila(VentaDetalleDTO detalle)
@@ -1551,7 +1551,7 @@ else
 
         mostrarSeleccionVariante = false;
         ActualizarArticuloSeleccionado(articuloPendiente, descripcion);
-        await AgregarArticuloALaVenta(codigoArticuloPendiente, articuloPendiente, descripcion, precioUnitarioPendiente, esPromoPendiente, stockDisponiblePendiente);
+        await AgregarArticuloALaVenta(codigoArticuloPendiente, articuloPendiente, descripcion, precioUnitarioPendiente, esPromoPendiente, stockDisponiblePendiente, variante.IdVariante);
 
         // Limpiar datos pendientes
         articuloPendiente = null;
@@ -1585,9 +1585,9 @@ else
         }
     }
 
-    private async Task AgregarArticuloALaVenta(string codigo, ArticuloDTO articulo, string descripcion, decimal precioUnitario, bool esPromo, int stockDisponible)
+    private async Task AgregarArticuloALaVenta(string codigo, ArticuloDTO articulo, string descripcion, decimal precioUnitario, bool esPromo, int stockDisponible, int? idVariante)
     {
-        var existente = venta.Detalles.FirstOrDefault(d => d.CodigoItem == codigo && d.DescripcionItem == descripcion);
+        var existente = venta.Detalles.FirstOrDefault(d => d.CodigoItem == codigo && d.IdVariante == idVariante && d.DescripcionItem == descripcion);
         VentaDetalleDTO? detalleSeleccionado = null;
 
         if (existente != null)
@@ -1609,6 +1609,7 @@ else
             {
                 Item = venta.Detalles.Count + 1,
                 CodigoItem = articulo.IdArticulo,
+                IdVariante = idVariante,
                 DescripcionItem = descripcion,
                 Cantidad = 1,
                 PrecioUnitario = precioUnitario,

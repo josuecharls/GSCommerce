@@ -84,6 +84,26 @@ public class ReporteService
         return response ?? new();
     }
 
+    public async Task<List<MarcaCatalogoDTO>> ObtenerCatalogoMarcasArticulos(string? q = null)
+    {
+        var url = string.IsNullOrWhiteSpace(q)
+            ? "ventas/catalogo-marcas-articulos"
+            : QueryHelpers.AddQueryString("ventas/catalogo-marcas-articulos", "q", q.Trim());
+        var resp = await _http.GetFromJsonAsync<List<MarcaCatalogoDTO>>(url);
+        return resp ?? new();
+    }
+
+    public async Task<ReporteSeparacionDTO?> ObtenerReporteSeparacionPorMarcas(ReporteSeparacionPorMarcasRequest request)
+    {
+        var resp = await _http.PostAsJsonAsync("ventas/reporte-separacion-por-marcas", request);
+        if (!resp.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        return await resp.Content.ReadFromJsonAsync<ReporteSeparacionDTO>();
+    }
+
     public async Task<List<TopArticuloDTO>> ObtenerTop10ArticulosMenosVendidos(
         DateTime desde,
         DateTime hasta,

@@ -1,4 +1,4 @@
-﻿namespace GSCommerce.Client.Models
+namespace GSCommerce.Client.Models
 {
     public class NotaCreditoDetalleDTO
     {
@@ -11,5 +11,6 @@
         public decimal Precio { get; set; }
         public decimal PorcentajeDescuento { get; set; }
         public decimal Total { get; set; }
+        public int? IdVariante { get; set; }
     }
 }

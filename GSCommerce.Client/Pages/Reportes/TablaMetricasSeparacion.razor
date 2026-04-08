@@ -1,0 +1,49 @@
+@using System.Globalization
+@using GSCommerce.Client.Models.DTOs.Reportes
+
+@if (Filas.Count == 0)
+{
+    <p class="text-muted small mb-0">Sin valores para mostrar.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Nombre</th>
+                    <th class="text-end">Cant.</th>
+                    <th class="text-end">Importe</th>
+                    <th class="text-end">%</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Filas)
+                {
+                    <tr>
+                        <td>@item.Nombre</td>
+                        <td class="text-end">@item.CantidadVendida</td>
+                        <td class="text-end">@item.TotalIngresos.ToString("C", Cultura)</td>
+                        <td class="text-end">@item.Porcentaje.ToString("0.##", Cultura)</td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="pt-0 pb-3 border-0">
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar" role="progressbar"
+                                     style="width: @(item.Porcentaje.ToString(CultureInfo.InvariantCulture))%;"></div>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public List<MetricaSeparacionDTO> Filas { get; set; } = new();
+
+    [Parameter]
+    public CultureInfo Cultura { get; set; } = CultureInfo.GetCultureInfo("es-PE");
+}

@@ -75,4 +75,63 @@
         });
         XLSX.writeFile(wb, filename + ".xlsx");
     };
+
+    /**
+     * Exporta reporte talla / color / combinación por marcas (una hoja con secciones).
+     * payload: { desde, hasta, marcas, almacen, incluirCombinacion, tallas[], colores[], combinaciones[] }
+     * Cada fila de métrica: { nombre, cantidadVendida|CantidadVendida, totalIngresos|TotalIngresos, porcentaje|Porcentaje }
+     */
+    window.exportSeparacionMarcaTallaColorExcel = (payload) => {
+        if (!payload || typeof payload !== 'object') return;
+
+        const desde = String(payload.desde ?? payload.Desde ?? '');
+        const hasta = String(payload.hasta ?? payload.Hasta ?? '');
+        const marcas = String(payload.marcas ?? payload.Marcas ?? '');
+        const almacen = String(payload.almacen ?? payload.Almacen ?? 'General (todos)');
+        const incluirCombinacion = !!(payload.incluirCombinacion ?? payload.IncluirCombinacion);
+
+        const mapMetricas = (arr) => (Array.isArray(arr) ? arr : []).map(r => ({
+            nombre: r.nombre ?? r.Nombre ?? '',
+            cantidad: toNum(r.cantidadVendida ?? r.CantidadVendida ?? r.cantidad ?? r.Cantidad),
+            importe: toNum(r.totalIngresos ?? r.TotalIngresos ?? r.importe ?? r.Importe),
+            porcentaje: toNum(r.porcentaje ?? r.Porcentaje)
+        }));
+
+        const tallas = mapMetricas(payload.tallas ?? payload.Tallas);
+        const colores = mapMetricas(payload.colores ?? payload.Colores);
+        const combos = mapMetricas(payload.combinaciones ?? payload.Combinaciones);
+
+        if (tallas.length === 0 && colores.length === 0 && (!incluirCombinacion || combos.length === 0)) return;
+
+        const header = [
+            ['Talla y color por marca'],
+            [`Rango: ${desde} a ${hasta}`],
+            [`Marcas: ${marcas}`],
+            [`Ámbito: ${almacen}`],
+            [`Combinación talla+color: ${incluirCombinacion ? 'Sí' : 'No'}`],
+            []
+        ];
+
+        const cols = ['Nombre', 'Cantidad vendida', 'Total importe (S/)', '% sobre sección'];
+
+        const aoa = [...header];
+        const appendSection = (title, rows) => {
+            aoa.push([title]);
+            aoa.push(cols);
+            rows.forEach(x => aoa.push([x.nombre, x.cantidad, x.importe, x.porcentaje]));
+            aoa.push([]);
+        };
+
+        appendSection('TALLA', tallas);
+        appendSection('COLOR', colores);
+        if (incluirCombinacion) {
+            appendSection('COMBINACIÓN TALLA — COLOR', combos);
+        }
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [{ wch: 36 }, { wch: 16 }, { wch: 18 }, { wch: 14 }];
+        XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
+        XLSX.writeFile(wb, `SeparacionMarcaTallaColor_${desde}_a_${hasta}.xlsx`);
+    };
 })();

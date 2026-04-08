@@ -1,13 +1,17 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace GSCommerceAPI.Models;
 
 public partial class StockAlmacen
 {
+    public int IdStock { get; set; }
+
     public int IdAlmacen { get; set; }
 
     public string IdArticulo { get; set; } = null!;
+
+    public int? IdVariante { get; set; }
 
     public int Stock { get; set; }
     public int StockMinimo { get; set; }

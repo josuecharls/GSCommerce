@@ -1,0 +1,226 @@
+@page "/reportes/separacion-marca-talla-color"
+@using GSCommerce.Client.Components
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@attribute [Authorize]
+@inject ReporteService ReporteService
+@inject AlmacenService AlmacenService
+@inject AuthService AuthService
+@inject IJSRuntime JS
+
+<ReportsBreadcrumb Title="Talla y color por marca" />
+
+<p class="text-muted small mb-3">
+    Elija una o varias marcas (se unifican variantes como «MVAR» y «MVAR.»). El reporte muestra tallas y colores vendidos
+    <strong>para esas marcas</strong>. Opcionalmente puede ver la <strong>combinación talla + color</strong> (útil con variantes).
+</p>
+
+<div class="row g-3 align-items-end mb-3">
+    <div class="col-12 col-md-6 col-lg-4">
+        <label class="form-label">Marcas</label>
+        <MultiSelectDropdown Items="marcasCatalogo"
+                             ValueSelector="@(m => m.Clave)"
+                             TextSelector="@(m => m.Etiqueta)"
+                             EnableSearch="true"
+                             ShowActions="true"
+                             Placeholder="Buscar y seleccionar marcas"
+                             SearchPlaceholder="Buscar marca…"
+                             @bind-SelectedValues="marcasClavesSeleccionadas" />
+    </div>
+    <div class="col-6 col-lg-2">
+        <label class="form-label">Desde</label>
+        <InputDate @bind-Value="desde" class="form-control" />
+    </div>
+    <div class="col-6 col-lg-2">
+        <label class="form-label">Hasta</label>
+        <InputDate @bind-Value="hasta" class="form-control" />
+    </div>
+    @if (esAdmin)
+    {
+        <div class="col-12 col-sm-6 col-lg-2">
+            <label class="form-label">Almacén</label>
+            <select class="form-select" @bind="idAlmacenSel">
+                <option value="0">General (todos)</option>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+    }
+    <div class="col-12 col-lg-4 d-flex flex-wrap align-items-end gap-2">
+        <div class="form-check mb-0 flex-grow-1">
+            <InputCheckbox id="chkCombo" class="form-check-input" @bind-Value="incluirCombinacionTallaColor" />
+            <label class="form-check-label small" for="chkCombo">Incluir combinación talla + color</label>
+        </div>
+        <button type="button" class="btn btn-primary" @onclick="Buscar" disabled="@loading">
+            @(loading ? "Generando…" : "Generar reporte")
+        </button>
+        <button type="button" class="btn btn-success" @onclick="ExportarExcel" disabled="@(!tieneDatos)">
+            Exportar Excel
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(errorUsuario))
+{
+    <div class="alert alert-warning">@errorUsuario</div>
+}
+
+@if (tieneDatos)
+{
+    var pe = CultureInfo.GetCultureInfo("es-PE");
+    @if (!string.IsNullOrWhiteSpace(resumenMarcas))
+    {
+        <p class="small mb-3"><span class="fw-semibold">Marcas incluidas:</span> @resumenMarcas</p>
+    }
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <h5 class="fw-bold text-uppercase border-bottom pb-2 mb-3">Talla</h5>
+            <TablaMetricasSeparacion Filas="reporte!.VentasPorTalla" Cultura="pe" />
+        </div>
+        <div class="col-lg-6">
+            <h5 class="fw-bold text-uppercase border-bottom pb-2 mb-3">Color</h5>
+            <TablaMetricasSeparacion Filas="reporte!.VentasPorColor" Cultura="pe" />
+        </div>
+    </div>
+    @if (incluirCombinacionTallaColor)
+    {
+        <div class="row g-4 mt-1">
+            <div class="col-12">
+                <h5 class="fw-bold text-uppercase border-bottom pb-2 mb-3">Combinación talla — color</h5>
+                @if (reporte!.VentasPorCombinacionTallaColor.Count > 0)
+                {
+                    <TablaMetricasSeparacion Filas="reporte.VentasPorCombinacionTallaColor" Cultura="pe" />
+                }
+                else
+                {
+                    <p class="text-muted small mb-0">No hay líneas con talla y color aplicables en el período (se excluyen vacíos y «NO APLICA»).</p>
+                }
+            </div>
+        </div>
+    }
+}
+else if (yaConsulto && string.IsNullOrEmpty(errorUsuario))
+{
+    <div class="alert alert-info text-center">No hay datos para las marcas y fechas elegidas (se excluyen vacíos y «NO APLICA»).</div>
+}
+
+@code {
+    private List<MarcaCatalogoDTO> marcasCatalogo = new();
+    private List<string> marcasClavesSeleccionadas = new();
+    private ReporteSeparacionDTO? reporte;
+    private DateTime desde = DateTime.Today.AddDays(-30);
+    private DateTime hasta = DateTime.Today;
+    private bool loading;
+    private bool yaConsulto;
+    private bool esAdmin;
+    private List<AlmacenDTO> almacenes = new();
+    private int idAlmacenSel;
+    private string errorUsuario = "";
+    private bool incluirCombinacionTallaColor = true;
+
+    private bool tieneDatos =>
+        reporte != null &&
+        (reporte.VentasPorTalla.Count > 0 ||
+         reporte.VentasPorColor.Count > 0 ||
+         (incluirCombinacionTallaColor && reporte.VentasPorCombinacionTallaColor.Count > 0));
+
+    private string resumenMarcas =>
+        string.Join(", ",
+            marcasCatalogo
+                .Where(m => marcasClavesSeleccionadas.Contains(m.Clave, StringComparer.OrdinalIgnoreCase))
+                .Select(m => m.Etiqueta)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        esAdmin = string.Equals(await AuthService.GetUserCargo(), "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
+        if (esAdmin)
+        {
+            almacenes = await AlmacenService.GetAlmacenes() ?? new();
+        }
+
+        try
+        {
+            marcasCatalogo = await ReporteService.ObtenerCatalogoMarcasArticulos();
+        }
+        catch
+        {
+            marcasCatalogo = new();
+            errorUsuario = "No se pudo cargar el catálogo de marcas.";
+        }
+    }
+
+    private async Task Buscar()
+    {
+        errorUsuario = "";
+        if (marcasClavesSeleccionadas == null || marcasClavesSeleccionadas.Count == 0)
+        {
+            errorUsuario = "Seleccione al menos una marca.";
+            reporte = null;
+            yaConsulto = false;
+            return;
+        }
+
+        loading = true;
+        try
+        {
+            int? idAlmacenParam = esAdmin && idAlmacenSel > 0 ? idAlmacenSel : null;
+            var req = new ReporteSeparacionPorMarcasRequest
+            {
+                Desde = desde,
+                Hasta = hasta,
+                IdAlmacen = idAlmacenParam,
+                MarcasClave = marcasClavesSeleccionadas.ToList(),
+                Top = 50,
+                IncluirCombinacionTallaColor = incluirCombinacionTallaColor
+            };
+
+            reporte = await ReporteService.ObtenerReporteSeparacionPorMarcas(req);
+            yaConsulto = true;
+            if (reporte == null)
+            {
+                errorUsuario = "No se pudo generar el reporte. Verifique la sesión o intente de nuevo.";
+                reporte = new ReporteSeparacionDTO();
+            }
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ExportarExcel()
+    {
+        if (reporte == null || !tieneDatos)
+        {
+            return;
+        }
+
+        var nombreAlmacen = "General (todos)";
+        if (esAdmin && idAlmacenSel > 0)
+        {
+            nombreAlmacen = almacenes.FirstOrDefault(a => a.IdAlmacen == idAlmacenSel)?.Nombre ?? $"Almacén {idAlmacenSel}";
+        }
+
+        var payload = new
+        {
+            desde = desde.ToString("yyyy-MM-dd"),
+            hasta = hasta.ToString("yyyy-MM-dd"),
+            marcas = resumenMarcas,
+            almacen = nombreAlmacen,
+            incluirCombinacion = incluirCombinacionTallaColor,
+            tallas = reporte.VentasPorTalla,
+            colores = reporte.VentasPorColor,
+            combinaciones = reporte.VentasPorCombinacionTallaColor
+        };
+
+        await JS.InvokeVoidAsync("exportSeparacionMarcaTallaColorExcel", payload);
+    }
+}
