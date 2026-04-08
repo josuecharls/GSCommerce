@@ -73,7 +73,9 @@
                 <th>Vendedora</th>
                 <th>Estado</th>
                 <th>Ventas Realizadas</th>
+                <th>Artículos Vendidos</th>
                 <th>Monto Total</th>
+                <th>% Participación</th>
             </tr>
         </thead>
         <tbody>
@@ -84,7 +86,9 @@
                     <td>@item.r.Vendedora</td>
                     <td>@(item.r.Activo ? "Activo" : "Inactivo")</td>
                     <td>@item.r.VentasRealizadas</td>
+                    <td>@item.r.ArticulosVendidos</td>
                     <td>S/ @item.r.TotalVentas.ToString("N2")</td>
+                    <td>@item.r.PorcentajeParticipacion.ToString("0.00")%</td>
                 </tr>
             }
         </tbody>
@@ -134,14 +138,16 @@ else
 
     private async Task ExportarExcel()
     {
-        var headers = new[] { "Ranking", "Vendedor", "Estado", "Cantidad", "Monto" };
+        var headers = new[] { "Ranking", "Vendedor", "Estado", "Ventas", "Artículos", "Monto", "Participación %" };
         var rows = ranking.Select((r, i) => new object[]
         {
             i + 1,
             r.Vendedora,
             r.Activo ? "Activo" : "Inactivo",
             r.VentasRealizadas,
-            r.TotalVentas
+            r.ArticulosVendidos,
+            r.TotalVentas,
+            r.PorcentajeParticipacion
         }).ToArray();
 
         await JS.InvokeVoidAsync("exportToExcel", headers, rows, $"RankingVendedoras_{desde:yyyyMMdd}_{hasta:yyyyMMdd}");
@@ -181,6 +187,7 @@ else
         {
             var totalMonto    = datos.Sum(d => d.TotalVentas);
             var totalCantidad = datos.Sum(d => d.VentasRealizadas);
+            var totalArticulos = datos.Sum(d => d.ArticulosVendidos);
 
             var sb = new StringBuilder();
             sb.AppendLine($@"
@@ -195,7 +202,9 @@ else
         <th style='padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;text-align:left;'>Vendedora</th>
         <th style='padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;text-align:center;'>Estado</th>
         <th style='padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;text-align:center;'>Ventas</th>
+        <th style='padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;text-align:center;'>Artículos</th>
         <th style='padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;text-align:right;'>Monto Total</th>
+        <th style='padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;text-align:right;'>Participación</th>
       </tr>
     </thead>
     <tbody>");
@@ -224,7 +233,9 @@ else
         <td style='padding:9px 12px;font-size:12px;color:#1e293b;vertical-align:middle;'>{System.Net.WebUtility.HtmlEncode(d.Vendedora)}</td>
         <td style='padding:9px 12px;text-align:center;vertical-align:middle;'><span style='{estadoStyle}'>{estadoTexto}</span></td>
         <td style='padding:9px 12px;font-size:12px;font-weight:600;color:#334155;text-align:center;vertical-align:middle;'>{d.VentasRealizadas}</td>
+        <td style='padding:9px 12px;font-size:12px;font-weight:600;color:#334155;text-align:center;vertical-align:middle;'>{d.ArticulosVendidos}</td>
         <td style='padding:9px 12px;font-size:13px;font-weight:700;color:#15803d;text-align:right;vertical-align:middle;'>S/ {d.TotalVentas:N2}</td>
+        <td style='padding:9px 12px;font-size:12px;font-weight:600;color:#334155;text-align:right;vertical-align:middle;'>{d.PorcentajeParticipacion:N2}%</td>
       </tr>");
                 index++;
             }
@@ -233,7 +244,9 @@ else
       <tr style='background:#f8fafc;border-top:2px solid #cbd5e1;'>
         <td colspan='3' style='padding:10px 12px;font-size:12px;font-weight:700;color:#334155;'>TOTAL ALMACEN</td>
         <td style='padding:10px 12px;font-size:12px;font-weight:700;color:#334155;text-align:center;'>{totalCantidad}</td>
+        <td style='padding:10px 12px;font-size:12px;font-weight:700;color:#334155;text-align:center;'>{totalArticulos}</td>
         <td style='padding:10px 12px;font-size:14px;font-weight:700;color:#0f766e;text-align:right;'>S/ {totalMonto:N2}</td>
+        <td style='padding:10px 12px;font-size:12px;font-weight:700;color:#334155;text-align:right;'>100.00%</td>
       </tr>
     </tbody>
   </table>

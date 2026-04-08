@@ -1,4 +1,4 @@
-﻿namespace GSCommerce.Client.Models.DTOs.Reportes
+namespace GSCommerce.Client.Models.DTOs.Reportes
 {
     public class RankingVendedoraDTO
     {
@@ -7,5 +7,7 @@
         public bool Activo { get; set; }
         public int TotalClientes { get; set; }
         public int VentasRealizadas { get; set; }
+        public int ArticulosVendidos { get; set; }
+        public decimal PorcentajeParticipacion { get; set; }
     }
 }

@@ -2021,24 +2021,37 @@ namespace GSCommerceAPI.Controllers
                         join p in _context.Personals on c.IdVendedor equals p.IdPersonal
                         where c.Fecha.Date >= inicio.Date && c.Fecha.Date <= fin.Date
                               && c.Estado == "E"
-                        select new { c, p };
+                        select new { c, p, TotalArticulos = c.ComprobanteDeVentaDetalles.Sum(d => d.Cantidad) };
 
             if (porAlmacen && idAlmacen.HasValue)
             {
                 query = query.Where(x => x.c.IdAlmacen == idAlmacen.Value);
             }
 
-            var ranking = await query
+            var rankingGrouped = await query
                 .GroupBy(x => new { x.p.IdPersonal, x.p.Nombres, x.p.Apellidos, x.p.Estado })
-                .OrderByDescending(g => g.Sum(x => x.c.Total))
-                .Select(g => new RankingVendedoraDTO
+                .Select(g => new
                 {
                     Vendedora = (g.Key.Nombres + " " + g.Key.Apellidos).Trim(),
                     TotalVentas = g.Sum(x => x.c.Total),
                     Activo = g.Key.Estado,
                     TotalClientes = g.Select(x => x.c.Dniruc).Distinct().Count(),
-                    VentasRealizadas = g.Count()
+                    VentasRealizadas = g.Count(),
+                    ArticulosVendidos = g.Sum(x => x.TotalArticulos)
                 }).ToListAsync();
+
+            var totalGeneral = rankingGrouped.Sum(x => x.TotalVentas);
+
+            var ranking = rankingGrouped.Select(x => new RankingVendedoraDTO
+            {
+                Vendedora = x.Vendedora,
+                TotalVentas = x.TotalVentas,
+                Activo = x.Activo,
+                TotalClientes = x.TotalClientes,
+                VentasRealizadas = x.VentasRealizadas,
+                ArticulosVendidos = x.ArticulosVendidos,
+                PorcentajeParticipacion = totalGeneral > 0 ? Math.Round((x.TotalVentas / totalGeneral) * 100m, 2) : 0m
+            }).OrderByDescending(x => x.TotalVentas).ToList();
 
             return Ok(ranking);
         }
