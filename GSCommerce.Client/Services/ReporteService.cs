@@ -160,6 +160,29 @@ public class ReporteService
         var resp = await _http.GetFromJsonAsync<ReportePagosTarjetaOnlineResponseDTO>(url);
         return resp ?? new ReportePagosTarjetaOnlineResponseDTO();
     }
+
+    public async Task<ReporteVentasTarjetaMensualResponseDTO> ObtenerVentasTarjetaOnlineMensual(DateTime desde, DateTime hasta, string? nombreAlmacen = null)
+    {
+        var url = $"reporteshistoricos/ventas-tarjeta-online-mensual?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+        if (!string.IsNullOrWhiteSpace(nombreAlmacen))
+        {
+            url += $"&nombreAlmacen={Uri.EscapeDataString(nombreAlmacen)}";
+        }
+
+        var resp = await _http.GetFromJsonAsync<ReporteVentasTarjetaMensualResponseDTO>(url);
+        return resp ?? new ReporteVentasTarjetaMensualResponseDTO();
+    }
+
+    public async Task<HttpResponseMessage> ExportarVentasTarjetaOnlineMensual(DateTime desde, DateTime hasta, string? nombreAlmacen = null)
+    {
+        var url = $"reporteshistoricos/exportar-ventas-tarjeta-online-mensual?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+        if (!string.IsNullOrWhiteSpace(nombreAlmacen))
+        {
+            url += $"&nombreAlmacen={Uri.EscapeDataString(nombreAlmacen)}";
+        }
+        return await _http.GetAsync(url);
+    }
+
     public async Task<ReporteAvanceHoraDTO> ObtenerAvanceVentasHora(DateTime desde, DateTime hasta, int? idAlmacen = null)
     {
         var url = $"ventas/reporte-avance-por-hora?desde={Uri.EscapeDataString(desde.ToString("yyyy-MM-ddTHH:mm:ss"))}&hasta={Uri.EscapeDataString(hasta.ToString("yyyy-MM-ddTHH:mm:ss"))}";

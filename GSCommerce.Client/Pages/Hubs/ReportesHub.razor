@@ -54,14 +54,26 @@
         </div>
     }
 
+    @if (userId == 4004 || userId == 4023 || userId == 4033)
+    {
+        <div class="col">
+            <HubCard Title="Consolidado Anual Tarjetas"
+                     Description="Reporte 2025"
+                     IconClass="bi-calendar2-month"
+                     Url="/hubs/reportes/ventas-tarjeta-mensual" />
+        </div>
+    }
+
 </div>
 
 @code {
     private string? cargo;
+    private int? userId;
 
     protected override async Task OnInitializedAsync()
     {
         cargo = await AuthService.GetUserCargo();
+        userId = await AuthService.GetUserId();
     }
 }
 

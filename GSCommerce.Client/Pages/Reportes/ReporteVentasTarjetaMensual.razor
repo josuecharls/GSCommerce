@@ -1,0 +1,190 @@
+﻿@page "/hubs/reportes/ventas-tarjeta-mensual"
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@inject ReporteService ReporteService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject AuthService AuthService
+
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col-12">
+            <h3><i class="bi bi-calendar-month text-primary me-2"></i> Reporte Histórico: Ventas Tarjeta / Online (Mensual)</h3>
+            <p class="text-muted">Consulta en tiempo real la información de las ventas Tarjeta/Online en el 2025.</p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row align-items-end g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Desde</label>
+                    <input type="date" class="form-control" @bind="desde" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Hasta</label>
+                    <input type="date" class="form-control" @bind="hasta" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Almacén</label>
+                    <select class="form-select" @bind="nombreAlmacen">
+                        <option value="">-- TODOS LOS ALMACENES --</option>
+                        @foreach (var alm in almacenesPermitidos)
+                        {
+                            <option value="@alm">@alm</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex">
+                    <button class="btn btn-primary w-100 me-2" @onclick="Buscar" disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        }
+                        <i class="bi bi-search"></i> Buscar
+                    </button>
+                    <button class="btn btn-success w-100" @onclick="ExportarExcel" disabled="@(resultados == null || !resultados.Any() || isLoading)">
+                        <i class="bi bi-file-earmark-excel"></i> Exportar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (resultados != null && resultados.Count > 0)
+    {
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="text-center">Año</th>
+                                <th class="text-center">Mes</th>
+                                <th>Almacén</th>
+                                <th class="text-end">Total Soles (S/)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in resultados)
+                            {
+                                <tr>
+                                    <td class="text-center">@item.Year</td>
+                                    <td class="text-center fw-bold">@GetNombreMes(item.Month)</td>
+                                    <td>@item.AlmacenNombre</td>
+                                    <td class="text-end font-monospace">@item.TotalSoles.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-light fw-bold fs-5">
+                            <tr>
+                                <td colspan="3" class="text-end text-primary">TOTAL GENERAL:</td>
+                                <td class="text-end text-success">S/ @resultados.Sum(x => x.TotalSoles).ToString("N2")</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+    else if (resultados != null && !isLoading)
+    {
+        <div class="alert alert-info d-flex align-items-center" role="alert">
+            <i class="bi bi-info-circle-fill me-2 fs-4"></i>
+            <div>No se encontraron ventas con tarjeta u online para los parámetros seleccionados.</div>
+        </div>
+    }
+</div>
+
+@code {
+    private DateTime desde = new DateTime(2025, 1, 1);
+    private DateTime hasta = new DateTime(2025, 12, 31);
+    private string? nombreAlmacen;
+    private List<string> almacenesPermitidos = new()
+    {
+        "CHICLAYO2", "PIURA2", "SULLANA2", "TRUJILLO2", "AGUAS VERDES2", "IQUITOS FATISHOP"
+    };
+    private List<VentaTarjetaMensualDTO>? resultados;
+    private bool isLoading;
+
+    private int? userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        userId = await AuthService.GetUserId();
+        if (userId != 4004 && userId != 4023 && userId != 4033)
+        {
+            Navigation.NavigateTo("/"); // Expulsar si no tiene permiso
+            return;
+        }
+    }
+
+    private async Task Buscar()
+    {
+        isLoading = true;
+        StateHasChanged();
+        try
+        {
+            var res = await ReporteService.ObtenerVentasTarjetaOnlineMensual(desde, hasta, nombreAlmacen);
+            resultados = res?.Resultados ?? new List<VentaTarjetaMensualDTO>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            resultados = new List<VentaTarjetaMensualDTO>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ExportarExcel()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+            using var response = await ReporteService.ExportarVentasTarjetaOnlineMensual(desde, hasta, nombreAlmacen);
+            if (!response.IsSuccessStatusCode)
+            {
+                await JS.InvokeVoidAsync("alert", "❌ No se pudo exportar el reporte.");
+                return;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var base64 = Convert.ToBase64String(bytes);
+            var nombreArchivo = $"Consolidado_Tarjetas_{desde:yyyyMMdd}_{hasta:yyyyMMdd}.xlsx";
+            await JS.InvokeVoidAsync("downloadFileFromBytes", nombreArchivo, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
+        }
+        catch
+        {
+            await JS.InvokeVoidAsync("alert", "❌ Error inesperado al exportar.");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetNombreMes(int mes)
+    {
+        return mes switch
+        {
+            1 => "Enero",
+            2 => "Febrero",
+            3 => "Marzo",
+            4 => "Abril",
+            5 => "Mayo",
+            6 => "Junio",
+            7 => "Julio",
+            8 => "Agosto",
+            9 => "Septiembre",
+            10 => "Octubre",
+            11 => "Noviembre",
+            12 => "Diciembre",
+            _ => mes.ToString()
+        };
+    }
+}
