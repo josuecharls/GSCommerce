@@ -582,35 +582,33 @@
         descripcionParaImpresion = string.Empty;
     }
 
-    // Abre la página calibrada /barcode-print (dos etiquetas, 100x50mm)
+    // Abre /barcode-print (dos etiquetas, 96×36 mm)
     private void PrintBarcode()
     {
         if (barcodeArticulo is null) return;
-        
-        var desc = Uri.EscapeDataString(descripcionParaImpresion);
-        var precio = barcodeArticulo.PrecioVenta.ToString(CultureInfo.InvariantCulture);
-        
+
         // Determinar el código a imprimir
         // Si hay múltiples variantes y hay una seleccionada, incluir sufijo -N
         string codigoParaImprimir = barcodeArticulo.IdArticulo;
-        
+
         if (varianteSeleccionadaImpresion != null && variantesDisponiblesImpresion.Count > 1)
         {
-            // Encontrar el índice de la variante seleccionada (1-based)
             var indice = variantesDisponiblesImpresion.FindIndex(v => v.IdVariante == varianteSeleccionadaImpresion.IdVariante) + 1;
             codigoParaImprimir = $"{barcodeArticulo.IdArticulo}-{indice}";
         }
-        
-        if (varianteSeleccionadaImpresion != null)
-        {
-            var color = Uri.EscapeDataString(varianteSeleccionadaImpresion.Color);
-            var talla = Uri.EscapeDataString(varianteSeleccionadaImpresion.Talla);
-            Navigation.NavigateTo($"/barcode-print/{codigoParaImprimir}/{desc}/{precio}/{color}/{talla}", true);
-        }
-        else
-        {
-            Navigation.NavigateTo($"/barcode-print/{codigoParaImprimir}/{desc}/{precio}", true);
-        }
+
+        // Color/talla: variante si hay; si no, cabecera del artículo (artículos antiguos sin variantes).
+        var colorImpresion = varianteSeleccionadaImpresion?.Color ?? barcodeArticulo.Color;
+        var tallaImpresion = varianteSeleccionadaImpresion?.Talla ?? barcodeArticulo.Talla;
+
+        var q = BarcodePrintMetadataQuery.BuildPrintQuery(
+            descripcionParaImpresion,
+            barcodeArticulo,
+            barcodeArticulo.PrecioVenta,
+            colorImpresion,
+            tallaImpresion);
+
+        Navigation.NavigateTo($"/barcode-print/{codigoParaImprimir}?{q}", true);
     }
 
     private bool CanPrev => currentPage > 1;

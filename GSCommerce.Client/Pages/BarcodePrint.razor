@@ -1,19 +1,16 @@
-﻿@page "/barcode-print/{codigo}/{descripcion}"
-@page "/barcode-print/{codigo}/{descripcion}/{precio}"
-@page "/barcode-print/{codigo}/{descripcion}/{precio}/{color?}/{talla?}"
+﻿@page "/barcode-print/{codigo}"
 @using Microsoft.AspNetCore.Authorization
+@using System.Globalization
 @attribute [Authorize]
 @inject IJSRuntime JS
 
 <style>
     :root {
-        /* Tamaño físico que QUIERES en el papel */
-        --page-w: 96mm; /* ancho total (dos etiquetas) */
-        --page-h: 36mm; /* alto de una etiqueta        */
-        --gap: 8.5mm; /* canal central real          */
-        /* Seguridad para que no se corte el marco */
-        --safe: 1.0mm; /* súbelo a 1.2mm si roza      */
-        --hair: 0.2mm;
+        /* Formato físico de impresión (dos etiquetas en 96×36 mm) */
+        --page-w: 96mm;
+        --page-h: 36mm;
+        --gap: 8.5mm;
+        --safe: 1.0mm;
         --label-w: calc((var(--page-w) - var(--gap)) / 2);
     }
 
@@ -30,36 +27,27 @@
         margin: var(--safe);
         box-sizing: border-box;
         padding: 1.0mm;
-        outline: var(--hair) solid #000; /* marco fino */
         border-radius: .8mm;
         display: grid;
-        grid-template-rows: auto 1fr auto; /* barcode | desc | talla/precio */
-        row-gap: 1mm;
-        border: 2.5px solid #000; /* borde más grueso */
+        grid-template-rows: auto 1fr auto;
+        row-gap: 0.85mm;
+        border: 2.5px solid #000;
     }
 
+    /* Cabecera: barras + fila código / TALLA (sin marco interior) */
     .top {
-        display: grid;
-        grid-template-columns: 1fr;
-    }
-
-    .barcode-box {
-        border: var(--hair) solid #000;
-        border-radius: .5mm;
-        height: 16mm; /* Aumentado para incluir el código del artículo */
-        padding: .6mm;
         display: flex;
-        flex-direction: column; /* Apilar verticalmente: código de barras arriba, código abajo */
-        align-items: center;
-        justify-content: center;
-        background: white;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
     }
 
     .barcode {
         width: 100%;
-        flex: 1; /* Ocupa el espacio disponible, dejando lugar para el código */
+        height: 8.5mm;
         object-fit: contain;
         display: block;
+        flex-shrink: 0;
     }
 
         .barcode svg {
@@ -69,45 +57,100 @@
             max-height: 100%;
         }
 
-    .barcode-code {
-        font-size: 10pt;
-        font-weight: 700;
-        text-align: center;
-        margin-top: 0.5mm;
-        line-height: 1;
-        color: #000;
-        font-family: monospace;
+    .barcode-meta {
+        display: flex;
+        flex-direction: row;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1.25mm;
+        margin-top: 0.25mm;
+        padding: 0 1.5mm;
+        box-sizing: border-box;
     }
 
-    .desc {
+    .barcode-code {
         font-size: 8pt;
         font-weight: 700;
-        line-height: 1.15;
+        line-height: 1;
+        color: #000;
+        font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+        letter-spacing: 0.02em;
+        flex: 0 1 auto;
+        min-width: 0;
+    }
+
+    .talla-block {
+        font-size: 7.75pt;
+        font-weight: 700;
+        line-height: 1;
+        text-align: right;
+        text-transform: uppercase;
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+    }
+
+    .body-lines {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.2mm;
+        min-height: 0;
+    }
+
+    /* Primera línea del bloque (línea + marca): ligeramente mayor */
+    .body-lines > .body-line:first-of-type {
+        font-size: 7.75pt;
+        line-height: 1.12;
+    }
+
+    .body-line {
+        font-size: 6.75pt;
+        font-weight: 700;
+        line-height: 1.12;
+        text-transform: uppercase;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+    }
+
+    .body-fallback {
+        font-size: 6.75pt;
+        font-weight: 700;
+        line-height: 1.12;
+        text-transform: uppercase;
         display: -webkit-box;
-        -webkit-line-clamp: 3;
+        -webkit-line-clamp: 4;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        white-space: normal;
+        font-family: Arial, Helvetica, "Segoe UI", sans-serif;
     }
 
-    .bottom {
+    .footer {
         display: grid;
-        grid-template-columns: 1fr auto; /* talla a la izq | precio a la der */
+        grid-template-columns: 1fr auto;
         align-items: end;
+        column-gap: 1.5mm;
     }
 
-    .talla {
-        font-size: 7.1pt;
+    .fecha-creacion {
+        font-size: 6pt;
+        font-weight: 700;
+        line-height: 1;
+        text-transform: uppercase;
+        flex-shrink: 0;
+        font-family: Arial, Helvetica, "Segoe UI", sans-serif;
     }
 
     .price {
         font-weight: 700;
-        font-size: 10.8pt;
+        font-size: 11.4pt;
+        line-height: 1;
         white-space: nowrap;
-    }
-
-    .code {
-        font-size: 7pt;
-        margin-top: .3mm;
+        flex-shrink: 0;
+        font-family: Arial, Helvetica, "Segoe UI", sans-serif;
     }
 
     @@media print {
@@ -149,21 +192,48 @@
             {
                 <div class="print-area">
                     <div class="top">
-                        <div class="barcode-box">
-                            <svg class="barcode" id="barcode-@i" data-code="@Codigo"></svg>
-                            <div class="barcode-code">@Codigo</div>
+                        <svg class="barcode" id="barcode-@i" data-code="@Codigo"></svg>
+                        <div class="barcode-meta">
+                            <span class="barcode-code">@Codigo</span>
+                            @if (!string.IsNullOrWhiteSpace(Talla))
+                            {
+                                <div class="talla-block">TALLA @Talla.Trim().ToUpperInvariant()</div>
+                            }
                         </div>
                     </div>
 
-                    <div>
-                        <div class="desc">@Descripcion</div>
+                    <div class="body-lines">
+                        @if (UsaLineasEstructuradas)
+                        {
+                            @if (!string.IsNullOrWhiteSpace(LineaMarca))
+                            {
+                                <div class="body-line">@LineaMarca</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(FamiliaMaterial))
+                            {
+                                <div class="body-line">@FamiliaMaterial</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(ModeloTrim))
+                            {
+                                <div class="body-line">@ModeloTrim</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(LineaColor))
+                            {
+                                <div class="body-line">@LineaColor</div>
+                            }
+                        }
+                        else if (!string.IsNullOrWhiteSpace(DescripcionDecoded))
+                        {
+                            <div class="body-fallback">@DescripcionDecoded</div>
+                        }
                     </div>
 
-                    <div class="bottom">
+                    <div class="footer">
+                        <div class="fecha-creacion">@TextoFechaCreacion</div>
                         <div class="price">
                             @if (PrecioDecimal.HasValue)
                             {
-                                <span>S/. @PrecioDecimal.Value.ToString("0.00")</span>
+                                <span>S/ @PrecioDecimal.Value.ToString("0.00", CultureInfo.InvariantCulture)</span>
                             }
                         </div>
                     </div>
@@ -180,12 +250,49 @@ else
 
 @code {
     [Parameter] public string? Codigo { get; set; }
-    [Parameter] public string? Descripcion { get; set; }
-    [Parameter] public string? Precio { get; set; }
-    [Parameter] public string? Color { get; set; }
-    [Parameter] public string? Talla { get; set; }
+
+    [Parameter, SupplyParameterFromQuery(Name = "precio")] public string? Precio { get; set; }
+    [Parameter, SupplyParameterFromQuery(Name = "descripcion")] public string? Descripcion { get; set; }
+    [Parameter, SupplyParameterFromQuery] public string? Color { get; set; }
+    [Parameter, SupplyParameterFromQuery] public string? Talla { get; set; }
+
+    [Parameter, SupplyParameterFromQuery] public string? Linea { get; set; }
+    [Parameter, SupplyParameterFromQuery] public string? Marca { get; set; }
+    [Parameter, SupplyParameterFromQuery] public string? Familia { get; set; }
+    [Parameter, SupplyParameterFromQuery] public string? Material { get; set; }
+    [Parameter, SupplyParameterFromQuery] public string? Modelo { get; set; }
+    [Parameter, SupplyParameterFromQuery] public string? Fc { get; set; }
 
     private decimal? PrecioDecimal;
+
+    private string DescripcionDecoded =>
+        string.IsNullOrWhiteSpace(Descripcion) ? string.Empty : Descripcion.Trim();
+
+    private string LineaMarca =>
+        string.Join(' ', new[] { Linea?.Trim(), Marca?.Trim() }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    private string FamiliaMaterial =>
+        string.Join(' ', new[] { Familia?.Trim(), Material?.Trim() }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    private string? ModeloTrim => string.IsNullOrWhiteSpace(Modelo) ? null : Modelo.Trim();
+
+    private string? ColorDecoded =>
+        string.IsNullOrWhiteSpace(Color) ? null : Color.Trim();
+
+    private string? LineaColor =>
+        string.IsNullOrWhiteSpace(ColorDecoded) ? null : $"COLOR: {ColorDecoded.ToUpperInvariant()}";
+
+    private bool UsaLineasEstructuradas =>
+        !string.IsNullOrWhiteSpace(LineaMarca)
+        || !string.IsNullOrWhiteSpace(FamiliaMaterial)
+        || !string.IsNullOrWhiteSpace(ModeloTrim)
+        || !string.IsNullOrWhiteSpace(LineaColor);
+
+    private string TextoFechaCreacion =>
+        !string.IsNullOrWhiteSpace(Fc)
+        && DateOnly.TryParse(Fc, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
+            ? $"F.C: {d:dd/MM/yy}"
+            : string.Empty;
 
     protected override void OnParametersSet()
     {
@@ -206,11 +313,9 @@ else
     {
         if (firstRender && !string.IsNullOrWhiteSpace(Codigo))
         {
-            // Generar códigos de barras para ambas etiquetas
             await JS.InvokeVoidAsync("generateBarcode", "barcode-0", Codigo);
             await JS.InvokeVoidAsync("generateBarcode", "barcode-1", Codigo);
 
-            // Pequeño delay para asegurar que los SVG se rendericen antes de imprimir
             await Task.Delay(150);
             await JS.InvokeVoidAsync("window.print");
         }
