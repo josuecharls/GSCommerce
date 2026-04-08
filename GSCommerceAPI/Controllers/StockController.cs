@@ -220,6 +220,28 @@ namespace GSCommerceAPI.Controllers
             }
         }
 
+        /// <summary>
+        /// Suma el stock del artículo en el almacén (todas las variantes). Usado por la UI de guías
+        /// que antes tomaba solo la primera fila paginada de la vista.
+        /// </summary>
+        [HttpGet("cantidad-total")]
+        public async Task<IActionResult> GetCantidadTotalArticuloAlmacen(
+            [FromQuery] string codigoArticulo,
+            [FromQuery] int idAlmacen)
+        {
+            if (string.IsNullOrWhiteSpace(codigoArticulo) || idAlmacen <= 0)
+            {
+                return BadRequest(new { mensaje = "codigoArticulo e idAlmacen son requeridos." });
+            }
+
+            var codigo = codigoArticulo.Trim();
+            var total = await _context.VStockXalmacen1s.AsNoTracking()
+                .Where(s => s.IdArticulo == codigo && s.IdAlmacen == idAlmacen)
+                .SumAsync(s => (int?)s.Stock) ?? 0;
+
+            return Ok(new { cantidadTotal = total });
+        }
+
         // ✅ GET: api/stock/reposition-alert
         [HttpGet("reposition-alert")]
         public async Task<IActionResult> GetRepositionAlert(

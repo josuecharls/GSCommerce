@@ -251,8 +251,9 @@ namespace GSCommerceAPI.Controllers
 
                 foreach (var det in cabecera.ComprobanteDeVentaDetalles)
                 {
-                    var stock = await _context.StockAlmacens
-                        .FirstOrDefaultAsync(s => s.IdAlmacen == cabecera.IdAlmacen && s.IdArticulo == det.IdArticulo && s.IdVariante == det.IdVariante);
+                    var nv = IdVarianteUtil.Normalizar(det.IdVariante);
+                    var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                        _context.StockAlmacens, cabecera.IdAlmacen, det.IdArticulo, det.IdVariante);
 
                     var saldoInicial = stock?.Stock ?? 0;
 
@@ -262,7 +263,7 @@ namespace GSCommerceAPI.Controllers
                         {
                             IdAlmacen = cabecera.IdAlmacen,
                             IdArticulo = det.IdArticulo,
-                            IdVariante = det.IdVariante,
+                            IdVariante = nv,
                             Stock = 0,
                             StockMinimo = 0
                         };
@@ -278,7 +279,7 @@ namespace GSCommerceAPI.Controllers
                     {
                         IdAlmacen = cabecera.IdAlmacen,
                         IdArticulo = det.IdArticulo,
-                        IdVariante = det.IdVariante,
+                        IdVariante = nv,
                         TipoMovimiento = "I",
                         Fecha = DateTime.Now,
                         SaldoInicial = saldoInicial,
@@ -1564,8 +1565,8 @@ namespace GSCommerceAPI.Controllers
             // Verificar stock disponible por artículo (y variante si aplica)
             foreach (var d in ventaRegistro.Detalles)
             {
-                var stock = await _context.StockAlmacens
-                    .FirstOrDefaultAsync(s => s.IdAlmacen == idAlmacen && s.IdArticulo == d.CodigoItem && s.IdVariante == d.IdVariante);
+                var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                    _context.StockAlmacens, idAlmacen, d.CodigoItem, d.IdVariante);
 
                 if (stock == null || stock.Stock < d.Cantidad)
                 {
@@ -1671,7 +1672,7 @@ namespace GSCommerceAPI.Controllers
                         IdComprobante = cabecera.IdComprobante,
                         Item = detalle.Item,
                         IdArticulo = detalle.CodigoItem,
-                        IdVariante = detalle.IdVariante,
+                        IdVariante = IdVarianteUtil.Normalizar(detalle.IdVariante),
                         Descripcion = detalle.DescripcionItem,
                         UnidadMedida = "NIU", // Por ahora fijo
                         Cantidad = (int)detalle.Cantidad,
@@ -1682,8 +1683,8 @@ namespace GSCommerceAPI.Controllers
 
                     _context.ComprobanteDeVentaDetalles.Add(nuevoDetalle);
 
-                    var stock = await _context.StockAlmacens
-                        .FirstOrDefaultAsync(s => s.IdAlmacen == idAlmacen && s.IdArticulo == detalle.CodigoItem && s.IdVariante == detalle.IdVariante);
+                    var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                        _context.StockAlmacens, idAlmacen, detalle.CodigoItem, detalle.IdVariante);
                     if (stock != null)
                     {
                         var saldoInicial = stock.Stock;
@@ -1691,12 +1692,13 @@ namespace GSCommerceAPI.Controllers
                         var saldoFinal = stock.Stock;
 
                         var valor = detalle.PrecioUnitario * (1 - detalle.PorcentajeDescuento);
+                        var nvDet = IdVarianteUtil.Normalizar(detalle.IdVariante);
 
                         _context.Kardices.Add(new Kardex
                         {
                             IdAlmacen = idAlmacen,
                             IdArticulo = detalle.CodigoItem,
-                            IdVariante = detalle.IdVariante,
+                            IdVariante = nvDet,
                             TipoMovimiento = "E",
                             Fecha = DateTime.Now,
                             SaldoInicial = saldoInicial,
@@ -3200,16 +3202,15 @@ namespace GSCommerceAPI.Controllers
                     .Where(d => d.IdComprobante == id)
                     .ToListAsync();
 
-                // Crear diccionarios para comparar cantidades agrupadas por (IdArticulo, IdVariante)
+                // Crear diccionarios (IdVariante normalizado: NULL = sin variante, distinto de 0 enviado por cliente)
                 var cantidadesAnteriores = detallesActuales
-                    .GroupBy(d => (d.IdArticulo, d.IdVariante))
+                    .GroupBy(d => (d.IdArticulo, IdVariante: IdVarianteUtil.Normalizar(d.IdVariante)))
                     .ToDictionary(g => g.Key, g => g.Sum(d => d.Cantidad));
 
                 var cantidadesNuevas = detalles
-                    .GroupBy(d => (d.CodigoItem, d.IdVariante))
+                    .GroupBy(d => (d.CodigoItem, IdVariante: IdVarianteUtil.Normalizar(d.IdVariante)))
                     .ToDictionary(g => g.Key, g => (int)g.Sum(d => d.Cantidad));
 
-                // Obtener todas las claves (artículo + variante) involucradas
                 var todasLasClaves = cantidadesAnteriores.Keys
                     .Select(k => (IdArticulo: k.IdArticulo, IdVariante: k.IdVariante))
                     .Union(cantidadesNuevas.Keys.Select(k => (IdArticulo: k.CodigoItem, IdVariante: k.IdVariante)))
@@ -3227,14 +3228,13 @@ namespace GSCommerceAPI.Controllers
 
                     if (diferencia == 0) continue; // No hay cambio
 
-                    var stock = await _context.StockAlmacens
-                        .FirstOrDefaultAsync(s => s.IdAlmacen == cab.IdAlmacen && s.IdArticulo == clave.IdArticulo && s.IdVariante == clave.IdVariante);
+                    var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                        _context.StockAlmacens, cab.IdAlmacen, clave.IdArticulo, clave.IdVariante);
 
                     var saldoInicial = stock?.Stock ?? 0;
 
                     if (stock == null)
                     {
-                        // Crear registro de stock si no existe
                         stock = new StockAlmacen
                         {
                             IdAlmacen = cab.IdAlmacen,
@@ -3246,9 +3246,12 @@ namespace GSCommerceAPI.Controllers
                         _context.StockAlmacens.Add(stock);
                     }
 
-                    // Obtener precio del artículo para el valor en Kardex
-                    var precioArticulo = detalles.FirstOrDefault(d => d.CodigoItem == clave.IdArticulo && d.IdVariante == clave.IdVariante)?.PrecioUnitario
-                        ?? detallesActuales.FirstOrDefault(d => d.IdArticulo == clave.IdArticulo && d.IdVariante == clave.IdVariante)?.Precio
+                    var precioArticulo = detalles.FirstOrDefault(d =>
+                            d.CodigoItem == clave.IdArticulo && IdVarianteUtil.Normalizar(d.IdVariante) == clave.IdVariante)
+                        ?.PrecioUnitario
+                        ?? detallesActuales.FirstOrDefault(d =>
+                            d.IdArticulo == clave.IdArticulo && IdVarianteUtil.Normalizar(d.IdVariante) == clave.IdVariante)
+                        ?.Precio
                         ?? 0m;
 
                     if (diferencia > 0)
@@ -3310,7 +3313,7 @@ namespace GSCommerceAPI.Controllers
                         IdComprobante = id,
                         Item = itemNum++,
                         IdArticulo = det.CodigoItem,
-                        IdVariante = det.IdVariante,
+                        IdVariante = IdVarianteUtil.Normalizar(det.IdVariante),
                         Descripcion = det.DescripcionItem,
                         UnidadMedida = det.UnidadMedida ?? "NIU",
                         Cantidad = (int)det.Cantidad,

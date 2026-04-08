@@ -1,5 +1,6 @@
 ﻿using GSCommerce.Client.Models;
 using GSCommerceAPI.Data;
+using GSCommerceAPI.Helpers;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -329,6 +330,7 @@ namespace GSCommerceAPI.Controllers
                         IdMovimiento = mov.IdMovimiento,
                         Item = item++,
                         IdArticulo = d.IdArticulo,
+                        IdVariante = IdVarianteUtil.Normalizar(d.IdVariante),
                         DescripcionArticulo = d.DescripcionArticulo,
                         Cantidad = d.Cantidad,
                         Valor = d.CostoUnitario
@@ -341,8 +343,9 @@ namespace GSCommerceAPI.Controllers
                 // Aumentar stock y registrar en kardex por cada detalle
                 foreach (var d in orden.OrdenDeCompraDetalles)
                 {
-                    var stock = await _context.StockAlmacens
-                        .FirstOrDefaultAsync(s => s.IdAlmacen == idAlmacen && s.IdArticulo == d.IdArticulo);
+                    var nv = IdVarianteUtil.Normalizar(d.IdVariante);
+                    var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                        _context.StockAlmacens, idAlmacen, d.IdArticulo, d.IdVariante);
 
                     var saldoInicial = stock?.Stock ?? 0;
                     if (stock == null)
@@ -351,6 +354,7 @@ namespace GSCommerceAPI.Controllers
                         {
                             IdAlmacen = idAlmacen,
                             IdArticulo = d.IdArticulo,
+                            IdVariante = nv,
                             Stock = 0,
                             StockMinimo = 0
                         };
@@ -364,6 +368,7 @@ namespace GSCommerceAPI.Controllers
                     {
                         IdAlmacen = idAlmacen,
                         IdArticulo = d.IdArticulo,
+                        IdVariante = nv,
                         TipoMovimiento = "I",
                         Fecha = DateTime.Now,
                         SaldoInicial = saldoInicial,
@@ -434,8 +439,8 @@ namespace GSCommerceAPI.Controllers
 
                 foreach (var det in movimientoActivo.MovimientosDetalles)
                 {
-                    var stock = await _context.StockAlmacens
-                        .FirstOrDefaultAsync(s => s.IdAlmacen == movimientoActivo.IdAlmacen && s.IdArticulo == det.IdArticulo);
+                    var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                        _context.StockAlmacens, movimientoActivo.IdAlmacen, det.IdArticulo, det.IdVariante);
 
                     if (stock == null || stock.Stock < det.Cantidad)
                     {
@@ -450,6 +455,7 @@ namespace GSCommerceAPI.Controllers
                     {
                         IdAlmacen = movimientoActivo.IdAlmacen,
                         IdArticulo = det.IdArticulo,
+                        IdVariante = IdVarianteUtil.Normalizar(det.IdVariante),
                         TipoMovimiento = "E",
                         Fecha = fecha,
                         SaldoInicial = saldoInicial,

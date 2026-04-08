@@ -1,5 +1,6 @@
 ﻿using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using GSCommerce.Client.Models;
@@ -75,8 +76,27 @@ namespace GSCommerce.Client.Services
 
         public async Task<int> GetStockDisponible(string codigoArticulo, int idAlmacen)
         {
-            var lista = await GetStock(idAlmacen, false, codigoArticulo, 1, 1, 1);
-            return lista.Items.FirstOrDefault()?.Stock ?? 0;
+            try
+            {
+                var url =
+                    $"stock/cantidad-total?codigoArticulo={Uri.EscapeDataString(codigoArticulo.Trim())}&idAlmacen={idAlmacen}";
+                var r = await _httpClient.GetFromJsonAsync<CantidadTotalResponse>(url);
+                return r?.CantidadTotal ?? 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error cantidad-total stock, fallback paginado: {ex.Message}");
+                var lista = await GetStock(idAlmacen, true, codigoArticulo, 1, 1, 500);
+                return lista.Items
+                    .Where(i => string.Equals(i.IdArticulo, codigoArticulo.Trim(), StringComparison.OrdinalIgnoreCase))
+                    .Sum(i => i.Stock);
+            }
+        }
+
+        private sealed class CantidadTotalResponse
+        {
+            [JsonPropertyName("cantidadTotal")]
+            public int CantidadTotal { get; set; }
         }
 
         public async Task<int> GetStockDisponibleParaTransferencia(string codigoArticulo, int idAlmacen, int? idMovimientoExcluir = null)
