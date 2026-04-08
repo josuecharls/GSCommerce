@@ -181,9 +181,9 @@ public class ReporteService
         return resp ?? new ReportePagosTarjetaOnlineResponseDTO();
     }
 
-    public async Task<ReporteVentasTarjetaMensualResponseDTO> ObtenerVentasTarjetaOnlineMensual(DateTime desde, DateTime hasta, string? nombreAlmacen = null)
+    public async Task<ReporteVentasTarjetaMensualResponseDTO> ObtenerVentasTarjetaOnlineMensual(int anio, string? nombreAlmacen = null)
     {
-        var url = $"reporteshistoricos/ventas-tarjeta-online-mensual?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+        var url = $"reporteshistoricos/ventas-tarjeta-online-mensual?anio={anio}";
         if (!string.IsNullOrWhiteSpace(nombreAlmacen))
         {
             url += $"&nombreAlmacen={Uri.EscapeDataString(nombreAlmacen)}";
@@ -193,9 +193,9 @@ public class ReporteService
         return resp ?? new ReporteVentasTarjetaMensualResponseDTO();
     }
 
-    public async Task<HttpResponseMessage> ExportarVentasTarjetaOnlineMensual(DateTime desde, DateTime hasta, string? nombreAlmacen = null)
+    public async Task<HttpResponseMessage> ExportarVentasTarjetaOnlineMensual(int anio, string? nombreAlmacen = null)
     {
-        var url = $"reporteshistoricos/exportar-ventas-tarjeta-online-mensual?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+        var url = $"reporteshistoricos/exportar-ventas-tarjeta-online-mensual?anio={anio}";
         if (!string.IsNullOrWhiteSpace(nombreAlmacen))
         {
             url += $"&nombreAlmacen={Uri.EscapeDataString(nombreAlmacen)}";

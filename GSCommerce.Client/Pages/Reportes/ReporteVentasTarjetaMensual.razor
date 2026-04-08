@@ -1,4 +1,6 @@
 @page "/hubs/reportes/ventas-tarjeta-mensual"
+@using System.Linq
+@using GSCommerce.Client.Components
 @using GSCommerce.Client.Models.DTOs.Reportes
 @using GSCommerce.Client.Services
 @inject ReporteService ReporteService
@@ -6,129 +8,218 @@
 @inject IJSRuntime JS
 @inject AuthService AuthService
 
-<div class="container-fluid py-4">
-    <div class="row mb-3">
-        <div class="col-12">
-            <h3><i class="bi bi-calendar-month text-primary me-2"></i> Reporte Histórico: Ventas Tarjeta / Online (Mensual)</h3>
-            <p class="text-muted">Consulta en tiempo real la información desde ambas bases de datos unificada de manera transparente.</p>
+<ReportsBreadcrumb Title="Ventas Tarjeta / Online (Histórico mensual)" />
+
+<div class="container-fluid py-2">
+    <p class="text-muted small mb-3">
+        Reporte anual por mes: totales por método (SGVV hasta el 09/08/2025: solo soles; SYSCHARLES desde el 10/08/2025: soles y dólares como en el sistema actual). Misma estructura que pagos tarjeta/online.
+    </p>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <label class="form-label">Año</label>
+            <select class="form-select" @bind="anioSeleccionado">
+                @foreach (var y in aniosDisponibles)
+                {
+                    <option value="@y">@y</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Almacén</label>
+            <select class="form-select" @bind="nombreAlmacen">
+                <option value="">Todos</option>
+                @foreach (var alm in almacenesPermitidos)
+                {
+                    <option value="@alm">@alm</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100" @onclick="Buscar" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                }
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-success w-100" @onclick="ExportarExcel" disabled="@(reporte == null || isLoading)">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Exportar Excel
+            </button>
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="row align-items-end g-3">
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">Desde</label>
-                    <input type="date" class="form-control" @bind="desde" />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">Hasta</label>
-                    <input type="date" class="form-control" @bind="hasta" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-bold">Almacén</label>
-                    <select class="form-select" @bind="nombreAlmacen">
-                        <option value="">-- TODOS LOS ALMACENES --</option>
-                        @foreach (var alm in almacenesPermitidos)
-                        {
-                            <option value="@alm">@alm</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-2 d-flex">
-                    <button class="btn btn-primary w-100 me-2" @onclick="Buscar" disabled="@isLoading">
-                        @if(isLoading) { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> } 
-                        <i class="bi bi-search"></i> Buscar
-                    </button>
-                    <button class="btn btn-success w-100" @onclick="ExportarExcel" disabled="@(resultados == null || !resultados.Any() || isLoading)">
-                        <i class="bi bi-file-earmark-excel"></i> Exportar
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    @if (resultados != null && resultados.Count > 0)
+    @if (isLoading)
     {
-        <div class="card shadow-sm">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0">
-                        <thead class="table-dark">
-                            <tr>
-                                <th class="text-center">Año</th>
-                                <th class="text-center">Mes</th>
-                                <th>Almacén</th>
-                                <th class="text-end">Total Soles (S/)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in resultados)
-                            {
-                                <tr>
-                                    <td class="text-center">@item.Year</td>
-                                    <td class="text-center fw-bold">@GetNombreMes(item.Month)</td>
-                                    <td>@item.AlmacenNombre</td>
-                                    <td class="text-end font-monospace">@item.TotalSoles.ToString("N2")</td>
-                                </tr>
-                            }
-                        </tbody>
-                        <tfoot class="table-light fw-bold fs-5">
-                            <tr>
-                                <td colspan="3" class="text-end text-primary">TOTAL GENERAL:</td>
-                                <td class="text-end text-success">S/ @resultados.Sum(x => x.TotalSoles).ToString("N2")</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
+        <div class="text-center my-4">
+            <div class="spinner-border text-primary" role="status"></div>
         </div>
     }
-    else if (resultados != null && !isLoading)
+    else if (reporte != null)
     {
-        <div class="alert alert-info d-flex align-items-center" role="alert">
-            <i class="bi bi-info-circle-fill me-2 fs-4"></i>
-            <div>No se encontraron ventas con tarjeta u online para los parámetros seleccionados.</div>
+        @foreach (var mesDto in reporte.Meses.OrderBy(m => m.Month))
+        {
+            var tituloMes = $"{GetNombreMes(mesDto.Month)} {reporte.Year}";
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-primary text-white fw-bold">
+                    @tituloMes
+                </div>
+                <div class="card-body p-0">
+                    @if (mesDto.Totales.Count == 0)
+                    {
+                        <div class="p-3 text-muted">No hay operaciones con tarjeta u online en este mes.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Método</th>
+                                        <th>Tipo</th>
+                                        <th class="text-center">Operaciones</th>
+                                        <th class="text-end">Soles</th>
+                                        <th class="text-end">Dólares</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in mesDto.Totales)
+                                    {
+                                        <tr>
+                                            <td>@item.Descripcion</td>
+                                            <td>@item.Tipo</td>
+                                            <td class="text-center">@item.CantidadOperaciones</td>
+                                            <td class="text-end">S/ @item.TotalSoles.ToString("N2")</td>
+                                            <td class="text-end">$ @item.TotalDolares.ToString("N2")</td>
+                                            <td class="text-end">@item.Total.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-light fw-bold">
+                                    <tr>
+                                        <td>Total</td>
+                                        <td></td>
+                                        <td class="text-center">@mesDto.Totales.Sum(t => t.CantidadOperaciones)</td>
+                                        <td class="text-end">S/ @mesDto.Totales.Sum(t => t.TotalSoles).ToString("N2")</td>
+                                        <td class="text-end">$ @mesDto.Totales.Sum(t => t.TotalDolares).ToString("N2")</td>
+                                        <td class="text-end">@mesDto.Totales.Sum(t => t.Total).ToString("N2")</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-secondary text-white fw-bold">
+                Total año @reporte.Year
+            </div>
+            <div class="card-body p-0">
+                @if (reporte.TotalesAnio.Count == 0)
+                {
+                    <div class="p-3 text-muted">No hay datos en el año seleccionado.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Método</th>
+                                    <th>Tipo</th>
+                                    <th class="text-center">Operaciones</th>
+                                    <th class="text-end">Soles</th>
+                                    <th class="text-end">Dólares</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in reporte.TotalesAnio)
+                                {
+                                    <tr>
+                                        <td>@item.Descripcion</td>
+                                        <td>@item.Tipo</td>
+                                        <td class="text-center">@item.CantidadOperaciones</td>
+                                        <td class="text-end">S/ @item.TotalSoles.ToString("N2")</td>
+                                        <td class="text-end">$ @item.TotalDolares.ToString("N2")</td>
+                                        <td class="text-end">@item.Total.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-light fw-bold">
+                                <tr>
+                                    <td>Total</td>
+                                    <td></td>
+                                    <td class="text-center">@reporte.TotalesAnio.Sum(t => t.CantidadOperaciones)</td>
+                                    <td class="text-end">S/ @reporte.TotalesAnio.Sum(t => t.TotalSoles).ToString("N2")</td>
+                                    <td class="text-end">$ @reporte.TotalesAnio.Sum(t => t.TotalDolares).ToString("N2")</td>
+                                    <td class="text-end">@reporte.TotalesAnio.Sum(t => t.Total).ToString("N2")</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                }
+            </div>
         </div>
     }
 </div>
 
 @code {
-    private DateTime desde = new DateTime(2025, 1, 1);
-    private DateTime hasta = new DateTime(2025, 12, 31);
+    private int anioSeleccionado = DateTime.Today.Year;
+    private List<int> aniosDisponibles = new();
     private string? nombreAlmacen;
-    private List<string> almacenesPermitidos = new()
+    private readonly List<string> almacenesPermitidos = new()
     {
         "CHICLAYO2", "PIURA2", "SULLANA2", "TRUJILLO2", "AGUAS VERDES2", "IQUITOS FATISHOP"
     };
-    private List<VentaTarjetaMensualDTO>? resultados;
+
+    private ReporteVentasTarjetaMensualResponseDTO? reporte;
     private bool isLoading;
 
     private int? userId;
 
     protected override async Task OnInitializedAsync()
     {
+        var y = DateTime.Today.Year;
+        aniosDisponibles = Enumerable.Range(y - 8, 10).ToList();
+        if (!aniosDisponibles.Contains(anioSeleccionado))
+        {
+            aniosDisponibles.Add(anioSeleccionado);
+            aniosDisponibles.Sort();
+        }
+
         userId = await AuthService.GetUserId();
         if (userId != 4004 && userId != 4023 && userId != 4033)
         {
-            Navigation.NavigateTo("/"); // Expulsar si no tiene permiso
+            Navigation.NavigateTo("/");
             return;
         }
+
+        await Buscar();
     }
 
     private async Task Buscar()
     {
         isLoading = true;
+        reporte = null;
         StateHasChanged();
         try
         {
-            var res = await ReporteService.ObtenerVentasTarjetaOnlineMensual(desde, hasta, nombreAlmacen);
-            resultados = res?.Resultados ?? new List<VentaTarjetaMensualDTO>();
+            reporte = await ReporteService.ObtenerVentasTarjetaOnlineMensual(anioSeleccionado, nombreAlmacen);
         }
         catch (Exception ex)
         {
             Console.WriteLine(ex);
-            resultados = new List<VentaTarjetaMensualDTO>();
+            reporte = new ReporteVentasTarjetaMensualResponseDTO
+            {
+                Year = anioSeleccionado,
+                Meses = Enumerable.Range(1, 12).Select(m => new VentaTarjetaMesTotalesDTO { Month = m }).ToList()
+            };
         }
         finally
         {
@@ -142,21 +233,21 @@
         {
             isLoading = true;
             StateHasChanged();
-            using var response = await ReporteService.ExportarVentasTarjetaOnlineMensual(desde, hasta, nombreAlmacen);
+            using var response = await ReporteService.ExportarVentasTarjetaOnlineMensual(anioSeleccionado, nombreAlmacen);
             if (!response.IsSuccessStatusCode)
             {
-                await JS.InvokeVoidAsync("alert", "❌ No se pudo exportar el reporte.");
+                await JS.InvokeVoidAsync("alert", "No se pudo exportar el reporte.");
                 return;
             }
 
             var bytes = await response.Content.ReadAsByteArrayAsync();
             var base64 = Convert.ToBase64String(bytes);
-            var nombreArchivo = $"Consolidado_Tarjetas_{desde:yyyyMMdd}_{hasta:yyyyMMdd}.xlsx";
+            var nombreArchivo = $"VentasTarjetaMensual_{anioSeleccionado}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
             await JS.InvokeVoidAsync("downloadFileFromBytes", nombreArchivo, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
         }
         catch
         {
-            await JS.InvokeVoidAsync("alert", "❌ Error inesperado al exportar.");
+            await JS.InvokeVoidAsync("alert", "Error inesperado al exportar.");
         }
         finally
         {
@@ -165,7 +256,7 @@
         }
     }
 
-    private string GetNombreMes(int mes)
+    private static string GetNombreMes(int mes)
     {
         return mes switch
         {

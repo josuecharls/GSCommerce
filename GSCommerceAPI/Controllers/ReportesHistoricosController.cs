@@ -30,60 +30,105 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("ventas-tarjeta-online-mensual")]
         [Authorize]
         public async Task<IActionResult> VentasTarjetaOnlineMensual(
-            [FromQuery] DateTime? desde,
-            [FromQuery] DateTime? hasta,
+            [FromQuery] int? anio,
             [FromQuery] string? nombreAlmacen)
         {
-            var reporteGlobal = await ObtenerDatosReporte(desde, hasta, nombreAlmacen);
-            return Ok(new ReporteVentasTarjetaMensualResponseDTO { Resultados = reporteGlobal });
+            var year = anio ?? DateTime.Today.Year;
+            var reporte = await ObtenerReporteVentasTarjetaAnual(year, nombreAlmacen);
+            return Ok(reporte);
         }
 
         [HttpGet("exportar-ventas-tarjeta-online-mensual")]
         [Authorize]
         public async Task<IActionResult> ExportarVentasTarjetaOnlineMensual(
-            [FromQuery] DateTime? desde,
-            [FromQuery] DateTime? hasta,
+            [FromQuery] int? anio,
             [FromQuery] string? nombreAlmacen)
         {
-            var reporteGlobal = await ObtenerDatosReporte(desde, hasta, nombreAlmacen);
+            var year = anio ?? DateTime.Today.Year;
+            var reporte = await ObtenerReporteVentasTarjetaAnual(year, nombreAlmacen);
 
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("Ventas Tarjeta y Online");
 
-            // Cabeceras
-            worksheet.Cell(1, 1).Value = "AÑO";
-            worksheet.Cell(1, 2).Value = "MES";
-            worksheet.Cell(1, 3).Value = "ALMACÉN";
-            worksheet.Cell(1, 4).Value = "TOTAL SOLES (S/)";
-
-            var rangeHeader = worksheet.Range("A1:D1");
+            int fila = 1;
+            worksheet.Cell(fila, 1).Value = "MES";
+            worksheet.Cell(fila, 2).Value = "MÉTODO";
+            worksheet.Cell(fila, 3).Value = "TIPO";
+            worksheet.Cell(fila, 4).Value = "OPERACIONES";
+            worksheet.Cell(fila, 5).Value = "SOLES (S/)";
+            worksheet.Cell(fila, 6).Value = "DÓLARES ($)";
+            worksheet.Cell(fila, 7).Value = "TOTAL";
+            var rangeHeader = worksheet.Range(fila, 1, fila, 7);
             rangeHeader.Style.Font.Bold = true;
             rangeHeader.Style.Fill.BackgroundColor = XLColor.DarkBlue;
             rangeHeader.Style.Font.FontColor = XLColor.White;
             rangeHeader.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            fila++;
 
-            // Datos
-            int fila = 2;
-            foreach (var item in reporteGlobal)
+            foreach (var mesDto in reporte.Meses.OrderBy(m => m.Month))
             {
-                worksheet.Cell(fila, 1).Value = item.Year;
-                worksheet.Cell(fila, 2).Value = GetNombreMes(item.Month);
-                worksheet.Cell(fila, 3).Value = item.AlmacenNombre;
-                worksheet.Cell(fila, 4).Value = item.TotalSoles;
-                worksheet.Cell(fila, 4).Style.NumberFormat.Format = "#,##0.00";
+                var nombreMes = GetNombreMes(mesDto.Month);
+                if (mesDto.Totales.Count == 0)
+                {
+                    worksheet.Cell(fila, 1).Value = nombreMes;
+                    worksheet.Cell(fila, 2).Value = "(sin operaciones)";
+                    fila++;
+                    continue;
+                }
+
+                foreach (var t in mesDto.Totales)
+                {
+                    worksheet.Cell(fila, 1).Value = nombreMes;
+                    worksheet.Cell(fila, 2).Value = t.Descripcion;
+                    worksheet.Cell(fila, 3).Value = t.Tipo;
+                    worksheet.Cell(fila, 4).Value = t.CantidadOperaciones;
+                    worksheet.Cell(fila, 5).Value = t.TotalSoles;
+                    worksheet.Cell(fila, 5).Style.NumberFormat.Format = "#,##0.00";
+                    worksheet.Cell(fila, 6).Value = t.TotalDolares;
+                    worksheet.Cell(fila, 6).Style.NumberFormat.Format = "#,##0.00";
+                    worksheet.Cell(fila, 7).Value = t.Total;
+                    worksheet.Cell(fila, 7).Style.NumberFormat.Format = "#,##0.00";
+                    fila++;
+                }
+            }
+
+            fila++;
+            worksheet.Cell(fila, 1).Value = "TOTAL AÑO";
+            worksheet.Cell(fila, 1).Style.Font.Bold = true;
+            fila++;
+
+            foreach (var t in reporte.TotalesAnio)
+            {
+                worksheet.Cell(fila, 2).Value = t.Descripcion;
+                worksheet.Cell(fila, 3).Value = t.Tipo;
+                worksheet.Cell(fila, 4).Value = t.CantidadOperaciones;
+                worksheet.Cell(fila, 5).Value = t.TotalSoles;
+                worksheet.Cell(fila, 5).Style.NumberFormat.Format = "#,##0.00";
+                worksheet.Cell(fila, 6).Value = t.TotalDolares;
+                worksheet.Cell(fila, 6).Style.NumberFormat.Format = "#,##0.00";
+                worksheet.Cell(fila, 7).Value = t.Total;
+                worksheet.Cell(fila, 7).Style.NumberFormat.Format = "#,##0.00";
                 fila++;
             }
 
-            // Totales
-            if (reporteGlobal.Any())
+            if (reporte.TotalesAnio.Any())
             {
-                worksheet.Cell(fila, 3).Value = "TOTAL GENERAL:";
-                worksheet.Cell(fila, 3).Style.Font.Bold = true;
-                worksheet.Cell(fila, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-                
-                worksheet.Cell(fila, 4).Value = reporteGlobal.Sum(x => x.TotalSoles);
+                var ts = reporte.TotalesAnio.Sum(x => x.TotalSoles);
+                var td = reporte.TotalesAnio.Sum(x => x.TotalDolares);
+                var op = reporte.TotalesAnio.Sum(x => x.CantidadOperaciones);
+                worksheet.Cell(fila, 1).Value = "TOTAL";
+                worksheet.Cell(fila, 1).Style.Font.Bold = true;
+                worksheet.Cell(fila, 4).Value = op;
                 worksheet.Cell(fila, 4).Style.Font.Bold = true;
-                worksheet.Cell(fila, 4).Style.NumberFormat.Format = "#,##0.00";
+                worksheet.Cell(fila, 5).Value = ts;
+                worksheet.Cell(fila, 5).Style.Font.Bold = true;
+                worksheet.Cell(fila, 5).Style.NumberFormat.Format = "#,##0.00";
+                worksheet.Cell(fila, 6).Value = td;
+                worksheet.Cell(fila, 6).Style.Font.Bold = true;
+                worksheet.Cell(fila, 6).Style.NumberFormat.Format = "#,##0.00";
+                worksheet.Cell(fila, 7).Value = ts + td;
+                worksheet.Cell(fila, 7).Style.Font.Bold = true;
+                worksheet.Cell(fila, 7).Style.NumberFormat.Format = "#,##0.00";
             }
 
             worksheet.Columns().AdjustToContents();
@@ -95,18 +140,46 @@ namespace GSCommerceAPI.Controllers
             return File(
                 content,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                $"ReporteVentasTarjetas_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                $"ReporteVentasTarjetas_{year}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
         }
 
-        private async Task<List<VentaTarjetaMensualDTO>> ObtenerDatosReporte(DateTime? desde, DateTime? hasta, string? nombreAlmacen)
+        private sealed class FilaPagoTarjetaAnual
         {
-            var fechaInicio = (desde ?? DateTime.Today).Date;
-            var fechaFin = (hasta ?? DateTime.Today).Date;
-            if (fechaFin < fechaInicio) fechaFin = fechaInicio;
-            var fechaFinExclusiva = fechaFin.AddDays(1);
+            public int Month { get; init; }
+            public int IdTipoPagoVenta { get; init; }
+            public string Tipo { get; init; } = string.Empty;
+            public string Metodo { get; init; } = string.Empty;
+            public decimal Soles { get; init; }
+            public decimal Dolares { get; init; }
+        }
 
+        private static List<PagoTarjetaOnlineResumenDTO> AgruparPorMetodo(IEnumerable<FilaPagoTarjetaAnual> filas)
+        {
+            return filas
+                .GroupBy(x => new { x.IdTipoPagoVenta, x.Tipo, x.Metodo })
+                .Select(g => new PagoTarjetaOnlineResumenDTO
+                {
+                    IdTipoPagoVenta = g.Key.IdTipoPagoVenta,
+                    Tipo = g.Key.Tipo,
+                    Descripcion = g.Key.Metodo,
+                    TotalSoles = g.Sum(x => x.Soles),
+                    TotalDolares = g.Sum(x => x.Dolares),
+                    CantidadOperaciones = g.Count()
+                })
+                .OrderBy(t => t.Tipo)
+                .ThenBy(t => t.Descripcion)
+                .ToList();
+        }
+
+        private async Task<ReporteVentasTarjetaMensualResponseDTO> ObtenerReporteVentasTarjetaAnual(int anio, string? nombreAlmacen)
+        {
+            if (anio < 2000 || anio > 2100)
+                anio = DateTime.Today.Year;
+
+            var fechaInicio = new DateTime(anio, 1, 1);
+            var fechaFinExclusiva = new DateTime(anio, 12, 31).AddDays(1);
             var fechaCorte = new DateTime(2025, 8, 10);
-            var resultadosComb = new List<VentaTarjetaMensualDTO>();
+            var filas = new List<FilaPagoTarjetaAnual>();
 
             if (fechaInicio < fechaCorte)
             {
@@ -129,23 +202,24 @@ namespace GSCommerceAPI.Controllers
                           && (tipo.Tipo == "Tarjeta" || tipo.Tipo == "Online")
                     select new
                     {
-                        cabecera.Fecha.Year,
                         cabecera.Fecha.Month,
-                        AlmacenNombre = almacen.Nombre,
-                        pago.Soles
+                        tipo.IdTipoPagoVenta,
+                        tipo.Tipo,
+                        Metodo = tipo.Descripcion,
+                        pago.Soles,
+                        pago.Dolares
                     }).ToListAsync();
 
-                var groupedHist = queryHist
-                    .GroupBy(x => new { x.Year, x.Month, x.AlmacenNombre })
-                    .Select(g => new VentaTarjetaMensualDTO
-                    {
-                        Year = g.Key.Year,
-                        Month = g.Key.Month,
-                        AlmacenNombre = g.Key.AlmacenNombre,
-                        TotalSoles = g.Sum(x => x.Soles)
-                    });
-
-                resultadosComb.AddRange(groupedHist);
+                // SGVV: el sistema antiguo mezclaba/mal duplicaba soles y dólares; solo usamos soles.
+                filas.AddRange(queryHist.Select(x => new FilaPagoTarjetaAnual
+                {
+                    Month = x.Month,
+                    IdTipoPagoVenta = x.IdTipoPagoVenta,
+                    Tipo = x.Tipo,
+                    Metodo = x.Metodo,
+                    Soles = x.Soles,
+                    Dolares = 0m
+                }));
             }
 
             if (fechaFinExclusiva > fechaCorte)
@@ -169,38 +243,39 @@ namespace GSCommerceAPI.Controllers
                           && (tipo.Tipo == "Tarjeta" || tipo.Tipo == "Online")
                     select new
                     {
-                        cabecera.Fecha.Year,
                         cabecera.Fecha.Month,
-                        AlmacenNombre = almacen.Nombre,
-                        pago.Soles
+                        tipo.IdTipoPagoVenta,
+                        tipo.Tipo,
+                        Metodo = tipo.Descripcion,
+                        pago.Soles,
+                        pago.Dolares
                     }).ToListAsync();
 
-                var groupedActual = queryActual
-                    .GroupBy(x => new { x.Year, x.Month, x.AlmacenNombre })
-                    .Select(g => new VentaTarjetaMensualDTO
-                    {
-                        Year = g.Key.Year,
-                        Month = g.Key.Month,
-                        AlmacenNombre = g.Key.AlmacenNombre,
-                        TotalSoles = g.Sum(x => x.Soles)
-                    });
-
-                resultadosComb.AddRange(groupedActual);
+                filas.AddRange(queryActual.Select(x => new FilaPagoTarjetaAnual
+                {
+                    Month = x.Month,
+                    IdTipoPagoVenta = x.IdTipoPagoVenta,
+                    Tipo = x.Tipo,
+                    Metodo = x.Metodo,
+                    Soles = x.Soles,
+                    Dolares = x.Dolares
+                }));
             }
 
-            return resultadosComb
-                .GroupBy(x => new { x.Year, x.Month, x.AlmacenNombre })
-                .Select(g => new VentaTarjetaMensualDTO
+            var meses = Enumerable.Range(1, 12)
+                .Select(m => new VentaTarjetaMesTotalesDTO
                 {
-                    Year = g.Key.Year,
-                    Month = g.Key.Month,
-                    AlmacenNombre = g.Key.AlmacenNombre,
-                    TotalSoles = g.Sum(x => x.TotalSoles)
+                    Month = m,
+                    Totales = AgruparPorMetodo(filas.Where(f => f.Month == m))
                 })
-                .OrderBy(x => x.Year)
-                .ThenBy(x => x.Month)
-                .ThenBy(x => x.AlmacenNombre)
                 .ToList();
+
+            return new ReporteVentasTarjetaMensualResponseDTO
+            {
+                Year = anio,
+                Meses = meses,
+                TotalesAnio = AgruparPorMetodo(filas)
+            };
         }
 
         [HttpPost("ventas-familias")]
