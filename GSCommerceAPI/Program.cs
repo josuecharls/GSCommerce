@@ -34,9 +34,13 @@ var builder = WebApplication.CreateBuilder(args);
 // Configurar la conexi�n con SQL Server usando SyscharlesContext
 builder.Services.AddDbContext<SyscharlesContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddDbContext<SysDbHistoricalContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("HistoricalConnection"))
+           .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 builder.Services.Configure<ReporteAvanceHoraEmailOptions>(builder.Configuration.GetSection(ReporteAvanceHoraEmailOptions.SectionName));
 Console.WriteLine(
-    "Cadena de conexi�n: " + builder.Configuration.GetConnectionString("DefaultConnection"));
+    "Cadena de conexion: " + builder.Configuration.GetConnectionString("DefaultConnection"));
 
 builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaService>();
 builder.Services.AddScoped<IGuiaRemisionElectronicaService, GuiaRemisionElectronicaService>();
