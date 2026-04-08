@@ -1,7 +1,7 @@
 using System.Globalization;
 using GSCommerce.Client.Models;
 
-namespace GSCommerce.Client;
+namespace GSCommerce.Client.Services;
 
 internal static class BarcodePrintMetadataQuery
 {
