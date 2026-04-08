@@ -177,8 +177,8 @@ namespace GSCommerceAPI.Controllers
             // 4) Actualiza stock y registra en kardex: resta en ORIGEN y suma en DESTINO
             foreach (var detalle in egreso.MovimientosDetalles)
             {
-                var stockOrigen = await _context.StockAlmacens
-                    .FirstOrDefaultAsync(s => s.IdAlmacen == egreso.IdAlmacen && s.IdArticulo == detalle.IdArticulo && s.IdVariante == detalle.IdVariante);
+                var stockOrigen = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                    _context.StockAlmacens, egreso.IdAlmacen, detalle.IdArticulo, detalle.IdVariante);
                 if (stockOrigen == null || stockOrigen.Stock < detalle.Cantidad)
                 {
                     await tx.RollbackAsync();
@@ -188,11 +188,12 @@ namespace GSCommerceAPI.Controllers
                 var saldoInicialOrigen = stockOrigen.Stock;
                 stockOrigen.Stock -= detalle.Cantidad;
 
+                var nvDet = IdVarianteUtil.Normalizar(detalle.IdVariante);
                 _context.Kardices.Add(new Kardex
                 {
                     IdAlmacen = egreso.IdAlmacen,
                     IdArticulo = detalle.IdArticulo,
-                    IdVariante = detalle.IdVariante,
+                    IdVariante = nvDet,
                     TipoMovimiento = "E",
                     Fecha = fechaConf,
                     SaldoInicial = saldoInicialOrigen,
@@ -202,13 +203,16 @@ namespace GSCommerceAPI.Controllers
                     Origen = $"TRANSFERENCIA EGRESO Nro: {egreso.IdMovimiento}"
                 });
 
-                var stockDestino = _context.StockAlmacens.Local
-                    .FirstOrDefault(s => s.IdAlmacen == ingreso.IdAlmacen && s.IdArticulo == detalle.IdArticulo && s.IdVariante == detalle.IdVariante);
+                var stockDestino = IdVarianteUtil.BuscarStockAlmacenLocal(
+                    _context.StockAlmacens.Local,
+                    ingreso.IdAlmacen,
+                    detalle.IdArticulo,
+                    detalle.IdVariante);
 
                 if (stockDestino == null)
                 {
-                    stockDestino = await _context.StockAlmacens
-                        .FirstOrDefaultAsync(s => s.IdAlmacen == ingreso.IdAlmacen && s.IdArticulo == detalle.IdArticulo && s.IdVariante == detalle.IdVariante);
+                    stockDestino = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                        _context.StockAlmacens, ingreso.IdAlmacen, detalle.IdArticulo, detalle.IdVariante);
                 }
 
                 var saldoInicialDestino = stockDestino?.Stock ?? 0;
@@ -219,7 +223,7 @@ namespace GSCommerceAPI.Controllers
                     {
                         IdAlmacen = ingreso.IdAlmacen,
                         IdArticulo = detalle.IdArticulo,
-                        IdVariante = detalle.IdVariante,
+                        IdVariante = nvDet,
                         Stock = 0,
                         StockMinimo = 0
                     };
@@ -232,7 +236,7 @@ namespace GSCommerceAPI.Controllers
                 {
                     IdAlmacen = ingreso.IdAlmacen,
                     IdArticulo = detalle.IdArticulo,
-                    IdVariante = detalle.IdVariante,
+                    IdVariante = nvDet,
                     TipoMovimiento = "I",
                     Fecha = fechaConf,
                     SaldoInicial = saldoInicialDestino,
@@ -295,6 +299,7 @@ namespace GSCommerceAPI.Controllers
                     IdMovimiento = d.IdMovimiento,
                     Item = d.Item,
                     IdArticulo = d.IdArticulo,
+                    IdVariante = d.IdVariante,
                     DescripcionArticulo = d.DescripcionArticulo,
                     Cantidad = d.Cantidad,
                     Valor = d.Valor
@@ -338,7 +343,7 @@ namespace GSCommerceAPI.Controllers
                         IdMovimiento = movimiento.IdMovimiento,
                         Item = item++,
                         IdArticulo = d.IdArticulo,
-                        IdVariante = d.IdVariante,
+                        IdVariante = IdVarianteUtil.Normalizar(d.IdVariante),
                         DescripcionArticulo = d.DescripcionArticulo,
                         Cantidad = d.Cantidad,
                         Valor = d.Valor
@@ -394,7 +399,7 @@ namespace GSCommerceAPI.Controllers
                             IdMovimiento = ingreso.IdMovimiento,
                             Item = itemIn++,
                             IdArticulo = d.IdArticulo,
-                            IdVariante = d.IdVariante,
+                            IdVariante = IdVarianteUtil.Normalizar(d.IdVariante),
                             DescripcionArticulo = d.DescripcionArticulo,
                             Cantidad = d.Cantidad,
                             Valor = d.Valor
@@ -436,8 +441,9 @@ namespace GSCommerceAPI.Controllers
                 {
                     foreach (var d in dto.Detalles)
                     {
-                        var stock = await _context.StockAlmacens
-                            .FirstOrDefaultAsync(s => s.IdAlmacen == dto.IdAlmacen && s.IdArticulo == d.IdArticulo && s.IdVariante == d.IdVariante);
+                        var nv = IdVarianteUtil.Normalizar(d.IdVariante);
+                        var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                            _context.StockAlmacens, dto.IdAlmacen, d.IdArticulo, d.IdVariante);
 
                         var saldoInicial = stock?.Stock ?? 0;
 
@@ -449,7 +455,7 @@ namespace GSCommerceAPI.Controllers
                                 {
                                     IdAlmacen = dto.IdAlmacen,
                                     IdArticulo = d.IdArticulo,
-                                    IdVariante = d.IdVariante,
+                                    IdVariante = nv,
                                     Stock = 0,
                                     StockMinimo = 0
                                 };
@@ -462,7 +468,7 @@ namespace GSCommerceAPI.Controllers
                             {
                                 IdAlmacen = dto.IdAlmacen,
                                 IdArticulo = d.IdArticulo,
-                                IdVariante = d.IdVariante,
+                                IdVariante = nv,
                                 TipoMovimiento = "I",
                                 Fecha = DateTime.Now,
                                 SaldoInicial = saldoInicial,
@@ -486,7 +492,7 @@ namespace GSCommerceAPI.Controllers
                             {
                                 IdAlmacen = dto.IdAlmacen,
                                 IdArticulo = d.IdArticulo,
-                                IdVariante = d.IdVariante,
+                                IdVariante = nv,
                                 TipoMovimiento = "E",
                                 Fecha = DateTime.Now,
                                 SaldoInicial = saldoInicial,
@@ -558,8 +564,9 @@ namespace GSCommerceAPI.Controllers
 
                 foreach (var detalle in mov.MovimientosDetalles)
                 {
-                    var stock = await _context.StockAlmacens
-                        .FirstOrDefaultAsync(s => s.IdAlmacen == mov.IdAlmacen && s.IdArticulo == detalle.IdArticulo && s.IdVariante == detalle.IdVariante);
+                    var nv = IdVarianteUtil.Normalizar(detalle.IdVariante);
+                    var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                        _context.StockAlmacens, mov.IdAlmacen, detalle.IdArticulo, detalle.IdVariante);
 
                     if (stock == null)
                     {
@@ -567,7 +574,7 @@ namespace GSCommerceAPI.Controllers
                         {
                             IdAlmacen = mov.IdAlmacen,
                             IdArticulo = detalle.IdArticulo,
-                            IdVariante = detalle.IdVariante,
+                            IdVariante = nv,
                             Stock = 0,
                             StockMinimo = 0
                         };
@@ -584,7 +591,7 @@ namespace GSCommerceAPI.Controllers
                         {
                             IdAlmacen = mov.IdAlmacen,
                             IdArticulo = detalle.IdArticulo,
-                            IdVariante = detalle.IdVariante,
+                            IdVariante = nv,
                             TipoMovimiento = "E",
                             Fecha = fecha,
                             SaldoInicial = saldoInicial,
@@ -602,7 +609,7 @@ namespace GSCommerceAPI.Controllers
                         {
                             IdAlmacen = mov.IdAlmacen,
                             IdArticulo = detalle.IdArticulo,
-                            IdVariante = detalle.IdVariante,
+                            IdVariante = nv,
                             TipoMovimiento = "I",
                             Fecha = fecha,
                             SaldoInicial = saldoInicial,
@@ -747,7 +754,7 @@ namespace GSCommerceAPI.Controllers
                         IdMovimiento = movimiento.IdMovimiento,
                         Item = item++,
                         IdArticulo = d.IdArticulo,
-                        IdVariante = d.IdVariante,
+                        IdVariante = IdVarianteUtil.Normalizar(d.IdVariante),
                         DescripcionArticulo = d.DescripcionArticulo,
                         Cantidad = d.Cantidad,
                         Valor = d.Valor
@@ -775,7 +782,7 @@ namespace GSCommerceAPI.Controllers
                             IdMovimiento = guiaEspejo.IdMovimiento,
                             Item = itemEspejo++,
                             IdArticulo = d.IdArticulo,
-                            IdVariante = d.IdVariante,
+                            IdVariante = IdVarianteUtil.Normalizar(d.IdVariante),
                             DescripcionArticulo = d.DescripcionArticulo,
                             Cantidad = d.Cantidad,
                             Valor = d.Valor
@@ -822,7 +829,17 @@ namespace GSCommerceAPI.Controllers
                 };
 
                 var dtCabecera = DataTableHelper.ToDataTable(new List<MovimientoCabeceraOnlyDTO> { cabecera }, "Almacen.MovimientosCabeceraType");
-                var dtDetalle = DataTableHelper.ToDataTable(dto.Detalles, "Almacen.MovimientosDetalleType");
+                var detallesParaSp = dto.Detalles.Select(d => new MovimientoDetalleDTO
+                {
+                    IdMovimiento = d.IdMovimiento,
+                    Item = d.Item,
+                    IdArticulo = d.IdArticulo,
+                    IdVariante = IdVarianteUtil.Normalizar(d.IdVariante),
+                    DescripcionArticulo = d.DescripcionArticulo,
+                    Cantidad = d.Cantidad,
+                    Valor = d.Valor
+                }).ToList();
+                var dtDetalle = DataTableHelper.ToDataTable(detallesParaSp, "Almacen.MovimientosDetalleType");
 
                 using var conn = new SqlConnection(_context.Database.GetConnectionString());
                 using var cmd = new SqlCommand("Almacen.usp_InsUpd_MovimientoAlmacen", conn)

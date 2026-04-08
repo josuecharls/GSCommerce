@@ -1,5 +1,6 @@
 using GSCommerce.Client.Models;
 using GSCommerceAPI.Data;
+using GSCommerceAPI.Helpers;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -270,17 +271,18 @@ namespace GSCommerceAPI.Controllers
                             IdMovimiento = mov.IdMovimiento,
                             Item = itemMov++,
                             IdArticulo = d.IdArticulo.ToString(),
-                            IdVariante = d.IdVariante,
+                            IdVariante = IdVarianteUtil.Normalizar(d.IdVariante),
                             DescripcionArticulo = d.Descripcion,
                             Cantidad = d.Cantidad,
                             Valor = d.Precio
                         });
 
-                        var stock = await _context.StockAlmacens
-                            .FirstOrDefaultAsync(s => s.IdAlmacen == mov.IdAlmacen && s.IdArticulo == d.IdArticulo.ToString() && s.IdVariante == d.IdVariante);
+                        var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                            _context.StockAlmacens, mov.IdAlmacen, d.IdArticulo.ToString(), d.IdVariante);
 
                         int saldoInicial;
                         int saldoFinal;
+                        var nvNc = IdVarianteUtil.Normalizar(d.IdVariante);
                         if (stock == null)
                         {
                             saldoInicial = 0;
@@ -289,7 +291,7 @@ namespace GSCommerceAPI.Controllers
                             {
                                 IdAlmacen = mov.IdAlmacen,
                                 IdArticulo = d.IdArticulo.ToString(),
-                                IdVariante = d.IdVariante,
+                                IdVariante = nvNc,
                                 Stock = d.Cantidad,
                                 StockMinimo = 0
                             });
@@ -307,7 +309,7 @@ namespace GSCommerceAPI.Controllers
                         {
                             IdAlmacen = mov.IdAlmacen,
                             IdArticulo = d.IdArticulo.ToString(),
-                            IdVariante = d.IdVariante,
+                            IdVariante = nvNc,
                             TipoMovimiento = "I",
                             Fecha = DateTime.Now,
                             SaldoInicial = saldoInicial,
