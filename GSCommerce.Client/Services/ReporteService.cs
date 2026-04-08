@@ -36,7 +36,7 @@ public class ReporteService
         return response ?? new();
     }
 
-    public async Task<List<TopArticuloDTO>> ObtenerTop10Articulos(
+    public async Task<List<TopArticuloDTO>> ObtenerTop20Articulos(
         DateTime desde,
         DateTime hasta,
         int? idAlmacen = null,
@@ -54,7 +54,7 @@ public class ReporteService
             queryParams["idAlmacen"] = idAlmacen.Value.ToString();
         }
 
-        var url = QueryHelpers.AddQueryString("ventas/reporte-top10-articulos", queryParams);
+        var url = QueryHelpers.AddQueryString("ventas/reporte-top20-articulos", queryParams);
 
         if (lineas != null)
         {
@@ -104,7 +104,7 @@ public class ReporteService
         return await resp.Content.ReadFromJsonAsync<ReporteSeparacionDTO>();
     }
 
-    public async Task<List<TopArticuloDTO>> ObtenerTop10ArticulosMenosVendidos(
+    public async Task<List<TopArticuloDTO>> ObtenerTop20ArticulosMenosVendidos(
         DateTime desde,
         DateTime hasta,
         int? idAlmacen = null,
@@ -122,7 +122,7 @@ public class ReporteService
             queryParams["idAlmacen"] = idAlmacen.Value.ToString();
         }
 
-        var url = QueryHelpers.AddQueryString("ventas/reporte-top10-articulos-menos-vendidos", queryParams);
+        var url = QueryHelpers.AddQueryString("ventas/reporte-top20-articulos-menos-vendidos", queryParams);
 
         if (lineas != null)
         {

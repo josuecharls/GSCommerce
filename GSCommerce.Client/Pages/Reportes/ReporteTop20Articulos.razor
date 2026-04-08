@@ -1,4 +1,4 @@
-﻿@page "/reportes/top10-articulos-menos-vendidos"
+@page "/reportes/top20-articulos"
 @using GSCommerce.Client.Components
 @using GSCommerce.Client.Models.DTOs.Reportes
 @using GSCommerce.Client.Models
@@ -12,7 +12,7 @@
 @inject IJSRuntime JS
 @inject ComplementoService ComplementoService
 
-<ReportsBreadcrumb Title="Top 10 Artículos Menos Vendidos" />
+<ReportsBreadcrumb Title="Top 20 Artículos" />
 
 <div class="row g-3 align-items-end mb-3">
     <div class="col-12 col-sm-6 col-lg-3">
@@ -38,7 +38,6 @@
                              @bind-SelectedValues="familiasSeleccionadas" />
         <small class="text-muted">Dejar vacío para incluir todas.</small>
     </div>
-
     @if (esAdmin)
     {
         <div class="col-12 col-sm-6 col-lg-3">
@@ -57,13 +56,13 @@
         <button class="btn btn-primary flex-fill" @onclick="Buscar" disabled="@loading">
             @(loading ? "Buscando..." : "Buscar")
         </button>
-        <button class="btn btn-success" @onclick="ExportarExcel" disabled="@(!articulosMenosVendidos.Any())">
+        <button class="btn btn-success" @onclick="ExportarExcel" disabled="@(!top20.Any())">
             Exportar Excel
         </button>
     </div>
 </div>
 
-@if (articulosMenosVendidos.Any())
+@if (top20.Any())
 {
     var pe = CultureInfo.GetCultureInfo("es-PE");
     <table class="table table-hover table-bordered">
@@ -72,17 +71,19 @@
                 <th>#</th>
                 <th>Código</th>
                 <th>Descripción</th>
+                <th>Línea</th>
                 <th>Cantidad Vendida</th>
                 <th>Total Importe</th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var item in articulosMenosVendidos.Select((r, i) => new { r, i }))
+            @foreach (var item in top20.Select((r, i) => new { r, i }))
             {
                 <tr>
                     <td>@(item.i + 1)</td>
                     <td>@item.r.Codigo</td>
                     <td>@item.r.Descripcion</td>
+                    <td>@item.r.Linea</td>
                     <td>@item.r.TotalUnidadesVendidas</td>
                     <td>@item.r.TotalImporte.ToString("C", pe)</td>
                 </tr>
@@ -96,10 +97,11 @@ else
 }
 
 @code {
-    private List<TopArticuloDTO> articulosMenosVendidos = new();
+    private List<TopArticuloDTO> top20 = new();
     private DateTime desde = DateTime.Today.AddDays(-30);
     private DateTime hasta = DateTime.Today;
 
+    // filtros de admin
     private bool esAdmin = false;
     private List<AlmacenDTO> almacenes = new();
     private int idAlmacenSel = 0;
@@ -137,10 +139,14 @@ else
                 .Select(f => f.Trim())
                 .ToList();
 
-            articulosMenosVendidos = await ReporteService.ObtenerTop10ArticulosMenosVendidos(
+            top20 = await ReporteService.ObtenerTop20Articulos(
                 desde, hasta, idAlmacenParam,
                 lineasFiltro,
-                familiasFiltro);
+                familiasFiltro) ?? new();
+            foreach (var item in top20)
+            {
+                item.Descripcion = LimpiarDescripcion(item.Descripcion, item.Codigo);
+            }
         }
         finally
         {
@@ -150,11 +156,11 @@ else
 
     private async Task ExportarExcel()
     {
-        var filas = articulosMenosVendidos.Select((r, i) => new ExportRow
+        var filas = top20.Select((r, i) => new ExportRow
         {
             Nro = i + 1,
             Codigo = r.Codigo,
-            Descripcion = r.Descripcion,
+            Descripcion = LimpiarDescripcion(r.Descripcion, r.Codigo),
             Cantidad = r.TotalUnidadesVendidas,
             Importe = r.TotalImporte
         }).ToList();
@@ -170,14 +176,26 @@ else
             ? string.Join(", ", familiasSeleccionadas)
             : "Todas las familias";
 
-        await JS.InvokeVoidAsync("exportTop10Excel",
+        await JS.InvokeVoidAsync("exportTop20Excel",
             filas,
             desde.ToString("yyyy-MM-dd"),
             hasta.ToString("yyyy-MM-dd"),
             nombreAlmacen,
             nombreLineas,
-            nombreFamilias,
-            "Top 10 Artículos Menos Vendidos", "Top10_Articulos_MenosVendidos");
+            nombreFamilias);
+    }
+
+    private static string LimpiarDescripcion(string? descripcion, string codigo)
+    {
+        var texto = (descripcion ?? string.Empty)
+            .Replace("No Aplica", string.Empty, StringComparison.OrdinalIgnoreCase);
+
+        var normalizado = string.Join(" ", texto
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+        normalizado = normalizado.Trim();
+
+        return string.IsNullOrWhiteSpace(normalizado) ? codigo : normalizado;
     }
 
     private class ExportRow

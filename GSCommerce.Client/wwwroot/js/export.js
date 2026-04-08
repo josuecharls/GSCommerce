@@ -1,4 +1,4 @@
-﻿// wwwroot/js/export.js
+// wwwroot/js/export.js
 (function () {
     function toNum(v) {
         // Limpia strings "S/ 1.234,56" -> num. Si no es finito, devuelve 0.
@@ -7,7 +7,7 @@
         return Number.isFinite(n) ? n : 0;
     }
 
-    window.exportTop10Excel = (rows, desde, hasta, almacenLabel, lineasLabel, familiasLabel, title, fileLabel) => {
+    window.exportTop20Excel = (rows, desde, hasta, almacenLabel, lineasLabel, familiasLabel, title, fileLabel) => {
         if (!Array.isArray(rows) || rows.length === 0) return;
 
         // Normaliza claves por si vienen en camelCase desde Blazor
@@ -21,10 +21,10 @@
 
         const headerTitle = typeof title === 'string' && title.trim().length > 0
             ? title.trim()
-            : 'Top 10 Artículos';
+            : 'Top 20 Artículos';
         const fileName = typeof fileLabel === 'string' && fileLabel.trim().length > 0
             ? fileLabel.trim()
-            : 'Top10_Articulos';
+            : 'Top20_Articulos';
 
         const header = [
             [headerTitle],
@@ -62,7 +62,7 @@
             { wch: 5 }, { wch: 14 }, { wch: 48 }, { wch: 18 }, { wch: 20 }
         ];
 
-        XLSX.utils.book_append_sheet(wb, ws, "Top10");
+        XLSX.utils.book_append_sheet(wb, ws, "Top20");
         XLSX.writeFile(wb, `${fileName}_${desde}_a_${hasta}.xlsx`);
     };
 
