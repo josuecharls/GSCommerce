@@ -203,6 +203,117 @@ namespace GSCommerceAPI.Controllers
                 .ToList();
         }
 
+        [HttpPost("ventas-familias")]
+        [Authorize]
+        public async Task<IActionResult> VentasFamilias([FromBody] VentasFamiliaRequestDTO request)
+        {
+            if (request == null || !request.Anios.Any() || !request.Meses.Any())
+                return BadRequest("Debe seleccionar al menos un año y un mes.");
+
+            var fechaCorte = new DateTime(2025, 8, 10);
+            var resultadosComb = new List<VentaFamiliaMensualDTO>();
+
+            // Optimize multi-select filter conditions by using memory structures
+            var familiasHash = request.Familias.ToHashSet();
+            var marcasHash = request.Marcas.ToHashSet();
+            var aniosHash = request.Anios.ToHashSet();
+            var mesesHash = request.Meses.ToHashSet();
+
+            bool requiereHistorico = request.Anios.Any(a => a <= 2025);
+            bool requiereActual = request.Anios.Any(a => a >= 2025);
+
+            if (requiereHistorico)
+            {
+                var queryHist = await (
+                    from cabecera in _contextHistorico.ComprobanteDeVentaCabeceras.AsNoTracking()
+                    join detalle in _contextHistorico.ComprobanteDeVentaDetalles.AsNoTracking()
+                        on cabecera.IdComprobante equals detalle.IdComprobante
+                    join articulo in _contextHistorico.Articulos.AsNoTracking()
+                        on detalle.IdArticulo equals articulo.IdArticulo
+                    join almacen in _contextHistorico.Almacens.AsNoTracking()
+                        on cabecera.IdAlmacen equals almacen.IdAlmacen
+                    where cabecera.Fecha < fechaCorte
+                          && aniosHash.Contains(cabecera.Fecha.Year)
+                          && mesesHash.Contains(cabecera.Fecha.Month)
+                          && almacen.Nombre != null
+                          && almacen.Nombre != "PRINCIPAL"
+                          && !(cabecera.Estado == "A" && cabecera.GeneroNc == null)
+                          && (familiasHash.Count == 0 || familiasHash.Contains(articulo.Familia))
+                          && (marcasHash.Count == 0 || marcasHash.Contains(articulo.Marca))
+                    select new
+                    {
+                        cabecera.Fecha.Year,
+                        cabecera.Fecha.Month,
+                        AlmacenNombre = almacen.Nombre,
+                        detalle.Cantidad
+                    }).ToListAsync();
+
+                var groupedHist = queryHist
+                    .GroupBy(x => new { x.Year, x.Month, x.AlmacenNombre })
+                    .Select(g => new VentaFamiliaMensualDTO
+                    {
+                        Year = g.Key.Year,
+                        Month = g.Key.Month,
+                        AlmacenNombre = g.Key.AlmacenNombre,
+                        CantidadVendida = g.Sum(x => x.Cantidad)
+                    });
+
+                resultadosComb.AddRange(groupedHist);
+            }
+
+            if (requiereActual)
+            {
+                var queryActual = await (
+                    from cabecera in _contextActual.ComprobanteDeVentaCabeceras.AsNoTracking()
+                    join detalle in _contextActual.ComprobanteDeVentaDetalles.AsNoTracking()
+                        on cabecera.IdComprobante equals detalle.IdComprobante
+                    join articulo in _contextActual.Articulos.AsNoTracking()
+                        on detalle.IdArticulo equals articulo.IdArticulo
+                    join almacen in _contextActual.Almacens.AsNoTracking()
+                        on cabecera.IdAlmacen equals almacen.IdAlmacen
+                    where cabecera.Fecha >= fechaCorte
+                          && aniosHash.Contains(cabecera.Fecha.Year)
+                          && mesesHash.Contains(cabecera.Fecha.Month)
+                          && almacen.Nombre != null
+                          && almacen.Nombre != "PRINCIPAL"
+                          && !(cabecera.Estado == "A" && (cabecera.GeneroNc == null || cabecera.ExcluirDeEstadisticas))
+                          && (familiasHash.Count == 0 || familiasHash.Contains(articulo.Familia))
+                          && (marcasHash.Count == 0 || marcasHash.Contains(articulo.Marca))
+                    select new
+                    {
+                        cabecera.Fecha.Year,
+                        cabecera.Fecha.Month,
+                        AlmacenNombre = almacen.Nombre,
+                        detalle.Cantidad
+                    }).ToListAsync();
+
+                var groupedActual = queryActual
+                    .GroupBy(x => new { x.Year, x.Month, x.AlmacenNombre })
+                    .Select(g => new VentaFamiliaMensualDTO
+                    {
+                        Year = g.Key.Year,
+                        Month = g.Key.Month,
+                        AlmacenNombre = g.Key.AlmacenNombre,
+                        CantidadVendida = g.Sum(x => x.Cantidad)
+                    });
+
+                resultadosComb.AddRange(groupedActual);
+            }
+
+            var consolidado = resultadosComb
+                .GroupBy(x => new { x.Year, x.Month, x.AlmacenNombre })
+                .Select(g => new VentaFamiliaMensualDTO
+                {
+                    Year = g.Key.Year,
+                    Month = g.Key.Month,
+                    AlmacenNombre = g.Key.AlmacenNombre,
+                    CantidadVendida = g.Sum(x => x.CantidadVendida)
+                })
+                .ToList();
+
+            return Ok(new ReporteVentasFamiliaResponseDTO { Resultados = consolidado });
+        }
+
         private string GetNombreMes(int mes)
         {
             return mes switch
