@@ -22,6 +22,8 @@ public partial class SyscharlesContext : DbContext
 
     public virtual DbSet<AlmacenCuentum> AlmacenCuenta { get; set; }
 
+    public virtual DbSet<AlmacenRepuesto> AlmacenRepuestos { get; set; }
+
     public virtual DbSet<AperturaCierreCaja> AperturaCierreCajas { get; set; }
 
     public virtual DbSet<Articulo> Articulos { get; set; }
@@ -3372,6 +3374,25 @@ public partial class SyscharlesContext : DbContext
             entity.Property(e => e.SubTotal).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.TipoCambio).HasColumnType("decimal(18, 3)");
             entity.Property(e => e.Total).HasColumnType("decimal(18, 2)");
+        });
+
+        modelBuilder.Entity<AlmacenRepuesto>(entity =>
+        {
+            entity.HasKey(e => e.IdAlmacenRepuesto);
+
+            entity.ToTable("AlmacenRepuesto", "Almacen");
+
+            entity.Property(e => e.Nombre)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.Direccion)
+                .HasMaxLength(150)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.IdAlmacenNavigation).WithMany(p => p.AlmacenRepuestos)
+                .HasForeignKey(d => d.IdAlmacen)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_AlmacenRepuesto_Almacen");
         });
 
         OnModelCreatingPartial(modelBuilder);

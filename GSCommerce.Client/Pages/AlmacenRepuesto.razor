@@ -1,0 +1,254 @@
+@page "/almacen-repuesto"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject AlmacenRepuestoService AlmacenRepuestoService
+@inject AlmacenService AlmacenService
+@inject NavigationManager Navigation
+
+<h3><i class="bi bi-house-gear-fill"></i>  Gestión de Almacenes de Repuesto</h3>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <button @onclick="AbrirModalNuevo" class="btn btn-success">+ Nuevo Almacén de Repuesto</button>
+    <div class="input-group w-50">
+        <select class="form-select" @bind="filtroAlmacen" @bind:after="FiltrarPorAlmacen">
+            <option value="0">-- Todas las tiendas --</option>
+            @foreach (var a in almacenes)
+            {
+                <option value="@a.IdAlmacen">@a.Nombre</option>
+            }
+        </select>
+    </div>
+</div>
+
+<table class="table table-striped table-responsive">
+    <thead>
+        <tr>
+            <th>Tienda (Almacén)</th>
+            <th>Nombre</th>
+            <th>Dirección</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (listaFiltrada.Any())
+        {
+            @foreach (var ar in listaFiltrada)
+            {
+                <tr>
+                    <td>@ar.NombreAlmacen</td>
+                    <td>@ar.Nombre</td>
+                    <td>@ar.Direccion</td>
+                    <td>
+                        @if (ar.Estado)
+                        {
+                            <span class="badge bg-success">Activo</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Inactivo</span>
+                        }
+                    </td>
+                    <td class="text-center">
+                        <button @onclick="() => AbrirModalEditar(ar)" class="btn btn-warning btn-sm me-1">
+                            <i class="bi bi-pencil-square"></i> Editar
+                        </button>
+                        <button @onclick="() => ConfirmDelete(ar.IdAlmacenRepuesto, ar.Nombre)" class="btn btn-danger btn-sm">
+                            <i class="bi bi-trash"></i> Eliminar
+                        </button>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="5" class="text-center">No se encontraron registros.</td></tr>
+        }
+    </tbody>
+</table>
+
+@* Modal Crear/Editar *@
+@if (showModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(esEdicion ? "Editar" : "Nuevo") Almacén de Repuesto</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Tienda (Almacén)</label>
+                        <select class="form-select" @bind="modelo.IdAlmacen">
+                            <option value="0">-- Seleccione --</option>
+                            @foreach (var a in almacenes)
+                            {
+                                <option value="@a.IdAlmacen">@a.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" class="form-control" @bind="modelo.Nombre" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <input type="text" class="form-control" @bind="modelo.Direccion" />
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="chkEstado" @bind="modelo.Estado" />
+                        <label class="form-check-label" for="chkEstado">Activo</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" @onclick="Guardar" disabled="@isSaving">
+                        @(isSaving ? "Guardando..." : "Guardar")
+                    </button>
+                    <button class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* Modal Eliminar *@
+@if (showDeleteModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill text-warning"></i> Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarDeleteModal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <p>¿Desea eliminar el almacén de repuesto <strong>@deleteNombre</strong>?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger" @onclick="DeleteConfirmed">Sí</button>
+                    <button class="btn btn-secondary" @onclick="CerrarDeleteModal">No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AlmacenRepuestoDTO> lista = new();
+    private List<AlmacenRepuestoDTO> listaFiltrada = new();
+    private List<AlmacenDTO> almacenes = new();
+    private AlmacenRepuestoDTO modelo = new() { Estado = true };
+    private int filtroAlmacen = 0;
+    private bool showModal = false;
+    private bool showDeleteModal = false;
+    private bool esEdicion = false;
+    private bool isSaving = false;
+    private int deleteId;
+    private string deleteNombre = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        almacenes = await AlmacenService.GetAlmacenes() ?? new List<AlmacenDTO>();
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        lista = await AlmacenRepuestoService.GetAlmacenRepuestos();
+        AplicarFiltro();
+    }
+
+    private void AplicarFiltro()
+    {
+        listaFiltrada = filtroAlmacen == 0
+            ? lista
+            : lista.Where(x => x.IdAlmacen == filtroAlmacen).ToList();
+    }
+
+    private async Task FiltrarPorAlmacen()
+    {
+        AplicarFiltro();
+        await Task.CompletedTask;
+    }
+
+    private void AbrirModalNuevo()
+    {
+        modelo = new AlmacenRepuestoDTO { Estado = true };
+        esEdicion = false;
+        showModal = true;
+    }
+
+    private void AbrirModalEditar(AlmacenRepuestoDTO item)
+    {
+        modelo = new AlmacenRepuestoDTO
+        {
+            IdAlmacenRepuesto = item.IdAlmacenRepuesto,
+            IdAlmacen = item.IdAlmacen,
+            Nombre = item.Nombre,
+            Direccion = item.Direccion,
+            Estado = item.Estado
+        };
+        esEdicion = true;
+        showModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        showModal = false;
+    }
+
+    private async Task Guardar()
+    {
+        if (modelo.IdAlmacen == 0 || string.IsNullOrWhiteSpace(modelo.Nombre))
+            return;
+
+        isSaving = true;
+        bool resultado;
+
+        if (esEdicion)
+        {
+            resultado = await AlmacenRepuestoService.UpdateAlmacenRepuesto(modelo.IdAlmacenRepuesto, modelo);
+        }
+        else
+        {
+            resultado = await AlmacenRepuestoService.CreateAlmacenRepuesto(modelo);
+        }
+
+        if (resultado)
+        {
+            await CargarDatos();
+            CerrarModal();
+        }
+
+        isSaving = false;
+    }
+
+    private void ConfirmDelete(int id, string nombre)
+    {
+        deleteId = id;
+        deleteNombre = nombre;
+        showDeleteModal = true;
+    }
+
+    private void CerrarDeleteModal()
+    {
+        showDeleteModal = false;
+        deleteId = 0;
+        deleteNombre = "";
+    }
+
+    private async Task DeleteConfirmed()
+    {
+        if (deleteId > 0)
+        {
+            if (await AlmacenRepuestoService.DeleteAlmacenRepuesto(deleteId))
+            {
+                await CargarDatos();
+            }
+            CerrarDeleteModal();
+        }
+    }
+}

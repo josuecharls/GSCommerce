@@ -1,4 +1,4 @@
-﻿@page "/maestros"
+@page "/maestros"
 @using GSCommerce.Client.Services
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
@@ -34,6 +34,15 @@
             <div class="card-body d-flex flex-column align-items-center justify-content-center">
                 <i class="bi bi-box-seam-fill" style="font-size: 3rem; color: #6c757d;"></i>
                 <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap;">Proveedor</h5>
+            </div>
+        </div>
+
+        <div class="card text-center shadow-lg p-3"
+             style="width: 150px; height: 180px; cursor: pointer; border-radius: 10px;"
+             @onclick="IrAAlmacenRepuesto">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <i class="bi bi-house-gear-fill" style="font-size: 3rem; color: #6c757d;"></i>
+                <h5 class="fw-bold mt-2 text-uppercase" style="white-space: nowrap; font-size: 0.85rem;">Almacén Repuesto</h5>
             </div>
         </div>
     }
@@ -90,5 +99,10 @@
     private void IrACliente()
     {
         Navigation.NavigateTo("/clientes");
+    }
+
+    private void IrAAlmacenRepuesto()
+    {
+        Navigation.NavigateTo("/almacen-repuesto");
     }
 }

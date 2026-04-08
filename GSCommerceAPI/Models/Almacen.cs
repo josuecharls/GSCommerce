@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace GSCommerceAPI.Models;
@@ -58,4 +58,6 @@ public partial class Almacen
     public virtual ICollection<StockAlmacen> StockAlmacens { get; set; } = new List<StockAlmacen>();
 
     public virtual ICollection<TomaInventario> TomaInventarios { get; set; } = new List<TomaInventario>();
+
+    public virtual ICollection<AlmacenRepuesto> AlmacenRepuestos { get; set; } = new List<AlmacenRepuesto>();
 }
