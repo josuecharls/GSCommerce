@@ -6177,3 +6177,28 @@ INNER JOIN Maestros.Proveedor p ON a.[IdProveedor] = p.IdProveedor
 INNER JOIN Maestros.Almacen alm ON c.idAlmacen = alm.idAlmacen
 WHERE c.Estado = 'E';
 GO
+
+/****** Object:  Table [Almacen].[AlmacenRepuesto] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Almacen].[AlmacenRepuesto](
+	[IdAlmacenRepuesto] [int] IDENTITY(1,1) NOT NULL,
+	[IdAlmacen] [int] NOT NULL,
+	[Nombre] [varchar](100) NOT NULL,
+	[Direccion] [varchar](150) NULL,
+	[Estado] [bit] NOT NULL,
+ CONSTRAINT [PK_AlmacenRepuesto] PRIMARY KEY CLUSTERED 
+(
+	[IdAlmacenRepuesto] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [Almacen].[AlmacenRepuesto]  WITH CHECK ADD  CONSTRAINT [FK_AlmacenRepuesto_Almacen] FOREIGN KEY([IdAlmacen])
+REFERENCES [Maestros].[Almacen] ([IdAlmacen])
+GO
+
+ALTER TABLE [Almacen].[AlmacenRepuesto] CHECK CONSTRAINT [FK_AlmacenRepuesto_Almacen]
+GO

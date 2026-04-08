@@ -53,6 +53,7 @@ builder.Services.AddScoped<MetaMensualService>();
 builder.Services.AddScoped<GuiaRemisionSunatService>();
 builder.Services.AddScoped<SerieGuiaRemisionService>();
 builder.Services.AddScoped<DireccionRucService>();
+builder.Services.AddScoped<AlmacenRepuestoService>();
 builder.Services.AddScoped<SessionSyncService>();
 builder.Services.AddAuthorizationCore();
 
