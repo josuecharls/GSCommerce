@@ -1,4 +1,4 @@
-﻿using System.Net.Http;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -29,6 +29,12 @@ namespace GSCommerce.Client.Services
         {
             var response = await _httpClient.GetFromJsonAsync<List<FamiliaLineaDTO>>("articulos/familias");
             return response ?? new List<FamiliaLineaDTO>();
+        }
+
+        public async Task<List<string>> ObtenerMarcas()
+        {
+            var response = await _httpClient.GetFromJsonAsync<List<string>>("articulos/marcas");
+            return response ?? new List<string>();
         }
         public async Task<ArticuloDTO?> BuscarPorCodigoAsync(string codigo)
         {

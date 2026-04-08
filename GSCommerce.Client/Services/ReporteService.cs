@@ -202,6 +202,19 @@ public class ReporteService
         }
         return await _http.GetAsync(url);
     }
+
+    public async Task<ReporteVentasFamiliaResponseDTO?> ObtenerVentasFamiliaList(VentasFamiliaRequestDTO request)
+    {
+        var response = await _http.PostAsJsonAsync("reporteshistoricos/ventas-familias", request);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            return await response.Content.ReadFromJsonAsync<ReporteVentasFamiliaResponseDTO>();
+        }
+        
+        return new ReporteVentasFamiliaResponseDTO();
+    }
+
     public async Task<ReporteAvanceHoraDTO> ObtenerAvanceVentasHora(DateTime desde, DateTime hasta, int? idAlmacen = null)
     {
         var url = $"ventas/reporte-avance-por-hora?desde={Uri.EscapeDataString(desde.ToString("yyyy-MM-ddTHH:mm:ss"))}&hasta={Uri.EscapeDataString(hasta.ToString("yyyy-MM-ddTHH:mm:ss"))}";

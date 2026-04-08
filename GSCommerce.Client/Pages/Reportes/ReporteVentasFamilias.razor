@@ -1,0 +1,291 @@
+@page "/reportes/ventas-familias"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@using System.Globalization
+@inject ReporteService ReporteService
+@inject ArticuloService ArticuloService
+@inject NavigationManager Navigation
+@inject AuthService AuthService
+
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col-12 d-flex align-items-center mb-3">
+            <button class="btn btn-outline-secondary me-3" @onclick="Volver">
+                <i class="bi bi-arrow-left"></i> Volver a Reportes
+            </button>
+            <h2 class="mb-0 text-primary">
+                <i class="bi bi-tags-fill me-2"></i> Reporte Ventas por Familia / Marca
+            </h2>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title text-secondary border-bottom pb-2 mb-3">
+                <i class="bi bi-funnel"></i> Opciones de Filtro Avanzado
+            </h5>
+            <div class="row g-3">
+                
+                <!-- Filtro Años -->
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Años</label>
+                    <MultiSelectDropdown TItem="int"
+                                         Items="aniosDisponibles"
+                                         ValueSelector="x => x.ToString()"
+                                         TextSelector="x => x.ToString()"
+                                         @bind-SelectedValues="selectedAniosStr"
+                                         EnableSearch="false"
+                                         ShowActions="true"
+                                         Placeholder="Años..." />
+                </div>
+
+                <!-- Filtro Meses -->
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Meses</label>
+                    <MultiSelectDropdown TItem="KeyValuePair<int, string>"
+                                         Items="mesesConTodos"
+                                         ValueSelector="m => m.Key.ToString()"
+                                         TextSelector="m => m.Value"
+                                         @bind-SelectedValues="selectedMesesStr"
+                                         EnableSearch="false"
+                                         ShowActions="true"
+                                         Placeholder="Meses..." />
+                </div>
+
+                <!-- Filtro Familias -->
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Familias</label>
+                    <MultiSelectDropdown TItem="string"
+                                         Items="familiasDisponibles"
+                                         ValueSelector="x => x"
+                                         TextSelector="x => x"
+                                         @bind-SelectedValues="selectedFamilias"
+                                         EnableSearch="true"
+                                         ShowActions="true"
+                                         Placeholder="Todas las familias..." />
+                </div>
+
+                <!-- Filtro Marcas -->
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Marcas</label>
+                    <MultiSelectDropdown TItem="string"
+                                         Items="marcasDisponibles"
+                                         ValueSelector="x => x"
+                                         TextSelector="x => x"
+                                         @bind-SelectedValues="selectedMarcas"
+                                         EnableSearch="true"
+                                         ShowActions="true"
+                                         Placeholder="Todas las marcas..." />
+                </div>
+
+                <div class="col-md-2 d-flex flex-column justify-content-end">
+                    <button class="btn btn-primary w-100" @onclick="Buscar" disabled="@isLoading">
+                        @if(isLoading) { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> } 
+                        <i class="bi bi-search"></i> Generar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Resultados -->
+    @if (isLoading)
+    {
+        <div class="alert alert-info text-center shadow-sm">
+            <div class="spinner-border text-info mb-2" role="status"></div><br />
+            Consultando registros históricos y procesando datos masivos...
+        </div>
+    }
+    else if (resultados != null)
+    {
+        if (!resultados.Any())
+        {
+            <div class="alert alert-warning text-center shadow-sm">
+                <i class="bi bi-exclamation-triangle-fill fs-4 d-block mb-2"></i>
+                No se encontraron ventas para los criterios seleccionados. Almacén PRINCIPAL se excluye automáticamente.
+            </div>
+        }
+        else
+        {
+            @foreach (var anio in requestActual.Anios.OrderByDescending(a => a))
+            {
+                var resultadosAnio = resultados.Where(r => r.Year == anio).ToList();
+                
+                // Fetch the static list of warehouse names to always display them
+                var almacenesEstaticos = new List<string> 
+                { 
+                    "AGUAS VERDES2", "CHICLAYO2", "IQUITOS FATISHOP", "PIURA2", "SULLANA2", "TRUJILLO2" 
+                };
+
+                var mesesReales = requestActual.Meses;
+                if(mesesReales.Contains(0)) {
+                    mesesReales = mesesDisponibles.Keys.ToList();
+                }
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-calendar-check"></i> Año Comercial: @anio</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped table-hover mb-0 align-middle">
+                                <thead class="table-secondary">
+                                    <tr class="text-center">
+                                        <th style="width: 20%;" class="text-start">Almacén (Local)</th>
+                                        @foreach (var mes in mesesReales.OrderBy(m => m))
+                                        {
+                                            <th style="width: @(80 / mesesReales.Count)%;">@GetNombreMesCorto(mes)</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var almacen in almacenesEstaticos)
+                                    {
+                                        <tr>
+                                            <td class="fw-bold text-start">@almacen</td>
+                                            @foreach (var mes in mesesReales.OrderBy(m => m))
+                                            {
+                                                var cantidadMes = resultadosAnio
+                                                    .Where(x => x.AlmacenNombre == almacen && x.Month == mes)
+                                                    .Sum(x => x.CantidadVendida);
+                                                
+                                                <td class="text-center @(cantidadMes == 0 ? "text-muted" : "fw-bold text-success")">
+                                                    @(cantidadMes == 0 ? "-" : cantidadMes.ToString("N0"))
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                    <tr class="table-info fw-bold">
+                                            <td class="text-end">TOTAL MES:</td>
+                                            @foreach (var mes in mesesReales.OrderBy(m => m))
+                                            {
+                                                var sumaTotalColumna = resultadosAnio
+                                                    .Where(x => x.Month == mes)
+                                                    .Sum(x => x.CantidadVendida);
+                                                <td class="text-center text-primary fs-5">@sumaTotalColumna.ToString("N0")</td>
+                                            }
+                                        </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+@code {
+    private string? cargo;
+
+    private List<int> aniosDisponibles = new();
+    private Dictionary<int, string> mesesDisponibles = new();
+    private List<KeyValuePair<int, string>> mesesConTodos = new();
+    private List<string> familiasDisponibles = new();
+    private List<string> marcasDisponibles = new();
+
+    private List<string> selectedAniosStr = new();
+    private List<string> selectedMesesStr = new();
+    private List<string> selectedFamilias = new();
+    private List<string> selectedMarcas = new();
+
+    private VentasFamiliaRequestDTO requestActual = new();
+    private List<VentaFamiliaMensualDTO>? resultados;
+    private bool isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo();
+        if (cargo != "ADMINISTRADOR")
+        {
+            Navigation.NavigateTo("/"); 
+            return;
+        }
+
+        CargarFiltrosDefectos();
+        var famList = await ArticuloService.ObtenerFamilias();
+        familiasDisponibles = famList.Select(f => f.Familia).Distinct().ToList();
+        marcasDisponibles = await ArticuloService.ObtenerMarcas();
+    }
+
+    private void CargarFiltrosDefectos()
+    {
+        int currentYear = DateTime.Today.Year;
+        for (int i = 0; i < 5; i++)
+        {
+            aniosDisponibles.Add(currentYear - i);
+        }
+        
+        var cultura = CultureInfo.CreateSpecificCulture("es-PE");
+        mesesConTodos.Add(new KeyValuePair<int, string>(0, "TODOS (Año Completo)"));
+        for (int m = 1; m <= 12; m++)
+        {
+            var nombreMes = cultura.TextInfo.ToTitleCase(new DateTime(2000, m, 1).ToString("MMMM", cultura));
+            mesesDisponibles.Add(m, nombreMes);
+            mesesConTodos.Add(new KeyValuePair<int, string>(m, nombreMes));
+        }
+
+        selectedAniosStr = new List<string> { currentYear.ToString() };
+        selectedMesesStr = new List<string> { DateTime.Today.Month.ToString() };
+    }
+
+    private async Task Buscar()
+    {
+        if (!selectedAniosStr.Any() || !selectedMesesStr.Any())
+        {
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+        
+        try
+        {
+            var anios = selectedAniosStr.Select(int.Parse).ToList();
+            var meses = selectedMesesStr.Select(int.Parse).ToList();
+            
+            if (meses.Contains(0)) 
+            {
+                meses = mesesDisponibles.Keys.ToList();
+            }
+
+            requestActual = new VentasFamiliaRequestDTO
+            {
+                Anios = anios,
+                Meses = meses,
+                Familias = selectedFamilias,
+                Marcas = selectedMarcas
+            };
+
+            var res = await ReporteService.ObtenerVentasFamiliaList(requestActual);
+            resultados = res?.Resultados ?? new List<VentaFamiliaMensualDTO>();
+        }
+        catch (Exception)
+        {
+            resultados = new List<VentaFamiliaMensualDTO>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetNombreMesCorto(int mes)
+    {
+        return mes switch
+        {
+            1 => "Ene", 2 => "Feb", 3 => "Mar", 4 => "Abr",
+            5 => "May", 6 => "Jun", 7 => "Jul", 8 => "Ago",
+            9 => "Sep", 10 => "Oct", 11 => "Nov", 12 => "Dic",
+            _ => "-"
+        };
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/reportes");
+    }
+}

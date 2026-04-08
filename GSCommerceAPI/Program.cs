@@ -33,10 +33,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Configurar la conexi�n con SQL Server usando SyscharlesContext
 builder.Services.AddDbContext<SyscharlesContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), sql => sql.UseCompatibilityLevel(120)));
 
 builder.Services.AddDbContext<SysDbHistoricalContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("HistoricalConnection"))
+    options.UseSqlServer(builder.Configuration.GetConnectionString("HistoricalConnection"), sql => sql.UseCompatibilityLevel(120))
            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 builder.Services.Configure<ReporteAvanceHoraEmailOptions>(builder.Configuration.GetSection(ReporteAvanceHoraEmailOptions.SectionName));
 Console.WriteLine(

@@ -1,4 +1,4 @@
-﻿using GSCommerce.Client.Models;
+using GSCommerce.Client.Models;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -58,6 +58,19 @@ namespace GSCommerceAPI.Controllers
             return Ok(familias);
         }
 
+
+        [HttpGet("marcas")]
+        public async Task<IActionResult> ObtenerMarcas()
+        {
+            var marcas = await _context.Articulos
+                .Where(a => !string.IsNullOrWhiteSpace(a.Marca))
+                .Select(a => a.Marca)
+                .Distinct()
+                .OrderBy(m => m)
+                .ToListAsync();
+
+            return Ok(marcas);
+        }
 
         // GET: api/articulos (Obtener todos los artículos con paginación y búsqueda)
         [HttpGet]
