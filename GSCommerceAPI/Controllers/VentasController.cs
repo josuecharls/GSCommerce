@@ -2044,18 +2044,18 @@ namespace GSCommerceAPI.Controllers
         }
 
         [Authorize]
-        [HttpGet("reporte-top10-articulos-menos-vendidos")]
-        public async Task<IActionResult> ReporteTop10ArticulosMenosVendidos(
+        [HttpGet("reporte-top20-articulos-menos-vendidos")]
+        public async Task<IActionResult> ReporteTop20ArticulosMenosVendidos(
             [FromQuery] DateTime? desde,
             [FromQuery] DateTime? hasta,
             [FromQuery] int? idAlmacen,
             [FromQuery] List<string>? lineas,
             [FromQuery] List<string>? familias,
-            [FromQuery] int top = 10)
+            [FromQuery] int top = 20)
         {
             var start = (desde ?? DateTime.Today).Date;
             var end = (hasta ?? DateTime.Today).Date.AddDays(1);
-            top = top <= 0 ? 10 : top;
+            top = top <= 0 ? 20 : top;
 
             var cargo = User.FindFirst("Cargo")?.Value;
             var idAlmClaim = User.FindFirst("IdAlmacen")?.Value;
@@ -2141,18 +2141,18 @@ namespace GSCommerceAPI.Controllers
         }
 
         [Authorize]
-        [HttpGet("reporte-top10-articulos")]
-        public async Task<IActionResult> ReporteTop10Articulos(
+        [HttpGet("reporte-top20-articulos")]
+        public async Task<IActionResult> ReporteTop20Articulos(
             [FromQuery] DateTime? desde,
             [FromQuery] DateTime? hasta,
             [FromQuery] int? idAlmacen,
             [FromQuery] List<string>? lineas,
             [FromQuery] List<string>? familias,
-            [FromQuery] int top = 10)
+            [FromQuery] int top = 20)
         {
             var start = (desde ?? DateTime.Today).Date;
             var end = (hasta ?? DateTime.Today).Date.AddDays(1);
-            top = top <= 0 ? 10 : top;
+            top = top <= 0 ? 20 : top;
 
             var cargo = User.FindFirst("Cargo")?.Value;
             var idAlmClaim = User.FindFirst("IdAlmacen")?.Value;
