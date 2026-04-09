@@ -252,6 +252,7 @@ namespace GSCommerceAPI.Controllers
             [FromQuery] string codigoArticulo,
             [FromQuery] int idAlmacen,
             [FromQuery] int? idVariante = null,
+            [FromQuery] decimal cantidadSolicitada = 1,
             CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(codigoArticulo) || idAlmacen <= 0)
@@ -259,9 +260,12 @@ namespace GSCommerceAPI.Controllers
                 return BadRequest(new { mensaje = "codigoArticulo e idAlmacen son requeridos." });
             }
 
+            if (cantidadSolicitada <= 0)
+                cantidadSolicitada = 1;
+
             var codigo = codigoArticulo.Trim();
             var resuelto = await IdVarianteUtil.ResolverStockLineaVentaAsync(
-                _context.StockAlmacens, idAlmacen, codigo, idVariante, ct);
+                _context.StockAlmacens, idAlmacen, codigo, idVariante, cantidadSolicitada, ct);
 
             return Ok(new { cantidad = resuelto?.Fila.Stock ?? 0 });
         }

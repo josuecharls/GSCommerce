@@ -47,37 +47,49 @@ public static class IdVarianteUtil
 
     /// <summary>
     /// Resuelve la fila de <see cref="StockAlmacen"/> para una línea de venta.
-    /// Incluye: (1) línea sin variante pero una sola fila de stock; (2) línea con variante sin fila propia
-    /// pero una única fila con <c>IdVariante NULL</c> (inventario cargado antes de usar variantes por almacén).
+    /// Cubre: (1) fila exacta por variante con saldo suficiente; (2) solo fila <c>NULL</c> con variante en el detalle;
+    /// (3) fila de variante con 0 (o saldo menor a lo pedido) y una única fila <c>NULL</c> que sí alcanza (migración parcial);
+    /// (4) línea sin variante y una sola fila de stock.
     /// </summary>
     public static async Task<(StockAlmacen Fila, int? IdVarianteMovimiento)?> ResolverStockLineaVentaAsync(
         DbSet<StockAlmacen> set,
         int idAlmacen,
         string idArticulo,
         int? idVarianteSolicitado,
+        decimal cantidadRequerida,
         CancellationToken ct = default)
     {
         var nv = Normalizar(idVarianteSolicitado);
-        var stock = await BuscarStockAlmacenAsync(set, idAlmacen, idArticulo, idVarianteSolicitado, ct);
-        if (stock != null)
-            return (stock, nv);
-
         var idArt = (idArticulo ?? string.Empty).Trim();
+
+        var stockExact = await BuscarStockAlmacenAsync(set, idAlmacen, idArticulo, idVarianteSolicitado, ct);
+        if (stockExact != null && (decimal)stockExact.Stock >= cantidadRequerida)
+            return (stockExact, nv);
+
         var filas = await set
             .Where(s => s.IdAlmacen == idAlmacen && s.IdArticulo == idArt)
             .ToListAsync(ct);
 
-        // Venta con talla/color (IdVariante en el detalle) pero el stock sigue en una sola fila sin variante
-        if (nv != null && filas.Count == 1 && Normalizar(filas[0].IdVariante) == null)
-            return (filas[0], nv);
-
         if (nv != null)
-            return null;
+        {
+            var nullRows = filas.Where(s => Normalizar(s.IdVariante) == null).ToList();
+            if (nullRows.Count == 1 && (decimal)nullRows[0].Stock >= cantidadRequerida)
+            {
+                if (stockExact == null || (decimal)stockExact.Stock < cantidadRequerida)
+                    return (nullRows[0], nv);
+            }
 
+            return null;
+        }
+
+        // Línea sin variante explícita: una sola fila que alcanza la cantidad
         if (filas.Count != 1)
             return null;
 
         var unica = filas[0];
+        if ((decimal)unica.Stock < cantidadRequerida)
+            return null;
+
         return (unica, Normalizar(unica.IdVariante));
     }
 }

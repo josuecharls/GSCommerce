@@ -1566,9 +1566,9 @@ namespace GSCommerceAPI.Controllers
             foreach (var d in ventaRegistro.Detalles)
             {
                 var resuelto = await IdVarianteUtil.ResolverStockLineaVentaAsync(
-                    _context.StockAlmacens, idAlmacen, d.CodigoItem, d.IdVariante);
+                    _context.StockAlmacens, idAlmacen, d.CodigoItem, d.IdVariante, d.Cantidad);
 
-                if (resuelto == null || resuelto.Value.Fila.Stock < d.Cantidad)
+                if (resuelto == null)
                 {
                     return BadRequest($"Stock insuficiente para el artículo {d.DescripcionItem}");
                 }
@@ -1667,7 +1667,7 @@ namespace GSCommerceAPI.Controllers
                 foreach (var detalle in ventaRegistro.Detalles)
                 {
                     var resuelto = await IdVarianteUtil.ResolverStockLineaVentaAsync(
-                        _context.StockAlmacens, idAlmacen, detalle.CodigoItem, detalle.IdVariante);
+                        _context.StockAlmacens, idAlmacen, detalle.CodigoItem, detalle.IdVariante, detalle.Cantidad);
                     if (resuelto == null)
                     {
                         await transaction.RollbackAsync();
