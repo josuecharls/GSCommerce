@@ -244,8 +244,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         /// <summary>
-        /// Stock de la misma fila que usa la venta (<see cref="IdVarianteUtil.BuscarStockAlmacenAsync"/>):
-        /// artículo + almacén + variante (NULL en BD = sin variante). Evita usar la suma de todas las variantes como límite en POS.
+        /// Stock del artículo en el almacén (misma fila que usa la venta). El query <c>idVariante</c> se ignora; se mantiene por compatibilidad con el cliente.
         /// </summary>
         [HttpGet("cantidad-fila")]
         public async Task<IActionResult> GetCantidadFilaStock(

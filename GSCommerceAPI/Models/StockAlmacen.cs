@@ -11,8 +11,6 @@ public partial class StockAlmacen
 
     public string IdArticulo { get; set; } = null!;
 
-    public int? IdVariante { get; set; }
-
     public int Stock { get; set; }
     public int StockMinimo { get; set; }
 
