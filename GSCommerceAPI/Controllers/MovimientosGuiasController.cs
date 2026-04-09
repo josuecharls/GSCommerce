@@ -6,6 +6,7 @@ using GSCommerce.Client.Models;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using GSCommerceAPI.Helpers;
+using GSCommerceAPI.Models.DTOs;
 using Microsoft.AspNetCore.Authorization;
 
 namespace GSCommerceAPI.Controllers
@@ -829,12 +830,11 @@ namespace GSCommerceAPI.Controllers
                 };
 
                 var dtCabecera = DataTableHelper.ToDataTable(new List<MovimientoCabeceraOnlyDTO> { cabecera }, "Almacen.MovimientosCabeceraType");
-                var detallesParaSp = dto.Detalles.Select(d => new MovimientoDetalleDTO
+                var detallesParaSp = dto.Detalles.Select(d => new MovimientosDetalleTvpDTO
                 {
                     IdMovimiento = d.IdMovimiento,
                     Item = d.Item,
                     IdArticulo = d.IdArticulo,
-                    IdVariante = IdVarianteUtil.Normalizar(d.IdVariante),
                     DescripcionArticulo = d.DescripcionArticulo,
                     Cantidad = d.Cantidad,
                     Valor = d.Valor
