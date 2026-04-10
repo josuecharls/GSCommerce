@@ -692,24 +692,10 @@ else
 
     private void ActualizarDescripcion()
     {
-        var baseDesc =
+        articulo.Descripcion =
             $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Detalle}".Trim();
-        var baseDescCorta =
+        articulo.DescripcionCorta =
             $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Detalle}".Trim();
-
-        // Si hay exactamente UNA variante, agregar su Color y Talla a la descripción
-        if (variantes.Count == 1)
-        {
-            var v = variantes[0];
-            var sufijo = $"{v.Color} {v.Talla}".Trim();
-            articulo.Descripcion     = string.IsNullOrEmpty(sufijo) ? baseDesc     : $"{baseDesc} {sufijo}".Trim();
-            articulo.DescripcionCorta = string.IsNullOrEmpty(sufijo) ? baseDescCorta : $"{baseDescCorta} {sufijo}".Trim();
-        }
-        else
-        {
-            articulo.Descripcion      = baseDesc;
-            articulo.DescripcionCorta = baseDescCorta;
-        }
     }
 
     private async Task SaveArticulo()
@@ -859,7 +845,7 @@ else
             variantesPendientes.Add(varianteTemp);
             variantes.Add(varianteTemp); // Agregar también a la lista visible
             nuevaVariante = new();
-            ActualizarDescripcion(); // ← sincronizar descripción si ahora hay 1 variante
+            ActualizarDescripcion();
             await JS.InvokeVoidAsync("alert", "✅ Variante agregada (se guardará al guardar el artículo).");
             StateHasChanged();
         }
@@ -874,7 +860,7 @@ else
                 await JS.InvokeVoidAsync("alert", "✅ Variante agregada correctamente.");
                 await CargarVariantes();
                 nuevaVariante = new();
-                ActualizarDescripcion(); // ← sincronizar descripción si ahora hay 1 variante
+                ActualizarDescripcion();
                 StateHasChanged();
             }
             else
@@ -897,7 +883,7 @@ else
             {
                 variantes.Remove(varianteAEliminar);
                 variantesPendientes.RemoveAll(v => v.IdVariante == id);
-                ActualizarDescripcion(); // ← limpiar descripción si ya no hay variante única
+                ActualizarDescripcion();
                 StateHasChanged();
             }
         }
@@ -908,7 +894,7 @@ else
             if (exito)
             {
                 await CargarVariantes();
-                ActualizarDescripcion(); // ← limpiar descripción si ya no hay variante única
+                ActualizarDescripcion();
                 StateHasChanged();
             }
         }
@@ -967,17 +953,18 @@ else
             return;
         }
 
-        // Si no tiene variantes, imprimir directamente
+        // Sin variantes: abrir impresión en pestaña nueva (no NavigateTo forceLoad: pierde el estado del formulario)
         var q = BarcodePrintMetadataQuery.BuildPrintQuery(
             articulo.DescripcionCorta ?? string.Empty,
             articulo,
             articulo.PrecioVenta,
             articulo.Color,
             articulo.Talla);
-        Navigation.NavigateTo($"/barcode-print/{articulo.IdArticulo}?{q}", true);
+        var url = Navigation.ToAbsoluteUri($"/barcode-print/{Uri.EscapeDataString(articulo.IdArticulo)}?{q}").ToString();
+        await JS.InvokeVoidAsync("open", url, "_blank");
     }
 
-    private void ImprimirVariante(ArticuloVarianteDTO variante)
+    private async Task ImprimirVariante(ArticuloVarianteDTO variante)
     {
         // Determinar el código a imprimir
         // Si hay múltiples variantes, incluir sufijo -N
@@ -996,7 +983,8 @@ else
             variante.Color,
             variante.Talla);
 
-        Navigation.NavigateTo($"/barcode-print/{codigoParaImprimir}?{q}", true);
+        var url = Navigation.ToAbsoluteUri($"/barcode-print/{Uri.EscapeDataString(codigoParaImprimir)}?{q}").ToString();
+        await JS.InvokeVoidAsync("open", url, "_blank");
         mostrarModalSeleccionVarianteImpresion = false;
     }
 

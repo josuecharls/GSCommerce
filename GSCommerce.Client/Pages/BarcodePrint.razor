@@ -115,6 +115,13 @@
         font-family: Arial, Helvetica, "Segoe UI", sans-serif;
     }
 
+    /* Material / tela: más pequeño que línea y modelo */
+    .body-line--material {
+        font-size: 5.25pt;
+        font-weight: 600;
+        line-height: 1.1;
+    }
+
     .body-fallback {
         font-size: 6.75pt;
         font-weight: 700;
@@ -205,17 +212,18 @@
                     <div class="body-lines">
                         @if (UsaLineasEstructuradas)
                         {
+                            @* LÍNEA MARCA · FAMILIA MODELO · TELA (más pequeña) · COLOR *@
                             @if (!string.IsNullOrWhiteSpace(LineaMarca))
                             {
                                 <div class="body-line">@LineaMarca</div>
                             }
-                            @if (!string.IsNullOrWhiteSpace(FamiliaMaterial))
+                            @if (!string.IsNullOrWhiteSpace(FamiliaModelo))
                             {
-                                <div class="body-line">@FamiliaMaterial</div>
+                                <div class="body-line">@FamiliaModelo</div>
                             }
-                            @if (!string.IsNullOrWhiteSpace(ModeloTrim))
+                            @if (!string.IsNullOrWhiteSpace(LineaTela))
                             {
-                                <div class="body-line">@ModeloTrim</div>
+                                <div class="body-line body-line--material">@LineaTela</div>
                             }
                             @if (!string.IsNullOrWhiteSpace(LineaColor))
                             {
@@ -268,13 +276,36 @@ else
     private string DescripcionDecoded =>
         string.IsNullOrWhiteSpace(Descripcion) ? string.Empty : Descripcion.Trim();
 
-    private string LineaMarca =>
-        string.Join(' ', new[] { Linea?.Trim(), Marca?.Trim() }.Where(s => !string.IsNullOrWhiteSpace(s)));
+    private string? LineaTrim =>
+        string.IsNullOrWhiteSpace(Linea) ? null : Linea.Trim();
 
-    private string FamiliaMaterial =>
-        string.Join(' ', new[] { Familia?.Trim(), Material?.Trim() }.Where(s => !string.IsNullOrWhiteSpace(s)));
+    private string? MarcaTrim =>
+        string.IsNullOrWhiteSpace(Marca) ? null : Marca.Trim();
 
-    private string? ModeloTrim => string.IsNullOrWhiteSpace(Modelo) ? null : Modelo.Trim();
+    private string? FamiliaTrim =>
+        string.IsNullOrWhiteSpace(Familia) ? null : Familia.Trim();
+
+    private string? ModeloTrim =>
+        string.IsNullOrWhiteSpace(Modelo) ? null : Modelo.Trim();
+
+    private string? MaterialTrim =>
+        string.IsNullOrWhiteSpace(Material) ? null : Material.Trim();
+
+    private string? LineaMarca =>
+        JoinLineParts(LineaTrim, MarcaTrim);
+
+    private string? FamiliaModelo =>
+        JoinLineParts(FamiliaTrim, ModeloTrim);
+
+    private static string? JoinLineParts(params string?[] parts)
+    {
+        var s = string.Join(' ', parts.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Trim()));
+        return string.IsNullOrWhiteSpace(s) ? null : s;
+    }
+
+    /// <summary>Tercera línea: material / tela (tipografía reducida vía CSS).</summary>
+    private string? LineaTela =>
+        string.IsNullOrWhiteSpace(MaterialTrim) ? null : $"TELA: {MaterialTrim.ToUpperInvariant()}";
 
     private string? ColorDecoded =>
         string.IsNullOrWhiteSpace(Color) ? null : Color.Trim();
@@ -284,8 +315,8 @@ else
 
     private bool UsaLineasEstructuradas =>
         !string.IsNullOrWhiteSpace(LineaMarca)
-        || !string.IsNullOrWhiteSpace(FamiliaMaterial)
-        || !string.IsNullOrWhiteSpace(ModeloTrim)
+        || !string.IsNullOrWhiteSpace(FamiliaModelo)
+        || !string.IsNullOrWhiteSpace(LineaTela)
         || !string.IsNullOrWhiteSpace(LineaColor);
 
     private string TextoFechaCreacion =>
