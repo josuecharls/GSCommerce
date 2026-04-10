@@ -7,7 +7,6 @@
 @inject ProveedorService ProveedorService
 @inject ComplementoService ComplementoService
 @inject NavigationManager Navigation
-@inject ArticuloVarianteService ArticuloVarianteService
 @using GSCommerce.Client.Pages
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
@@ -227,7 +226,6 @@
                     <label class="form-label">Código de Barras</label><br />
                     <img src="https://barcode.tec-it.com/barcode.ashx?data=@(articulo.IdArticulo)&code=Code93" class="img-thumbnail" width="150" />
                     <div><strong>@articulo.IdArticulo</strong></div>
-                    <button class="btn btn-success mt-2 me-2" @onclick="PrintBarcode"><i class="bi bi-printer"></i> Imprimir</button>
                     <button class="btn btn-info mt-2" @onclick="() => mostrarModalQR = true"><i class="bi bi-qr-code"></i> QR</button>
                 </div>
             </div> <!-- /col-md-6 derecha -->
@@ -372,40 +370,6 @@ else
 
 <ProveedorBuscarModal @bind-Mostrar="mostrarProveedorModal" OnSeleccionado="ProveedorSeleccionado" />
 
-<!-- Modal: Seleccionar Variante para Impresión -->
-@if (mostrarModalSeleccionVarianteImpresion)
-{
-    <div class="modal-backdrop fade show"></div>
-    <div class="modal d-block" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Seleccionar Variante para Imprimir</h5>
-                    <button type="button" class="btn-close" @onclick="() => mostrarModalSeleccionVarianteImpresion = false"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="mb-3">Seleccione la variante que desea imprimir:</p>
-                    <div class="list-group">
-                        @foreach (var variante in variantes)
-                        {
-                            <button type="button" 
-                                    class="list-group-item list-group-item-action"
-                                    @onclick="() => ImprimirVariante(variante)">
-                                <strong>@variante.Color</strong> - <strong>@variante.Talla</strong>
-                            </button>
-                        }
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="() => mostrarModalSeleccionVarianteImpresion = false">Cancelar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-
-
 @code {
     [Parameter] public string id { get; set; } = string.Empty;
 
@@ -419,7 +383,6 @@ else
     private bool isLoading = true;
     private bool mostrarProveedorModal = false;
     private bool mostrarModalQR = false;
-    private bool mostrarModalSeleccionVarianteImpresion = false;
 
     // Complementos
     private List<ComplementoDTO> familias = new();
@@ -453,7 +416,6 @@ else
         articulo = art;
 
         await LoadComplementos();
-        await CargarVariantes();
 
         if (articulo.IdProveedor != 0)
         {
@@ -465,8 +427,6 @@ else
             }
         }
 
-        // ActualizarDescripcion() 
-        AjustarDescripcionVarianteUnica(); // si hay exactamente 1 variante, incluirla en la descripción
         isLoading = false;
     }
 
@@ -571,95 +531,11 @@ else
             $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Detalle}".Trim();
         articulo.DescripcionCorta =
             $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Detalle}".Trim();
-
-        // Si hay exactamente UNA variante, agregar su Color y Talla a la descripción
-        if (variantes.Count == 1)
-        {
-            var v = variantes[0];
-            var sufijo = $"{v.Color} {v.Talla}".Trim();
-            if (!string.IsNullOrEmpty(sufijo))
-            {
-                articulo.Descripcion      = $"{articulo.Descripcion} {sufijo}".Trim();
-                articulo.DescripcionCorta = $"{articulo.DescripcionCorta} {sufijo}".Trim();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Ajusta la descripción al cargar el artículo en modo edición:
-    /// si tiene exactamente UNA variante y la descripción no incluye ya
-    /// el Color/Talla de esa variante, los agrega (limpiando "No Aplica" antes).
-    /// </summary>
-    private void AjustarDescripcionVarianteUnica()
-    {
-        if (variantes.Count != 1) return;
-
-        var v = variantes[0];
-
-        // Limpiar "No Aplica" de la descripción base
-        static string Limpiar(string s) =>
-            s.Replace(" No Aplica", "", StringComparison.OrdinalIgnoreCase)
-             .Replace(" no aplica.", "", StringComparison.OrdinalIgnoreCase)
-             .Trim();
-
-        var descBase      = Limpiar(articulo.Descripcion ?? "");
-        var descCortaBase = Limpiar(articulo.DescripcionCorta ?? "");
-
-        var color = (v.Color ?? "").Trim();
-        var talla = (v.Talla ?? "").Trim();
-
-        // Agregar Color si no está ya
-        if (!string.IsNullOrEmpty(color) &&
-            !descBase.Contains(color, StringComparison.OrdinalIgnoreCase))
-        {
-            descBase      += " " + color;
-            descCortaBase += " " + color;
-        }
-
-        // Agregar Talla si no está ya
-        if (!string.IsNullOrEmpty(talla) &&
-            !descBase.Contains(talla, StringComparison.OrdinalIgnoreCase))
-        {
-            descBase      += " " + talla;
-            descCortaBase += " " + talla;
-        }
-
-        articulo.Descripcion      = descBase.Trim();
-        articulo.DescripcionCorta = descCortaBase.Trim();
     }
 
     private async Task Imprimir()
     {
         await JS.InvokeVoidAsync("window.print");
-    }
-
-    private async Task PrintBarcode()
-    {
-        if (variantes.Any())
-        {
-            mostrarModalSeleccionVarianteImpresion = true;
-        }
-        else
-        {
-            var url = $"/print-barcode/{articulo.IdArticulo}/{Uri.EscapeDataString(articulo.DescripcionCorta)}";
-            await JS.InvokeVoidAsync("open", url, "_blank");
-        }
-    }
-
-    private async Task ImprimirVariante(ArticuloVarianteDTO variante)
-    {
-        mostrarModalSeleccionVarianteImpresion = false;
-        
-        // Obtener el índice de la variante (1-based) para el sufijo
-        var index = variantes.IndexOf(variante) + 1;
-        
-        // Crear el código con el sufijo (ej. "-1", "-2")
-        string codigoVariante = $"{articulo.IdArticulo}-{index}";
-        
-        string descripcionCortaVariante = $"{articulo.DescripcionCorta} {variante.Color} {variante.Talla}";
-        
-        var url = $"/print-barcode/{codigoVariante}/{Uri.EscapeDataString(descripcionCortaVariante)}";
-        await JS.InvokeVoidAsync("open", url, "_blank");
     }
 
     private async Task SaveArticulo()
@@ -689,17 +565,6 @@ else
             
             var uri = Navigation.GetUriWithQueryParameters(Navigation.ToAbsoluteUri("/articulos").ToString(), urlParams);
             Navigation.NavigateTo(uri.ToString());
-        }
-    }
-
-    private List<ArticuloVarianteDTO> variantes = new();
-
-    private async Task CargarVariantes()
-    {
-        if (!string.IsNullOrEmpty(articulo.IdArticulo))
-        {
-            var idArticuloFormateado = articulo.IdArticulo.PadLeft(6, '0');
-            variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(idArticuloFormateado);
         }
     }
 

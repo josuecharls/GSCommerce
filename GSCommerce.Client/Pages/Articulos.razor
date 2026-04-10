@@ -231,7 +231,7 @@
                 <div class="modal-body text-center pt-0">
                     <div class="etiqueta-preview">
                         <div class="barcode-price">
-                            <img src="https://barcodeapi.org/api/128/@barcodeArticulo?.IdArticulo" width="240" />
+                            <img src="https://barcodeapi.org/api/128/@CodigoBarrasModalPreview" width="240" />
                             <div class="price">S/. @barcodeArticulo?.PrecioVenta.ToString("0.00")</div>
                         </div>
                         <div style="font-weight:bold; margin-top:6px">@descripcionParaImpresion</div>
@@ -241,19 +241,30 @@
                                 Color: <strong>@varianteSeleccionadaImpresion.Color</strong> | Talla: <strong>@varianteSeleccionadaImpresion.Talla</strong>
                             </div>
                         }
-                        <div style="font-size:small">Código: @barcodeArticulo?.IdArticulo</div>
+                        else if (tieneVariantes)
+                        {
+                            <div style="font-size:small; color: #856404; margin-top: 4px;">
+                                Elija una variante con el botón «Elegir Variante» para imprimir.
+                            </div>
+                        }
+                        <div style="font-size:small">Código: @CodigoBarrasModalPreview</div>
                     </div>
                 </div>
-                <div class="modal-footer justify-content-center">
-                    @if (variantesDisponiblesImpresion.Count > 1)
+                <div class="modal-footer justify-content-center flex-wrap">
+                    @if (tieneVariantes)
                     {
                         <button class="btn btn-info me-2" 
+                                type="button"
                                 @onclick="AbrirModalSeleccionVarianteImpresion">
                             <i class="bi bi-palette"></i> Elegir Variante
                         </button>
                     }
-                    <button class="btn btn-success" @onclick="PrintBarcode">Imprimir</button>
-                    <button class="btn btn-secondary" @onclick="CloseBarcodeModal">Cerrar</button>
+                    <button class="btn btn-success"
+                            type="button"
+                            disabled="@DebeElegirVarianteParaImprimir"
+                            title="@(DebeElegirVarianteParaImprimir ? "Seleccione una variante en Elegir Variante para imprimir." : null)"
+                            @onclick="PrintBarcode">Imprimir</button>
+                    <button class="btn btn-secondary" type="button" @onclick="CloseBarcodeModal">Cerrar</button>
                 </div>
             </div>
         </div>
@@ -555,21 +566,10 @@
         barcodeArticulo = articuloList.FirstOrDefault(a => a.IdArticulo == id);
         if (barcodeArticulo != null)
         {
-            // Cargar variantes del artículo
             variantesDisponiblesImpresion = await ArticuloVarianteService.ObtenerVariantesPorArticulo(barcodeArticulo.IdArticulo);
-            
-            // Si hay exactamente 1 variante, seleccionarla automáticamente
-            if (variantesDisponiblesImpresion.Count == 1)
-            {
-                varianteSeleccionadaImpresion = variantesDisponiblesImpresion[0];
-                descripcionParaImpresion = $"{barcodeArticulo.DescripcionCorta} C/{varianteSeleccionadaImpresion.Color} T/{varianteSeleccionadaImpresion.Talla}";
-            }
-            else
-            {
-                varianteSeleccionadaImpresion = null;
-                descripcionParaImpresion = barcodeArticulo.DescripcionCorta ?? barcodeArticulo.Descripcion;
-            }
-            
+            varianteSeleccionadaImpresion = null;
+            descripcionParaImpresion = barcodeArticulo.DescripcionCorta ?? barcodeArticulo.Descripcion ?? string.Empty;
+
             showBarcodeModal = true;
         }
     }
@@ -586,20 +586,17 @@
     private void PrintBarcode()
     {
         if (barcodeArticulo is null) return;
+        if (DebeElegirVarianteParaImprimir) return;
 
-        // Determinar el código a imprimir
-        // Si hay múltiples variantes y hay una seleccionada, incluir sufijo -N
-        string codigoParaImprimir = barcodeArticulo.IdArticulo;
+        var codigoParaImprimir = CalcularCodigoBarrasImpresion();
 
-        if (varianteSeleccionadaImpresion != null && variantesDisponiblesImpresion.Count > 1)
-        {
-            var indice = variantesDisponiblesImpresion.FindIndex(v => v.IdVariante == varianteSeleccionadaImpresion.IdVariante) + 1;
-            codigoParaImprimir = $"{barcodeArticulo.IdArticulo}-{indice}";
-        }
-
-        // Color/talla: variante si hay; si no, cabecera del artículo (artículos antiguos sin variantes).
-        var colorImpresion = varianteSeleccionadaImpresion?.Color ?? barcodeArticulo.Color;
-        var tallaImpresion = varianteSeleccionadaImpresion?.Talla ?? barcodeArticulo.Talla;
+        // Color/talla: variante si el artículo tiene variantes y hay selección; si no, cabecera del artículo (antiguos).
+        var colorImpresion = tieneVariantes
+            ? varianteSeleccionadaImpresion!.Color
+            : barcodeArticulo.Color;
+        var tallaImpresion = tieneVariantes
+            ? varianteSeleccionadaImpresion!.Talla
+            : barcodeArticulo.Talla;
 
         var q = BarcodePrintMetadataQuery.BuildPrintQuery(
             descripcionParaImpresion,
@@ -620,6 +617,35 @@
     private string descripcionParaImpresion = string.Empty;
     private bool mostrarModalSeleccionVarianteImpresion = false;
     private bool tieneVariantes => variantesDisponiblesImpresion.Any();
+
+    /// <summary>Artículos con variantes: exige elegir una en el modal antes de imprimir.</summary>
+    private bool DebeElegirVarianteParaImprimir =>
+        tieneVariantes && varianteSeleccionadaImpresion is null;
+
+    /// <summary>Código mostrado en el modal (coherente con lo que se imprimirá al tener variante elegida).</summary>
+    private string CodigoBarrasModalPreview
+    {
+        get
+        {
+            if (barcodeArticulo is null) return string.Empty;
+            return CalcularCodigoBarrasImpresion();
+        }
+    }
+
+    private string CalcularCodigoBarrasImpresion()
+    {
+        if (barcodeArticulo is null) return string.Empty;
+        if (!tieneVariantes || varianteSeleccionadaImpresion is null)
+            return barcodeArticulo.IdArticulo;
+
+        var indice = variantesDisponiblesImpresion.FindIndex(v => v.IdVariante == varianteSeleccionadaImpresion.IdVariante) + 1;
+        if (indice < 1) return barcodeArticulo.IdArticulo;
+
+        if (variantesDisponiblesImpresion.Count > 1)
+            return $"{barcodeArticulo.IdArticulo}-{indice}";
+
+        return barcodeArticulo.IdArticulo;
+    }
 
     private void AbrirModalSeleccionVarianteImpresion()
     {
