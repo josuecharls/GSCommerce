@@ -9,19 +9,18 @@
 @inject ArticuloService ArticuloService
 @inject AuthService AuthService
 
-<PageTitle>Sótanos / depósito</PageTitle>
+<PageTitle>Depósito interno</PageTitle>
 
 <div class="container-fluid py-3">
-    <h3 class="mb-2"><i class="bi bi-layers-half text-primary"></i> Sótanos y depósito interno</h3>
+    <h3 class="mb-2"><i class="bi bi-layers-half text-primary"></i> Depósito interno</h3>
     <p class="text-muted mb-4">
-        Aquí se registra el <strong>stock aparte de la venta</strong>: prendas guardadas por cambio de colección, consultas de modelos antiguos o control frente a faltantes.
-        Las cantidades <strong>no suman ni restan</strong> del stock de la tienda en <em>/stock</em>.
+        Aquí se registra el <strong>stock aparte de los depósitos</strong>.
     </p>
 
     @if (datosInicialesListos && !esAdministrador && (idAlmacenCajero == null || idAlmacenCajero <= 0))
     {
         <div class="alert alert-warning">
-            Su usuario no tiene una tienda asignada en personal. Solicite al administrador que vincule su usuario a un almacén para usar los sótanos.
+            Su usuario no tiene una tienda asignada en personal. Solicite al administrador que vincule su usuario a un almacén para usar los depósitos.
         </div>
     }
 
@@ -66,22 +65,22 @@
     </div>
 
     <div class="d-flex justify-content-between align-items-center mb-2">
-        <h5 class="mb-0">@(esAdministrador ? "Administración de sótanos" : "Sótanos de tu tienda")</h5>
+        <h5 class="mb-0">@(esAdministrador ? "Administración de depósitos" : "Depósitos de tu tienda")</h5>
         @if (esAdministrador)
         {
             <button type="button" class="btn btn-success" @onclick="AbrirModalNuevo">
-                <i class="bi bi-plus-circle"></i> Nuevo sótano
+                <i class="bi bi-plus-circle"></i> Nuevo depósito
             </button>
         }
     </div>
-    <p class="text-muted mb-3">Tip: haz clic en una fila para seleccionar el sótano y registrar movimientos.</p>
+    <p class="text-muted mb-3">Haz clic en una fila para seleccionar el depósito y registrar movimientos.</p>
 
     <div class="table-responsive mb-4">
         <table class="table table-striped table-hover align-middle">
             <thead>
                 <tr>
                     <th>Tienda</th>
-                    <th>Nombre del sótano</th>
+                    <th>Nombre del depósito</th>
                     <th class="text-end">Artículos</th>
                     <th class="text-end">Unidades</th>
                     <th>Estado</th>
@@ -94,7 +93,7 @@
             <tbody>
                 @if (!listaSotanosTabla.Any())
                 {
-                    <tr><td colspan="@(esAdministrador ? 6 : 5)" class="text-center text-muted">No hay sótanos registrados.</td></tr>
+                    <tr><td colspan="@(esAdministrador ? 6 : 5)" class="text-center text-muted">No hay depósitos registrados.</td></tr>
                 }
                 else
                 {
@@ -153,7 +152,7 @@
     {
         <div class="card border-primary mb-4">
             <div class="card-header bg-primary text-white">
-                <i class="bi bi-arrow-down-up"></i> Ingreso o retiro de prendas en el sótano seleccionado
+                <i class="bi bi-arrow-down-up"></i> Ingreso o retiro de prendas en el depósito seleccionado
             </div>
             <div class="card-body">
                 <div class="row g-3 align-items-end">
@@ -184,22 +183,22 @@
                     </div>
                     <div class="col-md-2">
                         <button type="button" class="btn btn-success w-100" @onclick="() => RegistrarMovimiento(true)" disabled="@(!PuedeRegistrar)">
-                            <i class="bi bi-plus-lg"></i> Ingresar al sótano
+                            <i class="bi bi-plus-lg"></i> Ingresar al depósito
                         </button>
                     </div>
                     <div class="col-md-2">
                         <button type="button" class="btn btn-warning w-100 text-dark" @onclick="() => RegistrarMovimiento(false)" disabled="@(!PuedeRegistrar)">
-                            <i class="bi bi-dash-lg"></i> Retirar del sótano
+                            <i class="bi bi-dash-lg"></i> Retirar del depósito
                         </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <h5 class="mb-2">Stock actual en este sótano</h5>
+        <h5 class="mb-2">Stock actual en este depósito</h5>
         <div class="row g-2 mb-2">
             <div class="col-md-4">
-                <input class="form-control" placeholder="Buscar en este sótano (código o descripción)..." @bind="busquedaEnSotano" @bind:event="oninput" />
+                <input class="form-control" placeholder="Buscar en este depósito (código o descripción)..." @bind="busquedaEnSotano" @bind:event="oninput" />
             </div>
         </div>
         @if (cargandoStock)
@@ -218,7 +217,7 @@
                         <tr>
                             <th>Código</th>
                             <th>Descripción</th>
-                            <th class="text-end">Cantidad en sótano</th>
+                            <th class="text-end">Cantidad en depósito</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -243,7 +242,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">@(esEdicion ? "Editar" : "Nuevo") sótano / depósito</h5>
+                    <h5 class="modal-title">@(esEdicion ? "Editar" : "Nuevo") depósito</h5>
                     <button type="button" class="btn-close" @onclick="CerrarModal"></button>
                 </div>
                 <div class="modal-body">
@@ -258,8 +257,8 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Nombre del sótano</label>
-                        <input type="text" class="form-control" @bind="modelo.Nombre" placeholder="Ej. Sótano principal" />
+                        <label class="form-label">Nombre del depósito</label>
+                        <input type="text" class="form-control" @bind="modelo.Nombre" placeholder="Ej. Depósito principal" />
                     </div>
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="chkEstado" @bind="modelo.Estado" />
@@ -285,7 +284,7 @@
                     <button type="button" class="btn-close" @onclick="CerrarDeleteModal"></button>
                 </div>
                 <div class="modal-body">
-                    ¿Eliminar el sótano <strong>@deleteNombre</strong>? Solo se permite si no tiene stock.
+                    ¿Eliminar el depósito <strong>@deleteNombre</strong>? Solo se permite si no tiene stock.
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-danger" @onclick="DeleteConfirmed">Eliminar</button>
@@ -464,10 +463,10 @@
             return;
         }
         mensajeOk = ingreso
-            ? $"Se ingresaron {cantidadMovimiento} unidad(es) al sótano."
-            : $"Se retiraron {cantidadMovimiento} unidad(es) del sótano.";
+            ? $"Se ingresaron {cantidadMovimiento} unidad(es) al depósito."
+            : $"Se retiraron {cantidadMovimiento} unidad(es) del depósito.";
         lineasStock = await StockRepuestoService.GetStockAsync(idSotanoSeleccionado);
-        // refrescar resumen por sótano
+        // refrescar resumen por depósito
         await RecargarListaSotanos();
         cantidadMovimiento = 1;
     }
@@ -499,7 +498,7 @@
     {
         if (modelo.IdAlmacen == 0 || string.IsNullOrWhiteSpace(modelo.Nombre))
         {
-            mensajeError = "Complete tienda y nombre del sótano.";
+            mensajeError = "Complete tienda y nombre del depósito.";
             return;
         }
         isSaving = true;
@@ -511,7 +510,7 @@
         {
             CerrarModal();
             await RecargarListaSotanos();
-            mensajeOk = "Sótano guardado.";
+            mensajeOk = "Depósito guardado.";
         }
         else
             mensajeError = "No se pudo guardar. Revise los datos o su conexión.";
@@ -537,7 +536,7 @@
             return;
         if (await AlmacenRepuestoService.DeleteAlmacenRepuesto(deleteId))
         {
-            mensajeOk = "Sótano eliminado.";
+            mensajeOk = "Depósito eliminado.";
             if (idSotanoSeleccionado == deleteId)
                 idSotanoSeleccionado = 0;
             await RecargarListaSotanos();

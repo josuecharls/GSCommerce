@@ -7,7 +7,7 @@ public class AjusteStockRepuestoRequest
 
     public string IdArticulo { get; set; } = string.Empty;
 
-    /// <summary>I = ingreso al sótano, E = salida del sótano (reducción).</summary>
+    /// <summary>I = ingreso al depósito, E = salida del depósito (reducción).</summary>
     public string Tipo { get; set; } = "I";
 
     public int Cantidad { get; set; }
