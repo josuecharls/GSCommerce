@@ -73,6 +73,19 @@ namespace GSCommerceAPI.Controllers
             return Ok(marcas);
         }
 
+        [HttpGet("modelos")]
+        public async Task<IActionResult> ObtenerModelos()
+        {
+            var modelos = await _context.Articulos
+                .Where(a => !string.IsNullOrWhiteSpace(a.Modelo))
+                .Select(a => a.Modelo)
+                .Distinct()
+                .OrderBy(m => m)
+                .ToListAsync();
+
+            return Ok(modelos);
+        }
+
         // GET: api/articulos (Obtener todos los artículos con paginación y búsqueda)
         [HttpGet]
         public async Task<IActionResult> GetArticulos(

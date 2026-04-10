@@ -25,15 +25,39 @@ public class ReporteService
         return response;
     }
 
-    public async Task<List<RankingVendedoraDTO>> ObtenerRankingVendedoras(DateTime desde, DateTime hasta, int? idAlmacen, bool porAlmacen)
+    public async Task<List<RankingVendedoraDTO>> ObtenerRankingVendedorasDia(DateTime fecha, int? idAlmacen, bool porAlmacen)
     {
-        var url = $"ventas/reporte-ranking-vendedoras?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}&porAlmacen={porAlmacen}";
+        var url = $"ventas/reporte-ranking-vendedoras?fecha={fecha:yyyy-MM-dd}&porAlmacen={porAlmacen}";
         if (porAlmacen && idAlmacen.HasValue)
         {
             url += $"&idAlmacen={idAlmacen.Value}";
         }
         var response = await _http.GetFromJsonAsync<List<RankingVendedoraDTO>>(url);
         return response ?? new();
+    }
+
+    public async Task<List<RankingVendedoraDTO>> ObtenerRankingVendedorasRango(DateTime desde, DateTime hasta, int? idAlmacen, bool porAlmacen)
+    {
+        var url = $"ventas/reporte-ranking-vendedoras-rango?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}&porAlmacen={porAlmacen}";
+        if (porAlmacen && idAlmacen.HasValue)
+        {
+            url += $"&idAlmacen={idAlmacen.Value}";
+        }
+        var response = await _http.GetFromJsonAsync<List<RankingVendedoraDTO>>(url);
+        return response ?? new();
+    }
+
+    public async Task<bool> GuardarMetaAlmacenVentasDiaria(int idAlmacen, DateTime fecha, int metaVentasDiarias)
+    {
+        var resp = await _http.PutAsJsonAsync(
+            "ventas/almacen-meta-ventas-diaria",
+            new AlmacenMetaVentasDiariaUpdateDTO
+            {
+                IdAlmacen = idAlmacen,
+                Fecha = fecha.Date,
+                MetaVentasDiarias = metaVentasDiarias
+            });
+        return resp.IsSuccessStatusCode;
     }
 
     public async Task<List<TopArticuloDTO>> ObtenerTop20Articulos(

@@ -78,7 +78,7 @@
 
     /**
      * Exporta reporte talla / color / combinación por marcas (una hoja con secciones).
-     * payload: { desde, hasta, marcas, almacen, incluirCombinacion, tallas[], colores[], combinaciones[] }
+     * payload: { desde, hasta, marcas, familias?, modelos?, almacen, incluirCombinacion, tallas[], colores[], combinaciones[] }
      * Cada fila de métrica: { nombre, cantidadVendida|CantidadVendida, totalIngresos|TotalIngresos, porcentaje|Porcentaje }
      */
     window.exportSeparacionMarcaTallaColorExcel = (payload) => {
@@ -87,6 +87,8 @@
         const desde = String(payload.desde ?? payload.Desde ?? '');
         const hasta = String(payload.hasta ?? payload.Hasta ?? '');
         const marcas = String(payload.marcas ?? payload.Marcas ?? '');
+        const familias = String(payload.familias ?? payload.Familias ?? 'Todas');
+        const modelos = String(payload.modelos ?? payload.Modelos ?? 'Todos');
         const almacen = String(payload.almacen ?? payload.Almacen ?? 'General (todos)');
         const incluirCombinacion = !!(payload.incluirCombinacion ?? payload.IncluirCombinacion);
 
@@ -107,6 +109,8 @@
             ['Talla y color por marca'],
             [`Rango: ${desde} a ${hasta}`],
             [`Marcas: ${marcas}`],
+            [`Familias: ${familias}`],
+            [`Modelos: ${modelos}`],
             [`Ámbito: ${almacen}`],
             [`Combinación talla+color: ${incluirCombinacion ? 'Sí' : 'No'}`],
             []

@@ -9,14 +9,15 @@
 @attribute [Authorize]
 @inject ReporteService ReporteService
 @inject AlmacenService AlmacenService
+@inject ArticuloService ArticuloService
 @inject AuthService AuthService
 @inject IJSRuntime JS
 
 <ReportsBreadcrumb Title="Talla y color por marca" />
 
 <p class="text-muted small mb-3">
-    Elija una o varias marcas (se unifican variantes como «MVAR» y «MVAR.»). El reporte muestra tallas y colores vendidos
-    <strong>para esas marcas</strong>. Opcionalmente puede ver la <strong>combinación talla + color</strong> (útil con variantes).
+    Elija una o varias marcas (se unifican variantes como «MVAR» y «MVAR.»). Opcionalmente restrinja por <strong>familia</strong> y/o <strong>modelo</strong> del artículo.
+    El reporte muestra tallas y colores vendidos para esas marcas (y filtros). Puede ver la <strong>combinación talla + color</strong> (útil con variantes).
 </p>
 
 <div class="row g-3 align-items-end mb-3">
@@ -52,6 +53,36 @@
             </select>
         </div>
     }
+</div>
+
+<div class="row g-3 align-items-end mb-3">
+    <div class="col-12 col-md-6 col-lg-6">
+        <label class="form-label">Familia</label>
+        <MultiSelectDropdown TItem="string"
+                             Items="familiasDisponibles"
+                             ValueSelector="x => x"
+                             TextSelector="x => x"
+                             EnableSearch="true"
+                             ShowActions="true"
+                             Placeholder="Todas las familias"
+                             SearchPlaceholder="Buscar familia…"
+                             @bind-SelectedValues="familiasSeleccionadas" />
+    </div>
+    <div class="col-12 col-md-6 col-lg-6">
+        <label class="form-label">Modelo</label>
+        <MultiSelectDropdown TItem="string"
+                             Items="modelosDisponibles"
+                             ValueSelector="x => x"
+                             TextSelector="x => x"
+                             EnableSearch="true"
+                             ShowActions="true"
+                             Placeholder="Todos los modelos"
+                             SearchPlaceholder="Buscar modelo…"
+                             @bind-SelectedValues="modelosSeleccionados" />
+    </div>
+</div>
+
+<div class="row g-3 align-items-end mb-3">
     <div class="col-12 col-lg-4 d-flex flex-wrap align-items-end gap-2">
         <div class="form-check mb-0 flex-grow-1">
             <InputCheckbox id="chkCombo" class="form-check-input" @bind-Value="incluirCombinacionTallaColor" />
@@ -74,10 +105,20 @@
 @if (tieneDatos)
 {
     var pe = CultureInfo.GetCultureInfo("es-PE");
-    @if (!string.IsNullOrWhiteSpace(resumenMarcas))
-    {
-        <p class="small mb-3"><span class="fw-semibold">Marcas incluidas:</span> @resumenMarcas</p>
-    }
+    <div class="small mb-3">
+        @if (!string.IsNullOrWhiteSpace(resumenMarcas))
+        {
+            <p class="mb-1"><span class="fw-semibold">Marcas incluidas:</span> @resumenMarcas</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(resumenFamilias))
+        {
+            <p class="mb-1"><span class="fw-semibold">Familias:</span> @resumenFamilias</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(resumenModelos))
+        {
+            <p class="mb-0"><span class="fw-semibold">Modelos:</span> @resumenModelos</p>
+        }
+    </div>
     <div class="row g-4">
         <div class="col-lg-6">
             <h5 class="fw-bold text-uppercase border-bottom pb-2 mb-3">Talla</h5>
@@ -107,7 +148,7 @@
 }
 else if (yaConsulto && string.IsNullOrEmpty(errorUsuario))
 {
-    <div class="alert alert-info text-center">No hay datos para las marcas y fechas elegidas (se excluyen vacíos y «NO APLICA»).</div>
+    <div class="alert alert-info text-center">No hay datos para los criterios elegidos (marcas, fechas y filtros opcionales; se excluyen vacíos y «NO APLICA»).</div>
 }
 
 @code {
@@ -123,6 +164,10 @@ else if (yaConsulto && string.IsNullOrEmpty(errorUsuario))
     private int idAlmacenSel;
     private string errorUsuario = "";
     private bool incluirCombinacionTallaColor = true;
+    private List<string> familiasDisponibles = new();
+    private List<string> modelosDisponibles = new();
+    private List<string> familiasSeleccionadas = new();
+    private List<string> modelosSeleccionados = new();
 
     private bool tieneDatos =>
         reporte != null &&
@@ -137,6 +182,16 @@ else if (yaConsulto && string.IsNullOrEmpty(errorUsuario))
                 .Select(m => m.Etiqueta)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+
+    private string resumenFamilias =>
+        familiasSeleccionadas == null || familiasSeleccionadas.Count == 0
+            ? string.Empty
+            : string.Join(", ", familiasSeleccionadas.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+
+    private string resumenModelos =>
+        modelosSeleccionados == null || modelosSeleccionados.Count == 0
+            ? string.Empty
+            : string.Join(", ", modelosSeleccionados.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
 
     protected override async Task OnInitializedAsync()
     {
@@ -154,6 +209,26 @@ else if (yaConsulto && string.IsNullOrEmpty(errorUsuario))
         {
             marcasCatalogo = new();
             errorUsuario = "No se pudo cargar el catálogo de marcas.";
+        }
+
+        try
+        {
+            var famList = await ArticuloService.ObtenerFamilias();
+            familiasDisponibles = famList.Select(f => f.Familia).Where(f => !string.IsNullOrWhiteSpace(f)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        catch
+        {
+            familiasDisponibles = new();
+        }
+
+        try
+        {
+            modelosDisponibles = await ArticuloService.ObtenerModelos();
+            modelosDisponibles = modelosDisponibles.Where(m => !string.IsNullOrWhiteSpace(m)).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        catch
+        {
+            modelosDisponibles = new();
         }
     }
 
@@ -179,7 +254,9 @@ else if (yaConsulto && string.IsNullOrEmpty(errorUsuario))
                 IdAlmacen = idAlmacenParam,
                 MarcasClave = marcasClavesSeleccionadas.ToList(),
                 Top = 50,
-                IncluirCombinacionTallaColor = incluirCombinacionTallaColor
+                IncluirCombinacionTallaColor = incluirCombinacionTallaColor,
+                Familias = familiasSeleccionadas?.ToList() ?? new List<string>(),
+                Modelos = modelosSeleccionados?.ToList() ?? new List<string>()
             };
 
             reporte = await ReporteService.ObtenerReporteSeparacionPorMarcas(req);
@@ -214,6 +291,8 @@ else if (yaConsulto && string.IsNullOrEmpty(errorUsuario))
             desde = desde.ToString("yyyy-MM-dd"),
             hasta = hasta.ToString("yyyy-MM-dd"),
             marcas = resumenMarcas,
+            familias = string.IsNullOrEmpty(resumenFamilias) ? "Todas" : resumenFamilias,
+            modelos = string.IsNullOrEmpty(resumenModelos) ? "Todos" : resumenModelos,
             almacen = nombreAlmacen,
             incluirCombinacion = incluirCombinacionTallaColor,
             tallas = reporte.VentasPorTalla,

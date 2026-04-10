@@ -13,5 +13,11 @@ namespace GSCommerce.Client.Models.DTOs.Reportes
         /// Si es true, se calcula además la agrupación conjunta talla + color (útil con variantes).
         /// </summary>
         public bool IncluirCombinacionTallaColor { get; set; } = true;
+
+        /// <summary>Si no está vacío, solo líneas cuyo artículo tenga una de estas familias (valor exacto en BD).</summary>
+        public List<string> Familias { get; set; } = new();
+
+        /// <summary>Si no está vacío, solo líneas cuyo artículo tenga uno de estos modelos (valor exacto en BD).</summary>
+        public List<string> Modelos { get; set; } = new();
     }
 }

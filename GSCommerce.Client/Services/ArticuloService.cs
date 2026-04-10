@@ -36,6 +36,12 @@ namespace GSCommerce.Client.Services
             var response = await _httpClient.GetFromJsonAsync<List<string>>("articulos/marcas");
             return response ?? new List<string>();
         }
+
+        public async Task<List<string>> ObtenerModelos()
+        {
+            var response = await _httpClient.GetFromJsonAsync<List<string>>("articulos/modelos");
+            return response ?? new List<string>();
+        }
         public async Task<ArticuloDTO?> BuscarPorCodigoAsync(string codigo)
         {
             try
