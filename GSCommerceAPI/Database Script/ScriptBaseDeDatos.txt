@@ -6202,3 +6202,30 @@ GO
 
 ALTER TABLE [Almacen].[AlmacenRepuesto] CHECK CONSTRAINT [FK_AlmacenRepuesto_Almacen]
 GO
+
+DROP INDEX UX_StockAlmacen_Compuesto ON Movimientos.StockAlmacen;
+
+ALTER TABLE Movimientos.StockAlmacen
+DROP COLUMN IdVariante;
+
+CREATE UNIQUE NONCLUSTERED INDEX UX_StockAlmacen_Compuesto
+ON Movimientos.StockAlmacen (IdAlmacen, IdArticulo);
+
+ALTER VIEW Movimientos.v_StockXAlmacen_1 AS
+SELECT
+    S.IdAlmacen,
+    Al.Nombre AS Almacen,
+    Ar.Familia,
+    Ar.Linea,
+    S.IdArticulo,
+    Ar.Descripcion,
+    S.Stock,
+    S.StockMinimo,
+    Ar.PrecioCompra,
+    S.Stock * Ar.PrecioCompra AS ValorCompra,
+    ISNULL(d.[Precio Final], Ar.PrecioVenta) AS PrecioVenta,
+    S.Stock * ISNULL(d.[Precio Final], Ar.PrecioVenta) AS ValorVenta
+FROM Movimientos.StockAlmacen S
+INNER JOIN Maestros.Almacen Al ON S.IdAlmacen = Al.IdAlmacen
+INNER JOIN Maestros.Articulo Ar ON S.IdArticulo = Ar.IdArticulo
+LEFT JOIN Movimientos.v_Descuentos d ON Ar.IdArticulo = d.IdArticulo AND Al.IdAlmacen = d.IdAlmacen;

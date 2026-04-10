@@ -244,8 +244,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         /// <summary>
-        /// Stock de la misma fila que usa la venta (<see cref="IdVarianteUtil.BuscarStockAlmacenAsync"/>):
-        /// artículo + almacén + variante (NULL en BD = sin variante). Evita usar la suma de todas las variantes como límite en POS.
+        /// Stock del artículo en el almacén (misma fila que usa la venta). El query <c>idVariante</c> se ignora; se mantiene por compatibilidad con el cliente.
         /// </summary>
         [HttpGet("cantidad-fila")]
         public async Task<IActionResult> GetCantidadFilaStock(
@@ -259,11 +258,13 @@ namespace GSCommerceAPI.Controllers
                 return BadRequest(new { mensaje = "codigoArticulo e idAlmacen son requeridos." });
             }
 
-            var codigo = codigoArticulo.Trim();
-            var resuelto = await IdVarianteUtil.ResolverStockLineaVentaAsync(
-                _context.StockAlmacens, idAlmacen, codigo, idVariante, ct);
+            _ = idVariante; // compatibilidad cliente; el stock es por artículo/almacén
 
-            return Ok(new { cantidad = resuelto?.Fila.Stock ?? 0 });
+            var codigo = codigoArticulo.Trim();
+            var fila = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                _context.StockAlmacens, idAlmacen, codigo, ct);
+
+            return Ok(new { cantidad = fila?.Stock ?? 0 });
         }
 
         // ✅ GET: api/stock/reposition-alert

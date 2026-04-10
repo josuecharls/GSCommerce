@@ -179,7 +179,7 @@ namespace GSCommerceAPI.Controllers
             foreach (var detalle in egreso.MovimientosDetalles)
             {
                 var stockOrigen = await IdVarianteUtil.BuscarStockAlmacenAsync(
-                    _context.StockAlmacens, egreso.IdAlmacen, detalle.IdArticulo, detalle.IdVariante);
+                    _context.StockAlmacens, egreso.IdAlmacen, detalle.IdArticulo);
                 if (stockOrigen == null || stockOrigen.Stock < detalle.Cantidad)
                 {
                     await tx.RollbackAsync();
@@ -207,13 +207,12 @@ namespace GSCommerceAPI.Controllers
                 var stockDestino = IdVarianteUtil.BuscarStockAlmacenLocal(
                     _context.StockAlmacens.Local,
                     ingreso.IdAlmacen,
-                    detalle.IdArticulo,
-                    detalle.IdVariante);
+                    detalle.IdArticulo);
 
                 if (stockDestino == null)
                 {
                     stockDestino = await IdVarianteUtil.BuscarStockAlmacenAsync(
-                        _context.StockAlmacens, ingreso.IdAlmacen, detalle.IdArticulo, detalle.IdVariante);
+                        _context.StockAlmacens, ingreso.IdAlmacen, detalle.IdArticulo);
                 }
 
                 var saldoInicialDestino = stockDestino?.Stock ?? 0;
@@ -224,7 +223,6 @@ namespace GSCommerceAPI.Controllers
                     {
                         IdAlmacen = ingreso.IdAlmacen,
                         IdArticulo = detalle.IdArticulo,
-                        IdVariante = nvDet,
                         Stock = 0,
                         StockMinimo = 0
                     };
@@ -444,7 +442,7 @@ namespace GSCommerceAPI.Controllers
                     {
                         var nv = IdVarianteUtil.Normalizar(d.IdVariante);
                         var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
-                            _context.StockAlmacens, dto.IdAlmacen, d.IdArticulo, d.IdVariante);
+                            _context.StockAlmacens, dto.IdAlmacen, d.IdArticulo);
 
                         var saldoInicial = stock?.Stock ?? 0;
 
@@ -456,7 +454,6 @@ namespace GSCommerceAPI.Controllers
                                 {
                                     IdAlmacen = dto.IdAlmacen,
                                     IdArticulo = d.IdArticulo,
-                                    IdVariante = nv,
                                     Stock = 0,
                                     StockMinimo = 0
                                 };
@@ -567,7 +564,7 @@ namespace GSCommerceAPI.Controllers
                 {
                     var nv = IdVarianteUtil.Normalizar(detalle.IdVariante);
                     var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
-                        _context.StockAlmacens, mov.IdAlmacen, detalle.IdArticulo, detalle.IdVariante);
+                        _context.StockAlmacens, mov.IdAlmacen, detalle.IdArticulo);
 
                     if (stock == null)
                     {
@@ -575,7 +572,6 @@ namespace GSCommerceAPI.Controllers
                         {
                             IdAlmacen = mov.IdAlmacen,
                             IdArticulo = detalle.IdArticulo,
-                            IdVariante = nv,
                             Stock = 0,
                             StockMinimo = 0
                         };

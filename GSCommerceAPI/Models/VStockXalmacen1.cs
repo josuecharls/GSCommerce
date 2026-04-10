@@ -15,8 +15,6 @@ public partial class VStockXalmacen1
 
     public string IdArticulo { get; set; } = null!;
 
-    public int? IdVariante { get; set; }
-
     public string Descripcion { get; set; } = null!;
 
     public int Stock { get; set; }
@@ -30,6 +28,4 @@ public partial class VStockXalmacen1
     public double? ValorVenta { get; set; }
 
     public int? StockMinimo { get; set; }
-
-    public bool EstaBajoMinimo { get; set; }
 }

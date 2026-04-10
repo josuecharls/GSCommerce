@@ -278,7 +278,7 @@ namespace GSCommerceAPI.Controllers
                         });
 
                         var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
-                            _context.StockAlmacens, mov.IdAlmacen, d.IdArticulo.ToString(), d.IdVariante);
+                            _context.StockAlmacens, mov.IdAlmacen, d.IdArticulo.ToString());
 
                         int saldoInicial;
                         int saldoFinal;
@@ -291,7 +291,6 @@ namespace GSCommerceAPI.Controllers
                             {
                                 IdAlmacen = mov.IdAlmacen,
                                 IdArticulo = d.IdArticulo.ToString(),
-                                IdVariante = nvNc,
                                 Stock = d.Cantidad,
                                 StockMinimo = 0
                             });
