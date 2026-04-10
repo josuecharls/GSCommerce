@@ -47,7 +47,7 @@ public class ReporteService
         return response ?? new();
     }
 
-    public async Task<bool> GuardarMetaAlmacenVentasDiaria(int idAlmacen, DateTime fecha, int metaVentasDiarias)
+    public async Task<bool> GuardarMetaAlmacenVentasDiaria(int idAlmacen, DateTime fecha, decimal metaMontoDiario)
     {
         var resp = await _http.PutAsJsonAsync(
             "ventas/almacen-meta-ventas-diaria",
@@ -55,7 +55,7 @@ public class ReporteService
             {
                 IdAlmacen = idAlmacen,
                 Fecha = fecha.Date,
-                MetaVentasDiarias = metaVentasDiarias
+                MetaMontoDiario = metaMontoDiario
             });
         return resp.IsSuccessStatusCode;
     }

@@ -1677,7 +1677,9 @@ public partial class SyscharlesContext : DbContext
 
             entity.ToTable("AlmacenMetaVentasDiaria", "Maestros");
 
-            entity.Property(e => e.MetaVentasDiarias).IsRequired();
+            entity.Property(e => e.MetaMontoDiario)
+                .HasColumnType("decimal(18, 2)")
+                .IsRequired();
 
             entity.HasOne(d => d.IdAlmacenNavigation)
                 .WithMany()

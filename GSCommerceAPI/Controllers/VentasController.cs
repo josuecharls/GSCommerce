@@ -2026,7 +2026,17 @@ namespace GSCommerceAPI.Controllers
                         join p in _context.Personals on c.IdVendedor equals p.IdPersonal
                         where c.Fecha.Date == dia
                               && c.Estado == "E"
-                        select new { c, p, TotalArticulos = c.ComprobanteDeVentaDetalles.Sum(d => d.Cantidad) };
+                        select new
+                        {
+                            c,
+                            p,
+                            TotalArticulos = c.ComprobanteDeVentaDetalles
+                                .Where(d =>
+                                    !d.Descripcion.StartsWith("DESC") &&
+                                    !d.Descripcion.StartsWith("DSCTO") &&
+                                    !d.Descripcion.StartsWith("DESCUENTO"))
+                                .Sum(d => d.Cantidad)
+                        };
 
             if (porAlmacen && idAlmacen.HasValue)
             {
@@ -2058,20 +2068,20 @@ namespace GSCommerceAPI.Controllers
                 .Distinct()
                 .ToList();
 
-            Dictionary<int, int> metasDict = new();
+            Dictionary<int, decimal> metasDict = new();
             if (idsAlmacen.Count > 0)
             {
                 metasDict = await _context.AlmacenMetaVentasDiarias.AsNoTracking()
                     .Where(m => m.Fecha == fechaOnly && idsAlmacen.Contains(m.IdAlmacen))
-                    .ToDictionaryAsync(m => m.IdAlmacen, m => m.MetaVentasDiarias);
+                    .ToDictionaryAsync(m => m.IdAlmacen, m => m.MetaMontoDiario);
             }
 
             var ranking = rankingGrouped.Select(x =>
             {
-                int? metaDiaria = x.IdAlmacen.HasValue && metasDict.TryGetValue(x.IdAlmacen.Value, out var md) ? md : null;
-                int? metaPeriodo = metaDiaria;
+                decimal? metaDiaria = x.IdAlmacen.HasValue && metasDict.TryGetValue(x.IdAlmacen.Value, out var md) ? md : null;
+                decimal? metaPeriodo = metaDiaria;
                 decimal? pctVendido = metaPeriodo is > 0
-                    ? Math.Round(100m * x.VentasRealizadas / metaPeriodo.Value, 2, MidpointRounding.AwayFromZero)
+                    ? Math.Round(100m * x.TotalVentas / metaPeriodo.Value, 2, MidpointRounding.AwayFromZero)
                     : null;
 
                 return new RankingVendedoraDTO
@@ -2117,7 +2127,17 @@ namespace GSCommerceAPI.Controllers
                         join p in _context.Personals on c.IdVendedor equals p.IdPersonal
                         where c.Fecha.Date >= inicio && c.Fecha.Date <= fin
                               && c.Estado == "E"
-                        select new { c, p, TotalArticulos = c.ComprobanteDeVentaDetalles.Sum(d => d.Cantidad) };
+                        select new
+                        {
+                            c,
+                            p,
+                            TotalArticulos = c.ComprobanteDeVentaDetalles
+                                .Where(d =>
+                                    !d.Descripcion.StartsWith("DESC") &&
+                                    !d.Descripcion.StartsWith("DSCTO") &&
+                                    !d.Descripcion.StartsWith("DESCUENTO"))
+                                .Sum(d => d.Cantidad)
+                        };
 
             if (porAlmacen && idAlmacen.HasValue)
             {
@@ -2169,9 +2189,9 @@ namespace GSCommerceAPI.Controllers
                 return BadRequest("IdAlmacen inválido.");
             }
 
-            if (body.MetaVentasDiarias < 1)
+            if (body.MetaMontoDiario <= 0)
             {
-                return BadRequest("La meta diaria debe ser al menos 1.");
+                return BadRequest("La meta diaria (monto) debe ser mayor a 0.");
             }
 
             var existeAlm = await _context.Almacens.AsNoTracking()
@@ -2190,12 +2210,12 @@ namespace GSCommerceAPI.Controllers
                 {
                     IdAlmacen = body.IdAlmacen,
                     Fecha = fechaOnly,
-                    MetaVentasDiarias = body.MetaVentasDiarias
+                    MetaMontoDiario = body.MetaMontoDiario
                 });
             }
             else
             {
-                row.MetaVentasDiarias = body.MetaVentasDiarias;
+                row.MetaMontoDiario = body.MetaMontoDiario;
             }
 
             await _context.SaveChangesAsync();

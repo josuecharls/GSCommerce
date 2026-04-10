@@ -6262,3 +6262,12 @@ BEGIN
     );
 END
 GO
+
+ALTER TABLE Maestros.AlmacenMetaVentasDiaria ADD MetaMontoDiario DECIMAL(18, 2) NULL;
+
+UPDATE Maestros.AlmacenMetaVentasDiaria
+SET MetaMontoDiario = CAST(MetaVentasDiarias AS DECIMAL(18, 2));
+
+ALTER TABLE Maestros.AlmacenMetaVentasDiaria ALTER COLUMN MetaMontoDiario DECIMAL(18, 2) NOT NULL;
+
+ALTER TABLE Maestros.AlmacenMetaVentasDiaria DROP COLUMN MetaVentasDiarias;
