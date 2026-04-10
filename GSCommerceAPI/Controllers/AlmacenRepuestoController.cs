@@ -219,7 +219,7 @@ public class AlmacenRepuestoController : ControllerBase
             .AnyAsync(s => s.IdAlmacenRepuesto == id, ct);
 
         if (tieneStock)
-            return BadRequest("No se puede eliminar el sótano mientras tenga artículos con cantidad mayor a cero.");
+            return BadRequest("No se puede eliminar el depósito mientras tenga artículos con cantidad mayor a cero.");
 
         _context.AlmacenRepuestos.Remove(entity);
         await _context.SaveChangesAsync(ct);

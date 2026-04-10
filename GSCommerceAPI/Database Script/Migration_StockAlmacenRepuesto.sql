@@ -1,4 +1,4 @@
--- Stock independiente por sótano (subalmacén). No modifica Movimientos.StockAlmacen.
+-- Stock independiente por depósito (subalmacén). No modifica Movimientos.StockAlmacen.
 IF OBJECT_ID(N'Almacen.StockAlmacenRepuesto', N'U') IS NULL
 BEGIN
     CREATE TABLE Almacen.StockAlmacenRepuesto (

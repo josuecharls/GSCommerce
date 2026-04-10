@@ -24,7 +24,7 @@ public class StockAlmacenRepuestoController : ControllerBase
 
     private string? UserIdClaim => User.FindFirst("userId")?.Value;
 
-    /// <summary>Listado de artículos y cantidades en un sótano (solo activos con cantidad &gt; 0).</summary>
+    /// <summary>Listado de artículos y cantidades en un depósito (solo activos con cantidad &gt; 0).</summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<StockAlmacenRepuestoLineaDTO>>> GetStock(
         [FromQuery] int idAlmacenRepuesto,
@@ -42,7 +42,7 @@ public class StockAlmacenRepuestoController : ControllerBase
             .FirstOrDefaultAsync(ar => ar.IdAlmacenRepuesto == idAlmacenRepuesto, ct);
 
         if (repuesto == null || !repuesto.Estado)
-            return NotFound("Sótano no encontrado o inactivo.");
+            return NotFound("Depósito no encontrado o inactivo.");
 
         var lineas = await _context.StockAlmacenRepuestos
             .AsNoTracking()
@@ -68,7 +68,7 @@ public class StockAlmacenRepuestoController : ControllerBase
     public async Task<IActionResult> Ajustar([FromBody] AjusteStockRepuestoRequest dto, CancellationToken ct = default)
     {
         if (dto.IdAlmacenRepuesto <= 0 || dto.Cantidad <= 0)
-            return BadRequest("Sótano y cantidad válidos son requeridos.");
+            return BadRequest("Depósito y cantidad válidos son requeridos.");
 
         var tipo = (dto.Tipo ?? "I").Trim().ToUpperInvariant();
         if (tipo is not ("I" or "E"))
@@ -82,7 +82,7 @@ public class StockAlmacenRepuestoController : ControllerBase
             .FirstOrDefaultAsync(ar => ar.IdAlmacenRepuesto == dto.IdAlmacenRepuesto, ct);
 
         if (repuesto == null || !repuesto.Estado)
-            return NotFound("Sótano no encontrado o inactivo.");
+            return NotFound("Depósito no encontrado o inactivo.");
 
         var idArt = CodigoArticuloUtil.Normalizar(dto.IdArticulo);
         if (idArt.Length == 0)
@@ -105,7 +105,7 @@ public class StockAlmacenRepuestoController : ControllerBase
                 if (fila == null || fila.Cantidad < dto.Cantidad)
                 {
                     await tx.RollbackAsync(ct);
-                    return BadRequest("No hay suficiente cantidad en el sótano para este retiro.");
+                    return BadRequest("No hay suficiente cantidad en el depósito para este retiro.");
                 }
 
                 fila.Cantidad -= dto.Cantidad;
@@ -114,7 +114,7 @@ public class StockAlmacenRepuestoController : ControllerBase
             }
             else
             {
-                // Regla: la suma en todos los sótanos del almacén no puede exceder el stock de tienda.
+                // Regla: la suma en todos los depósitos del almacén no puede exceder el stock de tienda.
                 var stockTienda = await _context.StockAlmacens
                     .AsNoTracking()
                     .Where(s => s.IdAlmacen == repuesto.IdAlmacen && s.IdArticulo == idArt)
@@ -136,7 +136,7 @@ public class StockAlmacenRepuestoController : ControllerBase
                 {
                     await tx.RollbackAsync(ct);
                     return BadRequest(
-                        $"Sobrepasaste el límite del stock de la tienda. Disponible para guardar en sótanos: {disponible}. Stock tienda: {stockTienda}.");
+                        $"Sobrepasaste el límite del stock de la tienda. Disponible para guardar en depósitos: {disponible}. Stock tienda: {stockTienda}.");
                 }
 
                 if (fila == null)
