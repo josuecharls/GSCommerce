@@ -105,8 +105,8 @@ else
         if (idAlmacen is null) return;
 
         var hoy = DateTime.Today;
-        var rankingHoy = await ReporteService.ObtenerRankingVendedoras(hoy, hoy, idAlmacen.Value, true);
-        var rankingFecha = await ReporteService.ObtenerRankingVendedoras(fechaComparar, fechaComparar, idAlmacen.Value, true);
+        var rankingHoy = await ReporteService.ObtenerRankingVendedorasDia(hoy, idAlmacen.Value, true);
+        var rankingFecha = await ReporteService.ObtenerRankingVendedorasDia(fechaComparar, idAlmacen.Value, true);
 
         var nombres = rankingHoy.Select(r => r.Vendedora).Union(rankingFecha.Select(r => r.Vendedora));
 
@@ -128,7 +128,7 @@ else
 
         var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
         var finMes = inicioMes.AddMonths(1).AddDays(-1);
-        var rankingMes = await ReporteService.ObtenerRankingVendedoras(inicioMes, finMes, idAlmacen.Value, true);
+        var rankingMes = await ReporteService.ObtenerRankingVendedorasRango(inicioMes, finMes, idAlmacen.Value, true);
         top3 = rankingMes.Take(3).ToList();
     }
 }

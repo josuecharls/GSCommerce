@@ -2005,7 +2005,7 @@ namespace GSCommerceAPI.Controllers
 
         [Authorize]
         [HttpGet("reporte-ranking-vendedoras")]
-        public async Task<IActionResult> ReporteRankingVendedoras([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta, [FromQuery] int? idAlmacen, [FromQuery] bool porAlmacen = false)
+        public async Task<IActionResult> ReporteRankingVendedoras([FromQuery] DateTime? fecha, [FromQuery] int? idAlmacen, [FromQuery] bool porAlmacen = false)
         {
             var cargo = User.FindFirst("Cargo")?.Value;
             var userIdClaim = User.FindFirst("userId")?.Value;
@@ -2019,12 +2019,12 @@ namespace GSCommerceAPI.Controllers
                 porAlmacen = true;
             }
 
-            var inicio = desde ?? DateTime.Today;
-            var fin = hasta ?? DateTime.Today;
+            var dia = (fecha ?? DateTime.Today).Date;
+            var fechaOnly = DateOnly.FromDateTime(dia);
 
             var query = from c in _context.ComprobanteDeVentaCabeceras
                         join p in _context.Personals on c.IdVendedor equals p.IdPersonal
-                        where c.Fecha.Date >= inicio.Date && c.Fecha.Date <= fin.Date
+                        where c.Fecha.Date == dia
                               && c.Estado == "E"
                         select new { c, p, TotalArticulos = c.ComprobanteDeVentaDetalles.Sum(d => d.Cantidad) };
 
@@ -2034,9 +2034,11 @@ namespace GSCommerceAPI.Controllers
             }
 
             var rankingGrouped = await query
-                .GroupBy(x => new { x.p.IdPersonal, x.p.Nombres, x.p.Apellidos, x.p.Estado })
+                .GroupBy(x => new { x.p.IdPersonal, x.p.Nombres, x.p.Apellidos, x.p.Estado, x.p.IdAlmacen })
                 .Select(g => new
                 {
+                    IdPersonal = g.Key.IdPersonal,
+                    IdAlmacen = g.Key.IdAlmacen,
                     Vendedora = (g.Key.Nombres + " " + g.Key.Apellidos).Trim(),
                     TotalVentas = g.Sum(x => x.c.Total),
                     Activo = g.Key.Estado,
@@ -2045,20 +2047,159 @@ namespace GSCommerceAPI.Controllers
                     ArticulosVendidos = g.Sum(x => x.TotalArticulos)
                 }).ToListAsync();
 
-            var totalGeneral = rankingGrouped.Sum(x => x.TotalVentas);
+            rankingGrouped = rankingGrouped
+                .Where(x => !x.Vendedora.StartsWith("GSHOP", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var idsAlmacen = rankingGrouped
+                .Select(x => x.IdAlmacen)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .Distinct()
+                .ToList();
+
+            Dictionary<int, int> metasDict = new();
+            if (idsAlmacen.Count > 0)
+            {
+                metasDict = await _context.AlmacenMetaVentasDiarias.AsNoTracking()
+                    .Where(m => m.Fecha == fechaOnly && idsAlmacen.Contains(m.IdAlmacen))
+                    .ToDictionaryAsync(m => m.IdAlmacen, m => m.MetaVentasDiarias);
+            }
+
+            var ranking = rankingGrouped.Select(x =>
+            {
+                int? metaDiaria = x.IdAlmacen.HasValue && metasDict.TryGetValue(x.IdAlmacen.Value, out var md) ? md : null;
+                int? metaPeriodo = metaDiaria;
+                decimal? pctVendido = metaPeriodo is > 0
+                    ? Math.Round(100m * x.VentasRealizadas / metaPeriodo.Value, 2, MidpointRounding.AwayFromZero)
+                    : null;
+
+                return new RankingVendedoraDTO
+                {
+                    IdPersonal = x.IdPersonal,
+                    IdAlmacen = x.IdAlmacen,
+                    Vendedora = x.Vendedora,
+                    TotalVentas = x.TotalVentas,
+                    Activo = x.Activo,
+                    TotalClientes = x.TotalClientes,
+                    VentasRealizadas = x.VentasRealizadas,
+                    ArticulosVendidos = x.ArticulosVendidos,
+                    MetaVentasDiarias = metaDiaria,
+                    MetaVentasEnPeriodo = metaPeriodo,
+                    PorcentajeVendido = pctVendido
+                };
+            }).OrderByDescending(x => x.TotalVentas).ToList();
+
+            return Ok(ranking);
+        }
+
+        /// <summary>Ranking por rango de fechas sin metas ni porcentaje (consulta histórica).</summary>
+        [Authorize]
+        [HttpGet("reporte-ranking-vendedoras-rango")]
+        public async Task<IActionResult> ReporteRankingVendedorasRango([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta, [FromQuery] int? idAlmacen, [FromQuery] bool porAlmacen = false)
+        {
+            var cargo = User.FindFirst("Cargo")?.Value;
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (cargo == "CAJERO" && int.TryParse(userIdClaim, out var userId))
+            {
+                idAlmacen = await _context.Usuarios
+                    .Include(u => u.IdPersonalNavigation)
+                    .Where(u => u.IdUsuario == userId)
+                    .Select(u => u.IdPersonalNavigation.IdAlmacen)
+                    .FirstOrDefaultAsync();
+                porAlmacen = true;
+            }
+
+            var inicio = (desde ?? DateTime.Today).Date;
+            var fin = (hasta ?? DateTime.Today).Date;
+
+            var query = from c in _context.ComprobanteDeVentaCabeceras
+                        join p in _context.Personals on c.IdVendedor equals p.IdPersonal
+                        where c.Fecha.Date >= inicio && c.Fecha.Date <= fin
+                              && c.Estado == "E"
+                        select new { c, p, TotalArticulos = c.ComprobanteDeVentaDetalles.Sum(d => d.Cantidad) };
+
+            if (porAlmacen && idAlmacen.HasValue)
+            {
+                query = query.Where(x => x.c.IdAlmacen == idAlmacen.Value);
+            }
+
+            var rankingGrouped = await query
+                .GroupBy(x => new { x.p.IdPersonal, x.p.Nombres, x.p.Apellidos, x.p.Estado, x.p.IdAlmacen })
+                .Select(g => new
+                {
+                    IdPersonal = g.Key.IdPersonal,
+                    IdAlmacen = g.Key.IdAlmacen,
+                    Vendedora = (g.Key.Nombres + " " + g.Key.Apellidos).Trim(),
+                    TotalVentas = g.Sum(x => x.c.Total),
+                    Activo = g.Key.Estado,
+                    TotalClientes = g.Select(x => x.c.Dniruc).Distinct().Count(),
+                    VentasRealizadas = g.Count(),
+                    ArticulosVendidos = g.Sum(x => x.TotalArticulos)
+                }).ToListAsync();
+
+            rankingGrouped = rankingGrouped
+                .Where(x => !x.Vendedora.StartsWith("GSHOP", StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
             var ranking = rankingGrouped.Select(x => new RankingVendedoraDTO
             {
+                IdPersonal = x.IdPersonal,
+                IdAlmacen = x.IdAlmacen,
                 Vendedora = x.Vendedora,
                 TotalVentas = x.TotalVentas,
                 Activo = x.Activo,
                 TotalClientes = x.TotalClientes,
                 VentasRealizadas = x.VentasRealizadas,
                 ArticulosVendidos = x.ArticulosVendidos,
-                PorcentajeParticipacion = totalGeneral > 0 ? Math.Round((x.TotalVentas / totalGeneral) * 100m, 2) : 0m
+                MetaVentasDiarias = null,
+                MetaVentasEnPeriodo = null,
+                PorcentajeVendido = null
             }).OrderByDescending(x => x.TotalVentas).ToList();
 
             return Ok(ranking);
+        }
+
+        [Authorize(Roles = "ADMINISTRADOR")]
+        [HttpPut("almacen-meta-ventas-diaria")]
+        public async Task<IActionResult> PutAlmacenMetaVentasDiaria([FromBody] AlmacenMetaVentasDiariaUpdateDTO? body)
+        {
+            if (body == null || body.IdAlmacen <= 0)
+            {
+                return BadRequest("IdAlmacen inválido.");
+            }
+
+            if (body.MetaVentasDiarias < 1)
+            {
+                return BadRequest("La meta diaria debe ser al menos 1.");
+            }
+
+            var existeAlm = await _context.Almacens.AsNoTracking()
+                .AnyAsync(a => a.IdAlmacen == body.IdAlmacen);
+            if (!existeAlm)
+            {
+                return NotFound("No existe el almacén indicado.");
+            }
+
+            var fechaOnly = DateOnly.FromDateTime(body.Fecha.Date);
+            var row = await _context.AlmacenMetaVentasDiarias
+                .FirstOrDefaultAsync(m => m.IdAlmacen == body.IdAlmacen && m.Fecha == fechaOnly);
+            if (row == null)
+            {
+                _context.AlmacenMetaVentasDiarias.Add(new AlmacenMetaVentasDiaria
+                {
+                    IdAlmacen = body.IdAlmacen,
+                    Fecha = fechaOnly,
+                    MetaVentasDiarias = body.MetaVentasDiarias
+                });
+            }
+            else
+            {
+                row.MetaVentasDiarias = body.MetaVentasDiarias;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok();
         }
 
         [Authorize]
@@ -2349,6 +2490,26 @@ namespace GSCommerceAPI.Controllers
             else if (body.IdAlmacen.HasValue && body.IdAlmacen.Value > 0)
             {
                 baseQuery = baseQuery.Where(x => x.c.IdAlmacen == body.IdAlmacen.Value);
+            }
+
+            var familiasFiltro = (body.Familias ?? Enumerable.Empty<string>())
+                .Where(f => !string.IsNullOrWhiteSpace(f))
+                .Select(f => f.Trim())
+                .Distinct()
+                .ToList();
+            if (familiasFiltro.Count > 0)
+            {
+                baseQuery = baseQuery.Where(x => familiasFiltro.Contains(x.a.Familia));
+            }
+
+            var modelosFiltro = (body.Modelos ?? Enumerable.Empty<string>())
+                .Where(m => !string.IsNullOrWhiteSpace(m))
+                .Select(m => m.Trim())
+                .Distinct()
+                .ToList();
+            if (modelosFiltro.Count > 0)
+            {
+                baseQuery = baseQuery.Where(x => modelosFiltro.Contains(x.a.Modelo));
             }
 
             var rows = await baseQuery

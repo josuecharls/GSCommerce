@@ -118,6 +118,8 @@ public partial class SyscharlesContext : DbContext
 
     public virtual DbSet<Personal> Personals { get; set; }
 
+    public virtual DbSet<AlmacenMetaVentasDiaria> AlmacenMetaVentasDiarias { get; set; }
+
     public virtual DbSet<PlanDeCuenta> PlanDeCuentas { get; set; }
 
     public virtual DbSet<Proveedor> Proveedors { get; set; }
@@ -1667,6 +1669,21 @@ public partial class SyscharlesContext : DbContext
             entity.HasOne(d => d.IdAlmacenNavigation).WithMany(p => p.Personals)
                 .HasForeignKey(d => d.IdAlmacen)
                 .HasConstraintName("FK_Personal_Almacen");
+        });
+
+        modelBuilder.Entity<AlmacenMetaVentasDiaria>(entity =>
+        {
+            entity.HasKey(e => new { e.IdAlmacen, e.Fecha });
+
+            entity.ToTable("AlmacenMetaVentasDiaria", "Maestros");
+
+            entity.Property(e => e.MetaVentasDiarias).IsRequired();
+
+            entity.HasOne(d => d.IdAlmacenNavigation)
+                .WithMany()
+                .HasForeignKey(d => d.IdAlmacen)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_AlmacenMetaVentasDiaria_Almacen");
         });
 
         modelBuilder.Entity<PlanDeCuenta>(entity =>
