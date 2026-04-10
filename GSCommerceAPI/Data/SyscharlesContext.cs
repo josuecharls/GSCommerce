@@ -24,6 +24,8 @@ public partial class SyscharlesContext : DbContext
 
     public virtual DbSet<AlmacenRepuesto> AlmacenRepuestos { get; set; }
 
+    public virtual DbSet<StockAlmacenRepuesto> StockAlmacenRepuestos { get; set; }
+
     public virtual DbSet<AperturaCierreCaja> AperturaCierreCajas { get; set; }
 
     public virtual DbSet<Articulo> Articulos { get; set; }
@@ -3393,6 +3395,31 @@ public partial class SyscharlesContext : DbContext
                 .HasForeignKey(d => d.IdAlmacen)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_AlmacenRepuesto_Almacen");
+        });
+
+        modelBuilder.Entity<StockAlmacenRepuesto>(entity =>
+        {
+            entity.HasKey(e => e.IdStockAlmacenRepuesto);
+
+            entity.ToTable("StockAlmacenRepuesto", "Almacen");
+
+            entity.HasIndex(e => new { e.IdAlmacenRepuesto, e.IdArticulo }, "UX_StockAlmacenRepuesto_Compuesto")
+                .IsUnique();
+
+            entity.Property(e => e.IdArticulo)
+                .HasMaxLength(6)
+                .IsUnicode(false)
+                .IsFixedLength();
+
+            entity.HasOne(d => d.IdAlmacenRepuestoNavigation).WithMany(p => p.StockAlmacenRepuestos)
+                .HasForeignKey(d => d.IdAlmacenRepuesto)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StockAlmacenRepuesto_AlmacenRepuesto");
+
+            entity.HasOne(d => d.IdArticuloNavigation).WithMany()
+                .HasForeignKey(d => d.IdArticulo)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StockAlmacenRepuesto_Articulo");
         });
 
         OnModelCreatingPartial(modelBuilder);

@@ -8,5 +8,9 @@ namespace GSCommerce.Client.Models
         public string Nombre { get; set; } = string.Empty;
         public string? Direccion { get; set; }
         public bool Estado { get; set; }
+
+        // Resumen para vista (puede venir null si el endpoint no lo llena)
+        public int? TotalArticulos { get; set; }
+        public int? TotalUnidades { get; set; }
     }
 }

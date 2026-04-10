@@ -1,89 +1,256 @@
 @page "/almacen-repuesto"
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize]
+@attribute [Authorize(Roles = "ADMINISTRADOR,CAJERO")]
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject AlmacenRepuestoService AlmacenRepuestoService
+@inject StockAlmacenRepuestoService StockRepuestoService
 @inject AlmacenService AlmacenService
-@inject NavigationManager Navigation
+@inject ArticuloService ArticuloService
+@inject AuthService AuthService
 
-<h3><i class="bi bi-house-gear-fill"></i>  Gestión de Almacenes de Repuesto</h3>
+<PageTitle>Sótanos / depósito</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <button @onclick="AbrirModalNuevo" class="btn btn-success">+ Nuevo Almacén de Repuesto</button>
-    <div class="input-group w-50">
-        <select class="form-select" @bind="filtroAlmacen" @bind:after="FiltrarPorAlmacen">
-            <option value="0">-- Todas las tiendas --</option>
-            @foreach (var a in almacenes)
-            {
-                <option value="@a.IdAlmacen">@a.Nombre</option>
-            }
-        </select>
-    </div>
-</div>
+<div class="container-fluid py-3">
+    <h3 class="mb-2"><i class="bi bi-layers-half text-primary"></i> Sótanos y depósito interno</h3>
+    <p class="text-muted mb-4">
+        Aquí se registra el <strong>stock aparte de la venta</strong>: prendas guardadas por cambio de colección, consultas de modelos antiguos o control frente a faltantes.
+        Las cantidades <strong>no suman ni restan</strong> del stock de la tienda en <em>/stock</em>.
+    </p>
 
-<table class="table table-striped table-responsive">
-    <thead>
-        <tr>
-            <th>Tienda (Almacén)</th>
-            <th>Nombre</th>
-            <th>Dirección</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (listaFiltrada.Any())
+    @if (datosInicialesListos && !esAdministrador && (idAlmacenCajero == null || idAlmacenCajero <= 0))
+    {
+        <div class="alert alert-warning">
+            Su usuario no tiene una tienda asignada en personal. Solicite al administrador que vincule su usuario a un almacén para usar los sótanos.
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(mensajeOk))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @mensajeOk
+            <button type="button" class="btn-close" @onclick="() => mensajeOk = null"></button>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(mensajeError))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @mensajeError
+            <button type="button" class="btn-close" @onclick="() => mensajeError = null"></button>
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        @if (esAdministrador)
         {
-            @foreach (var ar in listaFiltrada)
-            {
-                <tr>
-                    <td>@ar.NombreAlmacen</td>
-                    <td>@ar.Nombre</td>
-                    <td>@ar.Direccion</td>
-                    <td>
-                        @if (ar.Estado)
-                        {
-                            <span class="badge bg-success">Activo</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-danger">Inactivo</span>
-                        }
-                    </td>
-                    <td class="text-center">
-                        <button @onclick="() => AbrirModalEditar(ar)" class="btn btn-warning btn-sm me-1">
-                            <i class="bi bi-pencil-square"></i> Editar
-                        </button>
-                        <button @onclick="() => ConfirmDelete(ar.IdAlmacenRepuesto, ar.Nombre)" class="btn btn-danger btn-sm">
-                            <i class="bi bi-trash"></i> Eliminar
-                        </button>
-                    </td>
-                </tr>
-            }
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Filtrar por tienda</label>
+                <select class="form-select" @bind="filtroIdAlmacen" @bind:after="OnCambioFiltroTienda">
+                    <option value="0">— Todas las tiendas —</option>
+                    @foreach (var a in almacenes)
+                    {
+                        <option value="@a.IdAlmacen">@a.Nombre</option>
+                    }
+                </select>
+            </div>
         }
         else
         {
-            <tr><td colspan="5" class="text-center">No se encontraron registros.</td></tr>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Tu tienda</label>
+                <div class="form-control-plaintext border rounded px-3 py-2 bg-light">
+                    @(nombreTiendaCajero ?? "—")
+                </div>
+            </div>
         }
-    </tbody>
-</table>
+    </div>
 
-@* Modal Crear/Editar *@
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">@(esAdministrador ? "Administración de sótanos" : "Sótanos de tu tienda")</h5>
+        @if (esAdministrador)
+        {
+            <button type="button" class="btn btn-success" @onclick="AbrirModalNuevo">
+                <i class="bi bi-plus-circle"></i> Nuevo sótano
+            </button>
+        }
+    </div>
+    <p class="text-muted mb-3">Tip: haz clic en una fila para seleccionar el sótano y registrar movimientos.</p>
+
+    <div class="table-responsive mb-4">
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Tienda</th>
+                    <th>Nombre del sótano</th>
+                    <th class="text-end">Artículos</th>
+                    <th class="text-end">Unidades</th>
+                    <th>Estado</th>
+                    @if (esAdministrador)
+                    {
+                        <th class="text-center">Acciones</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @if (!listaSotanosTabla.Any())
+                {
+                    <tr><td colspan="@(esAdministrador ? 6 : 5)" class="text-center text-muted">No hay sótanos registrados.</td></tr>
+                }
+                else
+                {
+                    @foreach (var ar in listaSotanosTabla)
+                    {
+                        var seleccionado = ar.IdAlmacenRepuesto == idSotanoSeleccionado;
+                        <tr class="@(seleccionado ? "table-primary" : "")"
+                            style="cursor: pointer;"
+                            role="button"
+                            @onclick="() => SeleccionarSotano(ar.IdAlmacenRepuesto)">
+                            <td>@ar.NombreAlmacen</td>
+                            <td>
+                                @ar.Nombre
+                                @if (seleccionado)
+                                {
+                                    <span class="badge bg-primary ms-2">Seleccionado</span>
+                                }
+                            </td>
+                            <td class="text-end">@((ar.TotalArticulos ?? 0).ToString())</td>
+                            <td class="text-end">@((ar.TotalUnidades ?? 0).ToString())</td>
+                            <td>
+                                @if (ar.Estado)
+                                {
+                                    <span class="badge bg-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Inactivo</span>
+                                }
+                            </td>
+                            @if (esAdministrador)
+                            {
+                                <td class="text-center text-nowrap">
+                                    <button type="button"
+                                            class="btn btn-warning btn-sm me-1"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => AbrirModalEditar(ar)">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-danger btn-sm"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => ConfirmDelete(ar.IdAlmacenRepuesto, ar.Nombre)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            }
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (idSotanoSeleccionado > 0)
+    {
+        <div class="card border-primary mb-4">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-arrow-down-up"></i> Ingreso o retiro de prendas en el sótano seleccionado
+            </div>
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">Código de artículo</label>
+                        <input class="form-control" placeholder="5060 o 005060" @bind="codigoArticulo" maxlength="12" />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-outline-secondary w-100" @onclick="BuscarArticulo" disabled="@busy">
+                            Ver artículo
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        @if (articuloVista != null)
+                        {
+                            <div class="small text-success"><strong>@articuloVista.IdArticulo</strong> — @articuloVista.Descripcion</div>
+                        }
+                        else if (busquedaSinResultado)
+                        {
+                            <div class="small text-danger">No se encontró el artículo.</div>
+                        }
+                    </div>
+                </div>
+                <div class="row g-3 align-items-end mt-2">
+                    <div class="col-md-2">
+                        <label class="form-label">Cantidad (unidades)</label>
+                        <input type="number" class="form-control" min="1" @bind="cantidadMovimiento" @bind:event="oninput" />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-success w-100" @onclick="() => RegistrarMovimiento(true)" disabled="@(!PuedeRegistrar)">
+                            <i class="bi bi-plus-lg"></i> Ingresar al sótano
+                        </button>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-warning w-100 text-dark" @onclick="() => RegistrarMovimiento(false)" disabled="@(!PuedeRegistrar)">
+                            <i class="bi bi-dash-lg"></i> Retirar del sótano
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h5 class="mb-2">Stock actual en este sótano</h5>
+        <div class="row g-2 mb-2">
+            <div class="col-md-4">
+                <input class="form-control" placeholder="Buscar en este sótano (código o descripción)..." @bind="busquedaEnSotano" @bind:event="oninput" />
+            </div>
+        </div>
+        @if (cargandoStock)
+        {
+            <p class="text-muted">Cargando…</p>
+        }
+        else if (!lineasStockFiltradas.Any())
+        {
+            <p class="text-muted">No hay artículos registrados con cantidad mayor a cero.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Código</th>
+                            <th>Descripción</th>
+                            <th class="text-end">Cantidad en sótano</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var linea in lineasStockFiltradas)
+                        {
+                            <tr>
+                                <td><code>@linea.IdArticulo</code></td>
+                                <td>@linea.Descripcion</td>
+                                <td class="text-end fw-semibold">@linea.Cantidad</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</div>
+
 @if (showModal)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">@(esEdicion ? "Editar" : "Nuevo") Almacén de Repuesto</h5>
+                    <h5 class="modal-title">@(esEdicion ? "Editar" : "Nuevo") sótano / depósito</h5>
                     <button type="button" class="btn-close" @onclick="CerrarModal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Tienda (Almacén)</label>
+                        <label class="form-label">Tienda</label>
                         <select class="form-select" @bind="modelo.IdAlmacen">
-                            <option value="0">-- Seleccione --</option>
+                            <option value="0">— Seleccione —</option>
                             @foreach (var a in almacenes)
                             {
                                 <option value="@a.IdAlmacen">@a.Nombre</option>
@@ -91,12 +258,8 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Nombre</label>
-                        <input type="text" class="form-control" @bind="modelo.Nombre" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Dirección</label>
-                        <input type="text" class="form-control" @bind="modelo.Direccion" />
+                        <label class="form-label">Nombre del sótano</label>
+                        <input type="text" class="form-control" @bind="modelo.Nombre" placeholder="Ej. Sótano principal" />
                     </div>
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="chkEstado" @bind="modelo.Estado" />
@@ -104,9 +267,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-primary" @onclick="Guardar" disabled="@isSaving">
-                        @(isSaving ? "Guardando..." : "Guardar")
-                    </button>
+                    <button class="btn btn-primary" @onclick="Guardar" disabled="@isSaving">@(isSaving ? "Guardando…" : "Guardar")</button>
                     <button class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
                 </div>
             </div>
@@ -114,22 +275,21 @@
     </div>
 }
 
-@* Modal Eliminar *@
 @if (showDeleteModal)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill text-warning"></i> Confirmar Eliminación</h5>
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill text-warning"></i> Confirmar</h5>
                     <button type="button" class="btn-close" @onclick="CerrarDeleteModal"></button>
                 </div>
-                <div class="modal-body text-center">
-                    <p>¿Desea eliminar el almacén de repuesto <strong>@deleteNombre</strong>?</p>
+                <div class="modal-body">
+                    ¿Eliminar el sótano <strong>@deleteNombre</strong>? Solo se permite si no tiene stock.
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-danger" @onclick="DeleteConfirmed">Sí</button>
-                    <button class="btn btn-secondary" @onclick="CerrarDeleteModal">No</button>
+                    <button class="btn btn-danger" @onclick="DeleteConfirmed">Eliminar</button>
+                    <button class="btn btn-secondary" @onclick="CerrarDeleteModal">Cancelar</button>
                 </div>
             </div>
         </div>
@@ -137,46 +297,184 @@
 }
 
 @code {
-    private List<AlmacenRepuestoDTO> lista = new();
-    private List<AlmacenRepuestoDTO> listaFiltrada = new();
+    private bool datosInicialesListos;
+    private bool esAdministrador;
+    private int? idAlmacenCajero;
+    private string? nombreTiendaCajero;
     private List<AlmacenDTO> almacenes = new();
+    private List<AlmacenRepuestoDTO> listaSotanosCompleta = new();
+    private int filtroIdAlmacen;
+    private int idSotanoSeleccionado;
+    private List<StockAlmacenRepuestoLineaDTO> lineasStock = new();
+    private string busquedaEnSotano = string.Empty;
+    private bool cargandoStock;
+    private string codigoArticulo = "";
+    private ArticuloDTO? articuloVista;
+    private bool busquedaSinResultado;
+    private int cantidadMovimiento = 1;
+    private bool busy;
+    private string? mensajeOk;
+    private string? mensajeError;
+
     private AlmacenRepuestoDTO modelo = new() { Estado = true };
-    private int filtroAlmacen = 0;
-    private bool showModal = false;
-    private bool showDeleteModal = false;
-    private bool esEdicion = false;
-    private bool isSaving = false;
+    private bool showModal;
+    private bool showDeleteModal;
+    private bool esEdicion;
+    private bool isSaving;
     private int deleteId;
     private string deleteNombre = "";
 
+    private IEnumerable<AlmacenRepuestoDTO> sotanosActivos =>
+        listaSotanosCompleta
+            .Where(x => x.Estado && (filtroIdAlmacen == 0 || x.IdAlmacen == filtroIdAlmacen))
+            .OrderBy(x => x.NombreAlmacen)
+            .ThenBy(x => x.Nombre);
+
+    private IEnumerable<AlmacenRepuestoDTO> listaSotanosTabla =>
+        listaSotanosCompleta
+            .Where(x => filtroIdAlmacen == 0 || x.IdAlmacen == filtroIdAlmacen)
+            .OrderBy(x => x.NombreAlmacen)
+            .ThenBy(x => x.Nombre);
+
+    private IEnumerable<StockAlmacenRepuestoLineaDTO> lineasStockFiltradas
+    {
+        get
+        {
+            var term = (busquedaEnSotano ?? string.Empty).Trim();
+            if (term.Length == 0)
+                return lineasStock;
+            term = term.ToUpperInvariant();
+            return lineasStock.Where(x =>
+                (x.IdArticulo ?? string.Empty).ToUpperInvariant().Contains(term) ||
+                (x.Descripcion ?? string.Empty).ToUpperInvariant().Contains(term));
+        }
+    }
+
+    private bool PuedeRegistrar =>
+        idSotanoSeleccionado > 0
+        && articuloVista != null
+        && cantidadMovimiento > 0
+        && !busy;
+
     protected override async Task OnInitializedAsync()
     {
+        var cargo = await AuthService.GetUserCargo();
+        esAdministrador = string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
+
         almacenes = await AlmacenService.GetAlmacenes() ?? new List<AlmacenDTO>();
-        await CargarDatos();
+
+        if (!esAdministrador)
+        {
+            idAlmacenCajero = await AuthService.GetUserAlmacenId();
+            if (idAlmacenCajero is > 0)
+            {
+                filtroIdAlmacen = idAlmacenCajero.Value;
+                nombreTiendaCajero = almacenes.FirstOrDefault(a => a.IdAlmacen == idAlmacenCajero)?.Nombre;
+            }
+        }
+
+        await RecargarListaSotanos();
+        datosInicialesListos = true;
     }
 
-    private async Task CargarDatos()
+    private async Task RecargarListaSotanos()
     {
-        lista = await AlmacenRepuestoService.GetAlmacenRepuestos();
-        AplicarFiltro();
+        listaSotanosCompleta = await AlmacenRepuestoService.GetAlmacenRepuestos();
+        if (idSotanoSeleccionado > 0 && !sotanosActivos.Any(s => s.IdAlmacenRepuesto == idSotanoSeleccionado))
+            idSotanoSeleccionado = 0;
+        await OnCambioSotano();
     }
 
-    private void AplicarFiltro()
+    private async Task OnCambioFiltroTienda()
     {
-        listaFiltrada = filtroAlmacen == 0
-            ? lista
-            : lista.Where(x => x.IdAlmacen == filtroAlmacen).ToList();
+        if (idSotanoSeleccionado > 0)
+        {
+            var ok = sotanosActivos.Any(s => s.IdAlmacenRepuesto == idSotanoSeleccionado);
+            if (!ok)
+                idSotanoSeleccionado = 0;
+        }
+        await OnCambioSotano();
     }
 
-    private async Task FiltrarPorAlmacen()
+    private async Task SeleccionarSotano(int idAlmacenRepuesto)
     {
-        AplicarFiltro();
-        await Task.CompletedTask;
+        if (idAlmacenRepuesto <= 0)
+            return;
+        if (idSotanoSeleccionado == idAlmacenRepuesto)
+            return;
+        idSotanoSeleccionado = idAlmacenRepuesto;
+        await OnCambioSotano();
+    }
+
+    private async Task OnCambioSotano()
+    {
+        mensajeError = null;
+        mensajeOk = null;
+        lineasStock.Clear();
+        busquedaEnSotano = string.Empty;
+        articuloVista = null;
+        busquedaSinResultado = false;
+        if (idSotanoSeleccionado <= 0)
+        {
+            StateHasChanged();
+            return;
+        }
+        cargandoStock = true;
+        StateHasChanged();
+        lineasStock = await StockRepuestoService.GetStockAsync(idSotanoSeleccionado);
+        cargandoStock = false;
+    }
+
+    private async Task BuscarArticulo()
+    {
+        mensajeError = null;
+        busquedaSinResultado = false;
+        articuloVista = null;
+        var norm = ArticuloService.NormalizarCodigoArticulo(codigoArticulo);
+        if (string.IsNullOrEmpty(norm))
+        {
+            mensajeError = "Ingrese un código de artículo.";
+            return;
+        }
+        busy = true;
+        articuloVista = await ArticuloService.BuscarPorCodigoAsync(codigoArticulo);
+        busy = false;
+        busquedaSinResultado = articuloVista == null;
+    }
+
+    private async Task RegistrarMovimiento(bool ingreso)
+    {
+        if (!PuedeRegistrar || articuloVista == null)
+            return;
+        mensajeOk = null;
+        mensajeError = null;
+        busy = true;
+        var req = new AjusteStockRepuestoRequest
+        {
+            IdAlmacenRepuesto = idSotanoSeleccionado,
+            IdArticulo = articuloVista.IdArticulo,
+            Tipo = ingreso ? "I" : "E",
+            Cantidad = cantidadMovimiento
+        };
+        var (ok, err) = await StockRepuestoService.AjustarAsync(req);
+        busy = false;
+        if (!ok)
+        {
+            mensajeError = err ?? "No se pudo registrar el movimiento.";
+            return;
+        }
+        mensajeOk = ingreso
+            ? $"Se ingresaron {cantidadMovimiento} unidad(es) al sótano."
+            : $"Se retiraron {cantidadMovimiento} unidad(es) del sótano.";
+        lineasStock = await StockRepuestoService.GetStockAsync(idSotanoSeleccionado);
+        // refrescar resumen por sótano
+        await RecargarListaSotanos();
+        cantidadMovimiento = 1;
     }
 
     private void AbrirModalNuevo()
     {
-        modelo = new AlmacenRepuestoDTO { Estado = true };
+        modelo = new AlmacenRepuestoDTO { Estado = true, IdAlmacen = filtroIdAlmacen > 0 ? filtroIdAlmacen : 0 };
         esEdicion = false;
         showModal = true;
     }
@@ -195,35 +493,28 @@
         showModal = true;
     }
 
-    private void CerrarModal()
-    {
-        showModal = false;
-    }
+    private void CerrarModal() => showModal = false;
 
     private async Task Guardar()
     {
         if (modelo.IdAlmacen == 0 || string.IsNullOrWhiteSpace(modelo.Nombre))
-            return;
-
-        isSaving = true;
-        bool resultado;
-
-        if (esEdicion)
         {
-            resultado = await AlmacenRepuestoService.UpdateAlmacenRepuesto(modelo.IdAlmacenRepuesto, modelo);
+            mensajeError = "Complete tienda y nombre del sótano.";
+            return;
+        }
+        isSaving = true;
+        bool ok = esEdicion
+            ? await AlmacenRepuestoService.UpdateAlmacenRepuesto(modelo.IdAlmacenRepuesto, modelo)
+            : await AlmacenRepuestoService.CreateAlmacenRepuesto(modelo);
+        isSaving = false;
+        if (ok)
+        {
+            CerrarModal();
+            await RecargarListaSotanos();
+            mensajeOk = "Sótano guardado.";
         }
         else
-        {
-            resultado = await AlmacenRepuestoService.CreateAlmacenRepuesto(modelo);
-        }
-
-        if (resultado)
-        {
-            await CargarDatos();
-            CerrarModal();
-        }
-
-        isSaving = false;
+            mensajeError = "No se pudo guardar. Revise los datos o su conexión.";
     }
 
     private void ConfirmDelete(int id, string nombre)
@@ -242,13 +533,17 @@
 
     private async Task DeleteConfirmed()
     {
-        if (deleteId > 0)
+        if (deleteId <= 0)
+            return;
+        if (await AlmacenRepuestoService.DeleteAlmacenRepuesto(deleteId))
         {
-            if (await AlmacenRepuestoService.DeleteAlmacenRepuesto(deleteId))
-            {
-                await CargarDatos();
-            }
-            CerrarDeleteModal();
+            mensajeOk = "Sótano eliminado.";
+            if (idSotanoSeleccionado == deleteId)
+                idSotanoSeleccionado = 0;
+            await RecargarListaSotanos();
         }
+        else
+            mensajeError = "No se pudo eliminar (¿aún tiene stock?).";
+        CerrarDeleteModal();
     }
 }

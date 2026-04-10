@@ -1,5 +1,6 @@
 using GSCommerce.Client.Models;
 using GSCommerceAPI.Data;
+using GSCommerceAPI.Helpers;
 using GSCommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -428,7 +429,8 @@ namespace GSCommerceAPI.Controllers
         [HttpGet("codigo/{codigo}")]
         public async Task<ActionResult<ArticuloDTO>> GetArticuloPorCodigo(string codigo)
         {
-            var articulo = await _context.Articulos.FirstOrDefaultAsync(a => a.IdArticulo == codigo);
+            var norm = CodigoArticuloUtil.Normalizar(codigo);
+            var articulo = await _context.Articulos.FirstOrDefaultAsync(a => a.IdArticulo == norm);
 
             if (articulo == null)
                 return NotFound();

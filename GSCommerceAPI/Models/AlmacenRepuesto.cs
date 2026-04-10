@@ -16,4 +16,6 @@ public partial class AlmacenRepuesto
     public bool Estado { get; set; }
 
     public virtual Almacen IdAlmacenNavigation { get; set; } = null!;
+
+    public virtual ICollection<StockAlmacenRepuesto> StockAlmacenRepuestos { get; set; } = new List<StockAlmacenRepuesto>();
 }
