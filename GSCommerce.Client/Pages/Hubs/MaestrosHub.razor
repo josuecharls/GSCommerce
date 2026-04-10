@@ -65,6 +65,17 @@
         </div>
     }
 
+    @if (cargo == "ADMINISTRADOR" || cargo == "CAJERO")
+    {
+        <div class="col">
+            <HubCard 
+                Title="Sótanos / depósito" 
+                Description="Stock aparte de la tienda: ingresos y retiros por sótano"
+                IconClass="bi-layers-half"
+                Url="/almacen-repuesto" />
+        </div>
+    }
+
 </div>
 
 @code {

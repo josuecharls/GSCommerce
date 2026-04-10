@@ -40,13 +40,26 @@ namespace GSCommerce.Client.Services
         {
             try
             {
-                var articulo = await _httpClient.GetFromJsonAsync<ArticuloDTO>($"articulos/{codigo}");
-                return articulo;
+                var norm = NormalizarCodigoArticulo(codigo);
+                if (string.IsNullOrEmpty(norm))
+                    return null;
+                return await _httpClient.GetFromJsonAsync<ArticuloDTO>($"articulos/codigo/{norm}");
             }
             catch
             {
                 return null;
             }
+        }
+
+        /// <summary>Ej. 5060 → 005060. Alineado con la API de artículos.</summary>
+        public static string NormalizarCodigoArticulo(string? raw)
+        {
+            var s = (raw ?? string.Empty).Trim();
+            if (s.Length == 0)
+                return string.Empty;
+            if (int.TryParse(s, System.Globalization.NumberStyles.Integer, null, out var n))
+                return n.ToString("D6");
+            return s.Length > 6 ? s : s.PadLeft(6, '0');
         }
         /* public async Task<List<ArticuloDTO>?> GetArticulosList()
          {
