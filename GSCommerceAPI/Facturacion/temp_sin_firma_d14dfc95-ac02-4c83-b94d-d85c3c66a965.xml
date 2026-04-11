@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:sac="urn:sunat:names:specification:ubl:peru:schema:xsd:SunatAggregateComponents-1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ext:UBLExtensions>
+<ext:UBLExtension><ext:ExtensionContent/></ext:UBLExtension>
+<ext:UBLExtension><ext:ExtensionContent><sac:AdditionalInformation>
+<sac:AdditionalMonetaryTotal><cbc:ID>1001</cbc:ID><cbc:PayableAmount currencyID="PEN">0.25</cbc:PayableAmount></sac:AdditionalMonetaryTotal>
+<sac:AdditionalProperty><cbc:ID>1000</cbc:ID><cbc:Value>CERO Y 30/100 SOLES</cbc:Value></sac:AdditionalProperty>
+</sac:AdditionalInformation></ext:ExtensionContent></ext:UBLExtension>
+</ext:UBLExtensions>
+<cbc:UBLVersionID>2.1</cbc:UBLVersionID>
+<cbc:CustomizationID>2.0</cbc:CustomizationID>
+<cbc:ProfileID schemeURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo17" schemeAgencyName="PE: SUNAT" schemeName="SUNAT: Identificador de Tipo de Operación">0101</cbc:ProfileID>
+<cbc:ID>B001-00000004</cbc:ID>
+<cbc:IssueDate>2026-04-10</cbc:IssueDate>
+<cbc:IssueTime>20:49:35</cbc:IssueTime>
+<cbc:InvoiceTypeCode listID="0101">03</cbc:InvoiceTypeCode>
+<cbc:Note languageLocaleID="1000"><![CDATA[CERO Y 30/100 SOLES]]></cbc:Note>
+<cbc:DocumentCurrencyCode>PEN</cbc:DocumentCurrencyCode>
+<cbc:LineCountNumeric>1</cbc:LineCountNumeric>
+<cac:AccountingSupplierParty>
+<cbc:CustomerAssignedAccountID schemeID="6">20611645199</cbc:CustomerAssignedAccountID>
+<cbc:AdditionalAccountID>6</cbc:AdditionalAccountID>
+<cac:Party>
+<cac:PartyIdentification>
+<cbc:ID schemeID="6">20611645199</cbc:ID>
+</cac:PartyIdentification>
+<cac:PartyName>
+<cbc:Name>INVERSIONES OREMA E.I.R.L.</cbc:Name>
+</cac:PartyName>
+<cac:PartyLegalEntity>
+<cbc:RegistrationName>INVERSIONES OREMA E.I.R.L.</cbc:RegistrationName>
+<cbc:CompanyID schemeID="6">20611645199</cbc:CompanyID>
+<cac:RegistrationAddress>
+<cbc:ID>200101</cbc:ID>
+<cbc:AddressTypeCode>0000</cbc:AddressTypeCode>
+<cbc:CitySubdivisionName>NONE</cbc:CitySubdivisionName>
+<cbc:CityName>PIURA</cbc:CityName>
+<cbc:CountrySubentity>PIURA</cbc:CountrySubentity>
+<cbc:District>PIURA</cbc:District>
+<cac:AddressLine>
+<cbc:Line>AV SANCHEZ CERRO N° 765 PIURA</cbc:Line>
+</cac:AddressLine>
+<cac:Country>
+<cbc:IdentificationCode>PE</cbc:IdentificationCode>
+</cac:Country>
+</cac:RegistrationAddress>
+</cac:PartyLegalEntity>
+</cac:Party>
+</cac:AccountingSupplierParty>
+<cac:AccountingCustomerParty>
+<cbc:CustomerAssignedAccountID>99999999</cbc:CustomerAssignedAccountID>
+<cbc:AdditionalAccountID>1</cbc:AdditionalAccountID>
+<cac:Party>
+<cac:PartyIdentification>
+<cbc:ID schemeID="1">99999999</cbc:ID>
+</cac:PartyIdentification>
+<cac:PartyLegalEntity>
+<cbc:RegistrationName>CLIENTE VARIOS</cbc:RegistrationName>
+</cac:PartyLegalEntity>
+</cac:Party>
+</cac:AccountingCustomerParty>
+<cac:PaymentTerms><cbc:ID>FormaPago</cbc:ID><cbc:PaymentMeansID>Contado</cbc:PaymentMeansID></cac:PaymentTerms>
+<cac:TaxTotal>
+<cbc:TaxAmount currencyID="PEN">0.05</cbc:TaxAmount>
+<cac:TaxSubtotal>
+<cbc:TaxableAmount currencyID="PEN">0.25</cbc:TaxableAmount>
+<cbc:TaxAmount currencyID="PEN">0.05</cbc:TaxAmount>
+<cac:TaxCategory><cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme></cac:TaxCategory>
+</cac:TaxSubtotal>
+</cac:TaxTotal>
+<cac:LegalMonetaryTotal>
+<cbc:LineExtensionAmount currencyID="PEN">0.25</cbc:LineExtensionAmount>
+<cbc:TaxInclusiveAmount currencyID="PEN">0.30</cbc:TaxInclusiveAmount>
+<cbc:PayableAmount currencyID="PEN">0.30</cbc:PayableAmount>
+</cac:LegalMonetaryTotal>
+<cac:InvoiceLine>
+<cbc:ID>1</cbc:ID>
+<cbc:InvoicedQuantity unitCode="NIU">1.00</cbc:InvoicedQuantity>
+<cbc:LineExtensionAmount currencyID="PEN">0.25</cbc:LineExtensionAmount>
+<cac:PricingReference><cac:AlternativeConditionPrice>
+<cbc:PriceAmount currencyID="PEN">0.30</cbc:PriceAmount>
+<cbc:PriceTypeCode>01</cbc:PriceTypeCode></cac:AlternativeConditionPrice></cac:PricingReference>
+<cac:TaxTotal><cbc:TaxAmount currencyID="PEN">0.05</cbc:TaxAmount>
+<cac:TaxSubtotal><cbc:TaxableAmount currencyID="PEN">0.25</cbc:TaxableAmount>
+<cbc:TaxAmount currencyID="PEN">0.05</cbc:TaxAmount>
+<cac:TaxCategory>
+<cbc:Percent>18</cbc:Percent>
+<cbc:TaxExemptionReasonCode>10</cbc:TaxExemptionReasonCode>
+<cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme>
+</cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>
+<cac:Item><cbc:Description>BOLSA AVIOS GEORDIS  GRANDE C/VERDE &amp; BLANCO</cbc:Description><cac:SellersItemIdentification><cbc:ID>005562</cbc:ID></cac:SellersItemIdentification></cac:Item>
+<cac:Price><cbc:PriceAmount currencyID="PEN">0.25</cbc:PriceAmount></cac:Price>
+</cac:InvoiceLine>
+</Invoice>
