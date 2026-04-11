@@ -2180,7 +2180,7 @@ namespace GSCommerceAPI.Controllers
             return Ok(ranking);
         }
 
-        [Authorize(Roles = "ADMINISTRADOR")]
+        [Authorize]
         [HttpPut("almacen-meta-ventas-diaria")]
         public async Task<IActionResult> PutAlmacenMetaVentasDiaria([FromBody] AlmacenMetaVentasDiariaUpdateDTO? body)
         {
@@ -2192,6 +2192,20 @@ namespace GSCommerceAPI.Controllers
             if (body.MetaMontoDiario <= 0)
             {
                 return BadRequest("La meta diaria (monto) debe ser mayor a 0.");
+            }
+
+            var cargo = User.FindFirst("Cargo")?.Value;
+            var idAlmClaim = User.FindFirst("IdAlmacen")?.Value;
+            if (string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(idAlmClaim, out var almCajero) || almCajero != body.IdAlmacen)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, "Solo puede editar la meta de su almacén.");
+                }
+            }
+            else if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "No tiene permiso para editar la meta.");
             }
 
             var existeAlm = await _context.Almacens.AsNoTracking()
