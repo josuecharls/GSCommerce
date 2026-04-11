@@ -99,7 +99,7 @@
                         {
                             <span class="text-muted">—</span>
                         }
-                        @if (cargo == "ADMINISTRADOR" && item.mostrarBotonMeta)
+                        @if (PuedeEditarMeta && item.mostrarBotonMeta)
                         {
                             @if (!item.r.MetaVentasDiarias.HasValue)
                             {
@@ -215,9 +215,15 @@ else
                         <button type="button" class="btn btn-primary" @onclick="BuscarRankingRango" disabled="@cargandoRango">
                             @(cargandoRango ? "Buscando…" : "Buscar")
                         </button>
-                        <button type="button" class="btn btn-success" @onclick="ExportarExcelRango" disabled="@(!rankingRango.Any())">
-                            <i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel
-                        </button>
+                        @if (cargo == "CAJERO" || cargo == "ADMINISTRADOR")
+                        {
+                            <button type="button" class="btn btn-success" @onclick="ExportarExcelRango" disabled="@(!rankingRango.Any())">
+                                <i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel
+                            </button>
+                            <button type="button" class="btn btn-danger" @onclick="ExportarPdfRango" disabled="@(!rankingRango.Any())">
+                                <i class="bi bi-filetype-pdf"></i> Descargar PDF
+                            </button>
+                        }
                     </div>
                     @if (rankingRango.Any())
                     {
@@ -311,10 +317,14 @@ else
     private string NombreAlmacen(int idAlmacen) =>
         almacenesTodos.FirstOrDefault(a => a.IdAlmacen == idAlmacen)?.Nombre ?? $"Almacén {idAlmacen}";
 
+    private bool PuedeEditarMeta =>
+        string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase);
+
     private void ReconstruirFilasRanking()
     {
         filasRanking.Clear();
-        if (cargo != "ADMINISTRADOR")
+        if (!PuedeEditarMeta)
         {
             foreach (var r in ranking)
             {
@@ -323,10 +333,27 @@ else
             return;
         }
 
-        var seen = new HashSet<int>();
+        if (string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+        {
+            var seen = new HashSet<int>();
+            foreach (var r in ranking)
+            {
+                var mostrar = r.IdAlmacen is int aid && aid > 0 && seen.Add(aid);
+                filasRanking.Add((r, mostrar));
+            }
+            return;
+        }
+
+        // CAJERO: un solo botón (+/lápiz) en la primera fila de su almacén
+        var vioPrimeraFilaMiAlm = false;
         foreach (var r in ranking)
         {
-            var mostrar = r.IdAlmacen is int aid && aid > 0 && seen.Add(aid);
+            var esMiAlm = idAlmacenUsuario.HasValue && r.IdAlmacen == idAlmacenUsuario.Value;
+            var mostrar = esMiAlm && !vioPrimeraFilaMiAlm;
+            if (mostrar)
+            {
+                vioPrimeraFilaMiAlm = true;
+            }
             filasRanking.Add((r, mostrar));
         }
     }
@@ -403,12 +430,81 @@ else
         await JS.InvokeVoidAsync("exportToExcel", headers, rows, $"RankingVendedoras_Rango_{rangoDesde:yyyyMMdd}_{rangoHasta:yyyyMMdd}");
     }
 
+    private async Task ExportarPdfRango()
+    {
+        if (!rankingRango.Any())
+        {
+            return;
+        }
+
+        var alcance = !rangoPorAlmacen
+            ? "Global"
+            : almacenesTodos.FirstOrDefault(a => a.IdAlmacen == rangoIdAlmacen)?.Nombre ?? $"Almacén {rangoIdAlmacen}";
+
+        var sb = new StringBuilder();
+        sb.AppendLine($@"
+<div style='font-family:Segoe UI,Arial,sans-serif;background:linear-gradient(135deg,#5e2f8a 0%,#7a42bb 100%);color:#fff;padding:20px 28px;border-radius:0 0 10px 10px;margin-bottom:12px;'>
+  <div style='font-size:20px;font-weight:700;'>Ranking de vendedoras — consulta por fechas</div>
+  <div style='font-size:12px;opacity:.9;margin-top:6px;'>Período: {rangoDesde:dd/MM/yyyy} → {rangoHasta:dd/MM/yyyy} · {System.Net.WebUtility.HtmlEncode(alcance)}</div>
+</div>
+<div style='font-family:Segoe UI,Arial,sans-serif;'>
+  <table style='width:100%;border-collapse:collapse;border:1px solid #e2e8f0;'>
+    <thead>
+      <tr style='background:#f8fafc;color:#475569;'>
+        <th style='padding:8px 10px;font-size:11px;font-weight:700;text-align:center;'>#</th>
+        <th style='padding:8px 10px;font-size:11px;font-weight:700;text-align:left;'>Vendedora</th>
+        <th style='padding:8px 10px;font-size:11px;font-weight:700;text-align:center;'>Estado</th>
+        <th style='padding:8px 10px;font-size:11px;font-weight:700;text-align:center;'>Ventas</th>
+        <th style='padding:8px 10px;font-size:11px;font-weight:700;text-align:center;'>Artículos</th>
+        <th style='padding:8px 10px;font-size:11px;font-weight:700;text-align:right;'>Monto</th>
+      </tr>
+    </thead>
+    <tbody>");
+
+        var idx = 1;
+        foreach (var d in rankingRango)
+        {
+            var bg = idx % 2 == 0 ? "#fdfdfd" : "#ffffff";
+            var est = d.Activo
+                ? "background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;"
+                : "background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;";
+            var estTxt = d.Activo ? "ACTIVO" : "INACTIVO";
+            sb.AppendLine($@"
+      <tr style='background:{bg};border-bottom:1px solid #e2e8f0;'>
+        <td style='padding:7px 10px;text-align:center;font-size:12px;'>{idx}</td>
+        <td style='padding:7px 10px;font-size:12px;color:#1e293b;'>{System.Net.WebUtility.HtmlEncode(d.Vendedora)}</td>
+        <td style='padding:7px 10px;text-align:center;'><span style='{est}'>{estTxt}</span></td>
+        <td style='padding:7px 10px;text-align:center;font-size:12px;font-weight:600;'>{d.VentasRealizadas}</td>
+        <td style='padding:7px 10px;text-align:center;font-size:12px;font-weight:600;'>{d.ArticulosVendidos}</td>
+        <td style='padding:7px 10px;text-align:right;font-size:12px;font-weight:700;color:#15803d;'>S/ {d.TotalVentas:N2}</td>
+      </tr>");
+            idx++;
+        }
+
+        sb.AppendLine($@"
+    </tbody>
+  </table>
+  <div style='margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;'>GSCommerce — Generado el {DateTime.Now:dd/MM/yyyy HH:mm}</div>
+</div>");
+
+        var sections = new List<string> { sb.ToString() };
+        await JS.InvokeVoidAsync("generarPDFConSecciones", sections, $"Ranking_Vendedoras_Rango_{rangoDesde:yyyyMMdd}_{rangoHasta:yyyyMMdd}");
+    }
+
     private void AbrirModalMeta(RankingVendedoraDTO r)
     {
         errorModalMeta = "";
         if (r.IdAlmacen is not int almId || almId <= 0)
         {
             errorModalMeta = "La vendedora no tiene almacén asignado; no se puede definir meta.";
+            mostrarModalMeta = true;
+            return;
+        }
+
+        if (string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase) &&
+            (!idAlmacenUsuario.HasValue || almId != idAlmacenUsuario.Value))
+        {
+            errorModalMeta = "Solo puede editar la meta de su almacén.";
             mostrarModalMeta = true;
             return;
         }
@@ -446,7 +542,7 @@ else
             var ok = await ReporteService.GuardarMetaAlmacenVentasDiaria(modalIdAlmacen, fechaConsulta, modalMetaDiaria);
             if (!ok)
             {
-                errorModalMeta = "No se pudo guardar. Verifique permisos (solo administrador) o la sesión.";
+                errorModalMeta = "No se pudo guardar. Verifique permisos o la sesión.";
                 return;
             }
 
