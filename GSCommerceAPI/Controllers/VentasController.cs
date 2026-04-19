@@ -2200,10 +2200,21 @@ namespace GSCommerceAPI.Controllers
             }
 
             var cargo = User.FindFirst("Cargo")?.Value;
-            var idAlmClaim = User.FindFirst("IdAlmacen")?.Value;
             if (string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase))
             {
-                if (!int.TryParse(idAlmClaim, out var almCajero) || almCajero != body.IdAlmacen)
+                var userIdStr = User.FindFirst("userId")?.Value;
+                if (!int.TryParse(userIdStr, out var uId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, "Sesión inválida.");
+                }
+
+                var userAlmacen = await _context.Usuarios
+                    .Include(u => u.IdPersonalNavigation)
+                    .Where(u => u.IdUsuario == uId)
+                    .Select(u => (int?)u.IdPersonalNavigation.IdAlmacen)
+                    .FirstOrDefaultAsync();
+
+                if (userAlmacen != body.IdAlmacen)
                 {
                     return StatusCode(StatusCodes.Status403Forbidden, "Solo puede editar la meta de su almacén.");
                 }

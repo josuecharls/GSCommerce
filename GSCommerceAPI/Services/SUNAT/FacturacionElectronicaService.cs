@@ -1143,7 +1143,9 @@ namespace GSCommerceAPI.Services.SUNAT
         {
             var depth = 0;
             for (var e = ex; e != null && depth < 10; e = e.InnerException, depth++)
+            {
                 //Console.WriteLine($"{etiqueta} ex[{depth}] {e.GetType().Name}: {e.Message}");
+            }
         }
 
         private string GetCertificadoArchivo(string rucEmisor)
