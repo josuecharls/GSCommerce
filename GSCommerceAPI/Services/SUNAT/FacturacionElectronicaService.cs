@@ -9,6 +9,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
+using System.Net;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.Text;
@@ -87,6 +88,11 @@ namespace GSCommerceAPI.Services.SUNAT
                 }
 
                 // 4. Enviar a SUNAT
+                //Console.WriteLine($"[SUNAT-BOLETA] === ENVIANDO RESUMEN DIARIO (BOLETAS) ===");
+                //Console.WriteLine($"[SUNAT-BOLETA] UsuarioSOL: '{usuarioSOL}'");
+                //Console.WriteLine($"[SUNAT-BOLETA] ClaveSOL: '{claveSOL}'");
+                //Console.WriteLine($"[SUNAT-BOLETA] Archivo: {nombreArchivoBase}");
+                //Console.WriteLine($"[SUNAT-BOLETA] Cantidad comprobantes: {comprobantes.Count}");
                 var resultado = await EnviarResumenDiarioAsync(rutaZip, usuarioSOL, claveSOL);
 
                 // 5. Guardar ticket en base de datos
@@ -131,6 +137,9 @@ namespace GSCommerceAPI.Services.SUNAT
             }
             catch (Exception ex)
             {
+                //Console.WriteLine($"[SUNAT-BOLETA] ERROR en resumen diario: {ex.GetType().Name}: {ex.Message}");
+                //Console.WriteLine($"[SUNAT-BOLETA] InnerException: {ex.InnerException?.Message}");
+                //Console.WriteLine($"[SUNAT-BOLETA] StackTrace: {ex.StackTrace}");
                 return (false, $"Error en resumen diario: {ex.Message}");
             }
         }
@@ -198,7 +207,7 @@ namespace GSCommerceAPI.Services.SUNAT
             comprobante.EsNota = false;
             comprobante.EsNota = esNota;
 
-            Console.WriteLine($"[SUNAT] Guardado comprobante {idComprobante} - hash: {hash}, exito: {exito}");
+            //Console.WriteLine($"[SUNAT] Guardado comprobante {idComprobante} - hash: {hash}, exito: {exito}");
 
             await _context.SaveChangesAsync();
         }
@@ -212,11 +221,17 @@ namespace GSCommerceAPI.Services.SUNAT
 
             if (credenciales == null)
             {
-                Console.WriteLine($"[SUNAT] Error: No se encontraron credenciales para RUC {rucEmisor}");
+                //Console.WriteLine($"[SUNAT] Error: No se encontraron credenciales para RUC {rucEmisor}");
                 return (string.Empty, string.Empty);
             }
 
+            //Console.WriteLine($"[SUNAT-CRED] RUC: {rucEmisor}");
+            //Console.WriteLine($"[SUNAT-CRED] UsuarioSol (BD): '{credenciales.UsuarioSol}'");
+            //Console.WriteLine($"[SUNAT-CRED] ClaveSol (BD): '{credenciales.ClaveSol}'");
+            //Console.WriteLine($"[SUNAT-CRED] UsuarioSol length: {credenciales.UsuarioSol?.Length ?? 0}, ClaveSol length: {credenciales.ClaveSol?.Length ?? 0}");
+
             var usuarioSOL = $"{rucEmisor}{credenciales.UsuarioSol}";
+            //Console.WriteLine($"[SUNAT-CRED] UsuarioSOL compuesto (RUC+User): '{usuarioSOL}'");
             return (usuarioSOL, credenciales.ClaveSol);
         }
 
@@ -236,6 +251,11 @@ namespace GSCommerceAPI.Services.SUNAT
                 var rutaZip = ComprimirArchivo(rutaXml);
                 var (usuarioSOL, claveSOL) = await ObtenerCredencialesSunatAsync(comprobante.RucEmisor);
 
+                //Console.WriteLine($"[SUNAT-ENVIO] === ENVIANDO COMPROBANTE A SUNAT ===");
+                //Console.WriteLine($"[SUNAT-ENVIO] UsuarioSOL: '{usuarioSOL}'");
+                //Console.WriteLine($"[SUNAT-ENVIO] ClaveSOL: '{claveSOL}'");
+                //Console.WriteLine($"[SUNAT-ENVIO] Archivo ZIP: {rutaZip}");
+                //Console.WriteLine($"[SUNAT-ENVIO] TipoDoc: {comprobante.TipoDocumento}, Serie: {comprobante.Serie}, Numero: {comprobante.Numero}");
                 var resultado = await EnviarFacturaAsync(rutaZip, usuarioSOL, claveSOL);
 
                 string xmlFirmado = await File.ReadAllTextAsync(rutaXml);
@@ -442,13 +462,13 @@ namespace GSCommerceAPI.Services.SUNAT
                 }
 
                 xmlDoc.Save(rutaSalida);
-                Console.WriteLine($"XML firmado guardado en: {rutaSalida}");
+                //Console.WriteLine($"XML firmado guardado en: {rutaSalida}");
 
                 return signedXml.GetXml().GetElementsByTagName("DigestValue")[0].InnerText;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error al firmar XML: {ex.Message} - StackTrace: {ex.StackTrace}");
+                //Console.WriteLine($"Error al firmar XML: {ex.Message} - StackTrace: {ex.StackTrace}");
                 throw;
             }
         }
@@ -865,6 +885,10 @@ namespace GSCommerceAPI.Services.SUNAT
 
                 ws.ClientCredentials.UserName.UserName = usuarioSOL;
                 ws.ClientCredentials.UserName.Password = claveSOL;
+                //Console.WriteLine($"[SUNAT-TICKET] === ValidarTicketSunatAsync ===");
+                //Console.WriteLine($"[SUNAT-TICKET] UsuarioSOL: '{usuarioSOL}'");
+                //Console.WriteLine($"[SUNAT-TICKET] ClaveSOL: '{claveSOL}'");
+                //Console.WriteLine($"[SUNAT-TICKET] Credenciales asignadas al WS - UserName: '{ws.ClientCredentials.UserName.UserName}', Password: '{ws.ClientCredentials.UserName.Password}'");
 
                 var elementos = ws.Endpoint.Binding.CreateBindingElements();
                 var securityElement = elementos.Find<SecurityBindingElement>();
@@ -874,29 +898,29 @@ namespace GSCommerceAPI.Services.SUNAT
                 }
                 ws.Endpoint.Binding = new CustomBinding(elementos);
 
-                Console.WriteLine($"Consultando ticket: {ticket}");
+                //Console.WriteLine($"[SUNAT-TICKET] Consultando ticket: {ticket}");
                 var respuesta = await ws.getStatusAsync(ticket);
 
                 if (respuesta?.status?.content != null && respuesta.status.content.Length > 0)
                 {
                     await File.WriteAllBytesAsync(rutaArchivo, respuesta.status.content);
                     var (exito, codigo, descripcion) = await LeerCdrAsync(rutaArchivo);
-                    Console.WriteLine($"CDR recibido - Código: {codigo}, Descripción: {descripcion}");
+                    //Console.WriteLine($"CDR recibido - Código: {codigo}, Descripción: {descripcion}");
                     return $"SUNAT respondió: [{codigo}] {descripcion}";
                 }
 
-                Console.WriteLine($"Sin CDR - Código de estado: {respuesta?.status?.statusCode}");
+                //Console.WriteLine($"Sin CDR - Código de estado: {respuesta?.status?.statusCode}");
                 return $"SUNAT no devolvió CDR. Código de estado: {respuesta?.status?.statusCode}";
             }
             catch (FaultException ex)
             {
                 var detalle = ObtenerDetalleFaultException(ex);
-                Console.WriteLine($"Error en consulta de ticket: {ex.Message} - Detalle: {detalle}");
+                //Console.WriteLine($"Error en consulta de ticket: {ex.Message} - Detalle: {detalle}");
                 return $"SUNAT rechazó la consulta: {ex.Message} - Detalle: {detalle}";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error general en consulta: {ex.Message} - StackTrace: {ex.StackTrace}");
+                //Console.WriteLine($"Error general en consulta: {ex.Message} - StackTrace: {ex.StackTrace}");
                 return $"Error al consultar ticket: {ex.Message}";
             }
         }
@@ -915,6 +939,11 @@ namespace GSCommerceAPI.Services.SUNAT
                 binding.Security.Transport.ClientCredentialType = HttpClientCredentialType.None;
                 binding.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
 
+                //Console.WriteLine($"[SUNAT-RESUMEN] === EnviarResumenDiarioAsync ===");
+                //Console.WriteLine($"[SUNAT-RESUMEN] Archivo: {nombreZip}");
+                //Console.WriteLine($"[SUNAT-RESUMEN] UsuarioSOL: '{usuarioSOL}'");
+                //Console.WriteLine($"[SUNAT-RESUMEN] ClaveSOL: '{claveSOL}'");
+
                 var direccion = new EndpointAddress("https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService");
                 var ws = new ServicioFacturacion2018.billServiceClient(binding, direccion);
 
@@ -925,6 +954,7 @@ namespace GSCommerceAPI.Services.SUNAT
 
                 ws.ClientCredentials.UserName.UserName = usuarioSOL;
                 ws.ClientCredentials.UserName.Password = claveSOL;
+                //Console.WriteLine($"[SUNAT-RESUMEN] Credenciales asignadas al WS - UserName: '{ws.ClientCredentials.UserName.UserName}', Password: '{ws.ClientCredentials.UserName.Password}'");
 
                 var elementos = ws.Endpoint.Binding.CreateBindingElements();
                 elementos.Find<SecurityBindingElement>().EnableUnsecuredResponse = true;
@@ -946,6 +976,8 @@ namespace GSCommerceAPI.Services.SUNAT
             }
             catch (Exception ex)
             {
+                //Console.WriteLine($"[SUNAT-RESUMEN] ERROR general: {ex.GetType().Name}: {ex.Message}");
+                //Console.WriteLine($"[SUNAT-RESUMEN] InnerException: {ex.InnerException?.Message}");
                 return (false, string.Empty, $"Error general al enviar a SUNAT: {ex.Message}");
             }
         }
@@ -960,12 +992,15 @@ namespace GSCommerceAPI.Services.SUNAT
                 // 1. Leer archivo ZIP
                 byte[] archivoZip = await File.ReadAllBytesAsync(rutaXmlZip);
                 string nombreZip = Path.GetFileName(rutaXmlZip);
-                Console.WriteLine($"[SUNAT] Enviando archivo: {nombreZip}");
+                //Console.WriteLine($"[SUNAT-FACTURA] === EnviarFacturaAsync ===");
+                //Console.WriteLine($"[SUNAT-FACTURA] Archivo: {nombreZip}");
+                //Console.WriteLine($"[SUNAT-FACTURA] UsuarioSOL recibido: '{usuarioSOL}'");
+                //Console.WriteLine($"[SUNAT-FACTURA] ClaveSOL recibida: '{claveSOL}'");
 
                 var partes = Path.GetFileNameWithoutExtension(nombreZip).Split('-');
                 if (partes.Length >= 4)
                 {
-                    Console.WriteLine($"[SUNAT] RUC: {partes[0]}, TipoDoc: {partes[1]}, Serie: {partes[2]}, Número: {partes[3]}");
+                    //Console.WriteLine($"[SUNAT-FACTURA] RUC: {partes[0]}, TipoDoc: {partes[1]}, Serie: {partes[2]}, Número: {partes[3]}");
                 }
 
                 // 2. Configurar binding
@@ -986,6 +1021,8 @@ namespace GSCommerceAPI.Services.SUNAT
 
                 ws.ClientCredentials.UserName.UserName = usuarioSOL;
                 ws.ClientCredentials.UserName.Password = claveSOL;
+                //Console.WriteLine($"[SUNAT-FACTURA] Credenciales asignadas al WS - UserName: '{ws.ClientCredentials.UserName.UserName}', Password: '{ws.ClientCredentials.UserName.Password}'");
+                //Console.WriteLine($"[SUNAT-FACTURA] Endpoint: {ws.Endpoint.Address.Uri}");
 
                 // Habilitar respuestas no firmadas por SUNAT
                 var elementos = ws.Endpoint.Binding.CreateBindingElements();
@@ -993,6 +1030,8 @@ namespace GSCommerceAPI.Services.SUNAT
                 ws.Endpoint.Binding = new CustomBinding(elementos);
 
                 // 3. Enviar con sendBill
+                //Console.WriteLine($"[SUNAT-FACTURA] Tamaño ZIP enviado: {archivoZip.Length} bytes");
+
                 var response = await ws.sendBillAsync(nombreZip, archivoZip, "0");
                 byte[] contenido = response.applicationResponse;
 
@@ -1025,12 +1064,14 @@ namespace GSCommerceAPI.Services.SUNAT
             }
             catch (FaultException ex)
             {
+                //Console.WriteLine($"[SUNAT-FACTURA] FaultException (SOAP): {ex.Message}");
                 var detalle = ObtenerDetalleFaultException(ex);
                 var mensaje = $"SUNAT rechazó el envío: {ex.Message}";
                 if (!string.IsNullOrWhiteSpace(detalle))
                 {
                     mensaje += $" - {detalle}";
                 }
+                //Console.WriteLine($"[SUNAT-FACTURA] Detalle fault: {detalle}");
                 
                 // Detectar si el comprobante ya fue registrado previamente en SUNAT
                 bool yaRegistrado = mensaje.Contains("fue registrado previamente", StringComparison.OrdinalIgnoreCase) ||
@@ -1041,16 +1082,68 @@ namespace GSCommerceAPI.Services.SUNAT
                 if (yaRegistrado)
                 {
                     // El comprobante ya está en SUNAT, indicar que fue aceptado previamente
-                    Console.WriteLine($"[SUNAT] Comprobante ya registrado anteriormente. Será marcado como ACEPTADO.");
+                    //Console.WriteLine($"[SUNAT] Comprobante ya registrado anteriormente. Será marcado como ACEPTADO.");
                     return (true, "", $"YA_REGISTRADO:{mensaje}");
                 }
                 
                 return (false, "", mensaje);
             }
+            catch (ProtocolException ex)
+            {
+                //Console.WriteLine($"[SUNAT-FACTURA] ProtocolException: la respuesta HTTP no es un mensaje SOAP válido (400 suele ser HTML de error, WAF, proxy o caída parcial de SUNAT).");
+                //LogCadenaExcepciones(ex, "[SUNAT-FACTURA]");
+                //LogCuerpoRespuestaHttpSiHay(ex);
+                return (false, "", $"Error HTTP/SOAP al contactar SUNAT: {ex.Message}. Revise soap_log.txt en el servidor y el estado del servicio en SUNAT.");
+            }
+            catch (CommunicationException ex)
+            {
+                //Console.WriteLine($"[SUNAT-FACTURA] CommunicationException (red/TLS/corte de conexión): {ex.Message}");
+                //LogCadenaExcepciones(ex, "[SUNAT-FACTURA]");
+                return (false, "", $"Error de comunicación con SUNAT: {ex.Message}");
+            }
             catch (Exception ex)
             {
+                //Console.WriteLine($"[SUNAT-FACTURA] ERROR general: {ex.GetType().Name}: {ex.Message}");
+                //Console.WriteLine($"[SUNAT-FACTURA] InnerException: {ex.InnerException?.Message}");
+                //Console.WriteLine($"[SUNAT-FACTURA] StackTrace: {ex.StackTrace}");
                 return (false, "", $"Error general al enviar a SUNAT: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Intenta leer el cuerpo de la respuesta HTTP cuando WCF lo expone vía WebException (útil con 400 Bad Request).
+        /// </summary>
+        private static void LogCuerpoRespuestaHttpSiHay(Exception ex)
+        {
+            for (var e = ex; e != null; e = e.InnerException)
+            {
+                if (e is not WebException webEx || webEx.Response is not HttpWebResponse httpResp)
+                    continue;
+                try
+                {
+                    using var stream = httpResp.GetResponseStream();
+                    if (stream == null)
+                        continue;
+                    using var reader = new StreamReader(stream);
+                    var body = reader.ReadToEnd();
+                    if (string.IsNullOrWhiteSpace(body))
+                        continue;
+                    var preview = body.Length > 2000 ? body[..2000] + "...(truncado)" : body;
+                    //Console.WriteLine($"[SUNAT-FACTURA] Cuerpo HTTP ({httpResp.StatusCode}): {preview}");
+                }
+                catch (Exception readEx)
+                {
+                    //Console.WriteLine($"[SUNAT-FACTURA] No se pudo leer cuerpo HTTP: {readEx.Message}");
+                }
+                break;
+            }
+        }
+
+        private static void LogCadenaExcepciones(Exception ex, string etiqueta)
+        {
+            var depth = 0;
+            for (var e = ex; e != null && depth < 10; e = e.InnerException, depth++)
+                //Console.WriteLine($"{etiqueta} ex[{depth}] {e.GetType().Name}: {e.Message}");
         }
 
         private string GetCertificadoArchivo(string rucEmisor)
@@ -1090,13 +1183,13 @@ namespace GSCommerceAPI.Services.SUNAT
                     var doc = new XmlDocument();
                     doc.Load(reader);
                     string detalle = doc.InnerText.Trim();
-                    Console.WriteLine($"Detalle de fault: {detalle}");
+                    //Console.WriteLine($"Detalle de fault: {detalle}");
                     return detalle;
                 }
             }
             catch (Exception exInner)
             {
-                Console.WriteLine($"Error al leer detalle de fault: {exInner.Message}");
+                //Console.WriteLine($"Error al leer detalle de fault: {exInner.Message}");
             }
             return string.Empty;
         }

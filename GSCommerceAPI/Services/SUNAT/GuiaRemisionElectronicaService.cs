@@ -119,6 +119,7 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
                 "20611555203" => ("b4990969-7ea3-4b1b-bea7-8cafb613f4f7", "LIEL4xzTgh9QiO681XVyXw=="),
                 "20611746751" => ("3ecdb4dc-6821-4f0a-97ef-8f00446db769", "W83w/cbxzzn437lEUCGJ5g=="),
                 "20606834048" => ("9d0dc07e-9ca8-4f5f-b36c-70ff72f55adf", "Z1mz70La/DM55lEomU/KWw=="),
+                "20611645199" => ("621cc98d-a2be-416c-85ea-66a32c5e22e4", "+3dlYyf3yQskr4+njEYteQ=="),
                 _ => ("", "") // RUC no configurado
             };
         }
