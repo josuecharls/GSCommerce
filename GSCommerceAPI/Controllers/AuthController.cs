@@ -53,8 +53,8 @@ namespace GSCommerceAPI.Controllers
                 return Unauthorized("Usuario inactivo o no encontrado.");
             }
 
-            int almacenId = user.IdPersonalNavigation?.IdAlmacen ?? 0;
-            var token = GenerateJwtToken(user, cargo, almacenId);
+            string cargo = user.IdPersonalNavigation?.Cargo ?? "USUARIO"; // Si no tiene cargo, se le asigna "USUARIO"
+            var token = GenerateJwtToken(user, cargo);
             var refreshToken = GenerateRefreshToken();
 
             // Guardar refresh token en base de datos
@@ -138,7 +138,7 @@ namespace GSCommerceAPI.Controllers
             }
         }
 
-        private string GenerateJwtToken(Usuario user, string cargo, int almacenId)
+        private string GenerateJwtToken(Usuario user, string cargo)
         {
             var keyString = _configuration["JwtSettings:SecretKey"];
             if (string.IsNullOrEmpty(keyString))
@@ -155,7 +155,6 @@ namespace GSCommerceAPI.Controllers
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim("userId", user.IdUsuario.ToString()),
                 new Claim("Cargo", cargo), // Claim personalizado
-                new Claim("IdAlmacen", almacenId.ToString()), // Claim de almacén
                 new Claim(ClaimTypes.Role, cargo) // Claim estándar para roles
             };
 
@@ -198,13 +197,13 @@ namespace GSCommerceAPI.Controllers
             }
 
             string cargo = user.IdPersonalNavigation?.Cargo ?? "USUARIO";
-            int almacenId = user.IdPersonalNavigation?.IdAlmacen ?? 0;
-            var token = GenerateJwtToken(user, cargo, almacenId);
+            var token = GenerateJwtToken(user, cargo);
             var newRefreshToken = GenerateRefreshToken();
 
             // Eliminar token antiguo y guardar nuevo
             await DeleteRefreshTokenFromDB(request.UserId, request.RefreshToken);
             await SaveRefreshTokenToDB(user.IdUsuario, newRefreshToken);
+            int almacenId = user.IdPersonalNavigation?.IdAlmacen ?? 0;
 
             return Ok(new
             {
