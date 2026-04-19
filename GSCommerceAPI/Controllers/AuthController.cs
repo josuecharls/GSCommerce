@@ -1,4 +1,4 @@
-﻿using GSCommerceAPI.Data;
+using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using GSCommerceAPI.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -53,8 +53,8 @@ namespace GSCommerceAPI.Controllers
                 return Unauthorized("Usuario inactivo o no encontrado.");
             }
 
-            string cargo = user.IdPersonalNavigation?.Cargo ?? "USUARIO"; // Si no tiene cargo, se le asigna "USUARIO"
-            var token = GenerateJwtToken(user, cargo);
+            int almacenId = user.IdPersonalNavigation?.IdAlmacen ?? 0;
+            var token = GenerateJwtToken(user, cargo, almacenId);
             var refreshToken = GenerateRefreshToken();
 
             // Guardar refresh token en base de datos
@@ -138,7 +138,7 @@ namespace GSCommerceAPI.Controllers
             }
         }
 
-        private string GenerateJwtToken(Usuario user, string cargo)
+        private string GenerateJwtToken(Usuario user, string cargo, int almacenId)
         {
             var keyString = _configuration["JwtSettings:SecretKey"];
             if (string.IsNullOrEmpty(keyString))
@@ -155,6 +155,7 @@ namespace GSCommerceAPI.Controllers
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim("userId", user.IdUsuario.ToString()),
                 new Claim("Cargo", cargo), // Claim personalizado
+                new Claim("IdAlmacen", almacenId.ToString()), // Claim de almacén
                 new Claim(ClaimTypes.Role, cargo) // Claim estándar para roles
             };
 
@@ -197,13 +198,13 @@ namespace GSCommerceAPI.Controllers
             }
 
             string cargo = user.IdPersonalNavigation?.Cargo ?? "USUARIO";
-            var token = GenerateJwtToken(user, cargo);
+            int almacenId = user.IdPersonalNavigation?.IdAlmacen ?? 0;
+            var token = GenerateJwtToken(user, cargo, almacenId);
             var newRefreshToken = GenerateRefreshToken();
 
             // Eliminar token antiguo y guardar nuevo
             await DeleteRefreshTokenFromDB(request.UserId, request.RefreshToken);
             await SaveRefreshTokenToDB(user.IdUsuario, newRefreshToken);
-            int almacenId = user.IdPersonalNavigation?.IdAlmacen ?? 0;
 
             return Ok(new
             {
