@@ -236,16 +236,17 @@ public class CajaController : ControllerBase
 
         ventasQuery = from v in ventasQuery
                       join c in _context.ComprobanteDeVentaCabeceras
-                          on new { v.IdAlmacen, v.Serie, v.Numero }
-                          equals new { c.IdAlmacen, c.Serie, c.Numero }
-                      where !(c.Estado == "A" &&
+                          on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
+                          equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
+                      where c.Fecha >= fechaInicio && c.Fecha <= fechaFin
+                      && !(c.Estado == "A" &&
                               (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
                               c.FechaHoraUsuarioAnula.HasValue &&
                               c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
                               c.FechaHoraUsuarioAnula.Value <= fechaFin)
                       select v;
 
-        var ventas = await ventasQuery.ToListAsync();
+        var ventas = DistinctVentasDiarias(await ventasQuery.ToListAsync());
 
         decimal ventaEfectivo = 0;
         decimal ventaTarjeta = 0;
@@ -313,16 +314,17 @@ public class CajaController : ControllerBase
 
         ventasDiaQuery = from v in ventasDiaQuery
                          join c in _context.ComprobanteDeVentaCabeceras
-                             on new { v.IdAlmacen, v.Serie, v.Numero }
-                             equals new { c.IdAlmacen, c.Serie, c.Numero }
-                         where !(c.Estado == "A" &&
+                             on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
+                             equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
+                         where c.Fecha >= dayStart && c.Fecha <= dayEnd
+                         && !(c.Estado == "A" &&
                                  (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
                                  c.FechaHoraUsuarioAnula.HasValue &&
                                  c.FechaHoraUsuarioAnula.Value >= dayStart &&
                                  c.FechaHoraUsuarioAnula.Value <= dayEnd)
                          select v;
 
-        var ventasDia = await ventasDiaQuery.ToListAsync();
+        var ventasDia = DistinctVentasDiarias(await ventasDiaQuery.ToListAsync());
         ventasDia = ventasDia.Where(v => claves.Contains((v.IdCajero, v.IdAlmacen))).ToList();
         var ventasPorClave = ventasDia
             .GroupBy(v => (v.IdCajero, v.IdAlmacen))
@@ -435,16 +437,17 @@ public class CajaController : ControllerBase
 
         query = from v in query
                 join c in _context.ComprobanteDeVentaCabeceras
-                    on new { v.IdAlmacen, v.Serie, v.Numero }
-                    equals new { c.IdAlmacen, c.Serie, c.Numero }
-                where !(c.Estado == "A" &&
+                    on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
+                    equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
+                where c.Fecha >= fechaInicio && c.Fecha <= fechaFin
+                && !(c.Estado == "A" &&
                         (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
                         c.FechaHoraUsuarioAnula.HasValue &&
                         c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
                         c.FechaHoraUsuarioAnula.Value <= fechaFin)
                 select v;
 
-        var lista = await query.ToListAsync();
+        var lista = DistinctVentasDiarias(await query.ToListAsync());
 
         return Ok(lista);
     }
@@ -629,16 +632,17 @@ public class CajaController : ControllerBase
 
             ventasQuery = from v in ventasQuery
                           join c in _context.ComprobanteDeVentaCabeceras
-                              on new { v.IdAlmacen, v.Serie, v.Numero }
-                              equals new { c.IdAlmacen, c.Serie, c.Numero }
-                          where !(c.Estado == "A" &&
+                              on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
+                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
+                          where c.Fecha >= dayStart && c.Fecha <= dayEnd
+                          && !(c.Estado == "A" &&
                                   (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
                                   c.FechaHoraUsuarioAnula.HasValue &&
                                   c.FechaHoraUsuarioAnula.Value >= dayStart &&
                                   c.FechaHoraUsuarioAnula.Value <= dayEnd)
                           select v;
 
-            var ventas = await ventasQuery.ToListAsync();
+            var ventas = DistinctVentasDiarias(await ventasQuery.ToListAsync());
 
             decimal ventaEfectivo = 0m, ventaTarjeta = 0m, ventaNC = 0m;
 
@@ -893,6 +897,28 @@ public class CajaController : ControllerBase
 
         await _context.SaveChangesAsync();
         return Ok();
+    }
+
+    private static List<VCierreVentaDiaria1> DistinctVentasDiarias(IEnumerable<VCierreVentaDiaria1> rows)
+    {
+        return rows
+            .GroupBy(v => (
+                v.IdAlmacen,
+                v.IdCajero,
+                v.IdTipoPagoVenta,
+                v.Descripcion,
+                v.Datos,
+                v.Serie,
+                v.Numero,
+                v.Fecha,
+                v.Total,
+                v.Soles,
+                v.Dolares,
+                v.Redondeo,
+                v.Vuelto,
+                v.Estado))
+            .Select(g => g.First())
+            .ToList();
     }
 
     private async Task RecalcularSaldosPosterioresAsync(AperturaCierreCaja apertura)
