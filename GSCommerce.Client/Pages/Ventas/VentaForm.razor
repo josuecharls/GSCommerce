@@ -561,10 +561,12 @@ else
         await BuscarCodigoAsync();
     }
 
-    private void ActualizarArticuloSeleccionado(ArticuloDTO articulo, string descripcionMostrada)
+    private async Task ActualizarArticuloSeleccionado(ArticuloDTO articulo, string descripcionMostrada)
     {
         descripcionArticuloSeleccionada = descripcionMostrada;
+        fotoArticuloSeleccionada = null;
 
+        // 1) Si el DTO ya trae la foto incrustada, usarla directamente
         if (!string.IsNullOrWhiteSpace(articulo.Foto))
         {
             var foto = articulo.Foto.Trim();
@@ -581,10 +583,33 @@ else
 
                 fotoArticuloSeleccionada = $"data:image/jpeg;base64,{base64Data}";
             }
+            return;
         }
-        else
+
+        // 2) El endpoint articulos/codigo/{codigo} no trae la foto por
+        //    rendimiento. La pedimos por separado al endpoint binario
+        //    articulos/foto/{id} y la convertimos a base64 para mostrarla.
+        if (!string.IsNullOrWhiteSpace(articulo.IdArticulo))
         {
-            fotoArticuloSeleccionada = null;
+            try
+            {
+                using var response = await Http.GetAsync($"articulos/foto/{articulo.IdArticulo}");
+                if (response.IsSuccessStatusCode)
+                {
+                    var bytes = await response.Content.ReadAsByteArrayAsync();
+                    if (bytes != null && bytes.Length > 0)
+                    {
+                        var mime = response.Content.Headers.ContentType?.MediaType;
+                        if (string.IsNullOrWhiteSpace(mime))
+                            mime = "image/jpeg";
+                        fotoArticuloSeleccionada = $"data:{mime};base64,{Convert.ToBase64String(bytes)}";
+                    }
+                }
+            }
+            catch
+            {
+                fotoArticuloSeleccionada = null;
+            }
         }
     }
 
@@ -759,6 +784,49 @@ else
         }
     }
 
+    /// <summary>
+    /// Separadores que a veces envía la lectora (modo teclado) en lugar del guion ASCII del código impreso.
+    /// </summary>
+    private static readonly char[] SeparadoresIndiceVarianteLectora =
+    [
+        '-',        // guion ASCII (esperado en etiqueta)
+        '\'',       // apóstrofo ASCII
+        '\u2019',   // ’ comilla tipográfica derecha
+        '\u2018',   // ‘ comilla tipográfica izquierda
+        '\u00B4',   // ´ acento agudo (teclado ES)
+        '`', '_', '.', '/', '|', '\\',
+    ];
+
+    /// <summary>
+    /// Formato "dígitos del artículo + separador + índice de variante" (1-based), p. ej. 000010-3 o 000010'3.
+    /// </summary>
+    private static bool TryParseCodigoConIndiceVariante(string raw, out string codigoArticuloSinPad, out int indiceVariante)
+    {
+        codigoArticuloSinPad = raw;
+        indiceVariante = 0;
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        var sep = raw.IndexOfAny(SeparadoresIndiceVarianteLectora);
+        if (sep < 1 || sep >= raw.Length - 1)
+            return false;
+
+        ReadOnlySpan<char> izq = raw.AsSpan(0, sep);
+        ReadOnlySpan<char> der = raw[(sep + 1)..];
+        foreach (var c in izq)
+        {
+            if (!char.IsDigit(c))
+                return false;
+        }
+
+        if (!int.TryParse(der, out int idx) || idx < 1)
+            return false;
+
+        codigoArticuloSinPad = izq.ToString();
+        indiceVariante = idx;
+        return true;
+    }
+
     private async Task BuscarCodigoAsync()
     {
         if (string.IsNullOrWhiteSpace(codigoBusqueda))
@@ -769,18 +837,13 @@ else
         ultimaEntrada = DateTime.MinValue;
         entradaManual = false;
 
-        // PASO 1: Detectar si tiene formato "XXXXXX-N" (código con índice de variante)
+        // PASO 1: "XXXXXX-N" o equivalente (lectoras que mandan ' ´ etc. en lugar de -)
         string codigoArticulo = codigoOriginal;
         int? indiceVariante = null;
-        
-        if (codigoOriginal.Contains("-"))
+        if (TryParseCodigoConIndiceVariante(codigoOriginal, out var artConIndice, out var idxVariante))
         {
-            var partes = codigoOriginal.Split('-');
-            if (partes.Length == 2 && int.TryParse(partes[1], out int idx))
-            {
-                codigoArticulo = partes[0];
-                indiceVariante = idx; // El índice viene del código de barras (1, 2, 3...)
-            }
+            codigoArticulo = artConIndice;
+            indiceVariante = idxVariante;
         }
 
         var codigo = codigoArticulo.PadLeft(6, '0');
@@ -850,7 +913,7 @@ else
             {
                 var varianteSeleccionada = variantes[indiceVariante.Value - 1]; // Convertir a 0-based
                 var descripcionVariante = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {varianteSeleccionada.Color} {varianteSeleccionada.Talla}";
-                ActualizarArticuloSeleccionado(articulo, descripcionVariante);
+                await ActualizarArticuloSeleccionado(articulo, descripcionVariante);
                 var stockFila = idAlmacenActual.HasValue
                     ? await StockService.GetStockCantidadFila(articulo.IdArticulo, idAlmacenActual.Value, varianteSeleccionada.IdVariante)
                     : 0;
@@ -872,7 +935,7 @@ else
             {
                 var unica = variantes[0];
                 var descripcionVariante = $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {unica.Color} {unica.Talla}";
-                ActualizarArticuloSeleccionado(articulo, descripcionVariante);
+                await ActualizarArticuloSeleccionado(articulo, descripcionVariante);
                 var stockFila = idAlmacenActual.HasValue
                     ? await StockService.GetStockCantidadFila(articulo.IdArticulo, idAlmacenActual.Value, unica.IdVariante)
                     : 0;
@@ -913,7 +976,7 @@ else
         {
             descripcion = $"{descripcion} {articulo.Talla}".Trim();
         }
-        ActualizarArticuloSeleccionado(articulo, descripcion);
+        await ActualizarArticuloSeleccionado(articulo, descripcion);
         var stockSinVariante = idAlmacenActual.HasValue
             ? await StockService.GetStockCantidadFila(articulo.IdArticulo, idAlmacenActual.Value, null)
             : 0;
@@ -946,7 +1009,7 @@ else
                 ? articulo.Descripcion
                 : detalle.DescripcionItem;
 
-            ActualizarArticuloSeleccionado(articulo, descripcion);
+            await ActualizarArticuloSeleccionado(articulo, descripcion);
         }
         else
         {
@@ -1556,7 +1619,7 @@ else
         var descripcion = $"{articuloPendiente!.Familia} {articuloPendiente.Linea} {articuloPendiente.Marca} {articuloPendiente.Material} {articuloPendiente.Modelo} {variante.Color} {variante.Talla}";
 
         mostrarSeleccionVariante = false;
-        ActualizarArticuloSeleccionado(articuloPendiente, descripcion);
+        await ActualizarArticuloSeleccionado(articuloPendiente, descripcion);
         var stockFila = idAlmacenActual.HasValue
             ? await StockService.GetStockCantidadFila(articuloPendiente.IdArticulo, idAlmacenActual.Value, variante.IdVariante)
             : 0;

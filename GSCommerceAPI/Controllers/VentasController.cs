@@ -318,12 +318,13 @@ namespace GSCommerceAPI.Controllers
 
             ventasQuery = from v in ventasQuery
                           join c in _context.ComprobanteDeVentaCabeceras
-                              on new { v.IdAlmacen, v.Serie, v.Numero }
-                              equals new { c.IdAlmacen, c.Serie, c.Numero }
-                          where !(c.Estado == "A" &&
-                                  (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
-                                  c.FechaHoraUsuarioAnula.HasValue &&
-                                  c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
+                              on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
+                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
+                          where c.Fecha >= v.Fecha.Date && c.Fecha < v.Fecha.Date.AddDays(1)
+                                && !(c.Estado == "A" &&
+                                     (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                                     c.FechaHoraUsuarioAnula.HasValue &&
+                                     c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
                           select v;
 
             var ventas = await ventasQuery.ToListAsync();
@@ -397,12 +398,13 @@ namespace GSCommerceAPI.Controllers
             // Excluir documentos anulados según la misma lógica que reporte-total-tiendas
             ventasQuery = from v in ventasQuery
                           join c in _context.ComprobanteDeVentaCabeceras
-                              on new { v.IdAlmacen, v.Serie, v.Numero }
-                              equals new { c.IdAlmacen, c.Serie, c.Numero }
-                          where !(c.Estado == "A" &&
-                                  (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
-                                  c.FechaHoraUsuarioAnula.HasValue &&
-                                  c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
+                              on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
+                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
+                          where c.Fecha >= v.Fecha.Date && c.Fecha < v.Fecha.Date.AddDays(1)
+                                && !(c.Estado == "A" &&
+                                     (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                                     c.FechaHoraUsuarioAnula.HasValue &&
+                                     c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
                           select v;
 
             var ventas = await ventasQuery.ToListAsync();
@@ -1472,13 +1474,14 @@ namespace GSCommerceAPI.Controllers
 
             ventasQuery = from v in ventasQuery
                           join c in _context.ComprobanteDeVentaCabeceras
-                              on new { v.IdAlmacen, v.Serie, v.Numero }
-                              equals new { c.IdAlmacen, c.Serie, c.Numero }
-                          where !(c.Estado == "A" &&
-                                  (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
-                                  c.FechaHoraUsuarioAnula.HasValue &&
-                                  c.FechaHoraUsuarioAnula.Value >= inicio &&
-                                  c.FechaHoraUsuarioAnula.Value <= fin)
+                              on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
+                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
+                          where c.Fecha >= inicio && c.Fecha <= fin
+                                && !(c.Estado == "A" &&
+                                     (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                                     c.FechaHoraUsuarioAnula.HasValue &&
+                                     c.FechaHoraUsuarioAnula.Value >= inicio &&
+                                     c.FechaHoraUsuarioAnula.Value <= fin)
                           select v;
 
             var ventas = await ventasQuery.ToListAsync();
