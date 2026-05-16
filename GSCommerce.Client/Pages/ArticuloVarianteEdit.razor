@@ -1,6 +1,7 @@
 ﻿@page "/articulo-variante/{idArticulo}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using GSCommerce.Client.Helpers
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject ArticuloService ArticuloService
@@ -221,6 +222,7 @@ else
             await JS.InvokeVoidAsync("alert", "✅ Variante agregada correctamente.");
             nuevaVariante = new();
             await CargarVariantes();
+            await SincronizarDescripcionArticulo();
             StateHasChanged();
         }
         else
@@ -236,7 +238,18 @@ else
     {
         var exito = await ArticuloVarianteService.EliminarVariante(id);
         if (exito)
+        {
             await CargarVariantes();
+            await SincronizarDescripcionArticulo();
+        }
+    }
+
+    private async Task SincronizarDescripcionArticulo()
+    {
+        if (articulo == null) return;
+
+        ArticuloDescripcionHelper.AplicarDescripciones(articulo, variantes);
+        await ArticuloService.UpdateArticulo(articulo.IdArticulo, articulo);
     }
 
     private void Volver()

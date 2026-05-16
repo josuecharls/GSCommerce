@@ -2,6 +2,7 @@
 @page "/articulo-form/{dummy}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using GSCommerce.Client.Helpers
 @using System.Globalization
 @using System.Linq
 @using Microsoft.AspNetCore.Authorization
@@ -692,10 +693,7 @@ else
 
     private void ActualizarDescripcion()
     {
-        articulo.Descripcion =
-            $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Detalle}".Trim();
-        articulo.DescripcionCorta =
-            $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Detalle}".Trim();
+        ArticuloDescripcionHelper.AplicarDescripciones(articulo, variantes);
     }
 
     private async Task SaveArticulo()
@@ -718,6 +716,8 @@ else
         // Asegurar formato de 6 caracteres para IdArticulo antes de guardar
         articulo.IdArticulo = articulo.IdArticulo?.PadLeft(6, '0') ?? articulo.IdArticulo;
         var idArticuloFormateado = articulo.IdArticulo;
+
+        ActualizarDescripcion();
 
         var creado = await ArticuloService.CreateArticulo(articulo);
         if (creado)
@@ -861,6 +861,7 @@ else
                 await CargarVariantes();
                 nuevaVariante = new();
                 ActualizarDescripcion();
+                await ArticuloService.UpdateArticulo(articulo.IdArticulo, articulo);
                 StateHasChanged();
             }
             else
@@ -895,6 +896,7 @@ else
             {
                 await CargarVariantes();
                 ActualizarDescripcion();
+                await ArticuloService.UpdateArticulo(articulo.IdArticulo, articulo);
                 StateHasChanged();
             }
         }

@@ -1,9 +1,11 @@
 @page "/articulo/edit/{id}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using GSCommerce.Client.Helpers
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject ArticuloService ArticuloService
+@inject ArticuloVarianteService ArticuloVarianteService
 @inject ProveedorService ProveedorService
 @inject ComplementoService ComplementoService
 @inject NavigationManager Navigation
@@ -404,6 +406,7 @@ else
 
     private string rucProveedor = string.Empty;
     private string nombreProveedor = string.Empty;
+    private List<ArticuloVarianteDTO> variantes = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -426,6 +429,9 @@ else
                 nombreProveedor = prov.Nombre;
             }
         }
+
+        variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
+        ActualizarDescripcion();
 
         isLoading = false;
     }
@@ -527,10 +533,7 @@ else
 
     private void ActualizarDescripcion()
     {
-        articulo.Descripcion =
-            $"{articulo.Familia} {articulo.Linea} {articulo.Marca} {articulo.Material} {articulo.Modelo} {articulo.Detalle}".Trim();
-        articulo.DescripcionCorta =
-            $"{articulo.Familia} {articulo.Marca} {articulo.Modelo} {articulo.Detalle}".Trim();
+        ArticuloDescripcionHelper.AplicarDescripciones(articulo, variantes);
     }
 
     private async Task Imprimir()
@@ -554,6 +557,9 @@ else
 
         if (articulo.UnidadAlmacen == "string")
             articulo.UnidadAlmacen = null;
+
+        variantes = await ArticuloVarianteService.ObtenerVariantesPorArticulo(articulo.IdArticulo);
+        ActualizarDescripcion();
 
         var ok = await ArticuloService.UpdateArticulo(articulo.IdArticulo, articulo);
         if (ok) 
