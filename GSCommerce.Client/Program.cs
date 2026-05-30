@@ -31,7 +31,8 @@ builder.Services.AddScoped<SerieCorrelativoService>();
 builder.Services.AddScoped<TipoDocumentoVentaService>();
 builder.Services.AddScoped<TomaInventariosService>();
 builder.Services.AddScoped<AlmacenCuentaService>();
-builder.Services.AddScoped<ReniecService>();
+// Cliente HTTP aparte: el HttpClient principal lleva Bearer de GSCommerce y ApiPeru lo rechaza (401).
+builder.Services.AddScoped<ReniecService>(_ => new ReniecService(new HttpClient()));
 builder.Services.AddScoped<IgvAlmacenService>();
 builder.Services.AddScoped<CajaService>();
 builder.Services.AddScoped<AuxiliaresVariosService>();

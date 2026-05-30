@@ -26,8 +26,12 @@ public static class ArticuloDescripcionHelper
         if (variantes?.Count == 1)
         {
             var v = variantes[0];
-            descripcion = $"{descripcion} {v.Color} {v.Talla}".Trim();
-            descripcionCorta = $"{descripcionCorta} {v.Color} {v.Talla}".Trim();
+            var sufijoVariante = UnirPartes(new[] { v.Color, v.Talla });
+            if (!string.IsNullOrEmpty(sufijoVariante))
+            {
+                descripcion = $"{descripcion} {sufijoVariante}".Trim();
+                descripcionCorta = $"{descripcionCorta} {sufijoVariante}".Trim();
+            }
         }
 
         articulo.Descripcion = descripcion;
@@ -45,12 +49,12 @@ public static class ArticuloDescripcionHelper
             articulo.Modelo
         };
 
-        if (incluirColorTallaCabecera && !string.IsNullOrWhiteSpace(articulo.Color))
+        if (incluirColorTallaCabecera)
             partes.Add(articulo.Color);
 
         partes.Add(articulo.Detalle);
 
-        if (incluirColorTallaCabecera && TallaCabeceraValida(articulo.Talla))
+        if (incluirColorTallaCabecera)
             partes.Add(articulo.Talla);
 
         return UnirPartes(partes);
@@ -65,23 +69,24 @@ public static class ArticuloDescripcionHelper
             articulo.Modelo
         };
 
-        if (incluirColorTallaCabecera && !string.IsNullOrWhiteSpace(articulo.Color))
+        if (incluirColorTallaCabecera)
             partes.Add(articulo.Color);
 
         partes.Add(articulo.Detalle);
 
-        if (incluirColorTallaCabecera && TallaCabeceraValida(articulo.Talla))
+        if (incluirColorTallaCabecera)
             partes.Add(articulo.Talla);
 
         return UnirPartes(partes);
     }
 
     private static string UnirPartes(IEnumerable<string?> partes) =>
-        string.Join(" ", partes.Where(p => !string.IsNullOrWhiteSpace(p))).Trim();
+        string.Join(" ", partes.Where(ParteValida)).Trim();
 
-    private static bool TallaCabeceraValida(string? talla) =>
-        !string.IsNullOrWhiteSpace(talla) &&
-        !talla.Equals("No Aplica", StringComparison.OrdinalIgnoreCase);
+    /// <summary>Omite vacíos y el marcador "No Aplica" de complementos.</summary>
+    private static bool ParteValida(string? parte) =>
+        !string.IsNullOrWhiteSpace(parte) &&
+        !parte.Equals("No Aplica", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Por si Color/Talla legacy quedaron al final del texto (p. ej. descripción ya guardada en BD).
@@ -93,13 +98,13 @@ public static class ArticuloDescripcionHelper
 
         var result = texto.Trim();
 
-        if (TallaCabeceraValida(articulo.Talla) &&
+        if (ParteValida(articulo.Talla) &&
             result.EndsWith(articulo.Talla!, StringComparison.OrdinalIgnoreCase))
         {
             result = result[..^articulo.Talla!.Length].TrimEnd();
         }
 
-        if (!string.IsNullOrWhiteSpace(articulo.Color) &&
+        if (ParteValida(articulo.Color) &&
             result.EndsWith(articulo.Color, StringComparison.OrdinalIgnoreCase))
         {
             result = result[..^articulo.Color.Length].TrimEnd();

@@ -7,7 +7,7 @@ namespace GSCommerce.Client.Services
     public class ReniecService
     {
         private readonly HttpClient _httpClient;
-        private const string token = "c83184858ed421c01fb50eab0a55baac1ca2c54516781f6a0da1e03b568d5d54"; // reemplaza con tu token real
+        private const string token = "c83184858ed421c01fb50eab0a55baac1ca2c54516781f6a0da1e03b568d5d54"; 
 
         public ReniecService(HttpClient httpClient)
         {
