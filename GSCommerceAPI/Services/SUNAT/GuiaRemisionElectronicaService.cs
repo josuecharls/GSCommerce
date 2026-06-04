@@ -120,6 +120,7 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
                 "20611746751" => ("3ecdb4dc-6821-4f0a-97ef-8f00446db769", "W83w/cbxzzn437lEUCGJ5g=="),
                 "20606834048" => ("9d0dc07e-9ca8-4f5f-b36c-70ff72f55adf", "Z1mz70La/DM55lEomU/KWw=="),
                 "20611645199" => ("621cc98d-a2be-416c-85ea-66a32c5e22e4", "+3dlYyf3yQskr4+njEYteQ=="),
+                "20615833879" => ("2962e016-d234-4c5c-a981-ea9dc1558207", "9K6sGUlYiqd8PI6uVorCkg=="), 
                 _ => ("", "") // RUC no configurado
             };
         }
@@ -1504,6 +1505,7 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
             "20611746751" => "certificadoLYMARIN.p12",
             "20606834048" => "certificadoROMAGE.p12",
             "20611645199" => "certificadoOREMA.p12",
+            "20615833879" => "certificadoBKD.p12",
             _ => throw new Exception("RUC no registrado para emisión electrónica")
         };
     }
@@ -1520,6 +1522,7 @@ public class GuiaRemisionElectronicaService : IGuiaRemisionElectronicaService
             "20611746751" => "Marin123",
             "20606834048" => "Grupog2021",
             "20611645199" => "e9gooyd84pfzqo0y",
+            "20615833879" => "e9gooyd84",
             _ => throw new Exception("RUC no registrado para contraseña de certificado")
         };
     }

@@ -48,7 +48,7 @@
             <th class="text-center">Acciones</th>
         </tr>
     </thead>
-    <tbody>                             
+    <tbody>
         @if (personalList.Any())
         {
             @foreach (var p in personalList)
@@ -287,10 +287,15 @@
                 {
                     await LoadPersonals();
                 }
+                else
+                {
+                    await JS.InvokeVoidAsync("alert", "Error: No se pudo cambiar el estado del personal.");
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error al cambiar estado: {ex.Message}");
+                await JS.InvokeVoidAsync("alert", $"Error inesperado: {ex.Message}");
             }
             isDeleting = false;
             CloseStatusModal();
@@ -325,18 +330,18 @@
         string base64Image = Convert.ToBase64String(selectedFile);
 
         var updatedData = new PersonalDTO
-            {
-                IdPersonal = selectedPersonal.IdPersonal,
-                Nombres = selectedPersonal.Nombres,
-                Apellidos = selectedPersonal.Apellidos,
-                DocIdentidad = selectedPersonal.DocIdentidad,
-                NumeroDocIdentidad = selectedPersonal.NumeroDocIdentidad,
-                Sexo = selectedPersonal.Sexo,
-                TipoEmpleado = selectedPersonal.TipoEmpleado,
-                Foto = base64Image
-            };
+        {
+            IdPersonal = selectedPersonal.IdPersonal,
+            Nombres = selectedPersonal.Nombres,
+            Apellidos = selectedPersonal.Apellidos,
+            DocIdentidad = selectedPersonal.DocIdentidad,
+            NumeroDocIdentidad = selectedPersonal.NumeroDocIdentidad,
+            Sexo = selectedPersonal.Sexo,
+            TipoEmpleado = selectedPersonal.TipoEmpleado,
+            Foto = base64Image
+        };
 
-       // Console.WriteLine($"Enviando imagen Base64 de tamaño: {base64Image.Length} caracteres");
+        // Console.WriteLine($"Enviando imagen Base64 de tamaño: {base64Image.Length} caracteres");
 
         bool success = await PersonalService.UpdatePhoto(selectedPersonal.IdPersonal, updatedData);
         if (success)
@@ -368,14 +373,14 @@
         try
         {
             var response = await PersonalService.GetPersonalList(currentPage, pageSize, searchTerm, incluirInactivos);
-            
+
             // Si es CAJERO, filtrar solo vendedores de su almacén
-            var filteredData = isCajero 
-                ? response.Data.Where(p => 
-                    string.Equals(p.Cargo, "VENDEDOR", StringComparison.OrdinalIgnoreCase) 
+            var filteredData = isCajero
+                ? response.Data.Where(p =>
+                    string.Equals(p.Cargo, "VENDEDOR", StringComparison.OrdinalIgnoreCase)
                     && p.IdAlmacen == idAlmacenUsuario).ToList()
                 : response.Data;
-            
+
             personalList = SortList(filteredData);
             totalPages = response.TotalPages;
         }

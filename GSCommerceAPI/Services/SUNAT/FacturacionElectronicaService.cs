@@ -1157,6 +1157,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 "20611746751" => "certificadoLYMARIN.p12",
                 "20606834048" => "certificadoROMAGE.p12",
                 "20611645199" => "certificadoOREMA.p12",
+                "20615833879" => "certificadoBKD.p12",
                 _ => throw new Exception("RUC no registrado para emisión electrónica")
             };
         }
@@ -1170,6 +1171,7 @@ namespace GSCommerceAPI.Services.SUNAT
                 "20611746751" => "Marin123",
                 "20606834048" => "Grupog2021",
                 "20611645199" => "e9gooyd84pfzqo0y",
+                "20615833879" => "e9gooyd84",
                 _ => throw new Exception("RUC no registrado para contraseña de certificado")
             };
         }

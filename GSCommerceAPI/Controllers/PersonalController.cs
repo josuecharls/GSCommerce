@@ -324,15 +324,18 @@ namespace GSCommerceAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePersonal(int id)
         {
-            if (User.IsInRole("CAJERO"))
-            {
-                return Forbid();
-            }
-
             var personal = await _context.Personals.FindAsync(id);
             if (personal == null)
             {
                 return NotFound();
+            }
+
+            var cargo = User.FindFirst("Cargo")?.Value;
+            if (cargo == "CAJERO")
+            {
+                var idAlmacenUsuario = await ObtenerIdAlmacenUsuario();
+                if (idAlmacenUsuario == null || personal.Cargo != "VENDEDOR" || personal.IdAlmacen != idAlmacenUsuario)
+                    return Forbid();
             }
 
             personal.Estado = false;
@@ -346,15 +349,18 @@ namespace GSCommerceAPI.Controllers
         [HttpPut("{id}/habilitar")]
         public async Task<IActionResult> HabilitarPersonal(int id)
         {
-            if (User.IsInRole("CAJERO"))
-            {
-                return Forbid();
-            }
-
             var personal = await _context.Personals.FindAsync(id);
             if (personal == null)
             {
                 return NotFound();
+            }
+
+            var cargo = User.FindFirst("Cargo")?.Value;
+            if (cargo == "CAJERO")
+            {
+                var idAlmacenUsuario = await ObtenerIdAlmacenUsuario();
+                if (idAlmacenUsuario == null || personal.Cargo != "VENDEDOR" || personal.IdAlmacen != idAlmacenUsuario)
+                    return Forbid();
             }
 
             personal.Estado = true;
