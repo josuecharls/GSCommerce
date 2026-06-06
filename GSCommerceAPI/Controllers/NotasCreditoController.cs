@@ -450,7 +450,8 @@ namespace GSCommerceAPI.Controllers
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return StatusCode(500, $"💥 Error al emitir nota de crédito: {ex.Message}");
+                var mensajeError = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                return StatusCode(500, $"💥 Error al emitir nota de crédito: {mensajeError}");
             }
         }
 

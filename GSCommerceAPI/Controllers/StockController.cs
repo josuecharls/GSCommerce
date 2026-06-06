@@ -75,27 +75,41 @@ namespace GSCommerceAPI.Controllers
                 }
             }
 
-            var totalCount = await query.CountAsync();
+            var queryAgrupada = query
+                .GroupBy(s => new { 
+                    s.IdAlmacen, 
+                    s.Almacen, 
+                    s.Familia, 
+                    s.Linea, 
+                    s.IdArticulo, 
+                    s.Descripcion, 
+                    s.Stock, 
+                    s.PrecioCompra, 
+                    s.ValorCompra, 
+                    s.StockMinimo 
+                })
+                .Select(g => new StockProjection
+                {
+                    IdAlmacen = g.Key.IdAlmacen,
+                    Almacen = g.Key.Almacen,
+                    Familia = g.Key.Familia,
+                    Linea = g.Key.Linea,
+                    IdArticulo = g.Key.IdArticulo,
+                    Descripcion = g.Key.Descripcion,
+                    Stock = g.Key.Stock,
+                    PrecioCompra = g.Key.PrecioCompra,
+                    ValorCompra = g.Key.ValorCompra,
+                    PrecioVenta = g.Max(x => x.PrecioVenta),
+                    ValorVenta = g.Max(x => x.ValorVenta),
+                    StockMinimo = g.Key.StockMinimo
+                });
 
-            var registros = await query
+            var totalCount = await queryAgrupada.CountAsync();
+
+            var registros = await queryAgrupada
                 .OrderBy(s => s.Descripcion)
                 .Skip(skip)
                 .Take(size)
-                .Select(s => new StockProjection
-                {
-                    IdAlmacen = s.IdAlmacen,
-                    Almacen = s.Almacen,
-                    Familia = s.Familia,
-                    Linea = s.Linea,
-                    IdArticulo = s.IdArticulo,
-                    Descripcion = s.Descripcion,
-                    Stock = s.Stock,
-                    PrecioCompra = s.PrecioCompra,
-                    ValorCompra = s.ValorCompra,
-                    PrecioVenta = s.PrecioVenta,
-                    ValorVenta = s.ValorVenta,
-                    StockMinimo = s.StockMinimo
-                })
                 .ToListAsync();
 
             var items = registros
@@ -143,24 +157,38 @@ namespace GSCommerceAPI.Controllers
                     || ((!s.StockMinimo.HasValue || s.StockMinimo.Value <= 0) && s.Stock <= umbral)
                 ));
 
-            var registros = await query
+            var queryAgrupada = query
+                .GroupBy(s => new { 
+                    s.IdAlmacen, 
+                    s.Almacen, 
+                    s.Familia, 
+                    s.Linea, 
+                    s.IdArticulo, 
+                    s.Descripcion, 
+                    s.Stock, 
+                    s.PrecioCompra, 
+                    s.ValorCompra, 
+                    s.StockMinimo 
+                })
+                .Select(g => new StockProjection
+                {
+                    IdAlmacen = g.Key.IdAlmacen,
+                    Almacen = g.Key.Almacen,
+                    Familia = g.Key.Familia,
+                    Linea = g.Key.Linea,
+                    IdArticulo = g.Key.IdArticulo,
+                    Descripcion = g.Key.Descripcion,
+                    Stock = g.Key.Stock,
+                    PrecioCompra = g.Key.PrecioCompra,
+                    ValorCompra = g.Key.ValorCompra,
+                    PrecioVenta = g.Max(x => x.PrecioVenta),
+                    ValorVenta = g.Max(x => x.ValorVenta),
+                    StockMinimo = g.Key.StockMinimo
+                });
+
+            var registros = await queryAgrupada
                 .OrderBy(s => s.Stock)
                 .ThenBy(s => s.Descripcion)
-                .Select(s => new StockProjection
-                {
-                    IdAlmacen = s.IdAlmacen,
-                    Almacen = s.Almacen,
-                    Familia = s.Familia,
-                    Linea = s.Linea,
-                    IdArticulo = s.IdArticulo,
-                    Descripcion = s.Descripcion,
-                    Stock = s.Stock,
-                    PrecioCompra = s.PrecioCompra,
-                    ValorCompra = s.ValorCompra,
-                    PrecioVenta = s.PrecioVenta,
-                    ValorVenta = s.ValorVenta,
-                    StockMinimo = s.StockMinimo
-                })
                 .ToListAsync();
 
             var articulos = registros
@@ -301,6 +329,7 @@ namespace GSCommerceAPI.Controllers
                            (s.Stock <= umbral || 
                             (s.StockMinimo.HasValue && s.StockMinimo.Value > 0 && s.Stock <= s.StockMinimo.Value)))
                 .Select(s => new { s.IdArticulo, s.Descripcion, s.Stock })
+                .Distinct()
                 .ToListAsync();
 
             var alertas = new List<RepositionAlertDTO>();
@@ -313,6 +342,7 @@ namespace GSCommerceAPI.Controllers
                                s.IdAlmacen != almacenPrincipal.IdAlmacen && 
                                s.Stock > 0)
                     .Select(s => new { s.IdAlmacen, s.Almacen, s.Stock })
+                    .Distinct()
                     .ToListAsync();
 
                 if (stockEnOtrosAlmacenes.Any())

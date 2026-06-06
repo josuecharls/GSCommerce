@@ -1,4 +1,4 @@
-﻿using GSCommerce.Client.Models;
+using GSCommerce.Client.Models;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
 using System.Globalization;
@@ -253,6 +253,8 @@ public class CajaController : ControllerBase
 
         foreach (var v in ventas)
         {
+            if (v.Estado == "A") continue;
+
             var tipo = v.Descripcion.Split(' ')[0];
             switch (tipo)
             {
@@ -367,6 +369,8 @@ public class CajaController : ControllerBase
             {
                 foreach (var v in vList)
                 {
+                    if (v.Estado == "A") continue;
+
                     var tipo = v.Descripcion.Split(' ')[0];
                     switch (tipo)
                     {
@@ -648,6 +652,8 @@ public class CajaController : ControllerBase
 
             foreach (var v in ventas)
             {
+                if (v.Estado == "A") continue;
+
                 var tipo = v.Descripcion.Split(' ')[0];
                 switch (tipo)
                 {
@@ -667,14 +673,14 @@ public class CajaController : ControllerBase
             var ventaDia = ventaEfectivo + ventaTarjeta;
 
             var ventasTarjetaDetalle = ventas
-                .Where(v => v.Descripcion.StartsWith("Tarjeta") || v.Descripcion.StartsWith("Online"))
+                .Where(v => v.Estado != "A" && (v.Descripcion.StartsWith("Tarjeta") || v.Descripcion.StartsWith("Online")))
                 .GroupBy(v => v.Descripcion)
                 .Select(g => new { Detalle = g.Key, Monto = g.Sum(x => x.Soles) })
                 .ToList();
 
             // Agrupar notas de crédito por serie y crear rangos
             var notasCreditoDetalle = ventas
-                .Where(v => v.Descripcion.StartsWith("N.C."))
+                .Where(v => v.Estado != "A" && v.Descripcion.StartsWith("N.C."))
                 .GroupBy(v => v.Serie)
                 .Select(g => new ResumenCierreDeCaja
                 {
