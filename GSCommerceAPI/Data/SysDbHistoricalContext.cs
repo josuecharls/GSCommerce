@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using GSCommerceAPI.ModelsHistoricos;
 using Microsoft.EntityFrameworkCore;

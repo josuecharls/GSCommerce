@@ -1,4 +1,4 @@
-﻿@page "/caja/liquidacion"
+@page "/caja/liquidacion"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using Microsoft.AspNetCore.Authorization
@@ -158,6 +158,11 @@ else
 
         foreach (var venta in ventas)
         {
+            if (venta.Estado == "A")
+            {
+                continue;
+            }
+
             switch (venta.Descripcion.Split(" ")[0])
             {
                 case "Efectivo":

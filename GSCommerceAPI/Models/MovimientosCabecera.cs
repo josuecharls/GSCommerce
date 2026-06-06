@@ -35,7 +35,12 @@ public partial class MovimientosCabecera
 
     public string Estado { get; set; } = null!;
 
+    public int? IdMovimientoEspejo { get; set; }
+
     public virtual Almacen IdAlmacenNavigation { get; set; } = null!;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public virtual MovimientosCabecera? MovimientoEspejoNavigation { get; set; }
 
     public virtual OrdenDeCompraCabecera? IdOcNavigation { get; set; }
 

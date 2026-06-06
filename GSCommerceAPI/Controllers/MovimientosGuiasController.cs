@@ -132,15 +132,7 @@ namespace GSCommerceAPI.Controllers
             // 2) Ubica la guía espejo de EGRESO (origen) pendiente
             var egreso = await _context.MovimientosCabeceras
                 .Include(m => m.MovimientosDetalles)
-                .Where(m =>
-                    m.Tipo == "T" &&
-                    m.Motivo.Trim() == "TRANSFERENCIA EGRESO" &&
-                    m.Estado.Trim() == "E" &&
-                    m.IdAlmacen == ingreso.IdAlmacenDestinoOrigen && // ORIGEN
-                    m.IdAlmacenDestinoOrigen == ingreso.IdAlmacen    // DESTINO
-                )
-                .OrderByDescending(m => m.IdMovimiento)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(m => m.IdMovimiento == ingreso.IdMovimientoEspejo);
 
             if (egreso == null)
                 return BadRequest(new { mensaje = "No se encontró la guía de TRANSFERENCIA EGRESO asociada y pendiente." });
@@ -316,6 +308,22 @@ namespace GSCommerceAPI.Controllers
 
             try
             {
+                var esTransferenciaInit = string.Equals(dto.Tipo?.Trim(), "T", StringComparison.OrdinalIgnoreCase);
+                if (esTransferenciaInit)
+                {
+                    foreach (var d in dto.Detalles)
+                    {
+                        var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                            _context.StockAlmacens, dto.IdAlmacen, d.IdArticulo);
+
+                        if (stock == null || stock.Stock < d.Cantidad)
+                        {
+                            await transaction.RollbackAsync();
+                            return BadRequest(new { mensaje = $"Stock insuficiente para el artículo {d.IdArticulo} en el almacén origen." });
+                        }
+                    }
+                }
+
                 var movimiento = new MovimientosCabecera
                 {
                     IdAlmacen = dto.IdAlmacen,
@@ -432,6 +440,10 @@ namespace GSCommerceAPI.Controllers
                         });
                     }
 
+                    await _context.SaveChangesAsync();
+
+                    movimiento.IdMovimientoEspejo = ingreso.IdMovimiento;
+                    ingreso.IdMovimientoEspejo = movimiento.IdMovimiento;
                     await _context.SaveChangesAsync();
                 }
 
@@ -628,21 +640,9 @@ namespace GSCommerceAPI.Controllers
 
             if (esTransferencia)
             {
-                var motivoEspejo = string.Equals(motivoNormalizado, "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase)
-                    ? "TRANSFERENCIA INGRESO"
-                    : "TRANSFERENCIA EGRESO";
-
-                // Buscar guía espejo en estado "E" (Emitido) o "C" (Confirmado)
                 espejo = await _context.MovimientosCabeceras
                     .Include(m => m.MovimientosDetalles)
-                    .Where(m =>
-                        m.Tipo == "T" &&
-                        m.Motivo.Trim() == motivoEspejo &&
-                        (m.Estado.Trim() == "E" || m.Estado.Trim() == "C") &&
-                        m.IdAlmacen == movimiento.IdAlmacenDestinoOrigen &&
-                        m.IdAlmacenDestinoOrigen == movimiento.IdAlmacen)
-                    .OrderByDescending(m => m.IdMovimiento)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync(m => m.IdMovimiento == movimiento.IdMovimientoEspejo);
 
                 if (espejo != null)
                 {
@@ -695,37 +695,9 @@ namespace GSCommerceAPI.Controllers
                 MovimientosCabecera? guiaEspejo = null;
                 if (esTransferencia)
                 {
-                    var motivoNormalizado = movimiento.Motivo?.Trim() ?? string.Empty;
-                    var esEgreso = string.Equals(motivoNormalizado, "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase);
-
-                    if (esEgreso)
-                    {
-                        // Buscar la guía de INGRESO (espejo)
-                        guiaEspejo = await _context.MovimientosCabeceras
-                            .Include(m => m.MovimientosDetalles)
-                            .Where(m =>
-                                m.Tipo == "T" &&
-                                m.Motivo.Trim() == "TRANSFERENCIA INGRESO" &&
-                                m.IdAlmacen == movimiento.IdAlmacenDestinoOrigen &&
-                                m.IdAlmacenDestinoOrigen == movimiento.IdAlmacen
-                            )
-                            .OrderByDescending(m => m.IdMovimiento)
-                            .FirstOrDefaultAsync();
-                    }
-                    else
-                    {
-                        // Buscar la guía de EGRESO (espejo)
-                        guiaEspejo = await _context.MovimientosCabeceras
-                            .Include(m => m.MovimientosDetalles)
-                            .Where(m =>
-                                m.Tipo == "T" &&
-                                m.Motivo.Trim() == "TRANSFERENCIA EGRESO" &&
-                                m.IdAlmacen == movimiento.IdAlmacenDestinoOrigen &&
-                                m.IdAlmacenDestinoOrigen == movimiento.IdAlmacen
-                            )
-                            .OrderByDescending(m => m.IdMovimiento)
-                            .FirstOrDefaultAsync();
-                    }
+                    guiaEspejo = await _context.MovimientosCabeceras
+                        .Include(m => m.MovimientosDetalles)
+                        .FirstOrDefaultAsync(m => m.IdMovimiento == movimiento.IdMovimientoEspejo);
 
                     // Validar que la guía espejo tampoco esté confirmada
                     if (guiaEspejo != null && guiaEspejo.IdUsuarioConfirma.HasValue)

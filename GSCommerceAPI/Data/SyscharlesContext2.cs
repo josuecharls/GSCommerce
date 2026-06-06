@@ -1,4 +1,4 @@
-﻿/*ing System;
+/*ing System;
 using System.Collections.Generic;
 using GSCommerceAPI.Models;
 using Microsoft.EntityFrameworkCore;
@@ -1221,6 +1221,10 @@ public partial class SyscharlesContext : DbContext
             entity.HasOne(d => d.IdOcNavigation).WithMany(p => p.MovimientosCabeceras)
                 .HasForeignKey(d => d.IdOc)
                 .HasConstraintName("FK_MovimientosCabecera_OrdenDeCompraCabecera");
+
+            entity.HasOne(d => d.MovimientoEspejoNavigation).WithMany()
+                .HasForeignKey(d => d.IdMovimientoEspejo)
+                .HasConstraintName("FK_MovimientosCabecera_Espejo");
         });
 
         modelBuilder.Entity<MovimientosDetalle>(entity =>
