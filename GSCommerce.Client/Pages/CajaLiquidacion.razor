@@ -163,6 +163,8 @@ else
                 continue;
             }
 
+            var esNcEmitida = venta.Descripcion.Contains("(N.C.)", StringComparison.OrdinalIgnoreCase);
+
             switch (venta.Descripcion.Split(" ")[0])
             {
                 case "Efectivo":
@@ -171,16 +173,19 @@ else
                 case "Tarjeta":
                 case "Online":
                     totalTarjeta += venta.Soles;
-                    resumen.Add(new()
+                    if (!esNcEmitida)
                     {
-                        IdUsuario = idUsuario,
-                        IdAlmacen = idAlmacen,
-                        Fecha = fechaSeleccionada,
-                        IdGrupo = 6,
-                        Grupo = "VENTA TARJETA/ONLINE",
-                        Detalle = venta.Descripcion,
-                        Monto = venta.Soles
-                    });
+                        resumen.Add(new()
+                        {
+                            IdUsuario = idUsuario,
+                            IdAlmacen = idAlmacen,
+                            Fecha = fechaSeleccionada,
+                            IdGrupo = 6,
+                            Grupo = "VENTA TARJETA/ONLINE",
+                            Detalle = venta.Descripcion,
+                            Monto = venta.Soles
+                        });
+                    }
                     break;
                 case "N.C.":
                     totalNC += venta.Soles;
@@ -196,9 +201,22 @@ else
                     });
                     break;
             }
+
+            if (esNcEmitida)
+            {
+                resumen.Add(new()
+                {
+                    IdUsuario = idUsuario,
+                    IdAlmacen = idAlmacen,
+                    Fecha = fechaSeleccionada,
+                    IdGrupo = 7,
+                    Grupo = "N.C. EMITIDA",
+                    Detalle = $"N.C. {venta.Serie}-{venta.Numero:D8} (Ref. {venta.Datos})",
+                    Monto = venta.Soles
+                });
+            }
         }
 
-        // Total de ventas solo considera efectivo y tarjeta
         totalVenta = totalFinal + totalTarjeta;
         resumen.Add(new()
         {

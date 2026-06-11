@@ -228,56 +228,18 @@ public class CajaController : ControllerBase
         var fechaInicio = actual.Fecha.ToDateTime(TimeOnly.MinValue);
         var fechaFin = actual.Fecha.ToDateTime(new TimeOnly(23, 59, 59));
 
-        var ventasQuery = _context.VCierreVentaDiaria1s
-            .Where(v => v.IdAlmacen == actual.IdAlmacen &&
-                        v.IdCajero == actual.IdUsuario &&
-                        v.Fecha >= fechaInicio &&
-                        v.Fecha <= fechaFin);
+        var ventas = await ObtenerVentasDiariasFiltradasAsync(
+            actual.IdAlmacen, actual.IdUsuario, fechaInicio, fechaFin);
 
-        ventasQuery = from v in ventasQuery
-                      join c in _context.ComprobanteDeVentaCabeceras
-                          on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
-                          equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
-                      where c.Fecha >= fechaInicio && c.Fecha <= fechaFin
-                      && !(c.Estado == "A" &&
-                              (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
-                              c.FechaHoraUsuarioAnula.HasValue &&
-                              c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
-                              c.FechaHoraUsuarioAnula.Value <= fechaFin)
-                      select v;
-
-        var ventas = DistinctVentasDiarias(await ventasQuery.ToListAsync());
-
-        decimal ventaEfectivo = 0;
-        decimal ventaTarjeta = 0;
-
-        foreach (var v in ventas)
-        {
-            if (v.Estado == "A") continue;
-
-            var tipo = v.Descripcion.Split(' ')[0];
-            switch (tipo)
-            {
-                case "Efectivo":
-                    ventaEfectivo += v.Soles - (v.Vuelto ?? 0);
-                    break;
-                case "Tarjeta":
-                case "Online":
-                    ventaTarjeta += v.Soles;
-                    break;
-                case "N.C.":
-                    // Las notas de crédito no forman parte de la venta del día
-                    break;
-            }
-        }
+        AcumularTotalesVenta(ventas, out var ventaEfectivo, out var efectivoCaja, out var ventaTarjeta, out _);
 
         var ventaDia = ventaEfectivo + ventaTarjeta;
 
         actual.VentaDia = ventaDia;
         actual.Ingresos = ingresos;
         actual.Egresos = egresos;
-        // Saldo final solo considera lo generado en efectivo
-        actual.SaldoFinal = actual.SaldoInicial + ventaEfectivo + ingresos - egresos;
+        // Saldo final: efectivo en caja (incluye ventas anuladas con N.C. cuyo efectivo no se devolvió)
+        actual.SaldoFinal = actual.SaldoInicial + efectivoCaja + ingresos - egresos;
         actual.ObservacionCierre = cierre.ObservacionCierre;
         actual.Estado = "C";
 
@@ -327,6 +289,8 @@ public class CajaController : ControllerBase
                          select v;
 
         var ventasDia = DistinctVentasDiarias(await ventasDiaQuery.ToListAsync());
+        var ajustesNc = await ObtenerAjustesNcEmitidasAsync(dayStart, dayEnd, idAlmacen, null);
+        ventasDia.AddRange(ajustesNc);
         ventasDia = ventasDia.Where(v => claves.Contains((v.IdCajero, v.IdAlmacen))).ToList();
         var ventasPorClave = ventasDia
             .GroupBy(v => (v.IdCajero, v.IdAlmacen))
@@ -364,31 +328,13 @@ public class CajaController : ControllerBase
                 .Select(a => (decimal?)a.SaldoFinal)
                 .FirstOrDefaultAsync() ?? ap.SaldoInicial;
 
-            decimal vEfectivo = 0, vTarjeta = 0, vNC = 0;
+            decimal vEfectivo = 0, vEfectivoCaja = 0, vTarjeta = 0, vNC = 0;
             if (ventasPorClave.TryGetValue((ap.IdUsuario, ap.IdAlmacen), out var vList))
             {
-                foreach (var v in vList)
-                {
-                    if (v.Estado == "A") continue;
-
-                    var tipo = v.Descripcion.Split(' ')[0];
-                    switch (tipo)
-                    {
-                        case "Efectivo":
-                            vEfectivo += v.Soles - (v.Vuelto ?? 0);
-                            break;
-                        case "Tarjeta":
-                        case "Online":
-                            vTarjeta += v.Soles;
-                            break;
-                        case "N.C.":
-                            vNC += v.Soles;
-                            break;
-                    }
-                }
+                AcumularTotalesVenta(vList, out vEfectivo, out vEfectivoCaja, out vTarjeta, out vNC);
             }
             var vTotal = vEfectivo + vTarjeta;
-            _ = vNC; // valor referencial de N.C.
+            _ = vNC; // valor referencial de N.C. canjeada
 
             var ingresos = Ingresos(ap.IdUsuario, ap.IdAlmacen);
             var egresos = Gastos(ap.IdUsuario, ap.IdAlmacen) + Transf(ap.IdUsuario, ap.IdAlmacen) + Prov(ap.IdUsuario, ap.IdAlmacen);
@@ -407,7 +353,7 @@ public class CajaController : ControllerBase
                 VentaDia = vTotal,  // <- TOTAL ventas (efectivo + tarjeta)
                 Ingresos = ingresos,
                 Egresos = egresos,
-                SaldoFinal = saldoDiaAnterior + vEfectivo + ingresos - egresos // <- usa EFECTIVO
+                SaldoFinal = saldoDiaAnterior + vEfectivoCaja + ingresos - egresos // <- efectivo físico en caja
             });
         }
 
@@ -430,28 +376,11 @@ public class CajaController : ControllerBase
         var fechaInicio = fechaParsed.ToDateTime(new TimeOnly(0, 0, 0));
         var fechaFin = fechaParsed.ToDateTime(new TimeOnly(23, 59, 59));
 
-        var query = _context.VCierreVentaDiaria1s
-            .Where(v => v.IdAlmacen == idAlmacen && v.Fecha >= fechaInicio && v.Fecha <= fechaFin);
-        
-        // Filtrar por cajero si se proporciona
-        if (idUsuario.HasValue && idUsuario.Value > 0)
-        {
-            query = query.Where(v => v.IdCajero == idUsuario.Value);
-        }
+        if (!idUsuario.HasValue || idUsuario.Value <= 0)
+            return BadRequest("El cajero es requerido.");
 
-        query = from v in query
-                join c in _context.ComprobanteDeVentaCabeceras
-                    on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
-                    equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
-                where c.Fecha >= fechaInicio && c.Fecha <= fechaFin
-                && !(c.Estado == "A" &&
-                        (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
-                        c.FechaHoraUsuarioAnula.HasValue &&
-                        c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
-                        c.FechaHoraUsuarioAnula.Value <= fechaFin)
-                select v;
-
-        var lista = DistinctVentasDiarias(await query.ToListAsync());
+        var lista = await ObtenerVentasDiariasFiltradasAsync(
+            idAlmacen, idUsuario.Value, fechaInicio, fechaFin);
 
         return Ok(lista);
     }
@@ -599,9 +528,8 @@ public class CajaController : ControllerBase
 
         _context.ResumenCierreDeCajas.AddRange(resumenes);
 
-        // Calcular venta del día (efectivo + tarjeta/online, sin N.C.)
-        var totalVentas = resumenes.Where(r => r.IdGrupo == 2).Sum(r => r.Monto);
-        apertura.VentaDia = totalVentas;
+        // Venta del día: usar el total calculado en liquidación (efectivo + tarjeta/online, con N.C. emitidas)
+        apertura.VentaDia = liquidacion.Total;
         apertura.Estado = "L";
 
         await _context.SaveChangesAsync();
@@ -629,58 +557,26 @@ public class CajaController : ControllerBase
             var dayEnd = apertura.Fecha.ToDateTime(new TimeOnly(23, 59, 59));
 
             // 2) VENTAS DEL DÍA PARA CÁLCULOS
-            var ventasQuery = _context.VCierreVentaDiaria1s
-                .Where(v => v.IdAlmacen == apertura.IdAlmacen
-                         && v.IdCajero == apertura.IdUsuario
-                         && v.Fecha >= dayStart && v.Fecha <= dayEnd);
+            var ventas = await ObtenerVentasDiariasFiltradasAsync(
+                apertura.IdAlmacen, apertura.IdUsuario, dayStart, dayEnd);
 
-            ventasQuery = from v in ventasQuery
-                          join c in _context.ComprobanteDeVentaCabeceras
-                              on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
-                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
-                          where c.Fecha >= dayStart && c.Fecha <= dayEnd
-                          && !(c.Estado == "A" &&
-                                  (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
-                                  c.FechaHoraUsuarioAnula.HasValue &&
-                                  c.FechaHoraUsuarioAnula.Value >= dayStart &&
-                                  c.FechaHoraUsuarioAnula.Value <= dayEnd)
-                          select v;
-
-            var ventas = DistinctVentasDiarias(await ventasQuery.ToListAsync());
-
-            decimal ventaEfectivo = 0m, ventaTarjeta = 0m, ventaNC = 0m;
-
-            foreach (var v in ventas)
-            {
-                if (v.Estado == "A") continue;
-
-                var tipo = v.Descripcion.Split(' ')[0];
-                switch (tipo)
-                {
-                    case "Efectivo":
-                        ventaEfectivo += v.Soles - (v.Vuelto ?? 0);
-                        break;
-                    case "Tarjeta":
-                    case "Online":
-                        ventaTarjeta += v.Soles;
-                        break;
-                    case "N.C.":
-                        ventaNC += v.Soles;
-                        break;
-                }
-            }
+            AcumularTotalesVenta(ventas, out var ventaEfectivo, out var efectivoCaja, out var ventaTarjeta, out var ventaNC);
 
             var ventaDia = ventaEfectivo + ventaTarjeta;
 
             var ventasTarjetaDetalle = ventas
-                .Where(v => v.Estado != "A" && (v.Descripcion.StartsWith("Tarjeta") || v.Descripcion.StartsWith("Online")))
+                .Where(v => v.Estado != "A" &&
+                            (v.Descripcion.StartsWith("Tarjeta") || v.Descripcion.StartsWith("Online")))
                 .GroupBy(v => v.Descripcion)
                 .Select(g => new { Detalle = g.Key, Monto = g.Sum(x => x.Soles) })
+                .Where(g => g.Monto != 0)
                 .ToList();
 
-            // Agrupar notas de crédito por serie y crear rangos
+            // Agrupar notas de crédito canjeadas por serie y crear rangos
             var notasCreditoDetalle = ventas
-                .Where(v => v.Estado != "A" && v.Descripcion.StartsWith("N.C."))
+                .Where(v => v.Estado != "A" &&
+                            v.Descripcion.StartsWith("N.C.") &&
+                            !v.Descripcion.Contains("(N.C.)", StringComparison.OrdinalIgnoreCase))
                 .GroupBy(v => v.Serie)
                 .Select(g => new ResumenCierreDeCaja
                 {
@@ -691,6 +587,22 @@ public class CajaController : ControllerBase
                         : $"DEL {g.Key}-{g.Min(x => x.Numero):D8} AL {g.Key}-{g.Max(x => x.Numero):D8}",
                     Monto = g.Sum(x => x.Soles)
                 })
+                .ToList();
+
+            // Notas de crédito emitidas (devoluciones) agrupadas por serie
+            var notasCreditoEmitidasDetalle = ventas
+                .Where(v => v.Estado != "A" && v.Descripcion.Contains("(N.C.)", StringComparison.OrdinalIgnoreCase))
+                .GroupBy(v => v.Serie)
+                .Select(g => new ResumenCierreDeCaja
+                {
+                    IdGrupo = 1,
+                    Grupo = "N.C. EMITIDA",
+                    Detalle = g.Count() == 1
+                        ? $"N.C. - {g.Key}-{g.First().Numero:D8}"
+                        : $"DEL {g.Key}-{g.Min(x => x.Numero):D8} AL {g.Key}-{g.Max(x => x.Numero):D8}",
+                    Monto = g.Sum(x => x.Soles)
+                })
+                .Where(g => g.Monto != 0)
                 .ToList();
 
             // 3) RESUMEN BASE (solo VENTAS) para ese día
@@ -780,7 +692,7 @@ public class CajaController : ControllerBase
                 .Sum(r => r.Monto);
 
             var egresos = gastosGenerales + transferenciasDia + pagosProveedores; // total egresos
-            var saldoFinal = saldoDiaAnterior + ventaEfectivo + ingresos - egresos; // solo efectivo
+            var saldoFinal = saldoDiaAnterior + efectivoCaja + ingresos - egresos; // efectivo físico en caja
 
             // 7) Construir DETALLE para el PDF
             var detalleHoy = new List<ResumenCierreDeCaja>();
@@ -813,6 +725,7 @@ public class CajaController : ControllerBase
                 });
             }
             detalleHoy.AddRange(notasCreditoDetalle);
+            detalleHoy.AddRange(notasCreditoEmitidasDetalle);
 
             // Agregar movimientos del día (Tipo -> Grupo, Glosa -> Detalle)
             detalleHoy.AddRange(movimientos.Select(m => new ResumenCierreDeCaja
@@ -847,7 +760,7 @@ public class CajaController : ControllerBase
                 FondoFijo = apertura.FondoFijo,
 
                 SaldoDiaAnterior = saldoDiaAnterior,
-                VentasDelDia = ventaEfectivo,   // efectivo real en caja
+                VentasDelDia = efectivoCaja,   // efectivo real en caja (incluye anuladas con N.C.)
                 OtrosIngresos = ingresos,
                 VentaTarjeta = ventaTarjeta,
                 VentaNC = ventaNC,
@@ -925,6 +838,249 @@ public class CajaController : ControllerBase
                 v.Estado))
             .Select(g => g.First())
             .ToList();
+    }
+
+    private async Task<List<VCierreVentaDiaria1>> ObtenerVentasDiariasFiltradasAsync(
+        int idAlmacen,
+        int idCajero,
+        DateTime fechaInicio,
+        DateTime fechaFin)
+    {
+        var ventasQuery = _context.VCierreVentaDiaria1s
+            .AsNoTracking()
+            .Where(v => v.IdAlmacen == idAlmacen &&
+                        v.IdCajero == idCajero &&
+                        v.Fecha >= fechaInicio &&
+                        v.Fecha <= fechaFin);
+
+        ventasQuery = from v in ventasQuery
+                      join c in _context.ComprobanteDeVentaCabeceras
+                          on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
+                          equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
+                      where c.Fecha >= fechaInicio && c.Fecha <= fechaFin
+                      && !(c.Estado == "A" &&
+                              (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                              c.FechaHoraUsuarioAnula.HasValue &&
+                              c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
+                              c.FechaHoraUsuarioAnula.Value <= fechaFin)
+                      select v;
+
+        var ventas = DistinctVentasDiarias(await ventasQuery.ToListAsync());
+        var ajustesNc = await ObtenerAjustesNcEmitidasAsync(fechaInicio, fechaFin, idAlmacen, idCajero);
+        ventas.AddRange(ajustesNc);
+        return ventas;
+    }
+
+    private async Task<List<VCierreVentaDiaria1>> ObtenerAjustesNcEmitidasAsync(
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        int? idAlmacen = null,
+        int? idCajero = null)
+    {
+        var query = _context.NotaDeCreditoCabeceras
+            .AsNoTracking()
+            .Where(n => n.Fecha >= fechaInicio &&
+                        n.Fecha <= fechaFin &&
+                        n.Estado != "A");
+
+        if (idAlmacen.HasValue)
+            query = query.Where(n => n.IdAlmacen == idAlmacen.Value);
+
+        if (idCajero.HasValue)
+            query = query.Where(n => n.IdUsuario == idCajero.Value);
+
+        var notasEmitidas = await query.ToListAsync();
+
+        if (notasEmitidas.Count == 0)
+            return new List<VCierreVentaDiaria1>();
+
+        var almacenesNc = notasEmitidas.Select(n => n.IdAlmacen).Distinct().ToList();
+
+        var paresReferencia = new List<(int IdAlmacen, string Serie, int Numero)>();
+        foreach (var nc in notasEmitidas)
+        {
+            if (TryParseReferenciaComprobante(nc.Referencia, out var serieRef, out var numeroRef))
+                paresReferencia.Add((nc.IdAlmacen, serieRef, numeroRef));
+        }
+
+        var comprobantesOriginales = new Dictionary<(int IdAlmacen, string Referencia), ComprobanteDeVentaCabecera>();
+        if (paresReferencia.Count > 0)
+        {
+            var series = paresReferencia.Select(p => p.Serie).Distinct().ToList();
+            var numeros = paresReferencia.Select(p => p.Numero).Distinct().ToList();
+            var paresSet = paresReferencia.ToHashSet();
+
+            var comprobantes = await _context.ComprobanteDeVentaCabeceras
+                .AsNoTracking()
+                .Include(c => c.DetallePagoVenta)
+                    .ThenInclude(p => p.IdTipoPagoVentaNavigation)
+                .Where(c => almacenesNc.Contains(c.IdAlmacen) &&
+                            series.Contains(c.Serie) &&
+                            numeros.Contains(c.Numero))
+                .ToListAsync();
+
+            foreach (var c in comprobantes.Where(c => paresSet.Contains((c.IdAlmacen, c.Serie, c.Numero))))
+            {
+                var clave = (c.IdAlmacen, $"{c.Serie}-{c.Numero:D8}");
+                comprobantesOriginales[clave] = c;
+            }
+        }
+
+        var ajustes = new List<VCierreVentaDiaria1>();
+
+        foreach (var nc in notasEmitidas)
+        {
+            if (!TryParseReferenciaComprobante(nc.Referencia, out var serieRef, out var numeroRef))
+                continue;
+
+            var claveRef = (nc.IdAlmacen, $"{serieRef}-{numeroRef:D8}");
+            if (!comprobantesOriginales.TryGetValue(claveRef, out var comprobanteOriginal))
+                continue;
+
+            // Si el comprobante fue anulado por la N.C., su venta ya no se suma en los totales.
+            if (comprobanteOriginal.Estado == "A")
+                continue;
+
+            var pagosOriginales = comprobanteOriginal.DetallePagoVenta
+                .Where(p => !EsPagoNotaCredito(p.IdTipoPagoVentaNavigation?.Descripcion))
+                .ToList();
+
+            if (pagosOriginales.Count == 0)
+                continue;
+
+            var reparto = RepartirMontoNcEnPagos(nc.Total, pagosOriginales);
+
+            foreach (var (descripcionPago, monto) in reparto)
+            {
+                if (monto == 0) continue;
+
+                ajustes.Add(new VCierreVentaDiaria1
+                {
+                    IdTipoPagoVenta = 0,
+                    Descripcion = $"{descripcionPago} (N.C.)",
+                    Datos = nc.Referencia,
+                    Serie = nc.Serie,
+                    Numero = nc.Numero,
+                    Fecha = nc.Fecha,
+                    Total = nc.Total,
+                    Soles = -monto,
+                    Dolares = 0,
+                    Redondeo = 0,
+                    Vuelto = 0,
+                    Estado = nc.Estado,
+                    IdCajero = nc.IdUsuario,
+                    IdAlmacen = nc.IdAlmacen
+                });
+            }
+        }
+
+        return ajustes;
+    }
+
+    private static bool TryParseReferenciaComprobante(string referencia, out string serie, out int numero)
+    {
+        serie = string.Empty;
+        numero = 0;
+
+        if (string.IsNullOrWhiteSpace(referencia))
+            return false;
+
+        var idx = referencia.LastIndexOf('-');
+        if (idx <= 0)
+            return false;
+
+        serie = referencia[..idx];
+        return int.TryParse(referencia[(idx + 1)..], out numero);
+    }
+
+    private static bool EsPagoNotaCredito(string? descripcionPago)
+    {
+        if (string.IsNullOrWhiteSpace(descripcionPago))
+            return false;
+
+        return descripcionPago.StartsWith("N.C.", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static List<(string Descripcion, decimal Monto)> RepartirMontoNcEnPagos(
+        decimal montoNc,
+        IEnumerable<DetallePagoVentum> pagos)
+    {
+        var pagosActivos = pagos
+            .Select(p => new
+            {
+                Descripcion = p.IdTipoPagoVentaNavigation?.Descripcion ?? string.Empty,
+                Monto = p.Soles - (p.Vuelto ?? 0)
+            })
+            .Where(p => p.Monto > 0 && !EsPagoNotaCredito(p.Descripcion))
+            .ToList();
+
+        if (pagosActivos.Count == 0)
+            return new List<(string Descripcion, decimal Monto)>();
+
+        var totalPagado = pagosActivos.Sum(p => p.Monto);
+        if (totalPagado <= 0)
+            return new List<(string Descripcion, decimal Monto)>();
+
+        var resultado = new List<(string Descripcion, decimal Monto)>();
+        decimal acumulado = 0;
+
+        for (var i = 0; i < pagosActivos.Count; i++)
+        {
+            var pago = pagosActivos[i];
+            var monto = i == pagosActivos.Count - 1
+                ? montoNc - acumulado
+                : Math.Round(montoNc * (pago.Monto / totalPagado), 2, MidpointRounding.AwayFromZero);
+
+            acumulado += monto;
+            resultado.Add((pago.Descripcion, monto));
+        }
+
+        return resultado;
+    }
+
+    private static void AcumularTotalesVenta(
+        IEnumerable<VCierreVentaDiaria1> ventas,
+        out decimal ventaEfectivo,
+        out decimal efectivoCaja,
+        out decimal ventaTarjeta,
+        out decimal ventaNc)
+    {
+        ventaEfectivo = 0;
+        efectivoCaja = 0;
+        ventaTarjeta = 0;
+        ventaNc = 0;
+
+        foreach (var v in ventas)
+        {
+            var tipo = v.Descripcion.Split(' ')[0];
+            var anulado = v.Estado == "A";
+
+            switch (tipo)
+            {
+                case "Efectivo":
+                    var netoEfectivo = v.Soles - (v.Vuelto ?? 0);
+                    // Anulaciones con N.C.: el efectivo no se devuelve, queda en caja hasta canjear la N.C.
+                    if (anulado)
+                    {
+                        efectivoCaja += netoEfectivo;
+                    }
+                    else
+                    {
+                        ventaEfectivo += netoEfectivo;
+                        efectivoCaja += netoEfectivo;
+                    }
+                    break;
+                case "Tarjeta":
+                case "Online":
+                    if (!anulado)
+                        ventaTarjeta += v.Soles;
+                    break;
+                case "N.C.":
+                    if (!anulado)
+                        ventaNc += v.Soles;
+                    break;
+            }
+        }
     }
 
     private async Task RecalcularSaldosPosterioresAsync(AperturaCierreCaja apertura)
