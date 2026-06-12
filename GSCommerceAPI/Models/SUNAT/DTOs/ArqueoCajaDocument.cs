@@ -91,10 +91,9 @@ public class ArqueoCajaDocument : IDocument
                     table.Cell().PaddingRight(sep).Column(col =>
                     {
                         col.Item().Text("Ingresos").Bold();
-                        var ventaEfectivo = _dto.VentasDelDia;
-                        var ventaTotal = ventaEfectivo + _dto.VentaTarjeta;
+                        var ventaTotal = _dto.VentaDia;
                         col.Item().Row(r => { r.RelativeItem().Text("Saldo del día anterior (S/)"); r.ConstantItem(80).AlignRight().Text(_dto.SaldoInicial.ToString("N2")); });
-                        col.Item().Row(r => { r.RelativeItem().Text("Venta en efectivo (S/)"); r.ConstantItem(80).AlignRight().Text(ventaEfectivo.ToString("N2")); });
+                        col.Item().Row(r => { r.RelativeItem().Text("Venta en efectivo (S/)"); r.ConstantItem(80).AlignRight().Text(_dto.VentasDelDia.ToString("N2")); });
                         col.Item().Row(r => { r.RelativeItem().Text("Venta con tarjeta (S/)"); r.ConstantItem(80).AlignRight().Text(_dto.VentaTarjeta.ToString("N2")); });
                         col.Item().Row(r => { r.RelativeItem().Text("Venta con N.C. (S/)"); r.ConstantItem(80).AlignRight().Text(_dto.VentaNC.ToString("N2")); });
                         col.Item().Row(r => { r.RelativeItem().Text("Otros ingresos (S/)"); r.ConstantItem(80).AlignRight().Text(_dto.Ingresos.ToString("N2")); });
