@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using GSCommerceAPI.Services;
+using GSCommerceAPI.Services.Caja;
 using GSCommerceAPI.Services.Reportes;
 using GSCommerceAPI.Services.SUNAT;
 using ServicioSunat;
@@ -39,6 +40,7 @@ builder.Services.AddDbContext<SysDbHistoricalContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("HistoricalConnection"), sql => sql.UseCompatibilityLevel(120))
            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 builder.Services.Configure<ReporteAvanceHoraEmailOptions>(builder.Configuration.GetSection(ReporteAvanceHoraEmailOptions.SectionName));
+builder.Services.Configure<CuadroCajaEmailOptions>(builder.Configuration.GetSection(CuadroCajaEmailOptions.SectionName));
 Console.WriteLine(
     "Cadena de conexi�n: " + builder.Configuration.GetConnectionString("DefaultConnection"));
 
@@ -46,9 +48,13 @@ builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronic
 builder.Services.AddScoped<IGuiaRemisionElectronicaService, GuiaRemisionElectronicaService>();
 builder.Services.AddScoped<ReporteAvanceHoraProvider>();
 builder.Services.AddScoped<IReporteAvanceHoraEmailService, ReporteAvanceHoraEmailService>();
+builder.Services.AddScoped<ICajaVentasDiariasService, CajaVentasDiariasService>();
+builder.Services.AddScoped<ICuadroCajaReportProvider, CuadroCajaReportProvider>();
+builder.Services.AddScoped<ICuadroCajaEmailService, CuadroCajaEmailService>();
 builder.Services.AddScoped<GSCommerceAPI.Services.PasswordHasherService>();
 builder.Services.AddHostedService<TicketValidationBackgroundService>();
 builder.Services.AddHostedService<ReporteAvanceHoraEmailBackgroundService>();
+builder.Services.AddHostedService<CuadroCajaEmailBackgroundService>();
 
 // Habilitar CORS para permitir llamadas desde el frontend
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
