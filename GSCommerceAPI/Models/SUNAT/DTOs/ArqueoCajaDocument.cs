@@ -1,4 +1,5 @@
-﻿using GSCommerceAPI.Models.DTOs;
+﻿using GSCommerceAPI.Models;
+using GSCommerceAPI.Models.DTOs;
 using GSCommerceAPI.Models.SUNAT.DTOs; // Ajusta si está en otro namespace
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using QuestPDF.Fluent;
@@ -63,7 +64,7 @@ public class ArqueoCajaDocument : IDocument
                         header.Cell().AlignRight().Text("Total").Bold();
                     });
 
-                    foreach (var item in _dto.Resumen)
+                    foreach (var item in _dto.Resumen.Where(MostrarEnDetalleArqueo))
                     {
                         table.Cell().Text(item.Grupo ?? string.Empty);
                         table.Cell().Text(item.Detalle ?? string.Empty);
@@ -132,5 +133,17 @@ public class ArqueoCajaDocument : IDocument
                 });
             });
         });
+    }
+
+    private static bool MostrarEnDetalleArqueo(ResumenCierreDeCaja item)
+    {
+        if (string.Equals(item.Grupo, "N.C. EMITIDA", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var detalle = item.Detalle ?? string.Empty;
+        if (detalle.Contains("(N.C.)", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return true;
     }
 }

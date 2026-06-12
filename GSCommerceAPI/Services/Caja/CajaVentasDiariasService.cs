@@ -4,6 +4,24 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GSCommerceAPI.Services.Caja;
 
+public sealed class CajaVentasTotales
+{
+    public decimal VentaEfectivo { get; init; }
+    public decimal EfectivoCaja { get; init; }
+    public decimal VentaTarjeta { get; init; }
+    public decimal VentaNc { get; init; }
+    public decimal VentaDia => VentaEfectivo + VentaTarjeta;
+}
+
+public sealed class VentasDiariasCajaResponse
+{
+    public List<VCierreVentaDiaria1> Ventas { get; set; } = new();
+    public decimal TotalEfectivo { get; set; }
+    public decimal TotalTarjeta { get; set; }
+    public decimal TotalNc { get; set; }
+    public decimal TotalVentas { get; set; }
+}
+
 public sealed class CajaListadoDiaItem
 {
     public int IdAperturaCierre { get; set; }
@@ -30,6 +48,21 @@ public interface ICajaVentasDiariasService
         int idCajero,
         DateTime fechaInicio,
         DateTime fechaFin,
+        CancellationToken cancellationToken = default);
+
+    Task<VentasDiariasCajaResponse> ObtenerVentasDiariasConTotalesAsync(
+        int idAlmacen,
+        int idCajero,
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        CancellationToken cancellationToken = default);
+
+    Task<CajaVentasTotales> CalcularTotalesVentaAsync(
+        IEnumerable<VCierreVentaDiaria1> ventas,
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        int? idAlmacen,
+        int? idCajero,
         CancellationToken cancellationToken = default);
 }
 
@@ -112,6 +145,9 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
                 .Sum(m => m.Monto);
         }
 
+        var anuladosConNc = await ObtenerClavesAnuladosConNotaCreditoAsync(
+            dayStart, dayEnd, idAlmacen, null, cancellationToken);
+
         var resultado = new List<CajaListadoDiaItem>();
 
         foreach (var ap in aperturas)
@@ -130,7 +166,7 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
                 ? vList
                 : new List<VCierreVentaDiaria1>();
 
-            AcumularTotalesVenta(ventasCajero, out var vEfectivo, out var vEfectivoCaja, out var vTarjeta, out _);
+            AcumularTotalesVenta(ventasCajero, out var vEfectivo, out var vEfectivoCaja, out var vTarjeta, out _, anuladosConNc);
 
             var ingresos = Ingresos(ap.IdUsuario, ap.IdAlmacen);
             var egresos = Gastos(ap.IdUsuario, ap.IdAlmacen) + Transf(ap.IdUsuario, ap.IdAlmacen) + Prov(ap.IdUsuario, ap.IdAlmacen);
@@ -178,12 +214,35 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
             .ToList();
     }
 
+    public async Task<CajaVentasTotales> CalcularTotalesVentaAsync(
+        IEnumerable<VCierreVentaDiaria1> ventas,
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        int? idAlmacen,
+        int? idCajero,
+        CancellationToken cancellationToken = default)
+    {
+        var anuladosConNc = await ObtenerClavesAnuladosConNotaCreditoAsync(
+            fechaInicio, fechaFin, idAlmacen, idCajero, cancellationToken);
+
+        AcumularTotalesVenta(ventas, out var ventaEfectivo, out var efectivoCaja, out var ventaTarjeta, out var ventaNc, anuladosConNc);
+
+        return new CajaVentasTotales
+        {
+            VentaEfectivo = ventaEfectivo,
+            EfectivoCaja = efectivoCaja,
+            VentaTarjeta = ventaTarjeta,
+            VentaNc = ventaNc
+        };
+    }
+
     internal static void AcumularTotalesVenta(
         IEnumerable<VCierreVentaDiaria1> ventas,
         out decimal ventaEfectivo,
         out decimal efectivoCaja,
         out decimal ventaTarjeta,
-        out decimal ventaNc)
+        out decimal ventaNc,
+        IReadOnlySet<(int IdAlmacen, string Serie, int Numero)>? anuladosConNotaCredito = null)
     {
         ventaEfectivo = 0;
         efectivoCaja = 0;
@@ -193,31 +252,69 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
         foreach (var v in ventas)
         {
             var tipo = v.Descripcion.Split(' ')[0];
-            var anulado = v.Estado == "A";
+            var cuentaEnVentaDia = CuentaEnVentaDia(v, anuladosConNotaCredito);
 
             switch (tipo)
             {
                 case "Efectivo":
                     var netoEfectivo = v.Soles - (v.Vuelto ?? 0);
-                    if (anulado)
-                        efectivoCaja += netoEfectivo;
-                    else
-                    {
+                    efectivoCaja += netoEfectivo;
+                    if (cuentaEnVentaDia)
                         ventaEfectivo += netoEfectivo;
-                        efectivoCaja += netoEfectivo;
-                    }
                     break;
                 case "Tarjeta":
                 case "Online":
-                    if (!anulado)
+                    if (cuentaEnVentaDia)
                         ventaTarjeta += v.Soles;
                     break;
                 case "N.C.":
-                    if (!anulado)
+                    if (cuentaEnVentaDia)
                         ventaNc += v.Soles;
                     break;
             }
         }
+    }
+
+    private static bool CuentaEnVentaDia(
+        VCierreVentaDiaria1 venta,
+        IReadOnlySet<(int IdAlmacen, string Serie, int Numero)>? anuladosConNotaCredito)
+    {
+        if (venta.Estado != "A")
+            return true;
+
+        if (anuladosConNotaCredito == null)
+            return false;
+
+        return anuladosConNotaCredito.Contains((venta.IdAlmacen, venta.Serie, venta.Numero));
+    }
+
+    private async Task<HashSet<(int IdAlmacen, string Serie, int Numero)>> ObtenerClavesAnuladosConNotaCreditoAsync(
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        int? idAlmacen,
+        int? idCajero,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.ComprobanteDeVentaCabeceras
+            .AsNoTracking()
+            .Where(c => c.Estado == "A" &&
+                        c.GeneroNc != null &&
+                        c.Fecha >= fechaInicio &&
+                        c.Fecha <= fechaFin);
+
+        if (idAlmacen.HasValue)
+            query = query.Where(c => c.IdAlmacen == idAlmacen.Value);
+
+        if (idCajero.HasValue)
+            query = query.Where(c => c.IdCajero == idCajero.Value);
+
+        var claves = await query
+            .Select(c => new { c.IdAlmacen, c.Serie, c.Numero })
+            .ToListAsync(cancellationToken);
+
+        return claves
+            .Select(c => (c.IdAlmacen, c.Serie, c.Numero))
+            .ToHashSet();
     }
 
     private async Task<List<VCierreVentaDiaria1>> ObtenerAjustesNcEmitidasAsync(
@@ -245,6 +342,10 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
             return new List<VCierreVentaDiaria1>();
 
         var almacenesNc = notasEmitidas.Select(n => n.IdAlmacen).Distinct().ToList();
+        var clavesNc = notasEmitidas
+            .Select(n => $"{n.Serie}-{n.Numero:D8}")
+            .Distinct()
+            .ToList();
 
         var paresReferencia = new List<(int IdAlmacen, string Serie, int Numero)>();
         foreach (var nc in notasEmitidas)
@@ -253,8 +354,10 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
                 paresReferencia.Add((nc.IdAlmacen, serieRef, numeroRef));
         }
 
-        var comprobantesOriginales = new Dictionary<(int IdAlmacen, string Referencia), ComprobanteDeVentaCabecera>();
-        if (paresReferencia.Count > 0)
+        var porGeneroNc = new Dictionary<(int IdAlmacen, string ClaveNc), ComprobanteDeVentaCabecera>();
+        var porReferencia = new Dictionary<(int IdAlmacen, string Referencia), List<ComprobanteDeVentaCabecera>>();
+
+        if (clavesNc.Count > 0 || paresReferencia.Count > 0)
         {
             var series = paresReferencia.Select(p => p.Serie).Distinct().ToList();
             var numeros = paresReferencia.Select(p => p.Numero).Distinct().ToList();
@@ -265,14 +368,27 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
                 .Include(c => c.DetallePagoVenta)
                     .ThenInclude(p => p.IdTipoPagoVentaNavigation)
                 .Where(c => almacenesNc.Contains(c.IdAlmacen) &&
-                            series.Contains(c.Serie) &&
-                            numeros.Contains(c.Numero))
+                            (c.GeneroNc != null && clavesNc.Contains(c.GeneroNc) ||
+                             (series.Count > 0 && numeros.Count > 0 &&
+                              series.Contains(c.Serie) && numeros.Contains(c.Numero))))
                 .ToListAsync(cancellationToken);
+
+            foreach (var c in comprobantes.Where(c => !string.IsNullOrEmpty(c.GeneroNc) && clavesNc.Contains(c.GeneroNc)))
+            {
+                var claveNc = (c.IdAlmacen, c.GeneroNc!);
+                if (!porGeneroNc.ContainsKey(claveNc))
+                    porGeneroNc[claveNc] = c;
+            }
 
             foreach (var c in comprobantes.Where(c => paresSet.Contains((c.IdAlmacen, c.Serie, c.Numero))))
             {
-                var clave = (c.IdAlmacen, $"{c.Serie}-{c.Numero:D8}");
-                comprobantesOriginales[clave] = c;
+                var claveRef = (c.IdAlmacen, $"{c.Serie}-{c.Numero:D8}");
+                if (!porReferencia.TryGetValue(claveRef, out var lista))
+                {
+                    lista = new List<ComprobanteDeVentaCabecera>();
+                    porReferencia[claveRef] = lista;
+                }
+                lista.Add(c);
             }
         }
 
@@ -280,14 +396,14 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
 
         foreach (var nc in notasEmitidas)
         {
-            if (!TryParseReferenciaComprobante(nc.Referencia, out var serieRef, out var numeroRef))
-                continue;
-
-            var claveRef = (nc.IdAlmacen, $"{serieRef}-{numeroRef:D8}");
-            if (!comprobantesOriginales.TryGetValue(claveRef, out var comprobanteOriginal))
+            var comprobanteOriginal = ResolverComprobanteOriginalNotaCredito(nc, porGeneroNc, porReferencia);
+            if (comprobanteOriginal == null)
                 continue;
 
             if (comprobanteOriginal.Estado == "A")
+                continue;
+
+            if (comprobanteOriginal.Fecha < fechaInicio || comprobanteOriginal.Fecha > fechaFin)
                 continue;
 
             var pagosOriginales = comprobanteOriginal.DetallePagoVenta
@@ -356,6 +472,48 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
         var ajustesNc = await ObtenerAjustesNcEmitidasAsync(fechaInicio, fechaFin, idAlmacen, idCajero, cancellationToken);
         ventas.AddRange(ajustesNc);
         return ventas;
+    }
+
+    public async Task<VentasDiariasCajaResponse> ObtenerVentasDiariasConTotalesAsync(
+        int idAlmacen,
+        int idCajero,
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        CancellationToken cancellationToken = default)
+    {
+        var ventas = await ObtenerVentasDiariasFiltradasAsync(
+            idAlmacen, idCajero, fechaInicio, fechaFin, cancellationToken);
+
+        var totales = await CalcularTotalesVentaAsync(
+            ventas, fechaInicio, fechaFin, idAlmacen, idCajero, cancellationToken);
+
+        return new VentasDiariasCajaResponse
+        {
+            Ventas = ventas,
+            TotalEfectivo = totales.VentaEfectivo,
+            TotalTarjeta = totales.VentaTarjeta,
+            TotalNc = totales.VentaNc,
+            TotalVentas = totales.VentaDia
+        };
+    }
+
+    private static ComprobanteDeVentaCabecera? ResolverComprobanteOriginalNotaCredito(
+        NotaDeCreditoCabecera nc,
+        IReadOnlyDictionary<(int IdAlmacen, string ClaveNc), ComprobanteDeVentaCabecera> porGeneroNc,
+        IReadOnlyDictionary<(int IdAlmacen, string Referencia), List<ComprobanteDeVentaCabecera>> porReferencia)
+    {
+        var claveNc = $"{nc.Serie}-{nc.Numero:D8}";
+        if (porGeneroNc.TryGetValue((nc.IdAlmacen, claveNc), out var porGn))
+            return porGn;
+
+        if (!TryParseReferenciaComprobante(nc.Referencia, out var serieRef, out var numeroRef))
+            return null;
+
+        var claveRef = (nc.IdAlmacen, $"{serieRef}-{numeroRef:D8}");
+        if (!porReferencia.TryGetValue(claveRef, out var candidatos) || candidatos.Count != 1)
+            return null;
+
+        return candidatos[0];
     }
 
     private static bool TryParseReferenciaComprobante(string referencia, out string serie, out int numero)

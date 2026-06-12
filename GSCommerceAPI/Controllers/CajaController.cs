@@ -244,9 +244,11 @@ public class CajaController : ControllerBase
         var ventas = await _cajaVentas.ObtenerVentasDiariasFiltradasAsync(
             actual.IdAlmacen, actual.IdUsuario, fechaInicio, fechaFin);
 
-        CajaVentasDiariasService.AcumularTotalesVenta(ventas, out var ventaEfectivo, out var efectivoCaja, out var ventaTarjeta, out _);
+        var totalesVenta = await _cajaVentas.CalcularTotalesVentaAsync(
+            ventas, fechaInicio, fechaFin, actual.IdAlmacen, actual.IdUsuario);
 
-        var ventaDia = ventaEfectivo + ventaTarjeta;
+        var ventaDia = totalesVenta.VentaDia;
+        var efectivoCaja = totalesVenta.EfectivoCaja;
 
         actual.VentaDia = ventaDia;
         actual.Ingresos = ingresos;
@@ -296,7 +298,7 @@ public class CajaController : ControllerBase
 
     // 11. Obtener ventas diarias para un almacén y fecha
     [HttpGet("ventas/{idAlmacen}/{fecha}")]
-    public async Task<ActionResult<IEnumerable<VCierreVentaDiaria1>>> GetVentasDiarias(int idAlmacen, string fecha, [FromQuery] int? idUsuario = null)
+    public async Task<ActionResult<VentasDiariasCajaResponse>> GetVentasDiarias(int idAlmacen, string fecha, [FromQuery] int? idUsuario = null)
     {
         if (!DateOnly.TryParseExact(fecha, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaParsed))
             return BadRequest("Fecha inválida");
@@ -307,10 +309,10 @@ public class CajaController : ControllerBase
         if (!idUsuario.HasValue || idUsuario.Value <= 0)
             return BadRequest("El cajero es requerido.");
 
-        var lista = await _cajaVentas.ObtenerVentasDiariasFiltradasAsync(
+        var respuesta = await _cajaVentas.ObtenerVentasDiariasConTotalesAsync(
             idAlmacen, idUsuario.Value, fechaInicio, fechaFin);
 
-        return Ok(lista);
+        return Ok(respuesta);
     }
 
     [HttpPost("liquidar")]
@@ -488,13 +490,19 @@ public class CajaController : ControllerBase
             var ventas = await _cajaVentas.ObtenerVentasDiariasFiltradasAsync(
                 apertura.IdAlmacen, apertura.IdUsuario, dayStart, dayEnd);
 
-            CajaVentasDiariasService.AcumularTotalesVenta(ventas, out var ventaEfectivo, out var efectivoCaja, out var ventaTarjeta, out var ventaNC);
+            var totalesVenta = await _cajaVentas.CalcularTotalesVentaAsync(
+                ventas, dayStart, dayEnd, apertura.IdAlmacen, apertura.IdUsuario);
 
-            var ventaDia = ventaEfectivo + ventaTarjeta;
+            var ventaEfectivo = totalesVenta.VentaEfectivo;
+            var efectivoCaja = totalesVenta.EfectivoCaja;
+            var ventaTarjeta = totalesVenta.VentaTarjeta;
+            var ventaNC = totalesVenta.VentaNc;
+            var ventaDia = totalesVenta.VentaDia;
 
             var ventasTarjetaDetalle = ventas
                 .Where(v => v.Estado != "A" &&
-                            (v.Descripcion.StartsWith("Tarjeta") || v.Descripcion.StartsWith("Online")))
+                            (v.Descripcion.StartsWith("Tarjeta") || v.Descripcion.StartsWith("Online")) &&
+                            !v.Descripcion.Contains("(N.C.)", StringComparison.OrdinalIgnoreCase))
                 .GroupBy(v => v.Descripcion)
                 .Select(g => new { Detalle = g.Key, Monto = g.Sum(x => x.Soles) })
                 .Where(g => g.Monto != 0)
@@ -515,22 +523,6 @@ public class CajaController : ControllerBase
                         : $"DEL {g.Key}-{g.Min(x => x.Numero):D8} AL {g.Key}-{g.Max(x => x.Numero):D8}",
                     Monto = g.Sum(x => x.Soles)
                 })
-                .ToList();
-
-            // Notas de crédito emitidas (devoluciones) agrupadas por serie
-            var notasCreditoEmitidasDetalle = ventas
-                .Where(v => v.Estado != "A" && v.Descripcion.Contains("(N.C.)", StringComparison.OrdinalIgnoreCase))
-                .GroupBy(v => v.Serie)
-                .Select(g => new ResumenCierreDeCaja
-                {
-                    IdGrupo = 1,
-                    Grupo = "N.C. EMITIDA",
-                    Detalle = g.Count() == 1
-                        ? $"N.C. - {g.Key}-{g.First().Numero:D8}"
-                        : $"DEL {g.Key}-{g.Min(x => x.Numero):D8} AL {g.Key}-{g.Max(x => x.Numero):D8}",
-                    Monto = g.Sum(x => x.Soles)
-                })
-                .Where(g => g.Monto != 0)
                 .ToList();
 
             // 3) RESUMEN BASE (solo VENTAS) para ese día
@@ -653,7 +645,6 @@ public class CajaController : ControllerBase
                 });
             }
             detalleHoy.AddRange(notasCreditoDetalle);
-            detalleHoy.AddRange(notasCreditoEmitidasDetalle);
 
             // Agregar movimientos del día (Tipo -> Grupo, Glosa -> Detalle)
             detalleHoy.AddRange(movimientos.Select(m => new ResumenCierreDeCaja

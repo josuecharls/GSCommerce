@@ -154,25 +154,25 @@ else
         usuario = apertura.NombreUsuario ?? "";
         cajero = apertura.NombreCajero ?? "";
 
-        ventas = await CajaService.ObtenerVentasDiariasAsync(idAlmacen, fechaSeleccionada, idUsuario) ?? new();
+        var respuestaVentas = await CajaService.ObtenerVentasDiariasAsync(idAlmacen, fechaSeleccionada, idUsuario);
+        ventas = respuestaVentas?.Ventas ?? new();
+        totalFinal = respuestaVentas?.TotalEfectivo ?? 0;
+        totalTarjeta = respuestaVentas?.TotalTarjeta ?? 0;
+        totalNC = respuestaVentas?.TotalNc ?? 0;
+        totalVenta = respuestaVentas?.TotalVentas ?? 0;
 
         foreach (var venta in ventas)
         {
-            if (venta.Estado == "A")
+            var esNcEmitida = venta.Descripcion.Contains("(N.C.)", StringComparison.OrdinalIgnoreCase);
+            if (venta.Estado == "A" && !esNcEmitida)
             {
                 continue;
             }
 
-            var esNcEmitida = venta.Descripcion.Contains("(N.C.)", StringComparison.OrdinalIgnoreCase);
-
             switch (venta.Descripcion.Split(" ")[0])
             {
-                case "Efectivo":
-                    totalFinal += venta.Soles - (venta.Vuelto ?? 0);
-                    break;
                 case "Tarjeta":
                 case "Online":
-                    totalTarjeta += venta.Soles;
                     if (!esNcEmitida)
                     {
                         resumen.Add(new()
@@ -188,7 +188,6 @@ else
                     }
                     break;
                 case "N.C.":
-                    totalNC += venta.Soles;
                     resumen.Add(new()
                     {
                         IdUsuario = idUsuario,
@@ -217,7 +216,6 @@ else
             }
         }
 
-        totalVenta = totalFinal + totalTarjeta;
         resumen.Add(new()
         {
             IdUsuario = idUsuario,
