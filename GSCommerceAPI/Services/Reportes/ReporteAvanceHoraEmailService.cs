@@ -76,13 +76,13 @@ public class ReporteAvanceHoraEmailService : IReporteAvanceHoraEmailService
         }
 
         var entradasValidas = reportes?
-            .Where(r => r is not null)
+            .Where(r => r is not null && r.Reporte.TotalVentasDia > 0m)
             .ToList()
             ?? new List<ReporteAvanceHoraEmailEntry>();
 
         if (entradasValidas.Count == 0)
         {
-            _logger.LogWarning("No se proporcionaron datos válidos para el correo de avance por hora.");
+            _logger.LogInformation("No se envía el correo de avance por hora: no hay almacenes con ventas acumuladas.");
             return;
         }
 
@@ -169,7 +169,7 @@ public class ReporteAvanceHoraEmailService : IReporteAvanceHoraEmailService
         foreach (var entrada in entradas)
         {
             var etiquetaAlmacen = ObtenerEtiquetaAlmacen(entrada);
-            var montoDia = Convert.ToDecimal(entrada.Reporte.TotalVentasDia);
+            var montoDia = entrada.Reporte.TotalVentasDia;
             totalDia += montoDia;
 
             sb.AppendLine($"{etiquetaAlmacen}: S/ {montoDia.ToString("N2", culture)}");

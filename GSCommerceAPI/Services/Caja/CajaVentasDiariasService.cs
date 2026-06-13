@@ -64,6 +64,18 @@ public interface ICajaVentasDiariasService
         int? idAlmacen,
         int? idCajero,
         CancellationToken cancellationToken = default);
+
+    Task<List<VCierreVentaDiaria1>> ObtenerVentasDiariasPorRangoAsync(
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        int? idAlmacen = null,
+        CancellationToken cancellationToken = default);
+
+    Task<HashSet<(int IdAlmacen, string Serie, int Numero)>> ObtenerAnuladosConNotaCreditoAsync(
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        int? idAlmacen = null,
+        CancellationToken cancellationToken = default);
 }
 
 public class CajaVentasDiariasService : ICajaVentasDiariasService
@@ -216,7 +228,7 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
         return CalcularTotalesVenta(ventas, anuladosConNc);
     }
 
-    private static CajaVentasTotales CalcularTotalesVenta(
+    internal static CajaVentasTotales CalcularTotalesVenta(
         IEnumerable<VCierreVentaDiaria1> ventas,
         IReadOnlySet<(int IdAlmacen, string Serie, int Numero)> anuladosConNc)
     {
@@ -273,7 +285,7 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
     private static bool EsPagoCanjeNc(string descripcion) =>
         descripcion.StartsWith("N.C.", StringComparison.OrdinalIgnoreCase);
 
-    private static bool CuentaEnVentaDia(
+    internal static bool CuentaEnVentaDia(
         VCierreVentaDiaria1 venta,
         IReadOnlySet<(int IdAlmacen, string Serie, int Numero)>? anuladosConNotaCredito)
     {
@@ -350,6 +362,47 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
         ventasQuery = AplicarJoinComprobante(ventasQuery, fechaInicio, fechaFin);
 
         return DistinctVentasDiarias(await ventasQuery.ToListAsync(cancellationToken));
+    }
+
+    public async Task<List<VCierreVentaDiaria1>> ObtenerVentasDiariasPorRangoAsync(
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        int? idAlmacen = null,
+        CancellationToken cancellationToken = default)
+    {
+        var ventasQuery = _context.VCierreVentaDiaria1s
+            .AsNoTracking()
+            .Where(v => v.Fecha >= fechaInicio && v.Fecha <= fechaFin);
+
+        if (idAlmacen.HasValue)
+            ventasQuery = ventasQuery.Where(v => v.IdAlmacen == idAlmacen.Value);
+
+        ventasQuery = AplicarJoinComprobante(ventasQuery, fechaInicio, fechaFin);
+
+        return DistinctVentasDiarias(await ventasQuery.ToListAsync(cancellationToken));
+    }
+
+    public Task<HashSet<(int IdAlmacen, string Serie, int Numero)>> ObtenerAnuladosConNotaCreditoAsync(
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        int? idAlmacen = null,
+        CancellationToken cancellationToken = default) =>
+        ObtenerClavesAnuladosConNotaCreditoAsync(fechaInicio, fechaFin, idAlmacen, null, cancellationToken);
+
+    internal static int ContarComprobantesEnVentaDia(
+        IEnumerable<VCierreVentaDiaria1> ventas,
+        IReadOnlySet<(int IdAlmacen, string Serie, int Numero)> anuladosConNc)
+    {
+        return ventas
+            .Where(v =>
+            {
+                var tipo = v.Descripcion.Split(' ')[0];
+                return tipo is "Efectivo" or "Tarjeta" or "Online"
+                       && CuentaEnVentaDia(v, anuladosConNc);
+            })
+            .Select(v => (v.IdAlmacen, v.Serie, v.Numero, v.Total))
+            .Distinct()
+            .Count();
     }
 
     public async Task<VentasDiariasCajaResponse> ObtenerVentasDiariasConTotalesAsync(

@@ -1,18 +1,15 @@
 ﻿using GSCommerce.Client.Models.DTOs.Reportes;
-using GSCommerceAPI.Data;
-using System;
-using Microsoft.EntityFrameworkCore;
-using System.Linq;
+using GSCommerceAPI.Services.Caja;
 
 namespace GSCommerceAPI.Services.Reportes;
 
 public class ReporteAvanceHoraProvider
 {
-    private readonly SyscharlesContext _context;
+    private readonly ICajaVentasDiariasService _cajaVentas;
 
-    public ReporteAvanceHoraProvider(SyscharlesContext context)
+    public ReporteAvanceHoraProvider(ICajaVentasDiariasService cajaVentas)
     {
-        _context = context;
+        _cajaVentas = cajaVentas;
     }
 
     public async Task<ReporteAvanceHoraDTO> ObtenerReporteAsync(
@@ -29,64 +26,23 @@ public class ReporteAvanceHoraProvider
         fin = new DateTime(fin.Year, fin.Month, fin.Day, fin.Hour, 0, 0);
 
         if (fin <= inicio)
-        {
             fin = inicio.AddHours(1);
-        }
 
         var diaInicio = inicio.Date;
-        var diaFin = diaInicio.AddDays(1);
+        var diaFin = diaInicio.Add(new TimeSpan(23, 59, 59));
 
-        if (fin > diaFin)
-        {
-            fin = diaFin;
-        }
-
-        var ventasQuery = _context.VCierreVentaDiaria1s
-            .AsNoTracking()
-            .Where(v => v.Fecha >= diaInicio && v.Fecha < diaFin);
+        if (fin > diaFin.AddHours(1))
+            fin = diaInicio.AddDays(1);
 
         var almacenFiltro = idAlmacenForzado.HasValue
             ? idAlmacenForzado
             : (idAlmacen.HasValue && idAlmacen.Value > 0 ? idAlmacen : null);
 
-        if (almacenFiltro.HasValue)
-        {
-            ventasQuery = ventasQuery.Where(v => v.IdAlmacen == almacenFiltro.Value);
-        }
+        var ventasDia = await _cajaVentas.ObtenerVentasDiariasPorRangoAsync(
+            diaInicio, diaFin, almacenFiltro, cancellationToken);
 
-        var ventasFiltradas = from v in ventasQuery
-                              join c in _context.ComprobanteDeVentaCabeceras.AsNoTracking()
-                                  on new { v.IdAlmacen, v.Serie, v.Numero }
-                                  equals new { c.IdAlmacen, c.Serie, c.Numero }
-                              where !(c.Estado == "A" &&
-                                      (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
-                                      c.FechaHoraUsuarioAnula.HasValue &&
-                                      c.FechaHoraUsuarioAnula.Value >= diaInicio &&
-                                      c.FechaHoraUsuarioAnula.Value < diaFin)
-                              select new
-                              {
-                                  v.Fecha,
-                                  v.Descripcion,
-                                  v.Soles,
-                                  v.Vuelto,
-                                  v.Serie,
-                                  v.Numero,
-                                  v.IdAlmacen
-                              };
-
-        static decimal CalcularMonto(string descripcion, decimal soles, decimal? vuelto)
-        {
-            var tipo = descripcion?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
-
-            return tipo switch
-            {
-                "Efectivo" => Math.Max(0m, soles - (vuelto ?? 0m)),
-                "Tarjeta" or "Online" => soles,
-                _ => 0m
-            };
-        }
-
-        var ventasDia = await ventasFiltradas.ToListAsync(cancellationToken);
+        var anuladosConNc = await _cajaVentas.ObtenerAnuladosConNotaCreditoAsync(
+            diaInicio, diaFin, almacenFiltro, cancellationToken);
 
         var ventasPorHora = ventasDia
             .GroupBy(v => v.Fecha.Hour)
@@ -94,8 +50,8 @@ public class ReporteAvanceHoraProvider
                 g => g.Key,
                 g => new
                 {
-                    Total = g.Sum(x => CalcularMonto(x.Descripcion, x.Soles, x.Vuelto)),
-                    Tickets = g.Select(x => (x.IdAlmacen, x.Serie, x.Numero)).Distinct().Count()
+                    Totales = CajaVentasDiariasService.CalcularTotalesVenta(g, anuladosConNc),
+                    Tickets = CajaVentasDiariasService.ContarComprobantesEnVentaDia(g, anuladosConNc)
                 });
 
         var detalles = new List<ReporteAvanceHoraDetalleDTO>();
@@ -112,7 +68,7 @@ public class ReporteAvanceHoraProvider
 
             if (ventasPorHora.TryGetValue(hora, out var resumenHora))
             {
-                totalHoraDetalle = resumenHora.Total;
+                totalHoraDetalle = resumenHora.Totales.VentaDia;
                 ticketsHoraDetalle = resumenHora.Tickets;
             }
 

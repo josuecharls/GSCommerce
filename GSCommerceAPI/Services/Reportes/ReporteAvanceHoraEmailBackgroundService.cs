@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GSCommerce.Client.Models.DTOs.Reportes;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Services;
 using Microsoft.EntityFrameworkCore;
@@ -102,6 +103,14 @@ public class ReporteAvanceHoraEmailBackgroundService : BackgroundService
             stoppingToken.ThrowIfCancellationRequested();
             var reporteGeneral = await provider.ObtenerReporteAsync(inicio, fin, null, null, stoppingToken);
 
+            if (!TieneVentas(reporteGeneral))
+            {
+                _logger.LogInformation(
+                    "No se envía el reporte general de avance por hora: sin ventas acumuladas al {Hora:dd/MM/yyyy HH:mm}.",
+                    fin);
+                return;
+            }
+
             await emailService.EnviarReporteAsync(
                 new[] { new ReporteAvanceHoraEmailEntry(reporteGeneral, "Todos los almacenes", null) },
                 stoppingToken);
@@ -115,17 +124,33 @@ public class ReporteAvanceHoraEmailBackgroundService : BackgroundService
             stoppingToken.ThrowIfCancellationRequested();
 
             var reporte = await provider.ObtenerReporteAsync(inicio, fin, destino.IdAlmacen, destino.IdAlmacen, stoppingToken);
+
+            if (!TieneVentas(reporte))
+            {
+                _logger.LogDebug(
+                    "Almacén {Almacen} (Id {IdAlmacen}) omitido del correo: sin ventas acumuladas al {Hora:dd/MM/yyyy HH:mm}.",
+                    destino.Nombre,
+                    destino.IdAlmacen,
+                    fin);
+                continue;
+            }
+
             reportes.Add(new ReporteAvanceHoraEmailEntry(reporte, destino.Nombre, destino.IdAlmacen));
         }
 
         if (!reportes.Any())
         {
-            _logger.LogWarning("No se pudieron generar reportes para los almacenes configurados.");
+            _logger.LogInformation(
+                "No se envía el correo de avance por hora: ningún almacén con ventas acumuladas al {Hora:dd/MM/yyyy HH:mm}.",
+                fin);
             return;
         }
 
         await emailService.EnviarReporteAsync(reportes, stoppingToken);
     }
+
+    private static bool TieneVentas(ReporteAvanceHoraDTO reporte) =>
+        reporte.TotalVentasDia > 0m;
 
     private static bool EstaDentroDeVentana(DateTime momento, ReporteAvanceHoraEmailOptions options)
     {
