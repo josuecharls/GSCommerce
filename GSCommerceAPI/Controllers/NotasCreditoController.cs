@@ -88,6 +88,18 @@ namespace GSCommerceAPI.Controllers
             if (!string.IsNullOrEmpty(comprobante.GeneroNc))
                 return BadRequest("El comprobante ya tiene una nota de crédito generada.");
 
+            if (string.Equals(dto.Cabecera.IdMotivo, "01", StringComparison.Ordinal) &&
+                DateOnly.FromDateTime(comprobante.Fecha) == DateOnly.FromDateTime(DateTime.Now))
+            {
+                return BadRequest("La devolución total (motivo 01) solo puede emitirse para boletas de días anteriores.");
+            }
+
+            if (string.Equals(dto.Cabecera.IdMotivo, "09", StringComparison.Ordinal) &&
+                DateOnly.FromDateTime(comprobante.Fecha) < DateOnly.FromDateTime(DateTime.Now))
+            {
+                return BadRequest("La anulación de operación (motivo 09) solo puede emitirse para boletas del mismo día.");
+            }
+
             var tipoLower = tipo.ToLowerInvariant();
             bool enviarSunat;
             switch (tipoLower)

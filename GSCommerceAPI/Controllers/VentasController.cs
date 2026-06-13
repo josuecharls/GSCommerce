@@ -7,6 +7,7 @@ using GSCommerceAPI.Helpers;
 using GSCommerceAPI.Models;
 using GSCommerceAPI.Services.Reportes;
 using GSCommerceAPI.Models.Reportes; // For VentaDiariaAlmacenDTO
+using GSCommerceAPI.Services.Caja;
 using GSCommerceAPI.Models.SUNAT.DTOs;
 using GSCommerceAPI.Services.SUNAT;
 using Microsoft.AspNetCore.Authorization;
@@ -28,16 +29,19 @@ namespace GSCommerceAPI.Controllers
         private readonly SyscharlesContext _context;
         private readonly IFacturacionElectronicaService _facturacionService;
         private readonly ReporteAvanceHoraProvider _reporteAvanceHoraProvider;
+        private readonly ICajaVentasDiariasService _cajaVentas;
         private const int IdAlmacenDistribucion = 1009;
 
         public VentasController(
             SyscharlesContext context,
             IFacturacionElectronicaService facturacionService,
-            ReporteAvanceHoraProvider reporteAvanceHoraProvider)
+            ReporteAvanceHoraProvider reporteAvanceHoraProvider,
+            ICajaVentasDiariasService cajaVentas)
         {
             _context = context;
             _facturacionService = facturacionService;
             _reporteAvanceHoraProvider = reporteAvanceHoraProvider;
+            _cajaVentas = cajaVentas;
         }
 
         [HttpGet("{id}")]
@@ -159,7 +163,6 @@ namespace GSCommerceAPI.Controllers
                 join p in _context.VDetallePagoVenta1s on c.IdComprobante equals p.IdComprobante
                 where DateOnly.FromDateTime(c.Fecha) == fechaHoy
                       && (c.Estado != "A" || c.GeneroNc != null)
-                      && !c.ExcluirDeEstadisticas
                       && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen)
                       && (!idUsuario.HasValue || c.IdCajero == idUsuario)
                 select new { p.Descripcion, p.Soles, p.Vuelto };
@@ -193,14 +196,14 @@ namespace GSCommerceAPI.Controllers
                 }
             }
 
-            var notasQuery = _context.NotaDeCreditoCabeceras
-                .Where(n => DateOnly.FromDateTime(n.FechaHoraRegistro) == fechaHoy);
-            if (idAlmacen.HasValue && idAlmacen > 0)
-                notasQuery = notasQuery.Where(n => n.IdAlmacen == idAlmacen);
-            if (idUsuario.HasValue && idUsuario > 0)
-                notasQuery = notasQuery.Where(n => n.IdUsuario == idUsuario);
-            var notasEmitidas = await notasQuery.ToListAsync();
-            resumen.NotaCredito -= notasEmitidas.Sum(n => n.Total);
+            var dayStart = fechaHoy.ToDateTime(TimeOnly.MinValue);
+            var dayEnd = fechaHoy.ToDateTime(new TimeOnly(23, 59, 59));
+            var descuentoNc09 = await _cajaVentas.CalcularDescuentoNcAnulacionEmitidasAsync(
+                dayStart, dayEnd,
+                idAlmacen is > 0 ? idAlmacen : null,
+                idUsuario is > 0 ? idUsuario : null);
+            resumen.Efectivo -= descuentoNc09.Efectivo;
+            resumen.Tarjeta -= descuentoNc09.Tarjeta;
 
             var cierresQuery = _context.VCierreEnLinea1s
                 .Where(c => c.Fecha == fechaHoy);
@@ -1409,7 +1412,6 @@ namespace GSCommerceAPI.Controllers
                       && c.IdAlmacen == idAlmacen
                       && c.IdCajero == idUsuario
                       && (c.Estado != "A" || c.GeneroNc != null)
-                      && !c.ExcluirDeEstadisticas
                 select new { p.Descripcion, p.Soles, p.Vuelto }
             ).ToListAsync();
 
@@ -1440,9 +1442,12 @@ namespace GSCommerceAPI.Controllers
                 }
             }
 
-            var notasEmitidas = await _context.NotaDeCreditoCabeceras
-                .Where(n => DateOnly.FromDateTime(n.FechaHoraRegistro) == fechaHoy && n.IdAlmacen == idAlmacen && n.IdUsuario == idUsuario).ToListAsync();
-            resumen.NotaCredito -= notasEmitidas.Sum(n => n.Total);
+            var dayStart = fechaHoy.ToDateTime(TimeOnly.MinValue);
+            var dayEnd = fechaHoy.ToDateTime(new TimeOnly(23, 59, 59));
+            var descuentoNc09 = await _cajaVentas.CalcularDescuentoNcAnulacionEmitidasAsync(
+                dayStart, dayEnd, idAlmacen, idUsuario);
+            resumen.Efectivo -= descuentoNc09.Efectivo;
+            resumen.Tarjeta -= descuentoNc09.Tarjeta;
 
             var cierres = await _context.VCierreEnLinea1s
                 .Where(c => c.Fecha == fechaHoy && c.IdAlmacen == idAlmacen && c.IdUsuario == idUsuario)
@@ -1459,6 +1464,23 @@ namespace GSCommerceAPI.Controllers
             }
 
             return Ok(resumen);
+        }
+
+        [HttpGet("descuento-nc-anulacion")]
+        [Authorize]
+        public async Task<IActionResult> ObtenerDescuentoNcAnulacion(
+            [FromQuery] DateTime? desde,
+            [FromQuery] DateTime? hasta,
+            [FromQuery] int? idAlmacen,
+            [FromQuery] int? idUsuario)
+        {
+            var inicio = (desde?.Date) ?? DateTime.Today;
+            var fin = ((hasta?.Date) ?? inicio).Date.Add(new TimeSpan(23, 59, 59));
+
+            var descuento = await _cajaVentas.CalcularDescuentoNcAnulacionEmitidasAsync(
+                inicio, fin, idAlmacen, idUsuario is > 0 ? idUsuario : null);
+
+            return Ok(descuento);
         }
 
         [HttpGet("nc-emitidas-total")]

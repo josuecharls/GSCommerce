@@ -496,7 +496,7 @@ public class CajaController : ControllerBase
             var ventaEfectivo = totalesVenta.VentaEfectivo;
             var efectivoCaja = totalesVenta.EfectivoCaja;
             var ventaTarjeta = totalesVenta.VentaTarjeta;
-            var ventaNC = totalesVenta.VentaNcNet;
+            var ventaNC = totalesVenta.VentaNcCanje;
             var ventaDia = totalesVenta.VentaDia;
 
             var ventasTarjetaDetalle = ventas

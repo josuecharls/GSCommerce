@@ -10,9 +10,13 @@ public sealed class CajaVentasTotales
     public decimal EfectivoCaja { get; init; }
     public decimal VentaTarjeta { get; init; }
     public decimal VentaNcCanje { get; init; }
-    public decimal VentaNcEmitidas { get; init; }
-    public decimal VentaNcNet => VentaNcCanje - VentaNcEmitidas;
-    public decimal VentaDia => VentaEfectivo + VentaTarjeta + VentaNcNet;
+    public decimal VentaDia => VentaEfectivo + VentaTarjeta;
+}
+
+public sealed class DescuentoNcAnulacionEmitida
+{
+    public decimal Efectivo { get; init; }
+    public decimal Tarjeta { get; init; }
 }
 
 public sealed class VentasDiariasCajaResponse
@@ -66,6 +70,13 @@ public interface ICajaVentasDiariasService
         int? idAlmacen,
         int? idCajero,
         CancellationToken cancellationToken = default);
+
+    Task<DescuentoNcAnulacionEmitida> CalcularDescuentoNcAnulacionEmitidasAsync(
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        int? idAlmacen,
+        int? idCajero,
+        CancellationToken cancellationToken = default);
 }
 
 public class CajaVentasDiariasService : ICajaVentasDiariasService
@@ -109,15 +120,15 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
                          where c.Fecha >= dayStart && c.Fecha <= dayEnd
                          && !(c.Estado == "A" &&
-                                 (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                                 string.IsNullOrEmpty(c.GeneroNc) &&
                                  c.FechaHoraUsuarioAnula.HasValue &&
                                  c.FechaHoraUsuarioAnula.Value >= dayStart &&
                                  c.FechaHoraUsuarioAnula.Value <= dayEnd)
                          select v;
 
         var ventasDia = DistinctVentasDiarias(await ventasDiaQuery.ToListAsync(cancellationToken));
-        var ajustesNc = await ObtenerAjustesNcEmitidasAsync(dayStart, dayEnd, idAlmacen, null, cancellationToken);
-        ventasDia.AddRange(ajustesNc);
+        var ajustesNc09 = await ObtenerAjustesNcAnulacionEmitidasAsync(dayStart, dayEnd, idAlmacen, null, cancellationToken);
+        ventasDia.AddRange(ajustesNc09);
         ventasDia = ventasDia.Where(v => claves.Contains((v.IdCajero, v.IdAlmacen))).ToList();
 
         var ventasPorClave = ventasDia
@@ -150,9 +161,6 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
         var anuladosConNc = await ObtenerClavesAnuladosConNotaCreditoAsync(
             dayStart, dayEnd, idAlmacen, null, cancellationToken);
 
-        var ncEmitidasPorCajero = await ObtenerTotalesNcEmitidasPorCajeroAsync(
-            dayStart, dayEnd, idAlmacen, cancellationToken);
-
         var resultado = new List<CajaListadoDiaItem>();
 
         foreach (var ap in aperturas)
@@ -171,8 +179,7 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
                 ? vList
                 : new List<VCierreVentaDiaria1>();
 
-            var ncEmitidas = ncEmitidasPorCajero.GetValueOrDefault((ap.IdUsuario, ap.IdAlmacen), 0m);
-            var totales = CalcularTotalesVenta(ventasCajero, anuladosConNc, ncEmitidas);
+            var totales = CalcularTotalesVenta(ventasCajero, anuladosConNc);
 
             var ingresos = Ingresos(ap.IdUsuario, ap.IdAlmacen);
             var egresos = Gastos(ap.IdUsuario, ap.IdAlmacen) + Transf(ap.IdUsuario, ap.IdAlmacen) + Prov(ap.IdUsuario, ap.IdAlmacen);
@@ -231,16 +238,44 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
         var anuladosConNc = await ObtenerClavesAnuladosConNotaCreditoAsync(
             fechaInicio, fechaFin, idAlmacen, idCajero, cancellationToken);
 
-        var ncEmitidas = await ObtenerTotalNcEmitidasAsync(
+        return CalcularTotalesVenta(ventas, anuladosConNc);
+    }
+
+    public async Task<DescuentoNcAnulacionEmitida> CalcularDescuentoNcAnulacionEmitidasAsync(
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        int? idAlmacen,
+        int? idCajero,
+        CancellationToken cancellationToken = default)
+    {
+        var ajustes = await ObtenerAjustesNcAnulacionEmitidasAsync(
             fechaInicio, fechaFin, idAlmacen, idCajero, cancellationToken);
 
-        return CalcularTotalesVenta(ventas, anuladosConNc, ncEmitidas);
+        decimal efectivo = 0;
+        decimal tarjeta = 0;
+
+        foreach (var a in ajustes)
+        {
+            if (!EsAjusteNcAnulacionEmitida(a.Descripcion))
+                continue;
+
+            var tipo = ObtenerTipoPagoAjusteNc(a.Descripcion);
+            if (tipo == "Efectivo")
+                efectivo += -(a.Soles - (a.Vuelto ?? 0));
+            else if (tipo is "Tarjeta" or "Online")
+                tarjeta += -a.Soles;
+        }
+
+        return new DescuentoNcAnulacionEmitida
+        {
+            Efectivo = efectivo,
+            Tarjeta = tarjeta
+        };
     }
 
     private static CajaVentasTotales CalcularTotalesVenta(
         IEnumerable<VCierreVentaDiaria1> ventas,
-        IReadOnlySet<(int IdAlmacen, string Serie, int Numero)> anuladosConNc,
-        decimal ncEmitidas)
+        IReadOnlySet<(int IdAlmacen, string Serie, int Numero)> anuladosConNc)
     {
         AcumularTotalesVenta(ventas, out var ventaEfectivo, out var efectivoCaja, out var ventaTarjeta, out var ventaNcCanje, anuladosConNc);
 
@@ -249,8 +284,7 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
             VentaEfectivo = ventaEfectivo,
             EfectivoCaja = efectivoCaja,
             VentaTarjeta = ventaTarjeta,
-            VentaNcCanje = ventaNcCanje,
-            VentaNcEmitidas = ncEmitidas
+            VentaNcCanje = ventaNcCanje
         };
     }
 
@@ -269,6 +303,24 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
 
         foreach (var v in ventas)
         {
+            if (EsAjusteNcAnulacionEmitida(v.Descripcion))
+            {
+                var tipoAjuste = ObtenerTipoPagoAjusteNc(v.Descripcion);
+                switch (tipoAjuste)
+                {
+                    case "Efectivo":
+                        var netoAjuste = v.Soles - (v.Vuelto ?? 0);
+                        efectivoCaja += netoAjuste;
+                        ventaEfectivo += netoAjuste;
+                        break;
+                    case "Tarjeta":
+                    case "Online":
+                        ventaTarjeta += v.Soles;
+                        break;
+                }
+                continue;
+            }
+
             var tipo = v.Descripcion.Split(' ')[0];
             var cuentaEnVentaDia = CuentaEnVentaDia(v, anuladosConNotaCredito);
 
@@ -286,12 +338,24 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
                         ventaTarjeta += v.Soles;
                     break;
                 case "N.C.":
-                    if (cuentaEnVentaDia)
+                    if (cuentaEnVentaDia && EsPagoCanjeNc(v.Descripcion))
                         ventaNc += v.Soles;
                     break;
             }
         }
     }
+
+    private static bool EsAjusteNcAnulacionEmitida(string descripcion) =>
+        descripcion.Contains("(N.C.)", StringComparison.OrdinalIgnoreCase);
+
+    private static string ObtenerTipoPagoAjusteNc(string descripcion)
+    {
+        var sinSufijo = descripcion.Split('(')[0].Trim();
+        return sinSufijo.Split(' ')[0];
+    }
+
+    private static bool EsPagoCanjeNc(string descripcion) =>
+        descripcion.StartsWith("N.C.", StringComparison.OrdinalIgnoreCase);
 
     private static bool CuentaEnVentaDia(
         VCierreVentaDiaria1 venta,
@@ -335,7 +399,7 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
             .ToHashSet();
     }
 
-    private async Task<decimal> ObtenerTotalNcEmitidasAsync(
+    private async Task<List<VCierreVentaDiaria1>> ObtenerAjustesNcAnulacionEmitidasAsync(
         DateTime fechaInicio,
         DateTime fechaFin,
         int? idAlmacen,
@@ -344,49 +408,9 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
     {
         var query = _context.NotaDeCreditoCabeceras
             .AsNoTracking()
-            .Where(n => n.FechaHoraRegistro >= fechaInicio && n.FechaHoraRegistro <= fechaFin);
-
-        if (idAlmacen.HasValue)
-            query = query.Where(n => n.IdAlmacen == idAlmacen.Value);
-
-        if (idCajero.HasValue)
-            query = query.Where(n => n.IdUsuario == idCajero.Value);
-
-        return await query.SumAsync(n => n.Total, cancellationToken);
-    }
-
-    private async Task<Dictionary<(int IdUsuario, int IdAlmacen), decimal>> ObtenerTotalesNcEmitidasPorCajeroAsync(
-        DateTime fechaInicio,
-        DateTime fechaFin,
-        int? idAlmacen,
-        CancellationToken cancellationToken)
-    {
-        var query = _context.NotaDeCreditoCabeceras
-            .AsNoTracking()
-            .Where(n => n.FechaHoraRegistro >= fechaInicio && n.FechaHoraRegistro <= fechaFin);
-
-        if (idAlmacen.HasValue)
-            query = query.Where(n => n.IdAlmacen == idAlmacen.Value);
-
-        var filas = await query
-            .GroupBy(n => new { n.IdUsuario, n.IdAlmacen })
-            .Select(g => new { g.Key.IdUsuario, g.Key.IdAlmacen, Total = g.Sum(n => n.Total) })
-            .ToListAsync(cancellationToken);
-
-        return filas.ToDictionary(x => (x.IdUsuario, x.IdAlmacen), x => x.Total);
-    }
-
-    private async Task<List<VCierreVentaDiaria1>> ObtenerAjustesNcEmitidasAsync(
-        DateTime fechaInicio,
-        DateTime fechaFin,
-        int? idAlmacen,
-        int? idCajero,
-        CancellationToken cancellationToken)
-    {
-        var query = _context.NotaDeCreditoCabeceras
-            .AsNoTracking()
-            .Where(n => n.Fecha >= fechaInicio &&
-                        n.Fecha <= fechaFin &&
+            .Where(n => n.FechaHoraRegistro >= fechaInicio &&
+                        n.FechaHoraRegistro <= fechaFin &&
+                        n.IdMotivo == "09" &&
                         n.Estado != "A");
 
         if (idAlmacen.HasValue)
@@ -396,10 +420,18 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
             query = query.Where(n => n.IdUsuario == idCajero.Value);
 
         var notasEmitidas = await query.ToListAsync(cancellationToken);
-
         if (notasEmitidas.Count == 0)
             return new List<VCierreVentaDiaria1>();
 
+        return await ConstruirAjustesDesdeNotasEmitidasAsync(notasEmitidas, fechaInicio, fechaFin, cancellationToken);
+    }
+
+    private async Task<List<VCierreVentaDiaria1>> ConstruirAjustesDesdeNotasEmitidasAsync(
+        List<NotaDeCreditoCabecera> notasEmitidas,
+        DateTime fechaInicio,
+        DateTime fechaFin,
+        CancellationToken cancellationToken)
+    {
         var almacenesNc = notasEmitidas.Select(n => n.IdAlmacen).Distinct().ToList();
         var clavesNc = notasEmitidas
             .Select(n => $"{n.Serie}-{n.Numero:D8}")
@@ -457,9 +489,6 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
         {
             var comprobanteOriginal = ResolverComprobanteOriginalNotaCredito(nc, porGeneroNc, porReferencia);
             if (comprobanteOriginal == null)
-                continue;
-
-            if (comprobanteOriginal.Estado == "A")
                 continue;
 
             if (comprobanteOriginal.Fecha < fechaInicio || comprobanteOriginal.Fecha > fechaFin)
@@ -521,15 +550,15 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
                           equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
                       where c.Fecha >= fechaInicio && c.Fecha <= fechaFin
                       && !(c.Estado == "A" &&
-                              (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                              string.IsNullOrEmpty(c.GeneroNc) &&
                               c.FechaHoraUsuarioAnula.HasValue &&
                               c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
                               c.FechaHoraUsuarioAnula.Value <= fechaFin)
                       select v;
 
         var ventas = DistinctVentasDiarias(await ventasQuery.ToListAsync(cancellationToken));
-        var ajustesNc = await ObtenerAjustesNcEmitidasAsync(fechaInicio, fechaFin, idAlmacen, idCajero, cancellationToken);
-        ventas.AddRange(ajustesNc);
+        var ajustesNc09 = await ObtenerAjustesNcAnulacionEmitidasAsync(fechaInicio, fechaFin, idAlmacen, idCajero, cancellationToken);
+        ventas.AddRange(ajustesNc09);
         return ventas;
     }
 
@@ -551,7 +580,7 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
             Ventas = ventas,
             TotalEfectivo = totales.VentaEfectivo,
             TotalTarjeta = totales.VentaTarjeta,
-            TotalNc = totales.VentaNcNet,
+            TotalNc = totales.VentaNcCanje,
             TotalVentas = totales.VentaDia
         };
     }
