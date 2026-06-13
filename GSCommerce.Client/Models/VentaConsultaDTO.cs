@@ -21,6 +21,7 @@ namespace GSCommerce.Client.Models
         public string EstadoSunat { get; set; } = string.Empty;
         public string? DescripcionSunat { get; set; }
         public string? GeneroNC { get; set; }
+        public bool ExcluirDeEstadisticas { get; set; }
         public string NumeroNotaCredito => string.IsNullOrWhiteSpace(GeneroNC) ? "" : GeneroNC;
         public List<DetallePagoDTO> Pagos { get; set; } = new();
         public string? NombreVendedor { get; set; }

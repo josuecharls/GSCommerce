@@ -1027,7 +1027,7 @@ namespace GSCommerceAPI.Controllers
             {
                 var montos = await _context.ComprobanteDeVentaCabeceras
                     .Where(c => ids.Contains(c.IdComprobante))
-                    .Select(c => new { c.IdComprobante, c.SubTotal, c.Igv, c.GeneroNc })
+                    .Select(c => new { c.IdComprobante, c.SubTotal, c.Igv, c.GeneroNc, c.ExcluirDeEstadisticas })
                     .ToDictionaryAsync(c => c.IdComprobante);
 
                 foreach (var v in ventas)
@@ -1037,6 +1037,7 @@ namespace GSCommerceAPI.Controllers
                         v.SubTotal = m.SubTotal;
                         v.Igv = m.Igv;
                         v.GeneroNC = string.IsNullOrWhiteSpace(m.GeneroNc) ? null : m.GeneroNc;
+                        v.ExcluirDeEstadisticas = m.ExcluirDeEstadisticas;
                     }
                 }
 
@@ -1194,7 +1195,7 @@ namespace GSCommerceAPI.Controllers
                 
                 var montos = await _context.ComprobanteDeVentaCabeceras
                     .Where(c => ids.Contains(c.IdComprobante))
-                    .Select(c => new { c.IdComprobante, c.SubTotal, c.Igv, c.GeneroNc })
+                    .Select(c => new { c.IdComprobante, c.SubTotal, c.Igv, c.GeneroNc, c.ExcluirDeEstadisticas })
                     .ToDictionaryAsync(c => c.IdComprobante);
                 
                 foreach (var v in ventas)
@@ -1204,6 +1205,7 @@ namespace GSCommerceAPI.Controllers
                         v.SubTotal = m.SubTotal;
                         v.Igv = m.Igv;
                         v.GeneroNC = string.IsNullOrWhiteSpace(m.GeneroNc) ? null : m.GeneroNc;
+                        v.ExcluirDeEstadisticas = m.ExcluirDeEstadisticas;
                     }
                 }
                 
@@ -1457,6 +1459,51 @@ namespace GSCommerceAPI.Controllers
             }
 
             return Ok(resumen);
+        }
+
+        [HttpGet("nc-emitidas-total")]
+        [Authorize]
+        public async Task<IActionResult> ObtenerTotalNcEmitidas(
+            [FromQuery] DateTime? desde,
+            [FromQuery] DateTime? hasta,
+            [FromQuery] int? idAlmacen,
+            [FromQuery] int? idUsuario)
+        {
+            var inicio = (desde?.Date) ?? DateTime.Today;
+            var finExcl = ((hasta?.Date) ?? inicio).AddDays(1);
+
+            var query = _context.NotaDeCreditoCabeceras
+                .AsNoTracking()
+                .Where(n => n.FechaHoraRegistro >= inicio && n.FechaHoraRegistro < finExcl);
+
+            var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+            {
+                var userIdClaim = User.FindFirst("userId")?.Value;
+                if (!int.TryParse(userIdClaim, out var userId))
+                    return Ok(0m);
+
+                var userAlmacen = await _context.Usuarios
+                    .Where(u => u.IdUsuario == userId)
+                    .Select(u => u.IdPersonalNavigation != null ? (int?)u.IdPersonalNavigation.IdAlmacen : null)
+                    .FirstOrDefaultAsync();
+
+                if (!userAlmacen.HasValue)
+                    return Ok(0m);
+
+                query = query.Where(n => n.IdAlmacen == userAlmacen.Value && n.IdUsuario == userId);
+            }
+            else
+            {
+                if (idAlmacen.HasValue && idAlmacen.Value > 0)
+                    query = query.Where(n => n.IdAlmacen == idAlmacen.Value);
+
+                if (idUsuario.HasValue && idUsuario.Value > 0)
+                    query = query.Where(n => n.IdUsuario == idUsuario.Value);
+            }
+
+            var total = await query.SumAsync(n => n.Total);
+            return Ok(total);
         }
 
         [HttpGet("ventas-almacenes-dia")]

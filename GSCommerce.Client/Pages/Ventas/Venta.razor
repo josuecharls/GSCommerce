@@ -640,7 +640,7 @@
         }
 
         ventas = await ventaService.ObtenerVentasAsync(desde, hasta, filtroAlmacen, filtroTipoDoc, filtroCajero);
-        CalcularResumen();
+        await CalcularResumenAsync(filtroAlmacen, filtroCajero);
         mensajeBusquedaDirecta = string.Empty; // Limpiar mensaje de búsqueda directa
     }
 
@@ -659,7 +659,9 @@
         if (resultado != null && resultado.Any())
         {
             ventas = resultado;
-            CalcularResumen();
+            await CalcularResumenAsync(
+                cargo == "ADMINISTRADOR" && selectedAlmacen == 0 ? null : selectedAlmacen,
+                cargo == "ADMINISTRADOR" && selectedCajero > 0 ? selectedCajero : cargo == "CAJERO" ? idUsuarioActual : null);
         }
         else
         {
@@ -668,17 +670,19 @@
         }
     }
 
-    private void CalcularResumen()
+    private async Task CalcularResumenAsync(int? filtroAlmacen, int? filtroCajero)
     {
         var inicio = desde.Date;
         var fin = hasta.Date;
-        var activas = ventas.Where(v =>
-            !(v.Fecha.Date >= inicio && v.Fecha.Date <= fin &&
-              (string.Equals(v.Estado, "A", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(v.Estado, "AN", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(v.Estado, "ANULADO", StringComparison.OrdinalIgnoreCase)) &&
-              string.IsNullOrWhiteSpace(v.GeneroNC))
-        ).ToList();
+        var activas = ventas
+            .Where(v => !v.ExcluirDeEstadisticas)
+            .Where(v =>
+                !(v.Fecha.Date >= inicio && v.Fecha.Date <= fin &&
+                  (string.Equals(v.Estado, "A", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(v.Estado, "AN", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(v.Estado, "ANULADO", StringComparison.OrdinalIgnoreCase)) &&
+                  string.IsNullOrWhiteSpace(v.GeneroNC))
+            ).ToList();
         var pagosActivos = activas.SelectMany(v => v.Pagos);
 
         efectivoSoles = 0;
@@ -707,15 +711,20 @@
             else if (token.Equals("Tarjeta", StringComparison.OrdinalIgnoreCase) ||
                      token.Equals("Online", StringComparison.OrdinalIgnoreCase))
             {
-                tarjetaOnline += soles > 0 ? soles : dolares;
+                if (soles > 0 || dolares > 0)
+                    tarjetaOnline += soles > 0 ? soles : dolares;
             }
             else if (token.Equals("N.C.", StringComparison.OrdinalIgnoreCase))
             {
-                notaCredito += soles > 0 ? soles : dolares;
+                if (soles > 0 || dolares > 0)
+                    notaCredito += soles > 0 ? soles : dolares;
             }
         }
 
-        totalGeneral = efectivoSoles + tarjetaOnline;
+        var ncEmitidas = await ventaService.ObtenerTotalNcEmitidasAsync(desde, hasta, filtroAlmacen, filtroCajero);
+        notaCredito -= ncEmitidas;
+
+        totalGeneral = efectivoSoles + tarjetaOnline + notaCredito;
 
         cantidadBoletas = activas.Count(v => v.TipoDocumento.Contains("BOLETA", StringComparison.OrdinalIgnoreCase)
                                             || v.TipoDocumento.Contains("TICKET", StringComparison.OrdinalIgnoreCase));

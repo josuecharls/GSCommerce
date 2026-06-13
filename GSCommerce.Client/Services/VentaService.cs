@@ -83,6 +83,29 @@ namespace GSCommerce.Client.Services
             return response ?? new();
         }
 
+        public async Task<decimal> ObtenerTotalNcEmitidasAsync(
+            DateTime desde,
+            DateTime hasta,
+            int? idAlmacen = null,
+            int? idUsuario = null)
+        {
+            try
+            {
+                var url = $"ventas/nc-emitidas-total?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+                if (idAlmacen.HasValue)
+                    url += $"&idAlmacen={idAlmacen.Value}";
+                if (idUsuario.HasValue && idUsuario.Value > 0)
+                    url += $"&idUsuario={idUsuario.Value}";
+
+                return await _httpClient.GetFromJsonAsync<decimal>(url);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al obtener total N.C. emitidas: {ex.Message}");
+                return 0m;
+            }
+        }
+
         public async Task<List<VentaConsultaDTO>> ObtenerVentasAsync(
             DateTime desde, DateTime hasta, int? idAlmacen = null, int? idTipoDoc = null, int? idUsuario = null)
         {
