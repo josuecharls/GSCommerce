@@ -389,13 +389,13 @@ else
 
         if (cabecera.IdMotivo == "01" && fechaComprobanteOriginal == DateTime.Today)
         {
-            await JS.InvokeVoidAsync("alert", "La devolución total (motivo 01) solo puede emitirse para boletas de días anteriores.");
+            await JS.InvokeVoidAsync("alert", "La devolución total solo puede emitirse para boletas de días anteriores.");
             return;
         }
 
         if (cabecera.IdMotivo == "09" && fechaComprobanteOriginal < DateTime.Today)
         {
-            await JS.InvokeVoidAsync("alert", "La anulación de operación (motivo 09) solo puede emitirse para boletas del mismo día.");
+            await JS.InvokeVoidAsync("alert", "La anulación de operación solo puede emitirse para boletas del mismo día.");
             return;
         }
 

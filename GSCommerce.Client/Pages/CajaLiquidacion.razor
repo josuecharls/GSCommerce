@@ -27,8 +27,8 @@ else
         <p><strong>Cajero:</strong> @cajero</p>
         <p><strong>Estado:</strong> @estadoCaja</p>
     </div>
-    <p><strong>Ventas cargadas:</strong> @ventas?.Count()</p>
-    @if (ventas?.Any() == true)
+    <p><strong>Ventas cargadas:</strong> @ventasVisibles.Count()</p>
+    @if (ventasVisibles.Any())
     {
         <table class="table table-striped">
             <thead>
@@ -47,7 +47,7 @@ else
                 </tr>
             </thead>
             <tbody>
-                @foreach (var v in ventas)
+                @foreach (var v in ventasVisibles)
                 {
                     <tr>
                         <td>@v.Descripcion</td>
@@ -107,6 +107,8 @@ else
     }
 
     private List<VCierreVentaDiaria1DTO> ventas = new();
+    private IEnumerable<VCierreVentaDiaria1DTO> ventasVisibles =>
+        ventas.Where(v => !v.Descripcion.Contains("(N.C.)", StringComparison.OrdinalIgnoreCase));
     private List<ResumenCierreDeCajaDTO> resumen = new();
     private decimal totalVenta = 0;
     private decimal totalTarjeta = 0;

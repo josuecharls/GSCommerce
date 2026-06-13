@@ -13,12 +13,6 @@ public sealed class CajaVentasTotales
     public decimal VentaDia => VentaEfectivo + VentaTarjeta;
 }
 
-public sealed class DescuentoNcAnulacionEmitida
-{
-    public decimal Efectivo { get; init; }
-    public decimal Tarjeta { get; init; }
-}
-
 public sealed class VentasDiariasCajaResponse
 {
     public List<VCierreVentaDiaria1> Ventas { get; set; } = new();
@@ -70,13 +64,6 @@ public interface ICajaVentasDiariasService
         int? idAlmacen,
         int? idCajero,
         CancellationToken cancellationToken = default);
-
-    Task<DescuentoNcAnulacionEmitida> CalcularDescuentoNcAnulacionEmitidasAsync(
-        DateTime fechaInicio,
-        DateTime fechaFin,
-        int? idAlmacen,
-        int? idCajero,
-        CancellationToken cancellationToken = default);
 }
 
 public class CajaVentasDiariasService : ICajaVentasDiariasService
@@ -114,21 +101,9 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
             .Where(v => v.Fecha >= dayStart && v.Fecha <= dayEnd)
             .Where(v => !idAlmacen.HasValue || v.IdAlmacen == idAlmacen.Value);
 
-        ventasDiaQuery = from v in ventasDiaQuery
-                         join c in _context.ComprobanteDeVentaCabeceras
-                             on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
-                             equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
-                         where c.Fecha >= dayStart && c.Fecha <= dayEnd
-                         && !(c.Estado == "A" &&
-                                 string.IsNullOrEmpty(c.GeneroNc) &&
-                                 c.FechaHoraUsuarioAnula.HasValue &&
-                                 c.FechaHoraUsuarioAnula.Value >= dayStart &&
-                                 c.FechaHoraUsuarioAnula.Value <= dayEnd)
-                         select v;
+        ventasDiaQuery = AplicarJoinComprobante(ventasDiaQuery, dayStart, dayEnd);
 
         var ventasDia = DistinctVentasDiarias(await ventasDiaQuery.ToListAsync(cancellationToken));
-        var ajustesNc09 = await ObtenerAjustesNcAnulacionEmitidasAsync(dayStart, dayEnd, idAlmacen, null, cancellationToken);
-        ventasDia.AddRange(ajustesNc09);
         ventasDia = ventasDia.Where(v => claves.Contains((v.IdCajero, v.IdAlmacen))).ToList();
 
         var ventasPorClave = ventasDia
@@ -241,38 +216,6 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
         return CalcularTotalesVenta(ventas, anuladosConNc);
     }
 
-    public async Task<DescuentoNcAnulacionEmitida> CalcularDescuentoNcAnulacionEmitidasAsync(
-        DateTime fechaInicio,
-        DateTime fechaFin,
-        int? idAlmacen,
-        int? idCajero,
-        CancellationToken cancellationToken = default)
-    {
-        var ajustes = await ObtenerAjustesNcAnulacionEmitidasAsync(
-            fechaInicio, fechaFin, idAlmacen, idCajero, cancellationToken);
-
-        decimal efectivo = 0;
-        decimal tarjeta = 0;
-
-        foreach (var a in ajustes)
-        {
-            if (!EsAjusteNcAnulacionEmitida(a.Descripcion))
-                continue;
-
-            var tipo = ObtenerTipoPagoAjusteNc(a.Descripcion);
-            if (tipo == "Efectivo")
-                efectivo += -(a.Soles - (a.Vuelto ?? 0));
-            else if (tipo is "Tarjeta" or "Online")
-                tarjeta += -a.Soles;
-        }
-
-        return new DescuentoNcAnulacionEmitida
-        {
-            Efectivo = efectivo,
-            Tarjeta = tarjeta
-        };
-    }
-
     private static CajaVentasTotales CalcularTotalesVenta(
         IEnumerable<VCierreVentaDiaria1> ventas,
         IReadOnlySet<(int IdAlmacen, string Serie, int Numero)> anuladosConNc)
@@ -303,24 +246,6 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
 
         foreach (var v in ventas)
         {
-            if (EsAjusteNcAnulacionEmitida(v.Descripcion))
-            {
-                var tipoAjuste = ObtenerTipoPagoAjusteNc(v.Descripcion);
-                switch (tipoAjuste)
-                {
-                    case "Efectivo":
-                        var netoAjuste = v.Soles - (v.Vuelto ?? 0);
-                        efectivoCaja += netoAjuste;
-                        ventaEfectivo += netoAjuste;
-                        break;
-                    case "Tarjeta":
-                    case "Online":
-                        ventaTarjeta += v.Soles;
-                        break;
-                }
-                continue;
-            }
-
             var tipo = v.Descripcion.Split(' ')[0];
             var cuentaEnVentaDia = CuentaEnVentaDia(v, anuladosConNotaCredito);
 
@@ -345,15 +270,6 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
         }
     }
 
-    private static bool EsAjusteNcAnulacionEmitida(string descripcion) =>
-        descripcion.Contains("(N.C.)", StringComparison.OrdinalIgnoreCase);
-
-    private static string ObtenerTipoPagoAjusteNc(string descripcion)
-    {
-        var sinSufijo = descripcion.Split('(')[0].Trim();
-        return sinSufijo.Split(' ')[0];
-    }
-
     private static bool EsPagoCanjeNc(string descripcion) =>
         descripcion.StartsWith("N.C.", StringComparison.OrdinalIgnoreCase);
 
@@ -368,6 +284,24 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
             return false;
 
         return anuladosConNotaCredito.Contains((venta.IdAlmacen, venta.Serie, venta.Numero));
+    }
+
+    private IQueryable<VCierreVentaDiaria1> AplicarJoinComprobante(
+        IQueryable<VCierreVentaDiaria1> ventasQuery,
+        DateTime fechaInicio,
+        DateTime fechaFin)
+    {
+        return from v in ventasQuery
+               join c in _context.ComprobanteDeVentaCabeceras
+                   on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero, Total = v.Total }
+                   equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero, Total = c.Total }
+               where c.Fecha >= fechaInicio && c.Fecha <= fechaFin
+               && !(c.Estado == "A" &&
+                       (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                       c.FechaHoraUsuarioAnula.HasValue &&
+                       c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
+                       c.FechaHoraUsuarioAnula.Value <= fechaFin)
+               select v;
     }
 
     private async Task<HashSet<(int IdAlmacen, string Serie, int Numero)>> ObtenerClavesAnuladosConNotaCreditoAsync(
@@ -399,137 +333,6 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
             .ToHashSet();
     }
 
-    private async Task<List<VCierreVentaDiaria1>> ObtenerAjustesNcAnulacionEmitidasAsync(
-        DateTime fechaInicio,
-        DateTime fechaFin,
-        int? idAlmacen,
-        int? idCajero,
-        CancellationToken cancellationToken)
-    {
-        var query = _context.NotaDeCreditoCabeceras
-            .AsNoTracking()
-            .Where(n => n.FechaHoraRegistro >= fechaInicio &&
-                        n.FechaHoraRegistro <= fechaFin &&
-                        n.IdMotivo == "09" &&
-                        n.Estado != "A");
-
-        if (idAlmacen.HasValue)
-            query = query.Where(n => n.IdAlmacen == idAlmacen.Value);
-
-        if (idCajero.HasValue)
-            query = query.Where(n => n.IdUsuario == idCajero.Value);
-
-        var notasEmitidas = await query.ToListAsync(cancellationToken);
-        if (notasEmitidas.Count == 0)
-            return new List<VCierreVentaDiaria1>();
-
-        return await ConstruirAjustesDesdeNotasEmitidasAsync(notasEmitidas, fechaInicio, fechaFin, cancellationToken);
-    }
-
-    private async Task<List<VCierreVentaDiaria1>> ConstruirAjustesDesdeNotasEmitidasAsync(
-        List<NotaDeCreditoCabecera> notasEmitidas,
-        DateTime fechaInicio,
-        DateTime fechaFin,
-        CancellationToken cancellationToken)
-    {
-        var almacenesNc = notasEmitidas.Select(n => n.IdAlmacen).Distinct().ToList();
-        var clavesNc = notasEmitidas
-            .Select(n => $"{n.Serie}-{n.Numero:D8}")
-            .Distinct()
-            .ToList();
-
-        var paresReferencia = new List<(int IdAlmacen, string Serie, int Numero)>();
-        foreach (var nc in notasEmitidas)
-        {
-            if (TryParseReferenciaComprobante(nc.Referencia, out var serieRef, out var numeroRef))
-                paresReferencia.Add((nc.IdAlmacen, serieRef, numeroRef));
-        }
-
-        var porGeneroNc = new Dictionary<(int IdAlmacen, string ClaveNc), ComprobanteDeVentaCabecera>();
-        var porReferencia = new Dictionary<(int IdAlmacen, string Referencia), List<ComprobanteDeVentaCabecera>>();
-
-        if (clavesNc.Count > 0 || paresReferencia.Count > 0)
-        {
-            var series = paresReferencia.Select(p => p.Serie).Distinct().ToList();
-            var numeros = paresReferencia.Select(p => p.Numero).Distinct().ToList();
-            var paresSet = paresReferencia.ToHashSet();
-
-            var comprobantes = await _context.ComprobanteDeVentaCabeceras
-                .AsNoTracking()
-                .Include(c => c.DetallePagoVenta)
-                    .ThenInclude(p => p.IdTipoPagoVentaNavigation)
-                .Where(c => almacenesNc.Contains(c.IdAlmacen) &&
-                            (c.GeneroNc != null && clavesNc.Contains(c.GeneroNc) ||
-                             (series.Count > 0 && numeros.Count > 0 &&
-                              series.Contains(c.Serie) && numeros.Contains(c.Numero))))
-                .ToListAsync(cancellationToken);
-
-            foreach (var c in comprobantes.Where(c => !string.IsNullOrEmpty(c.GeneroNc) && clavesNc.Contains(c.GeneroNc)))
-            {
-                var claveNc = (c.IdAlmacen, c.GeneroNc!);
-                if (!porGeneroNc.ContainsKey(claveNc))
-                    porGeneroNc[claveNc] = c;
-            }
-
-            foreach (var c in comprobantes.Where(c => paresSet.Contains((c.IdAlmacen, c.Serie, c.Numero))))
-            {
-                var claveRef = (c.IdAlmacen, $"{c.Serie}-{c.Numero:D8}");
-                if (!porReferencia.TryGetValue(claveRef, out var lista))
-                {
-                    lista = new List<ComprobanteDeVentaCabecera>();
-                    porReferencia[claveRef] = lista;
-                }
-                lista.Add(c);
-            }
-        }
-
-        var ajustes = new List<VCierreVentaDiaria1>();
-
-        foreach (var nc in notasEmitidas)
-        {
-            var comprobanteOriginal = ResolverComprobanteOriginalNotaCredito(nc, porGeneroNc, porReferencia);
-            if (comprobanteOriginal == null)
-                continue;
-
-            if (comprobanteOriginal.Fecha < fechaInicio || comprobanteOriginal.Fecha > fechaFin)
-                continue;
-
-            var pagosOriginales = comprobanteOriginal.DetallePagoVenta
-                .Where(p => !EsPagoNotaCredito(p.IdTipoPagoVentaNavigation?.Descripcion))
-                .ToList();
-
-            if (pagosOriginales.Count == 0)
-                continue;
-
-            var reparto = RepartirMontoNcEnPagos(nc.Total, pagosOriginales);
-
-            foreach (var (descripcionPago, monto) in reparto)
-            {
-                if (monto == 0) continue;
-
-                ajustes.Add(new VCierreVentaDiaria1
-                {
-                    IdTipoPagoVenta = 0,
-                    Descripcion = $"{descripcionPago} (N.C.)",
-                    Datos = nc.Referencia,
-                    Serie = nc.Serie,
-                    Numero = nc.Numero,
-                    Fecha = nc.Fecha,
-                    Total = nc.Total,
-                    Soles = -monto,
-                    Dolares = 0,
-                    Redondeo = 0,
-                    Vuelto = 0,
-                    Estado = nc.Estado,
-                    IdCajero = nc.IdUsuario,
-                    IdAlmacen = nc.IdAlmacen
-                });
-            }
-        }
-
-        return ajustes;
-    }
-
     public async Task<List<VCierreVentaDiaria1>> ObtenerVentasDiariasFiltradasAsync(
         int idAlmacen,
         int idCajero,
@@ -544,22 +347,9 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
                         v.Fecha >= fechaInicio &&
                         v.Fecha <= fechaFin);
 
-        ventasQuery = from v in ventasQuery
-                      join c in _context.ComprobanteDeVentaCabeceras
-                          on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
-                          equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
-                      where c.Fecha >= fechaInicio && c.Fecha <= fechaFin
-                      && !(c.Estado == "A" &&
-                              string.IsNullOrEmpty(c.GeneroNc) &&
-                              c.FechaHoraUsuarioAnula.HasValue &&
-                              c.FechaHoraUsuarioAnula.Value >= fechaInicio &&
-                              c.FechaHoraUsuarioAnula.Value <= fechaFin)
-                      select v;
+        ventasQuery = AplicarJoinComprobante(ventasQuery, fechaInicio, fechaFin);
 
-        var ventas = DistinctVentasDiarias(await ventasQuery.ToListAsync(cancellationToken));
-        var ajustesNc09 = await ObtenerAjustesNcAnulacionEmitidasAsync(fechaInicio, fechaFin, idAlmacen, idCajero, cancellationToken);
-        ventas.AddRange(ajustesNc09);
-        return ventas;
+        return DistinctVentasDiarias(await ventasQuery.ToListAsync(cancellationToken));
     }
 
     public async Task<VentasDiariasCajaResponse> ObtenerVentasDiariasConTotalesAsync(
@@ -583,85 +373,5 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
             TotalNc = totales.VentaNcCanje,
             TotalVentas = totales.VentaDia
         };
-    }
-
-    private static ComprobanteDeVentaCabecera? ResolverComprobanteOriginalNotaCredito(
-        NotaDeCreditoCabecera nc,
-        IReadOnlyDictionary<(int IdAlmacen, string ClaveNc), ComprobanteDeVentaCabecera> porGeneroNc,
-        IReadOnlyDictionary<(int IdAlmacen, string Referencia), List<ComprobanteDeVentaCabecera>> porReferencia)
-    {
-        var claveNc = $"{nc.Serie}-{nc.Numero:D8}";
-        if (porGeneroNc.TryGetValue((nc.IdAlmacen, claveNc), out var porGn))
-            return porGn;
-
-        if (!TryParseReferenciaComprobante(nc.Referencia, out var serieRef, out var numeroRef))
-            return null;
-
-        var claveRef = (nc.IdAlmacen, $"{serieRef}-{numeroRef:D8}");
-        if (!porReferencia.TryGetValue(claveRef, out var candidatos) || candidatos.Count != 1)
-            return null;
-
-        return candidatos[0];
-    }
-
-    private static bool TryParseReferenciaComprobante(string referencia, out string serie, out int numero)
-    {
-        serie = string.Empty;
-        numero = 0;
-
-        if (string.IsNullOrWhiteSpace(referencia))
-            return false;
-
-        var idx = referencia.LastIndexOf('-');
-        if (idx <= 0)
-            return false;
-
-        serie = referencia[..idx];
-        return int.TryParse(referencia[(idx + 1)..], out numero);
-    }
-
-    private static bool EsPagoNotaCredito(string? descripcionPago)
-    {
-        if (string.IsNullOrWhiteSpace(descripcionPago))
-            return false;
-
-        return descripcionPago.StartsWith("N.C.", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static List<(string Descripcion, decimal Monto)> RepartirMontoNcEnPagos(
-        decimal montoNc,
-        IEnumerable<DetallePagoVentum> pagos)
-    {
-        var pagosActivos = pagos
-            .Select(p => new
-            {
-                Descripcion = p.IdTipoPagoVentaNavigation?.Descripcion ?? string.Empty,
-                Monto = p.Soles - (p.Vuelto ?? 0)
-            })
-            .Where(p => p.Monto > 0 && !EsPagoNotaCredito(p.Descripcion))
-            .ToList();
-
-        if (pagosActivos.Count == 0)
-            return new List<(string Descripcion, decimal Monto)>();
-
-        var totalPagado = pagosActivos.Sum(p => p.Monto);
-        if (totalPagado <= 0)
-            return new List<(string Descripcion, decimal Monto)>();
-
-        var resultado = new List<(string Descripcion, decimal Monto)>();
-        decimal acumulado = 0;
-
-        for (var i = 0; i < pagosActivos.Count; i++)
-        {
-            var pago = pagosActivos[i];
-            var monto = i == pagosActivos.Count - 1
-                ? montoNc - acumulado
-                : Math.Round(montoNc * (pago.Monto / totalPagado), 2, MidpointRounding.AwayFromZero);
-
-            acumulado += monto;
-            resultado.Add((pago.Descripcion, monto));
-        }
-
-        return resultado;
     }
 }

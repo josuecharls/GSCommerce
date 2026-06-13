@@ -162,6 +162,7 @@ namespace GSCommerceAPI.Controllers
                 from c in _context.ComprobanteDeVentaCabeceras
                 join p in _context.VDetallePagoVenta1s on c.IdComprobante equals p.IdComprobante
                 where DateOnly.FromDateTime(c.Fecha) == fechaHoy
+                      && !c.ExcluirDeEstadisticas
                       && (c.Estado != "A" || c.GeneroNc != null)
                       && (!idAlmacen.HasValue || c.IdAlmacen == idAlmacen)
                       && (!idUsuario.HasValue || c.IdCajero == idUsuario)
@@ -195,15 +196,6 @@ namespace GSCommerceAPI.Controllers
                         break;
                 }
             }
-
-            var dayStart = fechaHoy.ToDateTime(TimeOnly.MinValue);
-            var dayEnd = fechaHoy.ToDateTime(new TimeOnly(23, 59, 59));
-            var descuentoNc09 = await _cajaVentas.CalcularDescuentoNcAnulacionEmitidasAsync(
-                dayStart, dayEnd,
-                idAlmacen is > 0 ? idAlmacen : null,
-                idUsuario is > 0 ? idUsuario : null);
-            resumen.Efectivo -= descuentoNc09.Efectivo;
-            resumen.Tarjeta -= descuentoNc09.Tarjeta;
 
             var cierresQuery = _context.VCierreEnLinea1s
                 .Where(c => c.Fecha == fechaHoy);
@@ -321,8 +313,8 @@ namespace GSCommerceAPI.Controllers
 
             ventasQuery = from v in ventasQuery
                           join c in _context.ComprobanteDeVentaCabeceras
-                              on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
-                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
+                              on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero, Total = v.Total }
+                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero, Total = c.Total }
                           where c.Fecha >= v.Fecha.Date && c.Fecha < v.Fecha.Date.AddDays(1)
                                 && !(c.Estado == "A" &&
                                      (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
@@ -330,7 +322,7 @@ namespace GSCommerceAPI.Controllers
                                      c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
                           select v;
 
-            var ventas = await ventasQuery.ToListAsync();
+            var ventas = CajaVentasDiariasService.DistinctVentasDiarias(await ventasQuery.ToListAsync());
 
             var montos = ventas
                 .GroupBy(v => v.IdAlmacen)
@@ -401,8 +393,8 @@ namespace GSCommerceAPI.Controllers
             // Excluir documentos anulados según la misma lógica que reporte-total-tiendas
             ventasQuery = from v in ventasQuery
                           join c in _context.ComprobanteDeVentaCabeceras
-                              on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
-                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
+                              on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero, Total = v.Total }
+                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero, Total = c.Total }
                           where c.Fecha >= v.Fecha.Date && c.Fecha < v.Fecha.Date.AddDays(1)
                                 && !(c.Estado == "A" &&
                                      (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
@@ -410,7 +402,7 @@ namespace GSCommerceAPI.Controllers
                                      c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
                           select v;
 
-            var ventas = await ventasQuery.ToListAsync();
+            var ventas = CajaVentasDiariasService.DistinctVentasDiarias(await ventasQuery.ToListAsync());
 
             var montosVenta = ventas
                 .GroupBy(v => v.IdAlmacen)
@@ -1411,6 +1403,7 @@ namespace GSCommerceAPI.Controllers
                 where DateOnly.FromDateTime(c.Fecha) == fechaHoy
                       && c.IdAlmacen == idAlmacen
                       && c.IdCajero == idUsuario
+                      && !c.ExcluirDeEstadisticas
                       && (c.Estado != "A" || c.GeneroNc != null)
                 select new { p.Descripcion, p.Soles, p.Vuelto }
             ).ToListAsync();
@@ -1442,13 +1435,6 @@ namespace GSCommerceAPI.Controllers
                 }
             }
 
-            var dayStart = fechaHoy.ToDateTime(TimeOnly.MinValue);
-            var dayEnd = fechaHoy.ToDateTime(new TimeOnly(23, 59, 59));
-            var descuentoNc09 = await _cajaVentas.CalcularDescuentoNcAnulacionEmitidasAsync(
-                dayStart, dayEnd, idAlmacen, idUsuario);
-            resumen.Efectivo -= descuentoNc09.Efectivo;
-            resumen.Tarjeta -= descuentoNc09.Tarjeta;
-
             var cierres = await _context.VCierreEnLinea1s
                 .Where(c => c.Fecha == fechaHoy && c.IdAlmacen == idAlmacen && c.IdUsuario == idUsuario)
                 .ToListAsync();
@@ -1464,23 +1450,6 @@ namespace GSCommerceAPI.Controllers
             }
 
             return Ok(resumen);
-        }
-
-        [HttpGet("descuento-nc-anulacion")]
-        [Authorize]
-        public async Task<IActionResult> ObtenerDescuentoNcAnulacion(
-            [FromQuery] DateTime? desde,
-            [FromQuery] DateTime? hasta,
-            [FromQuery] int? idAlmacen,
-            [FromQuery] int? idUsuario)
-        {
-            var inicio = (desde?.Date) ?? DateTime.Today;
-            var fin = ((hasta?.Date) ?? inicio).Date.Add(new TimeSpan(23, 59, 59));
-
-            var descuento = await _cajaVentas.CalcularDescuentoNcAnulacionEmitidasAsync(
-                inicio, fin, idAlmacen, idUsuario is > 0 ? idUsuario : null);
-
-            return Ok(descuento);
         }
 
         [HttpGet("nc-emitidas-total")]
@@ -1543,8 +1512,8 @@ namespace GSCommerceAPI.Controllers
 
             ventasQuery = from v in ventasQuery
                           join c in _context.ComprobanteDeVentaCabeceras
-                              on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero }
-                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero }
+                              on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero, Total = v.Total }
+                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero, Total = c.Total }
                           where c.Fecha >= inicio && c.Fecha <= fin
                                 && !(c.Estado == "A" &&
                                      (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
@@ -1553,7 +1522,7 @@ namespace GSCommerceAPI.Controllers
                                      c.FechaHoraUsuarioAnula.Value <= fin)
                           select v;
 
-            var ventas = await ventasQuery.ToListAsync();
+            var ventas = CajaVentasDiariasService.DistinctVentasDiarias(await ventasQuery.ToListAsync());
 
             var totalesPorAlmacen = new Dictionary<int, (decimal efectivo, decimal tarjeta)>();
 

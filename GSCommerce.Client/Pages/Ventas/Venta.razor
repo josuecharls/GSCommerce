@@ -675,7 +675,7 @@
         var inicio = desde.Date;
         var fin = hasta.Date;
         var activas = ventas
-            .Where(v =>
+            .Where(v => !v.ExcluirDeEstadisticas &&
                 !(v.Fecha.Date >= inicio && v.Fecha.Date <= fin &&
                   (string.Equals(v.Estado, "A", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(v.Estado, "AN", StringComparison.OrdinalIgnoreCase) ||
@@ -719,10 +719,6 @@
                     notaCredito += soles > 0 ? soles : dolares;
             }
         }
-
-        var descuentoNc09 = await ventaService.ObtenerDescuentoNcAnulacionAsync(desde, hasta, filtroAlmacen, filtroCajero);
-        efectivoSoles -= descuentoNc09.Efectivo;
-        tarjetaOnline -= descuentoNc09.Tarjeta;
 
         totalGeneral = efectivoSoles + tarjetaOnline;
 
