@@ -675,7 +675,6 @@
         var inicio = desde.Date;
         var fin = hasta.Date;
         var activas = ventas
-            .Where(v => !v.ExcluirDeEstadisticas)
             .Where(v =>
                 !(v.Fecha.Date >= inicio && v.Fecha.Date <= fin &&
                   (string.Equals(v.Estado, "A", StringComparison.OrdinalIgnoreCase) ||
@@ -721,10 +720,11 @@
             }
         }
 
-        var ncEmitidas = await ventaService.ObtenerTotalNcEmitidasAsync(desde, hasta, filtroAlmacen, filtroCajero);
-        notaCredito -= ncEmitidas;
+        var descuentoNc09 = await ventaService.ObtenerDescuentoNcAnulacionAsync(desde, hasta, filtroAlmacen, filtroCajero);
+        efectivoSoles -= descuentoNc09.Efectivo;
+        tarjetaOnline -= descuentoNc09.Tarjeta;
 
-        totalGeneral = efectivoSoles + tarjetaOnline + notaCredito;
+        totalGeneral = efectivoSoles + tarjetaOnline;
 
         cantidadBoletas = activas.Count(v => v.TipoDocumento.Contains("BOLETA", StringComparison.OrdinalIgnoreCase)
                                             || v.TipoDocumento.Contains("TICKET", StringComparison.OrdinalIgnoreCase));

@@ -106,6 +106,30 @@ namespace GSCommerce.Client.Services
             }
         }
 
+        public async Task<DescuentoNcAnulacionEmitidaDTO> ObtenerDescuentoNcAnulacionAsync(
+            DateTime desde,
+            DateTime hasta,
+            int? idAlmacen = null,
+            int? idUsuario = null)
+        {
+            try
+            {
+                var url = $"ventas/descuento-nc-anulacion?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+                if (idAlmacen.HasValue)
+                    url += $"&idAlmacen={idAlmacen.Value}";
+                if (idUsuario.HasValue && idUsuario.Value > 0)
+                    url += $"&idUsuario={idUsuario.Value}";
+
+                return await _httpClient.GetFromJsonAsync<DescuentoNcAnulacionEmitidaDTO>(url)
+                    ?? new DescuentoNcAnulacionEmitidaDTO();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al obtener descuento N.C. anulación: {ex.Message}");
+                return new DescuentoNcAnulacionEmitidaDTO();
+            }
+        }
+
         public async Task<List<VentaConsultaDTO>> ObtenerVentasAsync(
             DateTime desde, DateTime hasta, int? idAlmacen = null, int? idTipoDoc = null, int? idUsuario = null)
         {

@@ -5,7 +5,7 @@
         public decimal Efectivo { get; set; }
         public decimal Tarjeta { get; set; }
         public decimal NotaCredito { get; set; }
-        public decimal Total => Efectivo + Tarjeta + NotaCredito;
+        public decimal Total => Efectivo + Tarjeta;
         public decimal SaldoInicial { get; set; }
         public decimal Ingresos { get; set; }
         public decimal Egresos { get; set; }

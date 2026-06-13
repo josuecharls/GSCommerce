@@ -130,6 +130,7 @@ else
     private string serieOriginal = string.Empty;
     private int idTipoDocumentoOriginal;
     private decimal tasaIgv = 0m;
+    private DateTime fechaComprobanteOriginal;
 
     protected override async Task OnInitializedAsync()
     {
@@ -162,6 +163,7 @@ else
         }
         serieOriginal = venta.Serie;
         idTipoDocumentoOriginal = venta.IdTipoDocumento;
+        fechaComprobanteOriginal = venta.Fecha.Date;
 
         cabecera = new NotaCreditoCabeceraDTO
         {
@@ -382,6 +384,18 @@ else
         if (cabecera == null || string.IsNullOrWhiteSpace(cabecera.IdMotivo))
         {
             await JS.InvokeVoidAsync("alert", "Debe seleccionar un motivo.");
+            return;
+        }
+
+        if (cabecera.IdMotivo == "01" && fechaComprobanteOriginal == DateTime.Today)
+        {
+            await JS.InvokeVoidAsync("alert", "La devolución total (motivo 01) solo puede emitirse para boletas de días anteriores.");
+            return;
+        }
+
+        if (cabecera.IdMotivo == "09" && fechaComprobanteOriginal < DateTime.Today)
+        {
+            await JS.InvokeVoidAsync("alert", "La anulación de operación (motivo 09) solo puede emitirse para boletas del mismo día.");
             return;
         }
 
