@@ -5,9 +5,10 @@
 @using GSCommerce.Client.Services
 @using System.Linq
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize]
+@attribute [Authorize(Roles = "ADMINISTRADOR,ALMACEN,CAJERO")]
 @inject ArticuloService ArticuloService
 @inject ReporteService ReporteService
+@inject AuthService AuthService
 @inject IJSRuntime JS
 
 <ReportsBreadcrumb Title="Ventas por Artículo" />
@@ -86,7 +87,13 @@ else if (reportesVistaPrevia.Any())
             <div class="card-header bg-primary text-white">
                 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
                     <span class="fw-semibold">@reporte.IdArticulo - @reporte.Descripcion</span>
-                    <small class="text-white-50">PC: @reporte.PrecioCompra | PV: @reporte.PrecioVenta</small>
+                    <small class="text-white-50">
+                        @if (PuedeVerPrecioCompra)
+                        {
+                            <text>PC: @reporte.PrecioCompra | </text>
+                        }
+                        PV: @reporte.PrecioVenta
+                    </small>
                 </div>
             </div>
             <div class="card-body">
@@ -106,7 +113,10 @@ else if (reportesVistaPrevia.Any())
                                 <th>Fch Ing</th>
                                 <th>Stock</th>
                                 <th>% Mercadería vendida</th>
-                                <th>PC</th>
+                                @if (PuedeVerPrecioCompra)
+                                {
+                                    <th>PC</th>
+                                }
                                 <th>PV</th>
                             </tr>
                         </thead>
@@ -127,7 +137,10 @@ else if (reportesVistaPrevia.Any())
                                     <td>@(fila.FechaPrimerIngreso?.ToString("dd/MM/yyyy") ?? "-")</td>
                                     <td>@fila.Stock</td>
                                     <td>@fila.PorcentajeVendida</td>
-                                    <td>@fila.PC</td>
+                                    @if (PuedeVerPrecioCompra)
+                                    {
+                                        <td>@fila.PC</td>
+                                    }
                                     <td>@fila.PV</td>
                                 </tr>
                             }
@@ -145,20 +158,26 @@ else if (reportesVistaPrevia.Any())
                                 <td></td>
                                 <td>@reporte.Totales.Stock</td>
                                 <td>@reporte.Totales.PorcentajeVendida</td>
-                                <td></td>
+                                @if (PuedeVerPrecioCompra)
+                                {
+                                    <td></td>
+                                }
                                 <td></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-            <div class="card-footer bg-light">
-                <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-secondary fs-6">
-                        <i class="bi bi-box-seam me-1"></i>Stock PRINCIPAL: <strong>@reporte.StockPrincipal</strong>
-                    </span>
+            @if (PuedeVerStockPrincipal)
+            {
+                <div class="card-footer bg-light">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-secondary fs-6">
+                            <i class="bi bi-box-seam me-1"></i>Stock PRINCIPAL: <strong>@reporte.StockPrincipal</strong>
+                        </span>
+                    </div>
                 </div>
-            </div>
+            }
         </div>
     }
 }
@@ -197,6 +216,19 @@ else if (reportesVistaPrevia.Any())
     private string mensaje = string.Empty;
     private bool isCargandoVistaPrevia;
     private List<ReporteArticuloRangoDTO> reportesVistaPrevia = new();
+    private string? cargo;
+
+    private bool PuedeVerPrecioCompra =>
+        string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
+
+    private bool PuedeVerStockPrincipal =>
+        string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(cargo, "ALMACEN", StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo();
+    }
 
     private async Task GenerarVistaPrevia()
     {
@@ -312,15 +344,20 @@ else if (reportesVistaPrevia.Any())
         mensaje = string.Empty;
     }
 
-    private static string[] BuildHeaders(ReporteArticuloRangoDTO r)
+    private string[] BuildHeaders(ReporteArticuloRangoDTO r)
     {
         var headers = new List<string> { "ALMACEN", "COD", "INGRESO", "Descripción" };
         headers.AddRange(r.Meses.Select(m => m.Label));
-        headers.AddRange(new[] { "TOTAL", "Fch Ing", "Stock", "% Mercadería vendida", "PC", "PV" });
+        headers.AddRange(new[] { "TOTAL", "Fch Ing", "Stock", "% Mercadería vendida" });
+        if (PuedeVerPrecioCompra)
+        {
+            headers.Add("PC");
+        }
+        headers.Add("PV");
         return headers.ToArray();
     }
 
-    private static List<object[]> BuildRows(ReporteArticuloRangoDTO r)
+    private List<object[]> BuildRows(ReporteArticuloRangoDTO r)
     {
         var rows = new List<object[]>();
         foreach (var f in r.Filas)
@@ -337,7 +374,10 @@ else if (reportesVistaPrevia.Any())
             row.Add(f.FechaPrimerIngreso?.ToString("dd/MM/yyyy") ?? "");
             row.Add(f.Stock);
             row.Add(f.PorcentajeVendida);
-            row.Add(f.PC);
+            if (PuedeVerPrecioCompra)
+            {
+                row.Add(f.PC);
+            }
             row.Add(f.PV);
             rows.Add(row.ToArray());
         }
@@ -348,7 +388,10 @@ else if (reportesVistaPrevia.Any())
         totalRow.Add("");
         totalRow.Add(r.Totales.Stock);
         totalRow.Add(r.Totales.PorcentajeVendida);
-        totalRow.Add("");
+        if (PuedeVerPrecioCompra)
+        {
+            totalRow.Add("");
+        }
         totalRow.Add("");
         rows.Add(totalRow.ToArray());
 

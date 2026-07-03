@@ -43,6 +43,17 @@
         </div>
     }
 
+    @if (cargo == "ALMACEN" || cargo == "ADMINISTRADOR" || cargo == "CAJERO")
+    {
+        <div class="col">
+            <HubCard 
+                Title="Ventas por Artículo" 
+                Description="Reporte de ventas por artículo"
+                IconClass="bi-receipt-cutoff"
+                Url="/reportes/ventas-articulo" />
+        </div>
+    }
+
     @if (cargo == "CONTADOR" || cargo == "ADMINISTRADOR")
     {
         <div class="col">

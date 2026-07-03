@@ -597,10 +597,36 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpPost("reporte-articulos-rango")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN,CAJERO")]
         public async Task<IActionResult> ObtenerReporteArticulosRango([FromBody] ReporteArticulosRangoRequest req)
         {
             if (req.Ids == null || req.Ids.Count == 0)
                 return BadRequest("Debe enviar al menos un código de artículo.");
+
+            var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
+            var esAdministrador = string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
+            var esCajero = string.Equals(cargo, "CAJERO", StringComparison.OrdinalIgnoreCase);
+            var puedeVerPrecioCompra = esAdministrador;
+            var puedeVerStockPrincipal = esAdministrador
+                || string.Equals(cargo, "ALMACEN", StringComparison.OrdinalIgnoreCase);
+
+            int? idAlmacenFiltro = null;
+            if (esCajero)
+            {
+                var userIdClaim = User.FindFirst("userId")?.Value;
+                if (!int.TryParse(userIdClaim, out var userId))
+                    return Forbid();
+
+                idAlmacenFiltro = await _context.Usuarios
+                    .AsNoTracking()
+                    .Where(u => u.IdUsuario == userId)
+                    .Select(u => u.IdPersonalNavigation.IdAlmacen)
+                    .FirstOrDefaultAsync();
+
+                if (!idAlmacenFiltro.HasValue || idAlmacenFiltro.Value == 0)
+                    return Forbid("No se pudo determinar el almacén del cajero.");
+            }
+
             var desde = req.Desde.Date;
             var hasta = req.Hasta.Date;
             var hastaExclusiva = hasta.AddDays(1);
@@ -649,6 +675,7 @@ namespace GSCommerceAPI.Controllers
                          && d.IdComprobanteNavigation.Fecha >= desde
                          && d.IdComprobanteNavigation.Fecha < hastaExclusiva
                          && !principalIds.Contains(d.IdComprobanteNavigation.IdAlmacen)
+                         && (!idAlmacenFiltro.HasValue || d.IdComprobanteNavigation.IdAlmacen == idAlmacenFiltro.Value)
                          && !(d.IdComprobanteNavigation.Estado == "A"
                               && (string.IsNullOrEmpty(d.IdComprobanteNavigation.GeneroNc)
                                   || d.IdComprobanteNavigation.ExcluirDeEstadisticas)))
@@ -677,7 +704,8 @@ namespace GSCommerceAPI.Controllers
                             && (k.Origen == null || !EF.Functions.Like(k.Origen, "NC:%"))
                             && k.Fecha >= desde
                             && k.Fecha < hastaExclusiva
-                            && !principalIds.Contains(k.IdAlmacen))
+                            && !principalIds.Contains(k.IdAlmacen)
+                            && (!idAlmacenFiltro.HasValue || k.IdAlmacen == idAlmacenFiltro.Value))
                 .Select(k => new
                 {
                     k.IdArticulo,
@@ -754,7 +782,8 @@ namespace GSCommerceAPI.Controllers
                             && !EF.Functions.Like(k.Origen, "ANULA%")
                             && k.Fecha >= desde
                             && k.Fecha < hastaExclusiva
-                            && !principalIds.Contains(k.IdAlmacen))
+                            && !principalIds.Contains(k.IdAlmacen)
+                            && (!idAlmacenFiltro.HasValue || k.IdAlmacen == idAlmacenFiltro.Value))
                 .GroupBy(k => new { k.IdArticulo, k.IdAlmacen })
                 .Select(g => new {
                     g.Key.IdArticulo,
@@ -780,7 +809,8 @@ namespace GSCommerceAPI.Controllers
             var stock = await _context.StockAlmacens
                 .AsNoTracking()
                 .Where(s => req.Ids.Contains(s.IdArticulo)
-                            && !principalIds.Contains(s.IdAlmacen))
+                            && !principalIds.Contains(s.IdAlmacen)
+                            && (!idAlmacenFiltro.HasValue || s.IdAlmacen == idAlmacenFiltro.Value))
                 .GroupBy(s => new { s.IdArticulo, s.IdAlmacen })
                 .Select(g => new { g.Key.IdArticulo, g.Key.IdAlmacen, Stock = g.Sum(s => s.Stock) })
                 .ToListAsync();
@@ -826,7 +856,7 @@ namespace GSCommerceAPI.Controllers
                         Ingreso = ing?.Cant ?? 0,
                         FechaPrimerIngreso = ing?.Fch,
                         Stock = st?.Stock ?? 0,
-                        PC = art.PrecioCompra,
+                        PC = puedeVerPrecioCompra ? art.PrecioCompra : 0,
                         PV = art.PrecioVenta
                     };
 
@@ -869,12 +899,12 @@ namespace GSCommerceAPI.Controllers
                 {
                     IdArticulo = art.IdArticulo,
                     Descripcion = descConTalla,
-                    PrecioCompra = art.PrecioCompra,
+                    PrecioCompra = puedeVerPrecioCompra ? art.PrecioCompra : 0,
                     PrecioVenta = art.PrecioVenta,
                     Meses = meses,
                     Filas = filas.OrderBy(f => f.NombreAlmacen).ToList(),
                     Totales = tot,
-                    StockPrincipal = stockPrincipal.TryGetValue(art.IdArticulo, out var stPrinc) ? stPrinc : 0
+                    StockPrincipal = puedeVerStockPrincipal && stockPrincipal.TryGetValue(art.IdArticulo, out var stPrinc) ? stPrinc : 0
                 });
             }
 
