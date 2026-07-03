@@ -101,7 +101,7 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
             .AsNoTracking()
             .Include(a => a.IdAlmacenNavigation)
             .Include(a => a.IdUsuarioNavigation).ThenInclude(u => u.IdPersonalNavigation)
-            .Where(a => a.Fecha == fecha && (!idAlmacen.HasValue || a.IdAlmacen == idAlmacen.Value))
+            .Where(a => a.Fecha == fecha && a.IdAlmacenNavigation.Estado && (!idAlmacen.HasValue || a.IdAlmacen == idAlmacen.Value))
             .OrderBy(a => a.IdAlmacen).ThenBy(a => a.IdUsuario)
             .ToListAsync(cancellationToken);
 

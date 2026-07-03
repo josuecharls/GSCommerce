@@ -1,6 +1,6 @@
 ﻿@page "/almacen"
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize]
+@attribute [Authorize(Roles = "ADMINISTRADOR")]
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @inject AlmacenService AlmacenService
@@ -11,8 +11,15 @@
 
 <h3><i class="bi bi-box-seam-fill"></i>  Gestión de Almacenes</h3>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <button @onclick="CreateNewAlmacen" class="btn btn-success">+ Nuevo Almacén</button>
+@if (!string.IsNullOrEmpty(mensaje))
+{
+    <div class="alert @mensajeClase alert-dismissible fade show" role="alert">
+        @mensaje
+        <button type="button" class="btn-close" @onclick="() => mensaje = null"></button>
+    </div>
+}
+
+<div class="d-flex justify-content-end align-items-center mb-3">
     <div class="input-group w-50">
         <input type="text" @bind="searchTerm" placeholder="Buscar por nombre..." class="form-control" />
         <button @onclick="SearchAlmacen" class="btn btn-primary"><i class="bi bi-search"></i> Buscar</button>
@@ -35,6 +42,9 @@
             <th @onclick='() => SortBy("RazonSocial")' style="cursor:pointer;">
                 <i class="bi @(GetSortIcon("RazonSocial")) me-1"></i>Razón Social
             </th>
+            <th @onclick='() => SortBy("Estado")' style="cursor:pointer;">
+                <i class="bi @(GetSortIcon("Estado")) me-1"></i>Estado
+            </th>
             <th>Acciones</th>
         </tr>
     </thead>
@@ -43,30 +53,47 @@
         {
             @foreach (var a in almacenList)
             {
-                <tr>
+                <tr class="@(a.Estado ? "" : "table-secondary")">
                     <td>@a.Nombre</td>
                     <td>@a.Direccion</td>
                     <td>@a.Dpd</td>
                     <td>@a.RazonSocial</td>
-                    <td class="text-center">
+                    <td>
+                        @if (a.Estado)
+                        {
+                            <span class="badge bg-success">Habilitado</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inhabilitado</span>
+                        }
+                    </td>
+                    <td class="text-center text-nowrap">
                         <button @onclick="() => EditAlmacen(a.IdAlmacen)" class="btn btn-warning btn-sm me-1">
                             <i class="bi bi-pencil-square"></i> Editar
                         </button>
                         <button @onclick="() => AbrirCuentas(a.IdAlmacen)" class="btn btn-info btn-sm me-1">
                             <i class="bi bi-bank"></i> Cuentas
                         </button>
-                        <button @onclick="() => ConfirmDeleteAlmacen(a.IdAlmacen, a.Nombre)" class="btn btn-danger btn-sm">
-                            <i class="bi bi-trash"></i> Eliminar
- 
-                        </button>
+                        @if (a.Estado)
+                        {
+                            <button @onclick="() => ConfirmToggleEstado(a.IdAlmacen, a.Nombre, false)" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-slash-circle"></i> Deshabilitar
+                            </button>
+                        }
+                        else
+                        {
+                            <button @onclick="() => ConfirmToggleEstado(a.IdAlmacen, a.Nombre, true)" class="btn btn-outline-success btn-sm">
+                                <i class="bi bi-check-circle"></i> Habilitar
+                            </button>
+                        }
                     </td>
                 </tr>
             }
         }
         else
         {
- 
-            <tr><td colspan="3" class="text-center">Cargando... Espere...</td></tr>
+            <tr><td colspan="6" class="text-center">Cargando... Espere...</td></tr>
         }
     </tbody>
 </table>
@@ -81,22 +108,32 @@
     </button>
 </div>
 
-<!-- Modal de Confirmación para Eliminar -->
-@if (showDeleteModal)
+@if (showEstadoModal)
 {
     <div class="modal fade show d-block" tabindex="-1" role="dialog">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">⚠️ Confirmar Eliminación</h5>
-                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                    <h5 class="modal-title">@(nuevoEstado ? "Habilitar almacén" : "Deshabilitar almacén")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseEstadoModal"></button>
                 </div>
-                <div class="modal-body text-center">
-                    <p>¿Desea eliminar el almacén <strong>@deleteAlmacenName</strong> de la base de datos?</p>
+                <div class="modal-body">
+                    @if (nuevoEstado)
+                    {
+                        <p>¿Desea <strong>habilitar</strong> el almacén <strong>@toggleAlmacenName</strong>?</p>
+                        <p class="text-muted small mb-0">Volverá a aparecer en combos y reportes operativos.</p>
+                    }
+                    else
+                    {
+                        <p>¿Desea <strong>deshabilitar</strong> el almacén <strong>@toggleAlmacenName</strong>?</p>
+                        <p class="text-muted small mb-0">Se ocultará de combos y reportes. El historial de ventas, stock y movimientos se conserva.</p>
+                    }
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-danger" @onclick="DeleteConfirmed">Sí</button>
-                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">No</button>
+                    <button class="btn @(nuevoEstado ? "btn-success" : "btn-danger")" @onclick="ToggleEstadoConfirmed" disabled="@isToggling">
+                        @(nuevoEstado ? "Habilitar" : "Deshabilitar")
+                    </button>
+                    <button class="btn btn-secondary" @onclick="CloseEstadoModal">Cancelar</button>
                 </div>
             </div>
         </div>
@@ -109,14 +146,16 @@
     private int pageSize = 10;
     private int totalPages;
     private string searchTerm = "";
-    private bool isDeleting = false;
-    private bool showDeleteModal = false;
-    private int deleteAlmacenId;
-    private string deleteAlmacenName = "";
+    private bool isToggling = false;
+    private bool showEstadoModal = false;
+    private int toggleAlmacenId;
+    private string toggleAlmacenName = "";
+    private bool nuevoEstado;
+    private string? mensaje;
+    private string mensajeClase = "alert-info";
 
     private string currentSortColumn = "Nombre";
     private bool sortAscending = true;
- 
 
     protected override async Task OnInitializedAsync()
     {
@@ -133,7 +172,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"⚠️ Error al cargar almacenes: {ex.Message}");
+            MostrarMensaje($"Error al cargar almacenes: {ex.Message}", "alert-danger");
         }
     }
 
@@ -161,11 +200,6 @@
         }
     }
 
-    private void CreateNewAlmacen()
-    {
-        Navigation.NavigateTo("/almacen-form");
-    }
-
     private void EditAlmacen(int id)
     {
         Navigation.NavigateTo($"/almacen/edit/{id}");
@@ -176,39 +210,58 @@
         Navigation.NavigateTo($"/almacen-cuentas/{id}");
     }
 
-    private void ConfirmDeleteAlmacen(int id, string name)
+    private void ConfirmToggleEstado(int id, string name, bool habilitar)
     {
-        deleteAlmacenId = id;
-        deleteAlmacenName = name;
-        showDeleteModal = true;
+        toggleAlmacenId = id;
+        toggleAlmacenName = name;
+        nuevoEstado = habilitar;
+        showEstadoModal = true;
     }
 
-    private void CloseDeleteModal()
+    private void CloseEstadoModal()
     {
-        showDeleteModal = false;
-        deleteAlmacenId = 0;
-        deleteAlmacenName = "";
+        showEstadoModal = false;
+        toggleAlmacenId = 0;
+        toggleAlmacenName = "";
     }
 
-    private async Task DeleteConfirmed()
+    private async Task ToggleEstadoConfirmed()
     {
-        if (!isDeleting && deleteAlmacenId > 0)
+        if (isToggling || toggleAlmacenId <= 0)
+            return;
+
+        isToggling = true;
+        try
         {
-            isDeleting = true;
-            try
+            if (await AlmacenService.SetAlmacenEstado(toggleAlmacenId, nuevoEstado))
             {
-                if (await AlmacenService.DeleteAlmacen(deleteAlmacenId))
-                {
-                    await LoadAlmacen();
-                }
+                MostrarMensaje(
+                    nuevoEstado
+                        ? $"Almacén {toggleAlmacenName} habilitado correctamente."
+                        : $"Almacén {toggleAlmacenName} deshabilitado. Ya no aparecerá en reportes ni combos.",
+                    "alert-success");
+                await LoadAlmacen();
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine($"Error al eliminar: {ex.Message}");
+                MostrarMensaje("No se pudo actualizar el estado del almacén.", "alert-danger");
             }
-            isDeleting = false;
-            CloseDeleteModal();
         }
+        catch (Exception ex)
+        {
+            MostrarMensaje($"Error al actualizar estado: {ex.Message}", "alert-danger");
+        }
+        finally
+        {
+            isToggling = false;
+            CloseEstadoModal();
+        }
+    }
+
+    private void MostrarMensaje(string texto, string clase)
+    {
+        mensaje = texto;
+        mensajeClase = clase;
     }
 
     private void SortBy(string column)
@@ -242,6 +295,9 @@
             "RazonSocial" => sortAscending
                 ? list.OrderBy(a => a.RazonSocial).ToList()
                 : list.OrderByDescending(a => a.RazonSocial).ToList(),
+            "Estado" => sortAscending
+                ? list.OrderBy(a => a.Estado).ToList()
+                : list.OrderByDescending(a => a.Estado).ToList(),
             _ => list
         };
     }

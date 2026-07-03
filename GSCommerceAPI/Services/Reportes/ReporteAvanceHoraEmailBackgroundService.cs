@@ -204,7 +204,7 @@ public class ReporteAvanceHoraEmailBackgroundService : BackgroundService
         {
             var almacenes = await context.Almacens
                 .AsNoTracking()
-                .Where(a => almacenesConfigurados.Contains(a.IdAlmacen))
+                .Where(a => almacenesConfigurados.Contains(a.IdAlmacen) && a.Estado)
                 .Select(a => new { a.IdAlmacen, a.Nombre })
                 .ToListAsync(cancellationToken);
 

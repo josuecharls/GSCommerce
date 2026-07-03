@@ -1,10 +1,9 @@
 ﻿using GSCommerce.Client.Models;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace GSCommerceAPI.Controllers
 {
@@ -19,12 +18,17 @@ namespace GSCommerceAPI.Controllers
             _context = context;
         }
 
- 
-        // GET: api/almacenes (Obtener todos los almacenes)
+        // GET: api/almacen?soloActivos=true
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<AlmacenDTO>>> GetAlmacens()
+        public async Task<ActionResult<IEnumerable<AlmacenDTO>>> GetAlmacens([FromQuery] bool soloActivos = true)
         {
-            var almacenes = await _context.Almacens.ToListAsync();
+            var query = _context.Almacens.AsNoTracking().AsQueryable();
+            if (soloActivos)
+            {
+                query = query.Where(a => a.Estado);
+            }
+
+            var almacenes = await query.OrderBy(a => a.Nombre).ToListAsync();
             var lista = new List<AlmacenDTO>();
 
             foreach (var a in almacenes)
@@ -32,31 +36,17 @@ namespace GSCommerceAPI.Controllers
                 var key = $"MonedaAlmacen_{a.IdAlmacen}";
                 var config = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == key);
 
-                lista.Add(new AlmacenDTO
-                {
-                    IdAlmacen = a.IdAlmacen,
-                    Nombre = a.Nombre,
-                    EsTienda = a.EsTienda,
-                    Direccion = a.Direccion,
-                    Dpd = a.Dpd,
-                    Telefono = a.Telefono,
-                    Celular = a.Celular,
-                    RazonSocial = a.RazonSocial,
-                    Ruc = a.Ruc,
-                    Estado = a.Estado,
-                    Ubigeo = a.Ubigeo,
-                    Moneda = config?.Valor ?? "PEN"
-                });
+                lista.Add(MapToDto(a, config?.Valor ?? "PEN"));
             }
 
             return Ok(lista);
         }
 
-        // GET: api/almacen/5 (Obtener un almacén por ID)
+        // GET: api/almacen/5
         [HttpGet("{id}")]
         public async Task<ActionResult<AlmacenDTO>> GetAlmacen(int id)
         {
-            var almacen = await _context.Almacens.FindAsync(id);
+            var almacen = await _context.Almacens.AsNoTracking().FirstOrDefaultAsync(a => a.IdAlmacen == id);
             if (almacen == null)
             {
                 return NotFound();
@@ -65,42 +55,16 @@ namespace GSCommerceAPI.Controllers
             var key = $"MonedaAlmacen_{almacen.IdAlmacen}";
             var config = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == key);
 
-            var dto = new AlmacenDTO
-            {
-                IdAlmacen = almacen.IdAlmacen,
-                Nombre = almacen.Nombre,
-                EsTienda = almacen.EsTienda,
-                Direccion = almacen.Direccion,
-                Dpd = almacen.Dpd,
-                Telefono = almacen.Telefono,
-                Celular = almacen.Celular,
-                RazonSocial = almacen.RazonSocial,
-                Ruc = almacen.Ruc,
-                Estado = almacen.Estado,
-                Ubigeo = almacen.Ubigeo,
-                Moneda = config?.Valor ?? "PEN"
-            };
-
-            return Ok(dto);
-        }
-
-        // POST: api/almacen (Crear un nuevo almacén)
-        [HttpPost]
-        public async Task<ActionResult<Almacen>> PostAlmacen(Almacen almacen)
-        {
-            _context.Almacens.Add(almacen);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetAlmacen), new { id = almacen.IdAlmacen }, almacen);
+            return Ok(MapToDto(almacen, config?.Valor ?? "PEN"));
         }
 
         [HttpGet("list")]
         public async Task<ActionResult> GetAlmacenList(
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 10,
-    [FromQuery] string? search = null)
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? search = null)
         {
-            var query = _context.Almacens.AsQueryable();
+            var query = _context.Almacens.AsNoTracking().AsQueryable();
 
             if (!string.IsNullOrEmpty(search))
             {
@@ -109,6 +73,7 @@ namespace GSCommerceAPI.Controllers
 
             var totalItems = await query.CountAsync();
             var almacenEntities = await query
+                .OrderBy(a => a.Nombre)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -120,20 +85,7 @@ namespace GSCommerceAPI.Controllers
                 var key = $"MonedaAlmacen_{a.IdAlmacen}";
                 var config = await _context.Configuracions.FirstOrDefaultAsync(c => c.Configuracion1 == key);
 
-                almacenList.Add(new AlmacenDTO
-                {
-                    IdAlmacen = a.IdAlmacen,
-                    Nombre = a.Nombre,
-                    EsTienda = a.EsTienda,
-                    Direccion = a.Direccion,
-                    Dpd = a.Dpd,
-                    Telefono = a.Telefono,
-                    Celular = a.Celular,
-                    RazonSocial = a.RazonSocial,
-                    Ruc = a.Ruc,
-                    Estado = a.Estado,
-                    Moneda = config?.Valor ?? "PEN"
-                });
+                almacenList.Add(MapToDto(a, config?.Valor ?? "PEN"));
             }
 
             var response = new
@@ -146,39 +98,43 @@ namespace GSCommerceAPI.Controllers
             return Ok(response);
         }
 
-        // PUT: api/almacen/5 (Actualizar un almacén)
+        // PUT: api/almacen/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutAlmacen(int id, Almacen almacen)
+        [Authorize(Roles = "ADMINISTRADOR")]
+        public async Task<IActionResult> PutAlmacen(int id, AlmacenDTO dto)
         {
-            if (id != almacen.IdAlmacen)
+            if (id != dto.IdAlmacen)
             {
                 return BadRequest();
             }
 
-            _context.Entry(almacen).State = EntityState.Modified;
-
-            try
+            var almacen = await _context.Almacens.FindAsync(id);
+            if (almacen == null)
             {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!AlmacenExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return NotFound();
             }
 
+            almacen.Nombre = dto.Nombre.Trim();
+            almacen.EsTienda = dto.EsTienda;
+            almacen.Direccion = dto.Direccion.Trim();
+            almacen.Dpd = string.IsNullOrWhiteSpace(dto.Dpd) ? null : dto.Dpd.Trim();
+            almacen.Telefono = string.IsNullOrWhiteSpace(dto.Telefono) ? null : dto.Telefono.Trim();
+            almacen.Celular = string.IsNullOrWhiteSpace(dto.Celular) ? null : dto.Celular.Trim();
+            almacen.RazonSocial = string.IsNullOrWhiteSpace(dto.RazonSocial) ? null : dto.RazonSocial.Trim();
+            almacen.Ruc = string.IsNullOrWhiteSpace(dto.Ruc) ? null : dto.Ruc.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.Ubigeo))
+            {
+                almacen.Ubigeo = dto.Ubigeo.Trim();
+            }
+
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
-        // DELETE: api/almacen/5 (Eliminar un almacén)
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteAlmacen(int id)
+        // PATCH: api/almacen/5/estado
+        [HttpPatch("{id}/estado")]
+        [Authorize(Roles = "ADMINISTRADOR")]
+        public async Task<IActionResult> SetAlmacenEstado(int id, [FromBody] AlmacenEstadoDTO request)
         {
             var almacen = await _context.Almacens.FindAsync(id);
             if (almacen == null)
@@ -186,11 +142,27 @@ namespace GSCommerceAPI.Controllers
                 return NotFound();
             }
 
-            _context.Almacens.Remove(almacen);
+            almacen.Estado = request.Estado;
             await _context.SaveChangesAsync();
 
             return NoContent();
         }
+
+        private static AlmacenDTO MapToDto(Almacen a, string moneda) => new()
+        {
+            IdAlmacen = a.IdAlmacen,
+            Nombre = a.Nombre,
+            EsTienda = a.EsTienda,
+            Direccion = a.Direccion,
+            Dpd = a.Dpd,
+            Telefono = a.Telefono,
+            Celular = a.Celular,
+            RazonSocial = a.RazonSocial,
+            Ruc = a.Ruc,
+            Estado = a.Estado,
+            Ubigeo = a.Ubigeo,
+            Moneda = moneda
+        };
 
         private bool AlmacenExists(int id)
         {

@@ -15,11 +15,11 @@ namespace GSCommerce.Client.Services
             _httpClient = httpClient;
         }
 
-        public async Task<List<AlmacenDTO>?> GetAlmacenes()
+        public async Task<List<AlmacenDTO>?> GetAlmacenes(bool soloActivos = true)
         {
             try
             {
-                var response = await _httpClient.GetAsync("almacen");
+                var response = await _httpClient.GetAsync($"almacen?soloActivos={(soloActivos ? "true" : "false")}");
                 var jsonResponse = await response.Content.ReadAsStringAsync(); 
                // Console.WriteLine($" JSON recibido en GetAlmacenes(): {jsonResponse}");
 
@@ -124,17 +124,16 @@ namespace GSCommerce.Client.Services
 
  
  
-        // Eliminar un almacén por ID
-        public async Task<bool> DeleteAlmacen(int id)
+        public async Task<bool> SetAlmacenEstado(int id, bool estado)
         {
             try
             {
-                var response = await _httpClient.DeleteAsync($"almacen/{id}");
+                var response = await _httpClient.PatchAsJsonAsync($"almacen/{id}/estado", new AlmacenEstadoDTO { Estado = estado });
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error eliminando almacen: {ex.Message}");
+                Console.WriteLine($"Error actualizando estado del almacen: {ex.Message}");
                 return false;
             }
         }

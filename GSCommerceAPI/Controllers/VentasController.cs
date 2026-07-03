@@ -305,6 +305,7 @@ namespace GSCommerceAPI.Controllers
         {
             var desdeDate = desde.Date;
             var hastaExcl = hasta.Date.AddDays(1);
+            var almacenesActivos = await ObtenerIdsAlmacenesActivosAsync();
 
             var ventasQuery = _context.VCierreVentaDiaria1s
                 .AsNoTracking()
@@ -322,7 +323,9 @@ namespace GSCommerceAPI.Controllers
                                      c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
                           select v;
 
-            var ventas = CajaVentasDiariasService.DistinctVentasDiarias(await ventasQuery.ToListAsync());
+            var ventas = CajaVentasDiariasService.DistinctVentasDiarias(await ventasQuery.ToListAsync())
+                .Where(v => almacenesActivos.Contains(v.IdAlmacen))
+                .ToList();
 
             var montos = ventas
                 .GroupBy(v => v.IdAlmacen)
@@ -383,6 +386,7 @@ namespace GSCommerceAPI.Controllers
         {
             var desdeDate = desde.Date;
             var hastaExcl = hasta.Date.AddDays(1);
+            var almacenesActivos = await ObtenerIdsAlmacenesActivosAsync();
 
             // ========== CÁLCULO DE VENTAS (igual que reporte-total-tiendas) ==========
             var ventasQuery = _context.VCierreVentaDiaria1s
@@ -402,7 +406,9 @@ namespace GSCommerceAPI.Controllers
                                      c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
                           select v;
 
-            var ventas = CajaVentasDiariasService.DistinctVentasDiarias(await ventasQuery.ToListAsync());
+            var ventas = CajaVentasDiariasService.DistinctVentasDiarias(await ventasQuery.ToListAsync())
+                .Where(v => almacenesActivos.Contains(v.IdAlmacen))
+                .ToList();
 
             var montosVenta = ventas
                 .GroupBy(v => v.IdAlmacen)
@@ -444,6 +450,7 @@ namespace GSCommerceAPI.Controllers
 
             var montosCosto = await
                 (from x in lineas
+                 where almacenesActivos.Contains(x.IdAlmacen)
                  let costoAjustado = x.Total >= 0m ? x.CostoLineaBruto : -x.CostoLineaBruto
                  group new { x.Total, costoAjustado } by new { x.IdAlmacen, x.Almacen } into g
                  select new
@@ -516,6 +523,7 @@ namespace GSCommerceAPI.Controllers
                                    from usuario in usuariosJoin.DefaultIfEmpty()
                                    where cabecera.Fecha >= fechaInicio
                                          && cabecera.Fecha < fechaFinExclusiva
+                                         && almacen.Estado
                                          && (razonSocialFiltro == null || almacen.RazonSocial == razonSocialFiltro)
                                          && !(cabecera.Estado == "A" && (cabecera.GeneroNc == null || cabecera.ExcluirDeEstadisticas))
                                          && (tipo.Tipo == "Tarjeta" || tipo.Tipo == "Online")
@@ -624,7 +632,7 @@ namespace GSCommerceAPI.Controllers
             // Catálogos
             var almacenesDic = await _context.Almacens
                 .AsNoTracking()
-                .Where(a => !principalIds.Contains(a.IdAlmacen))
+                .Where(a => a.Estado && !principalIds.Contains(a.IdAlmacen))
                 .ToDictionaryAsync(a => a.IdAlmacen, a => a.Nombre);
 
             var arts = await _context.Articulos
@@ -1505,6 +1513,7 @@ namespace GSCommerceAPI.Controllers
 
             var inicio = fechaDia.ToDateTime(TimeOnly.MinValue);
             var fin = fechaDia.ToDateTime(new TimeOnly(23, 59, 59));
+            var almacenesActivos = await ObtenerIdsAlmacenesActivosAsync();
 
             var ventasQuery = _context.VCierreVentaDiaria1s
                 .AsNoTracking()
@@ -1522,7 +1531,9 @@ namespace GSCommerceAPI.Controllers
                                      c.FechaHoraUsuarioAnula.Value <= fin)
                           select v;
 
-            var ventas = CajaVentasDiariasService.DistinctVentasDiarias(await ventasQuery.ToListAsync());
+            var ventas = CajaVentasDiariasService.DistinctVentasDiarias(await ventasQuery.ToListAsync())
+                .Where(v => almacenesActivos.Contains(v.IdAlmacen))
+                .ToList();
 
             var totalesPorAlmacen = new Dictionary<int, (decimal efectivo, decimal tarjeta)>();
 
@@ -1967,6 +1978,7 @@ namespace GSCommerceAPI.Controllers
                 return NotFound("Artículo no encontrado.");
 
             var detallePorAlmacen = await _context.Almacens
+                .Where(a => a.Estado)
                 .Select(a => new DetalleArticuloPorAlmacenDTO
                 {
                     NombreAlmacen = a.Nombre,
@@ -4360,6 +4372,16 @@ namespace GSCommerceAPI.Controllers
             {
                 return StatusCode(500, $"Error al obtener metas diarias: {ex.Message}");
             }
+        }
+
+        private async Task<HashSet<int>> ObtenerIdsAlmacenesActivosAsync()
+        {
+            return (await _context.Almacens
+                .AsNoTracking()
+                .Where(a => a.Estado)
+                .Select(a => a.IdAlmacen)
+                .ToListAsync())
+                .ToHashSet();
         }
     }
 
