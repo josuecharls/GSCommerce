@@ -95,9 +95,9 @@ namespace GSCommerceAPI.Controllers
             }
 
             if (string.Equals(dto.Cabecera.IdMotivo, "09", StringComparison.Ordinal) &&
-                DateOnly.FromDateTime(comprobante.Fecha) < DateOnly.FromDateTime(DateTime.Now))
+                !PuedeEmitirAnulacionOperacion(comprobante.Fecha, User.FindFirst("Cargo")?.Value))
             {
-                return BadRequest("La anulación de operación solo puede emitirse para boletas del mismo día.");
+                return BadRequest("La anulación de operación solo puede emitirse para boletas del mismo día. Los administradores pueden emitirla hasta el día siguiente.");
             }
 
             var tipoLower = tipo.ToLowerInvariant();
@@ -127,13 +127,19 @@ namespace GSCommerceAPI.Controllers
 
             try
             {
-                var originales = await _context.ComprobanteDeVentaDetalles
+                var lineasOriginales = await _context.ComprobanteDeVentaDetalles
                     .Where(c => c.IdComprobante == dto.IdComprobanteOriginal)
-                    .ToDictionaryAsync(c => c.IdArticulo, c => c.Cantidad);
+                    .Select(c => new { c.IdArticulo, c.IdVariante, c.Cantidad })
+                    .ToListAsync();
+
+                var originales = lineasOriginales.ToDictionary(
+                    c => (c.IdArticulo, IdVarianteUtil.Normalizar(c.IdVariante)),
+                    c => c.Cantidad);
 
                 foreach (var det in dto.Detalles)
                 {
-                    if (!originales.TryGetValue(det.IdArticulo.ToString(), out var vendido))
+                    var clave = (det.IdArticulo.ToString(), IdVarianteUtil.Normalizar(det.IdVariante));
+                    if (!originales.TryGetValue(clave, out var vendido))
                         return BadRequest($"Artículo {det.Descripcion} no pertenece a la venta original.");
 
                     if (det.Cantidad > vendido)
@@ -341,7 +347,8 @@ namespace GSCommerceAPI.Controllers
                     comprobante.Estado = "A";
                     // El usuario que emite la NC es quien anula el comprobante
                     comprobante.IdUsuarioAnula = usuarioEmisorNc;
-                    comprobante.FechaHoraUsuarioAnula = DateTime.Now;
+                    comprobante.FechaHoraUsuarioAnula = ObtenerFechaHoraAnulacionComprobante(
+                        dto.Cabecera.IdMotivo, comprobante.Fecha);
                 }
                 // Motivo "09" (Anulación de Operación) debe excluirse de estadísticas
                 if (dto.Cabecera.IdMotivo == "09")
@@ -704,6 +711,30 @@ namespace GSCommerceAPI.Controllers
             }
 
             return letras.Trim();
+        }
+
+        internal static bool PuedeEmitirAnulacionOperacion(DateTime fechaComprobante, string? cargo)
+        {
+            var fechaVenta = DateOnly.FromDateTime(fechaComprobante);
+            var hoy = DateOnly.FromDateTime(DateTime.Now);
+
+            if (fechaVenta == hoy)
+                return true;
+
+            return string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase)
+                   && fechaVenta == hoy.AddDays(-1);
+        }
+
+        internal static DateTime ObtenerFechaHoraAnulacionComprobante(string idMotivo, DateTime fechaComprobante)
+        {
+            if (!string.Equals(idMotivo, "09", StringComparison.Ordinal))
+                return DateTime.Now;
+
+            var fechaVenta = DateOnly.FromDateTime(fechaComprobante);
+            var hoy = DateOnly.FromDateTime(DateTime.Now);
+
+            // Anulación retroactiva (día anterior): registrar en la fecha de la venta para cuadrar esa caja.
+            return fechaVenta < hoy ? fechaComprobante : DateTime.Now;
         }
     }
 }

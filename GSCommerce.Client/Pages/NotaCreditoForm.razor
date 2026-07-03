@@ -131,6 +131,7 @@ else
     private int idTipoDocumentoOriginal;
     private decimal tasaIgv = 0m;
     private DateTime fechaComprobanteOriginal;
+    private bool esAdministrador;
 
     protected override async Task OnInitializedAsync()
     {
@@ -138,6 +139,8 @@ else
 
         idAlmacenActual = await AuthService.GetUserAlmacenId();
         idUsuarioActual = await AuthService.GetUserId();
+        var cargo = await AuthService.GetUserCargo();
+        esAdministrador = string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
 
         var venta = await ventaService.ObtenerVentaPorId(idComprobante);
         if (venta == null)
@@ -190,6 +193,7 @@ else
         detalles = venta.Detalles.Select(d => new NotaCreditoDetalleDTO
         {
             IdArticulo = d.CodigoItem,
+            IdVariante = d.IdVariante,
             Descripcion = d.DescripcionItem,
             UnidadMedida = d.UnidadMedida ?? "NIU",
             Cantidad = (int)d.Cantidad,
@@ -393,9 +397,12 @@ else
             return;
         }
 
-        if (cabecera.IdMotivo == "09" && fechaComprobanteOriginal < DateTime.Today)
+        if (cabecera.IdMotivo == "09" && !PuedeEmitirAnulacionOperacion())
         {
-            await JS.InvokeVoidAsync("alert", "La anulación de operación solo puede emitirse para boletas del mismo día.");
+            var mensaje = esAdministrador
+                ? "La anulación de operación solo puede emitirse para boletas del mismo día o del día anterior."
+                : "La anulación de operación solo puede emitirse para boletas del mismo día.";
+            await JS.InvokeVoidAsync("alert", mensaje);
             return;
         }
 
@@ -441,5 +448,16 @@ else
         {
             await JS.InvokeVoidAsync("alert", $"❌ {result.Error}");
         }
+    }
+
+    private bool PuedeEmitirAnulacionOperacion()
+    {
+        var fechaVenta = DateOnly.FromDateTime(fechaComprobanteOriginal);
+        var hoy = DateOnly.FromDateTime(DateTime.Today);
+
+        if (fechaVenta == hoy)
+            return true;
+
+        return esAdministrador && fechaVenta == hoy.AddDays(-1);
     }
 }

@@ -136,7 +136,8 @@ namespace GSCommerceAPI.Controllers
                     Cantidad = d.Cantidad,
                     PrecioUnitario = d.Precio,
                     PorcentajeDescuento = d.PorcentajeDescuento,
-                    Total = d.Total
+                    Total = d.Total,
+                    IdVariante = d.IdVariante
                 }).ToList(),
                 RucEmisor = almacen?.Ruc,
                 RazonSocialEmisor = almacen?.RazonSocial ?? almacen?.Nombre,
