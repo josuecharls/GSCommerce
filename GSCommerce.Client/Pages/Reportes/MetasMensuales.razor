@@ -39,7 +39,7 @@
                     <label class="form-label">Almacén</label>
                     <select class="form-select" @bind="idAlmacenFiltro" @bind:after="Buscar" disabled="@cargando">
                         <option value="0">Todos</option>
-                        @foreach (var almacen in almacenes.Where(a => !string.Equals(a.Nombre, "PRINCIPAL", StringComparison.OrdinalIgnoreCase)))
+                        @foreach (var almacen in almacenes.Where(EsAlmacenVisibleEnReporteMetas))
                         {
                             <option value="@almacen.IdAlmacen">@almacen.Nombre</option>
                         }
@@ -489,6 +489,18 @@ else
         esAdministrador = string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
         almacenes = await AlmacenService.GetAlmacenes() ?? new List<AlmacenDTO>();
         await Buscar();
+    }
+
+    private static bool EsAlmacenVisibleEnReporteMetas(AlmacenDTO almacen)
+    {
+        if (string.IsNullOrWhiteSpace(almacen.Nombre))
+            return false;
+
+        var nombre = almacen.Nombre.Trim();
+        if (string.Equals(nombre, "PRINCIPAL", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return !nombre.EndsWith('2');
     }
 
     private async Task Buscar()

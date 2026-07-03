@@ -45,8 +45,8 @@ public class MetaMensualController : ControllerBase
             .ThenBy(m => m.IdAlmacen)
             .ToListAsync();
 
-        // Filtrar PRINCIPAL después de cargar los datos (evita problemas de traducción SQL)
-        metas = metas.Where(m => !string.Equals(m.IdAlmacenNavigation?.Nombre, "PRINCIPAL", StringComparison.OrdinalIgnoreCase)).ToList();
+        // Excluir almacenes no reportables (PRINCIPAL, tiendas *2, etc.)
+        metas = metas.Where(m => IncluirEnReporteMetasMensuales(m.IdAlmacenNavigation?.Nombre)).ToList();
 
         var resultado = new List<MetaMensualDTO>();
 
@@ -426,6 +426,8 @@ public class MetaMensualController : ControllerBase
             .Where(m => m.Anio == anio && m.Mes == mes)
             .OrderBy(m => m.IdAlmacen)
             .ToListAsync();
+
+        metas = metas.Where(m => IncluirEnReporteMetasMensuales(m.IdAlmacenNavigation?.Nombre)).ToList();
 
         if (!metas.Any())
             return NotFound("No se encontraron metas para el período indicado");
@@ -1275,6 +1277,18 @@ public class MetaMensualController : ControllerBase
     {
         var diasTranscurridos = fecha.Day - 1;
         return (diasTranscurridos / 7) + 1;
+    }
+
+    private static bool IncluirEnReporteMetasMensuales(string? nombreAlmacen)
+    {
+        if (string.IsNullOrWhiteSpace(nombreAlmacen))
+            return false;
+
+        var nombre = nombreAlmacen.Trim();
+        if (string.Equals(nombre, "PRINCIPAL", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return !nombre.EndsWith('2');
     }
 }
 

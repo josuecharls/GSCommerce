@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Json;
+using System.Net.Http.Json;
 using GSCommerce.Client.Models;
 
 namespace GSCommerce.Client.Services
@@ -25,13 +25,15 @@ namespace GSCommerce.Client.Services
             }
         }
 
-        public async Task<List<OrdenCompraConsultaDTO>> ListarAsync(DateTime desde, DateTime hasta, int? idProveedor = null)
+        public async Task<List<OrdenCompraConsultaDTO>> ListarAsync(DateTime desde, DateTime hasta, int? idProveedor = null, string? searchItem = null)
         {
             try
             {
                 var url = $"ordenes-compra/list?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
                 if (idProveedor.HasValue && idProveedor.Value > 0)
                     url += $"&idProveedor={idProveedor.Value}";
+                if (!string.IsNullOrWhiteSpace(searchItem))
+                    url += $"&searchItem={Uri.EscapeDataString(searchItem.Trim())}";
                 var result = await _httpClient.GetFromJsonAsync<List<OrdenCompraConsultaDTO>>(url);
                 return result ?? new();
             }

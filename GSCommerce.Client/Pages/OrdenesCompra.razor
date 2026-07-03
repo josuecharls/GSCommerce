@@ -1,4 +1,4 @@
-﻿@page "/ordenes-compra"
+@page "/ordenes-compra"
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @using GSCommerce.Client.Models
@@ -29,6 +29,12 @@
             <button class="btn btn-outline-secondary" @onclick="LimpiarProveedor">X</button>
         </div>
     </div>
+    <div class="col-md-4">
+        <label>Artículo (Cód / Desc):</label>
+        <input type="text" class="form-control" @bind-value="searchTerm" @bind-value:event="oninput" placeholder="Buscar..." />
+    </div>
+</div>
+<div class="row mb-3">
     <div class="col-md-2">
         <label>Tipo:</label>
         <select class="form-control" @bind-value="tipoFiltro" @bind-value:event="oninput">
@@ -36,6 +42,8 @@
             <option value="ordenes">Órdenes de Compra</option>
             <option value="pagos">Pago Proveedores</option>
         </select>
+    </div>
+    <div class="col-md-8">
     </div>
     <div class="col-md-2 d-flex align-items-end">
         <button class="btn btn-primary w-100" @onclick="Buscar"><i class="bi bi-search"></i> Buscar</button>
@@ -178,6 +186,7 @@
     private int? idProveedor;
     private string nombreProveedor = string.Empty;
     private string tipoFiltro = "todos";
+    private string searchTerm = string.Empty;
 
     private bool showPhotoModal = false;
     private string? photoUrl;
@@ -212,6 +221,7 @@
             var desdeStr = await JS.InvokeAsync<string>("localStorage.getItem", "ordenesCompra_desde");
             var hastaStr = await JS.InvokeAsync<string>("localStorage.getItem", "ordenesCompra_hasta");
             var tipoStr = await JS.InvokeAsync<string>("localStorage.getItem", "ordenesCompra_tipo");
+            var searchStr = await JS.InvokeAsync<string>("localStorage.getItem", "ordenesCompra_search");
 
             if (!string.IsNullOrEmpty(desdeStr) && DateTime.TryParse(desdeStr, out var desdeDate))
                 desde = desdeDate;
@@ -221,6 +231,9 @@
 
             if (!string.IsNullOrEmpty(tipoStr))
                 tipoFiltro = tipoStr;
+
+            if (!string.IsNullOrEmpty(searchStr))
+                searchTerm = searchStr;
         }
         catch
         {
@@ -235,6 +248,7 @@
             await JS.InvokeVoidAsync("localStorage.setItem", "ordenesCompra_desde", desde.ToString("yyyy-MM-dd"));
             await JS.InvokeVoidAsync("localStorage.setItem", "ordenesCompra_hasta", hasta.ToString("yyyy-MM-dd"));
             await JS.InvokeVoidAsync("localStorage.setItem", "ordenesCompra_tipo", tipoFiltro);
+            await JS.InvokeVoidAsync("localStorage.setItem", "ordenesCompra_search", searchTerm ?? string.Empty);
         }
         catch
         {
@@ -246,7 +260,7 @@
     {
         await GuardarFechasEnStorage();
         
-        var lista = await ocService.ListarAsync(desde, hasta, idProveedor);
+        var lista = await ocService.ListarAsync(desde, hasta, idProveedor, searchTerm);
         
         // Filtrar según el tipo seleccionado
         switch (tipoFiltro)

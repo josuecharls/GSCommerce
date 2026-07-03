@@ -1,5 +1,7 @@
 using System.Globalization;
+using GSCommerceAPI.Data;
 using GSCommerceAPI.Services.Caja;
+using Microsoft.EntityFrameworkCore;
 
 namespace GSCommerceAPI.Services.Reportes;
 
@@ -10,12 +12,25 @@ public sealed class CuadroVentasEfectivoFila
     public decimal EfectivoSaldoCaja { get; set; }
 }
 
+public sealed class CuadroVentasEfectivoFilaDolares
+{
+    public string Tienda { get; set; } = string.Empty;
+    public decimal VentaDiaSoles { get; set; }
+    public decimal VentaDiaDolares { get; set; }
+    public decimal EfectivoSaldoCaja { get; set; }
+}
+
 public sealed class CuadroVentasEfectivoReporte
 {
     public DateOnly Fecha { get; set; }
     public List<CuadroVentasEfectivoFila> Filas { get; set; } = new();
     public decimal TotalVentaDia { get; set; }
     public decimal TotalEfectivo { get; set; }
+
+    public List<CuadroVentasEfectivoFilaDolares> FilasDolares { get; set; } = new();
+    public decimal TotalVentaDiaSoles { get; set; }
+    public decimal TotalVentaDiaDolares { get; set; }
+    public decimal TotalEfectivoDolares { get; set; }
 }
 
 public sealed class BilleteraVirtualReporte
@@ -52,10 +67,12 @@ public class CuadroCajaReportProvider : ICuadroCajaReportProvider
     };
 
     private readonly ICajaVentasDiariasService _cajaVentas;
+    private readonly SyscharlesContext _context;
 
-    public CuadroCajaReportProvider(ICajaVentasDiariasService cajaVentas)
+    public CuadroCajaReportProvider(ICajaVentasDiariasService cajaVentas, SyscharlesContext context)
     {
         _cajaVentas = cajaVentas;
+        _context = context;
     }
 
     public async Task<CuadroVentasEfectivoReporte> ObtenerCuadroVentasEfectivoAsync(
@@ -64,23 +81,55 @@ public class CuadroCajaReportProvider : ICuadroCajaReportProvider
     {
         var listado = await _cajaVentas.ObtenerListadoDiaAsync(fecha, null, cancellationToken);
 
-        var filas = listado
-            .GroupBy(x => new { x.IdAlmacen, x.NombreAlmacen })
-            .Select(g => new CuadroVentasEfectivoFila
+        var configsMoneda = await _context.Configuracions
+            .AsNoTracking()
+            .Where(c => c.Configuracion1 != null && c.Configuracion1.StartsWith("MonedaAlmacen_"))
+            .ToDictionaryAsync(c => c.Configuracion1!, c => c.Valor, cancellationToken);
+
+        var agrupado = listado.GroupBy(x => new { x.IdAlmacen, x.NombreAlmacen }).ToList();
+
+        var filas = new List<CuadroVentasEfectivoFila>();
+        var filasDolares = new List<CuadroVentasEfectivoFilaDolares>();
+
+        foreach (var g in agrupado)
+        {
+            var key = $"MonedaAlmacen_{g.Key.IdAlmacen}";
+            var esUsd = configsMoneda.TryGetValue(key, out var moneda) && string.Equals(moneda, "USD", StringComparison.OrdinalIgnoreCase);
+
+            if (esUsd)
             {
-                Tienda = g.Key.NombreAlmacen,
-                VentaDia = g.Sum(x => x.VentaDia),
-                EfectivoSaldoCaja = g.Sum(x => x.SaldoFinal)
-            })
-            .OrderBy(f => f.Tienda, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+                filasDolares.Add(new CuadroVentasEfectivoFilaDolares
+                {
+                    Tienda = g.Key.NombreAlmacen,
+                    VentaDiaSoles = g.Sum(x => x.VentaDia),
+                    VentaDiaDolares = g.Sum(x => x.VentaDolares),
+                    EfectivoSaldoCaja = g.Sum(x => x.SaldoFinal)
+                });
+            }
+            else
+            {
+                filas.Add(new CuadroVentasEfectivoFila
+                {
+                    Tienda = g.Key.NombreAlmacen,
+                    VentaDia = g.Sum(x => x.VentaDia),
+                    EfectivoSaldoCaja = g.Sum(x => x.SaldoFinal)
+                });
+            }
+        }
+
+        filas = filas.OrderBy(f => f.Tienda, StringComparer.OrdinalIgnoreCase).ToList();
+        filasDolares = filasDolares.OrderBy(f => f.Tienda, StringComparer.OrdinalIgnoreCase).ToList();
 
         return new CuadroVentasEfectivoReporte
         {
             Fecha = fecha,
             Filas = filas,
             TotalVentaDia = filas.Sum(f => f.VentaDia),
-            TotalEfectivo = filas.Sum(f => f.EfectivoSaldoCaja)
+            TotalEfectivo = filas.Sum(f => f.EfectivoSaldoCaja),
+            FilasDolares = filasDolares,
+            TotalVentaDiaSoles = filasDolares.Sum(f => f.VentaDiaSoles),
+            TotalVentaDiaDolares = filasDolares.Sum(f => f.VentaDiaDolares),
+            TotalEfectivoDolares = filasDolares.Sum(f => f.EfectivoSaldoCaja)
         };
     }
 

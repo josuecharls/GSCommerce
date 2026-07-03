@@ -1,4 +1,4 @@
-﻿using GSCommerce.Client.Models;
+using GSCommerce.Client.Models;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Helpers;
 using GSCommerceAPI.Models;
@@ -67,7 +67,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("list")]
-        public async Task<IActionResult> List(DateTime desde, DateTime hasta, int? idProveedor = null)
+        public async Task<IActionResult> List(DateTime desde, DateTime hasta, int? idProveedor = null, string? searchItem = null)
         {
             var inicio = desde.Date;
             var finExclusivo = hasta.Date.AddDays(1);
@@ -76,6 +76,16 @@ namespace GSCommerceAPI.Controllers
                 .Where(o => o.FechaOc >= inicio && o.FechaOc < finExclusivo);
             if (idProveedor.HasValue && idProveedor.Value > 0)
                 query = query.Where(o => o.IdProveedor == idProveedor.Value);
+
+            if (!string.IsNullOrWhiteSpace(searchItem))
+            {
+                var st = searchItem.Trim();
+                var ocIdsWithItem = _context.OrdenDeCompraDetalles
+                    .Where(d => EF.Functions.Like(d.IdArticulo, $"%{st}%") || EF.Functions.Like(d.DescripcionArticulo, $"%{st}%"))
+                    .Select(d => d.IdOc)
+                    .Distinct();
+                query = query.Where(o => ocIdsWithItem.Contains(o.IdOc));
+            }
 
             var lista = await query
                 .OrderByDescending(o => o.FechaOc)

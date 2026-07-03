@@ -112,8 +112,18 @@ public class CuadroCajaEmailService : ICuadroCajaEmailService
 
         sb.AppendLine("<html><body style=\"font-family:Arial,sans-serif;font-size:13px;\">");
 
-        sb.AppendLine(BuildTablaVentasEfectivo(ventas, culture));
-        sb.AppendLine("<br/>");
+        if (ventas.Filas.Count > 0)
+        {
+            sb.AppendLine(BuildTablaVentasEfectivo(ventas, culture));
+            sb.AppendLine("<br/>");
+        }
+
+        if (ventas.FilasDolares.Count > 0)
+        {
+            sb.AppendLine(BuildTablaVentasEfectivoDolares(ventas, culture));
+            sb.AppendLine("<br/>");
+        }
+
         sb.AppendLine(BuildTablaBilleteraVirtual(billetera, culture));
 
         sb.AppendLine("<p style=\"color:#666;font-size:11px;\">Correo enviado automáticamente por GSCommerce.</p>");
@@ -144,6 +154,36 @@ public class CuadroCajaEmailService : ICuadroCajaEmailService
         sb.AppendLine("<td>TOTAL</td>");
         sb.AppendLine($"<td>{FormatearMonto(reporte.TotalVentaDia, culture)}</td>");
         sb.AppendLine($"<td>{FormatearMonto(reporte.TotalEfectivo, culture)}</td>");
+        sb.AppendLine("</tr>");
+        sb.AppendLine("</table>");
+
+        return sb.ToString();
+    }
+
+    private static string BuildTablaVentasEfectivoDolares(CuadroVentasEfectivoReporte reporte, CultureInfo culture)
+    {
+        var sb = new StringBuilder();
+        var fecha = reporte.Fecha.ToString("dd/MM/yyyy", culture);
+
+        sb.AppendLine("<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse:collapse;text-align:center;\">");
+        sb.AppendLine($"<tr style=\"background:#FFFF00;font-weight:bold;\"><td colspan=\"4\">CUADRO DE VENTAS Y EFECTIVO S/ | $ ({fecha})</td></tr>");
+        sb.AppendLine("<tr style=\"font-weight:bold;\"><td>TIENDA</td><td>VENTA DEL DIA SOLES</td><td>VENTA DEL DIA DOLARES</td><td>EFECTIVO (SALDO DE CAJA)</td></tr>");
+
+        foreach (var fila in reporte.FilasDolares)
+        {
+            sb.AppendLine("<tr>");
+            sb.AppendLine($"<td>{HtmlEncode(fila.Tienda)}</td>");
+            sb.AppendLine($"<td>{FormatearMonto(fila.VentaDiaSoles, culture)}</td>");
+            sb.AppendLine($"<td>{FormatearMontoDolares(fila.VentaDiaDolares, culture)}</td>");
+            sb.AppendLine($"<td>{FormatearMonto(fila.EfectivoSaldoCaja, culture)}</td>");
+            sb.AppendLine("</tr>");
+        }
+
+        sb.AppendLine("<tr style=\"background:#FFFF00;font-weight:bold;\">");
+        sb.AppendLine("<td>TOTAL</td>");
+        sb.AppendLine($"<td>{FormatearMonto(reporte.TotalVentaDiaSoles, culture)}</td>");
+        sb.AppendLine($"<td>{FormatearMontoDolares(reporte.TotalVentaDiaDolares, culture)}</td>");
+        sb.AppendLine($"<td>{FormatearMonto(reporte.TotalEfectivoDolares, culture)}</td>");
         sb.AppendLine("</tr>");
         sb.AppendLine("</table>");
 
@@ -193,6 +233,9 @@ public class CuadroCajaEmailService : ICuadroCajaEmailService
 
     private static string FormatearMonto(decimal monto, CultureInfo culture)
         => $"S/ {monto.ToString("N2", culture)}";
+
+    private static string FormatearMontoDolares(decimal monto, CultureInfo culture)
+        => $"$ {monto.ToString("N2", culture)}";
 
     private static string HtmlEncode(string? value)
         => WebUtility.HtmlEncode(value ?? string.Empty);

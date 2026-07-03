@@ -10,6 +10,7 @@ public sealed class CajaVentasTotales
     public decimal EfectivoCaja { get; init; }
     public decimal VentaTarjeta { get; init; }
     public decimal VentaNcCanje { get; init; }
+    public decimal VentaDolares { get; init; }
     public decimal VentaDia => VentaEfectivo + VentaTarjeta;
 }
 
@@ -33,6 +34,7 @@ public sealed class CajaListadoDiaItem
     public string Estado { get; set; } = string.Empty;
     public decimal SaldoInicial { get; set; }
     public decimal VentaDia { get; set; }
+    public decimal VentaDolares { get; set; }
     public decimal Ingresos { get; set; }
     public decimal Egresos { get; set; }
     public decimal SaldoFinal { get; set; }
@@ -182,6 +184,7 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
                 Estado = ap.Estado,
                 SaldoInicial = saldoDiaAnterior,
                 VentaDia = totales.VentaDia,
+                VentaDolares = totales.VentaDolares,
                 Ingresos = ingresos,
                 Egresos = egresos,
                 SaldoFinal = saldoDiaAnterior + totales.EfectivoCaja + ingresos - egresos,
@@ -232,14 +235,15 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
         IEnumerable<VCierreVentaDiaria1> ventas,
         IReadOnlySet<(int IdAlmacen, string Serie, int Numero)> anuladosConNc)
     {
-        AcumularTotalesVenta(ventas, out var ventaEfectivo, out var efectivoCaja, out var ventaTarjeta, out var ventaNcCanje, anuladosConNc);
+        AcumularTotalesVenta(ventas, out var ventaEfectivo, out var efectivoCaja, out var ventaTarjeta, out var ventaNcCanje, out var ventaDolares, anuladosConNc);
 
         return new CajaVentasTotales
         {
             VentaEfectivo = ventaEfectivo,
             EfectivoCaja = efectivoCaja,
             VentaTarjeta = ventaTarjeta,
-            VentaNcCanje = ventaNcCanje
+            VentaNcCanje = ventaNcCanje,
+            VentaDolares = ventaDolares
         };
     }
 
@@ -249,12 +253,14 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
         out decimal efectivoCaja,
         out decimal ventaTarjeta,
         out decimal ventaNc,
+        out decimal ventaDolares,
         IReadOnlySet<(int IdAlmacen, string Serie, int Numero)>? anuladosConNotaCredito = null)
     {
         ventaEfectivo = 0;
         efectivoCaja = 0;
         ventaTarjeta = 0;
         ventaNc = 0;
+        ventaDolares = 0;
 
         foreach (var v in ventas)
         {
@@ -267,12 +273,18 @@ public class CajaVentasDiariasService : ICajaVentasDiariasService
                     var netoEfectivo = v.Soles - (v.Vuelto ?? 0);
                     efectivoCaja += netoEfectivo;
                     if (cuentaEnVentaDia)
+                    {
                         ventaEfectivo += netoEfectivo;
+                        ventaDolares += v.Dolares;
+                    }
                     break;
                 case "Tarjeta":
                 case "Online":
                     if (cuentaEnVentaDia)
+                    {
                         ventaTarjeta += v.Soles;
+                        ventaDolares += v.Dolares;
+                    }
                     break;
                 case "N.C.":
                     if (cuentaEnVentaDia && EsPagoCanjeNc(v.Descripcion))

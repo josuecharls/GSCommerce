@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -19,6 +19,7 @@ public class ReporteAvanceHoraEmailBackgroundService : BackgroundService
     private readonly ILogger<ReporteAvanceHoraEmailBackgroundService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IOptionsMonitor<ReporteAvanceHoraEmailOptions> _optionsMonitor;
+    private int _ultimaHoraProcesada = -1;
 
     public ReporteAvanceHoraEmailBackgroundService(
         ILogger<ReporteAvanceHoraEmailBackgroundService> logger,
@@ -33,6 +34,10 @@ public class ReporteAvanceHoraEmailBackgroundService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Servicio de envío de reporte de avance por hora iniciado.");
+        
+        // Evitar el envío inmediato si el servicio se reinicia a la mitad de una hora
+        // asumiendo que el reporte ya se envió a su debida hora.
+        _ultimaHoraProcesada = DateTime.Now.Hour;
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -53,7 +58,11 @@ public class ReporteAvanceHoraEmailBackgroundService : BackgroundService
 
             try
             {
-                await Task.Delay(espera, stoppingToken);
+                // Se agrega un margen de seguridad de 2 segundos para evitar que 
+                // Task.Delay despierte milisegundos antes de la hora (early wakeup), 
+                // lo que causaba el envío duplicado del reporte de la hora anterior 
+                // y el salto de la hora actual.
+                await Task.Delay(espera.Add(TimeSpan.FromSeconds(2)), stoppingToken);
             }
             catch (TaskCanceledException)
             {
@@ -75,6 +84,13 @@ public class ReporteAvanceHoraEmailBackgroundService : BackgroundService
         }
 
         var ahora = DateTime.Now;
+        
+        if (_ultimaHoraProcesada == ahora.Hour)
+        {
+            _logger.LogDebug("El reporte para la hora {Hora} ya fue procesado o se omitió por reinicio.", ahora.Hour);
+            return;
+        }
+
         if (!EstaDentroDeVentana(ahora, options))
         {
             _logger.LogDebug(
@@ -108,12 +124,15 @@ public class ReporteAvanceHoraEmailBackgroundService : BackgroundService
                 _logger.LogInformation(
                     "No se envía el reporte general de avance por hora: sin ventas acumuladas al {Hora:dd/MM/yyyy HH:mm}.",
                     fin);
+                _ultimaHoraProcesada = ahora.Hour;
                 return;
             }
 
             await emailService.EnviarReporteAsync(
                 new[] { new ReporteAvanceHoraEmailEntry(reporteGeneral, "Todos los almacenes", null) },
                 stoppingToken);
+                
+            _ultimaHoraProcesada = ahora.Hour;
             return;
         }
 
@@ -143,10 +162,12 @@ public class ReporteAvanceHoraEmailBackgroundService : BackgroundService
             _logger.LogInformation(
                 "No se envía el correo de avance por hora: ningún almacén con ventas acumuladas al {Hora:dd/MM/yyyy HH:mm}.",
                 fin);
+            _ultimaHoraProcesada = ahora.Hour;
             return;
         }
 
         await emailService.EnviarReporteAsync(reportes, stoppingToken);
+        _ultimaHoraProcesada = ahora.Hour;
     }
 
     private static bool TieneVentas(ReporteAvanceHoraDTO reporte) =>
