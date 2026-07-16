@@ -136,6 +136,14 @@
             </div>
         </div>
         <div class="col">
+            <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAReporteVentasDiaQuincenaMes">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                    <i class="bi bi-calendar-week" style="font-size: 3rem; color: #6c757d;"></i>
+                    <h5 class="fw-bold mt-2 text-uppercase text-center" style="white-space: normal;">Ventas Día / Quincena / Mes</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col">
             <div class="card text-center shadow-lg p-3 report-card" @onclick="IrAMetasMensuales">
                 <div class="card-body d-flex flex-column align-items-center justify-content-center">
                     <i class="bi bi-graph-up" style="font-size: 3rem; color: #6c757d;"></i>
@@ -248,6 +256,11 @@
     private void IrAReporteUtilidadTiendas()
     {
         Navigation.NavigateTo("/reportes/utilidad-tiendas");
+    }
+
+    private void IrAReporteVentasDiaQuincenaMes()
+    {
+        Navigation.NavigateTo("/reportes/ventas-dia-quincena-mes");
     }
 
     private void IrAReportePagosTarjetaOnline()

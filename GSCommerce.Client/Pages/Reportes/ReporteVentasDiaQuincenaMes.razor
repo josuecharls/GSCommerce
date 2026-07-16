@@ -1,0 +1,215 @@
+@page "/reportes/ventas-dia-quincena-mes"
+@using System.Text
+@using System.Linq
+@using System.Globalization
+@using GSCommerce.Client.Components
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject ReporteService ReporteService
+@inject AlmacenService AlmacenService
+@inject AuthService AuthService
+@inject IJSRuntime JS
+
+<ReportsBreadcrumb Title="Reporte de Ventas (Día / Quincena / Mes)" />
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label>Fecha de referencia:</label>
+        <InputDate @bind-Value="fecha" class="form-control" />
+    </div>
+    @if (cargo == "ADMINISTRADOR")
+    {
+        <div class="col-md-4">
+            <label>Almacén:</label>
+            <select class="form-select" @bind="idAlmacenSeleccionado">
+                <option value="0">-- Todos --</option>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+    }
+    else if (cargo == "CAJERO")
+    {
+        <div class="col-md-4">
+            <label>Almacén:</label>
+            <select class="form-select" @bind="idAlmacenSeleccionado" disabled>
+                @foreach (var a in almacenes)
+                {
+                    <option value="@a.IdAlmacen">@a.Nombre</option>
+                }
+            </select>
+        </div>
+    }
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="Buscar" disabled="@isLoading">
+            @if (isLoading)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            }
+            <i class="bi bi-search"></i> Buscar
+        </button>
+    </div>
+    <div class="col-md-6 d-flex align-items-end">
+        <button class="btn btn-success w-100" @onclick="ExportarPDF" disabled="@(!reporte.Any() || isLoading)">
+            <i class="bi bi-filetype-pdf"></i> Descargar PDF
+        </button>
+    </div>
+</div>
+
+<div class="mb-3 text-muted">
+    <small>
+        <strong>Día:</strong> @fecha.ToString("dd/MM/yyyy") &nbsp;|&nbsp;
+        <strong>Quincena:</strong> @rangoQuincena &nbsp;|&nbsp;
+        <strong>Mes:</strong> @rangoMes
+    </small>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center my-4">
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
+}
+else if (reporte.Any())
+{
+    <table class="table table-striped table-bordered align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>TIENDA</th>
+                <th class="text-end">VENTA DEL DÍA</th>
+                <th class="text-end">VENTA QUINCENA</th>
+                <th class="text-end">VENTA DEL MES</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in reporte)
+            {
+                <tr>
+                    <td>@r.Tienda</td>
+                    <td class="text-end">S/ @r.VentaDia.ToString("N2")</td>
+                    <td class="text-end">S/ @r.VentaQuincena.ToString("N2")</td>
+                    <td class="text-end">S/ @r.VentaMes.ToString("N2")</td>
+                </tr>
+            }
+            <tr class="table-light fw-bold">
+                <td>TOTAL</td>
+                <td class="text-end">S/ @totalDia.ToString("N2")</td>
+                <td class="text-end">S/ @totalQuincena.ToString("N2")</td>
+                <td class="text-end">S/ @totalMes.ToString("N2")</td>
+            </tr>
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="alert alert-info text-center">No se encontraron resultados.</div>
+}
+
+@code {
+    private DateTime fecha = DateTime.Today;
+    private List<ReporteVentasDiaQuincenaMesDTO> reporte = new();
+    private List<AlmacenDTO> almacenes = new();
+    private int idAlmacenSeleccionado;
+    private string? cargo;
+    private bool isLoading;
+
+    private decimal totalDia => reporte.Sum(r => r.VentaDia);
+    private decimal totalQuincena => reporte.Sum(r => r.VentaQuincena);
+    private decimal totalMes => reporte.Sum(r => r.VentaMes);
+
+    private string rangoMes
+    {
+        get
+        {
+            var inicio = new DateTime(fecha.Year, fecha.Month, 1);
+            var fin = inicio.AddMonths(1).AddDays(-1);
+            return $"{inicio:dd/MM/yyyy} - {fin:dd/MM/yyyy}";
+        }
+    }
+
+    private string rangoQuincena
+    {
+        get
+        {
+            var inicioMes = new DateTime(fecha.Year, fecha.Month, 1);
+            if (fecha.Day <= 15)
+                return $"{inicioMes:dd/MM/yyyy} - {inicioMes.AddDays(14):dd/MM/yyyy}";
+
+            var inicio = inicioMes.AddDays(15);
+            var fin = inicioMes.AddMonths(1).AddDays(-1);
+            return $"{inicio:dd/MM/yyyy} - {fin:dd/MM/yyyy}";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargo = await AuthService.GetUserCargo();
+        var idAlmacenUsuario = await AuthService.GetUserAlmacenId();
+
+        almacenes = await AlmacenService.GetAlmacenes() ?? new();
+
+        if (cargo == "CAJERO")
+        {
+            idAlmacenSeleccionado = idAlmacenUsuario ?? 0;
+            almacenes = almacenes.Where(a => a.IdAlmacen == idAlmacenSeleccionado).ToList();
+        }
+
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        isLoading = true;
+        StateHasChanged();
+        try
+        {
+            int? idAlmacen = cargo == "ADMINISTRADOR"
+                ? (idAlmacenSeleccionado > 0 ? idAlmacenSeleccionado : (int?)null)
+                : idAlmacenSeleccionado;
+
+            reporte = await ReporteService.ObtenerVentasDiaQuincenaMes(fecha, idAlmacen);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            reporte = new();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ExportarPDF()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<div style='font-family:Arial;font-size:12px;'>");
+        sb.AppendLine("<h2 style='text-align:center;'>REPORTE DE VENTAS (DÍA / QUINCENA / MES)</h2>");
+        sb.AppendLine($"<p><strong>Día:</strong> {fecha:dd/MM/yyyy} &nbsp; <strong>Quincena:</strong> {rangoQuincena} &nbsp; <strong>Mes:</strong> {rangoMes}</p>");
+        sb.AppendLine("<table border='1' cellpadding='5' cellspacing='0' style='width:100%; border-collapse:collapse;'>");
+        sb.AppendLine("<thead><tr><th>Tienda</th><th>Venta del Día</th><th>Venta Quincena</th><th>Venta del Mes</th></tr></thead>");
+        sb.AppendLine("<tbody>");
+        foreach (var r in reporte)
+        {
+            sb.AppendLine("<tr>");
+            sb.AppendLine($"<td>{r.Tienda}</td>");
+            sb.AppendLine($"<td style='text-align:right;'>S/ {r.VentaDia:N2}</td>");
+            sb.AppendLine($"<td style='text-align:right;'>S/ {r.VentaQuincena:N2}</td>");
+            sb.AppendLine($"<td style='text-align:right;'>S/ {r.VentaMes:N2}</td>");
+            sb.AppendLine("</tr>");
+        }
+        sb.AppendLine($"<tr><td><strong>TOTAL</strong></td><td style='text-align:right;'><strong>S/ {totalDia:N2}</strong></td><td style='text-align:right;'><strong>S/ {totalQuincena:N2}</strong></td><td style='text-align:right;'><strong>S/ {totalMes:N2}</strong></td></tr>");
+        sb.AppendLine("</tbody></table>");
+        sb.AppendLine("</div>");
+
+        await JS.InvokeVoidAsync("generarPDFDesdeHTML", sb.ToString(), $"Reporte_Ventas_Dia_Quincena_Mes_{DateTime.Now:yyyyMMdd_HHmmss}");
+    }
+}

@@ -378,6 +378,103 @@ namespace GSCommerceAPI.Controllers
             return resultado;
         }
 
+        [HttpGet("reporte-ventas-dia-quincena-mes")]
+        public async Task<ActionResult<List<ReporteVentasDiaQuincenaMesDTO>>> GetReporteVentasDiaQuincenaMes(
+            [FromQuery] DateTime fecha,
+            [FromQuery] int? idAlmacen // ← filtro opcional
+        )
+        {
+            var diaRef = fecha.Date;
+            var mesInicio = new DateTime(diaRef.Year, diaRef.Month, 1);
+            var mesFinExcl = mesInicio.AddMonths(1);
+
+            // Quincena que contiene la fecha de referencia:
+            //   día 1-15  → del 1 al 15
+            //   día 16-fin → del 16 a fin de mes
+            DateTime quinInicio, quinFinExcl;
+            if (diaRef.Day <= 15)
+            {
+                quinInicio = mesInicio;
+                quinFinExcl = mesInicio.AddDays(15); // hasta el día 15 inclusive
+            }
+            else
+            {
+                quinInicio = mesInicio.AddDays(15); // día 16
+                quinFinExcl = mesFinExcl;
+            }
+
+            var almacenesActivos = await ObtenerIdsAlmacenesActivosAsync();
+
+            // Se consulta todo el mes una sola vez y luego se reparte en día / quincena / mes.
+            var ventasQuery = _context.VCierreVentaDiaria1s
+                .AsNoTracking()
+                .Where(v => v.Fecha >= mesInicio && v.Fecha < mesFinExcl)
+                .Where(v => !idAlmacen.HasValue || v.IdAlmacen == idAlmacen.Value);
+
+            // Excluir documentos anulados (misma lógica que reporte-total-tiendas)
+            ventasQuery = from v in ventasQuery
+                          join c in _context.ComprobanteDeVentaCabeceras
+                              on new { v.IdAlmacen, v.Serie, v.Numero, IdCajero = v.IdCajero, Total = v.Total }
+                              equals new { c.IdAlmacen, c.Serie, c.Numero, IdCajero = c.IdCajero, Total = c.Total }
+                          where c.Fecha >= v.Fecha.Date && c.Fecha < v.Fecha.Date.AddDays(1)
+                                && !(c.Estado == "A" &&
+                                     (string.IsNullOrEmpty(c.GeneroNc) || c.ExcluirDeEstadisticas) &&
+                                     c.FechaHoraUsuarioAnula.HasValue &&
+                                     c.FechaHoraUsuarioAnula.Value.Date == v.Fecha.Date)
+                          select v;
+
+            var ventas = CajaVentasDiariasService.DistinctVentasDiarias(await ventasQuery.ToListAsync())
+                .Where(v => almacenesActivos.Contains(v.IdAlmacen))
+                .ToList();
+
+            var porAlmacen = ventas
+                .GroupBy(v => v.IdAlmacen)
+                .Select(g =>
+                {
+                    decimal dia = 0m, quincena = 0m, mes = 0m;
+                    foreach (var v in g)
+                    {
+                        var tipo = v.Descripcion.Split(' ')[0];
+                        decimal monto = tipo switch
+                        {
+                            "Efectivo" => v.Soles - (v.Vuelto ?? 0m),
+                            "Tarjeta" => v.Soles,
+                            "Online" => v.Soles,
+                            _ => 0m
+                        };
+
+                        var f = v.Fecha.Date;
+                        mes += monto;
+                        if (f >= quinInicio && f < quinFinExcl)
+                            quincena += monto;
+                        if (f == diaRef)
+                            dia += monto;
+                    }
+                    return new { IdAlmacen = g.Key, Dia = dia, Quincena = quincena, Mes = mes };
+                })
+                .ToList();
+
+            var ids = porAlmacen.Select(x => x.IdAlmacen).ToList();
+            var nombres = await _context.Almacens
+                .Where(a => ids.Contains(a.IdAlmacen))
+                .Select(a => new { a.IdAlmacen, a.Nombre })
+                .ToListAsync();
+
+            var resultado = porAlmacen
+                .Select(x => new ReporteVentasDiaQuincenaMesDTO
+                {
+                    IdAlmacen = x.IdAlmacen,
+                    Tienda = nombres.FirstOrDefault(n => n.IdAlmacen == x.IdAlmacen)?.Nombre ?? $"Almacén {x.IdAlmacen}",
+                    VentaDia = x.Dia,
+                    VentaQuincena = x.Quincena,
+                    VentaMes = x.Mes
+                })
+                .OrderByDescending(r => r.VentaMes)
+                .ToList();
+
+            return resultado;
+        }
+
         [HttpGet("reporte-utilidad-tiendas")]
         public async Task<ActionResult<List<ReporteUtilidadTiendasDTO>>> GetReporteUtilidadTiendas(
             [FromQuery] DateTime desde,

@@ -186,6 +186,16 @@ public class ReporteService
         var resp = await _http.GetFromJsonAsync<List<ReporteTotalTiendasDTO>>(url);
         return resp ?? new();
     }
+    public async Task<List<ReporteVentasDiaQuincenaMesDTO>> ObtenerVentasDiaQuincenaMes(DateTime fecha, int? idAlmacen = null)
+    {
+        var url = $"ventas/reporte-ventas-dia-quincena-mes?fecha={fecha:yyyy-MM-dd}";
+        if (idAlmacen.HasValue && idAlmacen.Value > 0)
+            url += $"&idAlmacen={idAlmacen.Value}";
+
+        var resp = await _http.GetFromJsonAsync<List<ReporteVentasDiaQuincenaMesDTO>>(url);
+        return resp ?? new();
+    }
+
     public async Task<List<ReporteUtilidadTiendasDTO>> ObtenerUtilidadTiendas(DateTime desde, DateTime hasta, int? idAlmacen = null)
     {
         var url = $"ventas/reporte-utilidad-tiendas?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
