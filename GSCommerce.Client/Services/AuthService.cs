@@ -1,4 +1,5 @@
 ﻿using Blazored.LocalStorage;
+using GSCommerce.Client.Helpers;
 using GSCommerce.Client.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http;
@@ -127,6 +128,12 @@ namespace GSCommerce.Client.Services
         public async Task<string?> GetUserCargo()
         {
             return await _localStorage.GetItemAsync<string>("Cargo"); // Método para obtener el Cargo del usuario
+        }
+
+        public async Task<bool> IsContadorCentralAsync()
+        {
+            var userId = await GetUserId();
+            return ContadorCentralHelper.EsContadorCentral(userId);
         }
 
         private ClaimsPrincipal ParseToken(string token)

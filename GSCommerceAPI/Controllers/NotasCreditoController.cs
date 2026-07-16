@@ -75,13 +75,16 @@ namespace GSCommerceAPI.Controllers
             if (!int.TryParse(userIdClaim, out var userId))
                 return BadRequest("Usuario no válido.");
 
-            var userAlmacen = await _context.Usuarios
-                .Where(u => u.IdUsuario == userId)
-                .Select(u => u.IdPersonalNavigation != null ? (int?)u.IdPersonalNavigation.IdAlmacen : null)
-                .FirstOrDefaultAsync();
+            if (!ContadorCentralHelper.PuedeEmitirNcMultiAlmacen(userId))
+            {
+                var userAlmacen = await _context.Usuarios
+                    .Where(u => u.IdUsuario == userId)
+                    .Select(u => u.IdPersonalNavigation != null ? (int?)u.IdPersonalNavigation.IdAlmacen : null)
+                    .FirstOrDefaultAsync();
 
-            if (!userAlmacen.HasValue || comprobante.IdAlmacen != userAlmacen.Value)
-                return BadRequest("No puede generar una nota de crédito de un almacén al que no pertenece.");
+                if (!userAlmacen.HasValue || comprobante.IdAlmacen != userAlmacen.Value)
+                    return BadRequest("No puede generar una nota de crédito de un almacén al que no pertenece.");
+            }
 
             dto.Cabecera.IdAlmacen = comprobante.IdAlmacen;
 

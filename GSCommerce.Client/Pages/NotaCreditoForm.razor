@@ -4,6 +4,7 @@
 @using System.Linq
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using GSCommerce.Client.Helpers
 @inject NotaCreditoService ncService
 @inject VentaService ventaService
 @inject SerieCorrelativoService SerieCorrelativoService
@@ -132,6 +133,7 @@ else
     private decimal tasaIgv = 0m;
     private DateTime fechaComprobanteOriginal;
     private bool esAdministrador;
+    private bool esContadorCentral;
 
     protected override async Task OnInitializedAsync()
     {
@@ -141,6 +143,7 @@ else
         idUsuarioActual = await AuthService.GetUserId();
         var cargo = await AuthService.GetUserCargo();
         esAdministrador = string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
+        esContadorCentral = ContadorCentralHelper.EsContadorCentral(idUsuarioActual);
 
         var venta = await ventaService.ObtenerVentaPorId(idComprobante);
         if (venta == null)
@@ -148,7 +151,9 @@ else
             loading = false;
             return;
         }
-        if (idAlmacenActual.HasValue && venta.IdAlmacen != idAlmacenActual.Value)
+
+        var idAlmacenNc = esContadorCentral ? venta.IdAlmacen : idAlmacenActual;
+        if (!esContadorCentral && idAlmacenActual.HasValue && venta.IdAlmacen != idAlmacenActual.Value)
         {
             loading = false;
             await JS.InvokeVoidAsync("alert", "No puede generar una nota de crédito de un almacén al que no pertenece.");
@@ -176,7 +181,7 @@ else
             Nombre = venta.Nombre,
             Dniruc = venta.Dniruc ?? string.Empty,
             Direccion = venta.Direccion ?? "-",
-            IdAlmacen = idAlmacenActual ?? venta.IdAlmacen,
+            IdAlmacen = idAlmacenNc ?? venta.IdAlmacen,
             IdUsuario = idUsuarioActual ?? venta.IdCajero,
             IdMotivo = "",
             SubTotal = venta.SubTotal,
@@ -187,6 +192,8 @@ else
         };
 
         tasaIgv = CalcularTasaIgv(cabecera.SubTotal, cabecera.Igv, cabecera.Total);
+
+        idAlmacenActual = idAlmacenNc;
 
         await CargarSeriePorTipoYAlmacen();
 

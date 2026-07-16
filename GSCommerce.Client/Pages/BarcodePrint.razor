@@ -1,7 +1,7 @@
 ﻿@page "/barcode-print/{codigo}"
 @using Microsoft.AspNetCore.Authorization
 @using System.Globalization
-@attribute [Authorize]
+@attribute [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
 @inject IJSRuntime JS
 
 <style>

@@ -2,6 +2,7 @@
 @using GSCommerce.Client.Services
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Components
+@using GSCommerce.Client.Helpers
 @using Microsoft.AspNetCore.Components.Routing
 @using System.Linq
 @using System
@@ -20,7 +21,7 @@
                     <span class="fw-bold">@cargo</span>
                 </div>
                 
-                @if (cargo == "ADMINISTRADOR")
+                @if (cargo == "ADMINISTRADOR" && !esContadorCentral)
                 {
                     <NavLink class="topbar-item text-primary text-decoration-none" href="/diario-resumido">
                         <i class="bi bi-file-earmark-check me-1"></i>Resumen Diario
@@ -80,7 +81,7 @@
             }
 
             @* Nueva Alerta de Reposición para ADMINISTRADORES *@
-            @if (mostrarAlertaReposicion && articulosReposicion.Any())
+            @if (mostrarAlertaReposicion && articulosReposicion.Any() && !esContadorCentral)
             {
                 <div class="px-3 pt-3">
                     <div class="alert alert-info alert-dismissible fade show d-flex align-items-start" role="alert">
@@ -137,6 +138,7 @@
     [Inject] SessionSyncService SessionSyncService { get; set; } = null!;
 
     private string? cargo;
+    private bool esContadorCentral;
 
     // Variables para alerta de stock crítico (CAJEROS)
     private List<StockDTO> articulosStockCritico = new();
@@ -165,28 +167,48 @@
     protected override async Task OnInitializedAsync()
     {
         cargo = await AuthService.GetUserCargo();
+        var idUsuario = await AuthService.GetUserId();
+        esContadorCentral = ContadorCentralHelper.EsContadorCentral(idUsuario);
 
         // Inicializar session sync
         SessionSyncService.SessionEndedInAnotherWindow += OnSessionEndedInAnotherWindow;
         await SessionSyncService.StartListeningAsync();
 
-        if (cargo == "CAJERO")
+        if (esContadorCentral)
         {
-            var idUsuario = await AuthService.GetUserId();
+            Navigation.LocationChanged += HandleContadorCentralRouteGuard;
+            ValidarRutaContadorCentral(Navigation.Uri);
+        }
+        else if (cargo == "CAJERO")
+        {
             claveSupresionAlertaStockCritico = ConstruirClaveSupresionStockCritico(idUsuario);
             suprimirAlertaStockCriticoHastaNuevoInicio = await CargarPreferenciaSupresionAsync();
             idAlmacenUsuario = NormalizarIdAlmacen(await AuthService.GetUserAlmacenId());
             Navigation.LocationChanged += HandleLocationChanged;
             await ConsultarStockCriticoAsync();
         }
-        else if (cargo == "ADMINISTRADOR")
+        else if (cargo == "ADMINISTRADOR" && !esContadorCentral)
         {
-            var idUsuario = await AuthService.GetUserId();
             claveSupresionAlertaReposicion = ConstruirClaveSupresionReposicion(idUsuario);
             suprimirAlertaReposicionHastaNuevoInicio = await CargarPreferenciaSupresionReposicionAsync();
             Navigation.LocationChanged += HandleLocationChanged;
             await ConsultarAlertaReposicionAsync();
         }
+    }
+
+    private void HandleContadorCentralRouteGuard(object? sender, LocationChangedEventArgs e)
+    {
+        ValidarRutaContadorCentral(e.Location);
+    }
+
+    private void ValidarRutaContadorCentral(string uri)
+    {
+        var path = Navigation.ToBaseRelativePath(uri);
+        if (!path.StartsWith('/'))
+            path = "/" + path;
+
+        if (!ContadorCentralHelper.EsRutaPermitida(path))
+            Navigation.NavigateTo("/ventas", replace: true);
     }
     
     private void OnSessionEndedInAnotherWindow()
@@ -386,6 +408,7 @@
     {
         disposed = true;
         Navigation.LocationChanged -= HandleLocationChanged;
+        Navigation.LocationChanged -= HandleContadorCentralRouteGuard;
         SessionSyncService.SessionEndedInAnotherWindow -= OnSessionEndedInAnotherWindow;
         await SessionSyncService.DisposeAsync();
     }

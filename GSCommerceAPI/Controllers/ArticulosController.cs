@@ -2,14 +2,17 @@ using GSCommerce.Client.Models;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Helpers;
 using GSCommerceAPI.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Text;
 
 namespace GSCommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ArticulosController : ControllerBase
     {
         private readonly SyscharlesContext _context;
@@ -20,6 +23,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("todos")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
         public async Task<ActionResult<List<ArticuloDTO>>> ObtenerTodos()
         {
             try
@@ -42,6 +46,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("familias")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
         public async Task<IActionResult> ObtenerFamilias()
         {
             var familias = await _context.Articulos
@@ -61,6 +66,7 @@ namespace GSCommerceAPI.Controllers
 
 
         [HttpGet("marcas")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
         public async Task<IActionResult> ObtenerMarcas()
         {
             var marcas = await _context.Articulos
@@ -74,6 +80,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("modelos")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
         public async Task<IActionResult> ObtenerModelos()
         {
             var modelos = await _context.Articulos
@@ -119,6 +126,7 @@ namespace GSCommerceAPI.Controllers
             }
 
             var totalItems = await query.CountAsync();
+            var puedeVerPrecioCompra = PuedeVerPrecioCompra();
 
             // Ordenamos para que Skip/Take sea estable y más performante
             var articuloList = await query
@@ -141,7 +149,7 @@ namespace GSCommerceAPI.Controllers
                     IdProveedor = a.IdProveedor,
                     UnidadAlmacen = a.UnidadAlmacen,
                     MonedaCosteo = a.MonedaCosteo,
-                    PrecioCompra = a.PrecioCompra,
+                    PrecioCompra = puedeVerPrecioCompra ? a.PrecioCompra : 0,
                     PrecioVenta = a.PrecioVenta,
                     FechaRegistro = a.FechaRegistro,
                     Foto = null,
@@ -161,6 +169,7 @@ namespace GSCommerceAPI.Controllers
 
         // GET: api/articulos/nuevo-id (Generar un nuevo ID de artículo)
         [HttpGet("nuevo-id")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
         public async Task<IActionResult> GetNuevoIdArticulo()
         {
             var lastId = await _context.Articulos
@@ -177,17 +186,43 @@ namespace GSCommerceAPI.Controllers
 
         // GET: api/articulos/{id} (Obtener un artículo por ID)
         [HttpGet("{id}")]
-        public async Task<ActionResult<Articulo>> GetArticulo(string id)
+        public async Task<ActionResult<ArticuloDTO>> GetArticulo(string id)
         {
             var articulo = await _context.Articulos.FindAsync(id);
             if (articulo == null)
             {
                 return NotFound();
             }
-            return articulo;
+
+            var puedeVerPrecioCompra = PuedeVerPrecioCompra();
+            return new ArticuloDTO
+            {
+                IdArticulo = articulo.IdArticulo,
+                Descripcion = articulo.Descripcion,
+                DescripcionCorta = articulo.DescripcionCorta,
+                Familia = articulo.Familia,
+                Linea = articulo.Linea,
+                Marca = articulo.Marca,
+                Material = articulo.Material,
+                Modelo = articulo.Modelo,
+                Color = articulo.Color,
+                Detalle = articulo.Detalle,
+                Talla = articulo.Talla,
+                IdProveedor = articulo.IdProveedor,
+                UnidadAlmacen = articulo.UnidadAlmacen,
+                MonedaCosteo = articulo.MonedaCosteo,
+                PrecioCompra = puedeVerPrecioCompra ? articulo.PrecioCompra : 0,
+                PrecioVenta = articulo.PrecioVenta,
+                FechaRegistro = articulo.FechaRegistro,
+                Foto = null,
+                CodigoBarra = articulo.CodigoBarra != null ? Encoding.UTF8.GetString(articulo.CodigoBarra) : null,
+                Estado = articulo.Estado,
+                Estacion = articulo.Estacion
+            };
         }
 
         [HttpGet("foto/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetFoto(string id)
         {
             var articulo = await _context.Articulos.FindAsync(id);
@@ -198,6 +233,7 @@ namespace GSCommerceAPI.Controllers
 
         // POST: api/articulos (Crear un nuevo artículo)
         [HttpPost]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
         public async Task<IActionResult> CreateArticulo([FromBody] ArticuloDTO articuloDto)
         {
             if (articuloDto == null)
@@ -242,6 +278,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpPost("UploadFoto")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
         public async Task<IActionResult> SubirFoto([FromBody] ArticuloDTO dto)
         {
             if (dto == null || string.IsNullOrEmpty(dto.Foto))
@@ -272,6 +309,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpPut("UploadFoto/{id}")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
         public async Task<IActionResult> ModificarFoto(string id, [FromBody] ArticuloDTO articuloDto)
         {
             if (articuloDto == null || string.IsNullOrEmpty(articuloDto.Foto))
@@ -299,6 +337,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpPost("Upload")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
         public async Task<IActionResult> SubirArticulo([FromBody] ArticuloDTO articuloDto)
         {
             try
@@ -369,6 +408,7 @@ namespace GSCommerceAPI.Controllers
 
         // PUT: api/articulos/{id} (Actualizar un artículo)
         [HttpPut("{id}")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
         public async Task<IActionResult> PutArticulo(string id, [FromBody] ArticuloDTO articuloDto)
         {
             if (id != articuloDto.IdArticulo)
@@ -424,6 +464,7 @@ namespace GSCommerceAPI.Controllers
 
         // DELETE: api/articulos/{id} (Eliminar un artículo)
         [HttpDelete("{id}")]
+        [Authorize(Roles = "ADMINISTRADOR,ALMACEN")]
         public async Task<IActionResult> DeleteArticulo(string id)
         {
             var articulo = await _context.Articulos.FindAsync(id);
@@ -448,6 +489,7 @@ namespace GSCommerceAPI.Controllers
             if (articulo == null)
                 return NotFound();
 
+            var puedeVerPrecioCompra = PuedeVerPrecioCompra();
             var dto = new ArticuloDTO
             {
                 IdArticulo = articulo.IdArticulo,
@@ -464,7 +506,7 @@ namespace GSCommerceAPI.Controllers
                 IdProveedor = articulo.IdProveedor,
                 UnidadAlmacen = articulo.UnidadAlmacen,
                 MonedaCosteo = articulo.MonedaCosteo,
-                PrecioCompra = articulo.PrecioCompra,
+                PrecioCompra = puedeVerPrecioCompra ? articulo.PrecioCompra : 0,
                 PrecioVenta = articulo.PrecioVenta,
                 //La fecha de registro es el del mismo momento que se crea
                 FechaRegistro = articulo.FechaRegistro,
@@ -480,6 +522,15 @@ namespace GSCommerceAPI.Controllers
         private bool ArticuloExists(string id)
         {
             return _context.Articulos.Any(e => e.IdArticulo == id);
+        }
+
+        private bool PuedeVerPrecioCompra()
+        {
+            var cargo = User.FindFirst(ClaimTypes.Role)?.Value
+                ?? User.FindFirst("Cargo")?.Value
+                ?? string.Empty;
+            return string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(cargo, "ALMACEN", StringComparison.OrdinalIgnoreCase);
         }
 
         // Método para validar Base64

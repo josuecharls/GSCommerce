@@ -1,6 +1,7 @@
 ﻿@page "/"
 @using GSCommerce.Client.Services
 @using GSCommerce.Client.Models
+@using GSCommerce.Client.Helpers
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject IJSRuntime JS
@@ -22,6 +23,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var idUsuario = await AuthService.GetUserId();
+        if (ContadorCentralHelper.EsContadorCentral(idUsuario))
+        {
+            Navigation.NavigateTo("/ventas", replace: true);
+            return;
+        }
+
         personalName = await AuthService.GetNombrePersonal();
         var fechaAyer = DateOnly.FromDateTime(DateTime.Today.AddDays(-1));
         ventasPorAlmacen = await VentaService.ObtenerVentasPorAlmacenDiaAsync(fechaAyer);
