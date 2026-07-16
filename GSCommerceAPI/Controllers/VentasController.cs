@@ -596,6 +596,210 @@ namespace GSCommerceAPI.Controllers
             return Ok(respuesta);
         }
 
+        // Categorías y costo fijo Izipay (soles) por movimiento
+        private const string CatQr = "QR YAPE/PLIN";
+        private const string CatLocal = "DÉBITO/CRÉDITO LOCAL";
+        private const string CatExtranjera = "TARJETAS EXTRANJERAS";
+        private const decimal CostoQr = 0.59m;
+        private const decimal CostoLocal = 2.35m;
+        private const decimal CostoExtranjera = 5.88m;
+
+        private static readonly string[] CategoriasIzipayOrden = { CatQr, CatLocal, CatExtranjera };
+
+        private static (string Categoria, decimal Costo)? MapearCategoriaIzipay(int idTipoPagoVenta)
+        {
+            return idTipoPagoVenta switch
+            {
+                9 => (CatQr, CostoQr),          // Online Yape
+                4 => (CatLocal, CostoLocal),    // Tarjeta Visa (débito/crédito local)
+                5 => (CatExtranjera, CostoExtranjera), // MasterCard
+                6 => (CatExtranjera, CostoExtranjera), // American Express
+                7 => (CatExtranjera, CostoExtranjera), // Diners Club
+                _ => null                       // 10 (transferencia) y otros: sin comisión
+            };
+        }
+
+        private static ComisionIzipayGrupoDTO ConstruirGrupo(
+            string nombre,
+            IEnumerable<(string Categoria, decimal Costo, decimal Soles)> movimientos)
+        {
+            var filas = CategoriasIzipayOrden
+                .Select(cat =>
+                {
+                    var delGrupo = movimientos.Where(m => m.Categoria == cat).ToList();
+                    var costo = delGrupo.Count > 0 ? delGrupo[0].Costo : ObtenerCostoPorCategoria(cat);
+                    return new ComisionIzipayFilaDTO
+                    {
+                        Categoria = cat,
+                        Movimientos = delGrupo.Count,
+                        Bruto = delGrupo.Sum(m => m.Soles),
+                        Comision = delGrupo.Count * costo
+                    };
+                })
+                .ToList();
+
+            return new ComisionIzipayGrupoDTO { Nombre = nombre, Filas = filas };
+        }
+
+        private static decimal ObtenerCostoPorCategoria(string categoria) => categoria switch
+        {
+            CatQr => CostoQr,
+            CatLocal => CostoLocal,
+            CatExtranjera => CostoExtranjera,
+            _ => 0m
+        };
+
+        [HttpGet("reporte-comisiones-izipay")]
+        [Authorize]
+        public async Task<IActionResult> ReporteComisionesIzipay(
+            [FromQuery] int anio,
+            [FromQuery] int mes)
+        {
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (!int.TryParse(userIdClaim, out var userId))
+                return Forbid();
+
+            var usuariosAutorizados = new[] { 4004, 4023, 4033 };
+            if (!usuariosAutorizados.Contains(userId))
+                return Forbid();
+
+            if (anio < 2000 || mes < 1 || mes > 12)
+                return BadRequest("Año o mes inválido.");
+
+            var fechaInicio = new DateTime(anio, mes, 1);
+            var fechaFinExclusiva = fechaInicio.AddMonths(1);
+
+            var tiposIzipay = new[] { 9, 4, 5, 6, 7 };
+
+            var registros = await (from cabecera in _context.ComprobanteDeVentaCabeceras.AsNoTracking()
+                                   join pago in _context.VDetallePagoVenta1s.AsNoTracking()
+                                       on cabecera.IdComprobante equals pago.IdComprobante
+                                   join almacen in _context.Almacens.AsNoTracking()
+                                       on cabecera.IdAlmacen equals almacen.IdAlmacen
+                                   where cabecera.Fecha >= fechaInicio
+                                         && cabecera.Fecha < fechaFinExclusiva
+                                         && cabecera.Estado != "A"
+                                         && almacen.Estado
+                                         && tiposIzipay.Contains(pago.IdTipoPagoVenta)
+                                   select new
+                                   {
+                                       pago.IdTipoPagoVenta,
+                                       pago.Soles,
+                                       almacen.Nombre,
+                                       almacen.RazonSocial
+                                   }).ToListAsync();
+
+            var movimientos = registros
+                .Select(r =>
+                {
+                    var map = MapearCategoriaIzipay(r.IdTipoPagoVenta);
+                    return new
+                    {
+                        Categoria = map!.Value.Categoria,
+                        Costo = map.Value.Costo,
+                        r.Soles,
+                        Almacen = string.IsNullOrWhiteSpace(r.Nombre) ? "(SIN NOMBRE)" : r.Nombre.Trim(),
+                        RazonSocial = string.IsNullOrWhiteSpace(r.RazonSocial) ? "(SIN RAZÓN SOCIAL)" : r.RazonSocial.Trim()
+                    };
+                })
+                .Where(m => m.Categoria != null)
+                .ToList();
+
+            var respuesta = new ReporteComisionIzipayResponseDTO
+            {
+                Anio = anio,
+                Mes = mes,
+                Total = ConstruirGrupo(
+                    "TOTAL GENERAL",
+                    movimientos.Select(m => (m.Categoria, m.Costo, m.Soles))),
+                PorRazonSocial = movimientos
+                    .GroupBy(m => m.RazonSocial)
+                    .OrderBy(g => g.Key)
+                    .Select(g => ConstruirGrupo(g.Key, g.Select(m => (m.Categoria, m.Costo, m.Soles))))
+                    .Where(g => g.TotalMovimientos > 0)
+                    .ToList(),
+                PorAlmacen = movimientos
+                    .GroupBy(m => m.Almacen)
+                    .OrderBy(g => g.Key)
+                    .Select(g => ConstruirGrupo(g.Key, g.Select(m => (m.Categoria, m.Costo, m.Soles))))
+                    .Where(g => g.TotalMovimientos > 0)
+                    .ToList()
+            };
+
+            return Ok(respuesta);
+        }
+
+        [HttpGet("reporte-comisiones-izipay-anual")]
+        [Authorize]
+        public async Task<IActionResult> ReporteComisionesIzipayAnual(
+            [FromQuery] int anioDesde,
+            [FromQuery] int anioHasta)
+        {
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (!int.TryParse(userIdClaim, out var userId))
+                return Forbid();
+
+            var usuariosAutorizados = new[] { 4004, 4023, 4033 };
+            if (!usuariosAutorizados.Contains(userId))
+                return Forbid();
+
+            if (anioDesde < 2000 || anioHasta < 2000 || anioDesde > anioHasta)
+                return BadRequest("Rango de años inválido.");
+
+            var fechaInicio = new DateTime(anioDesde, 1, 1);
+            var fechaFinExclusiva = new DateTime(anioHasta, 1, 1).AddYears(1);
+
+            var tiposIzipay = new[] { 9, 4, 5, 6, 7 };
+
+            var registros = await (from cabecera in _context.ComprobanteDeVentaCabeceras.AsNoTracking()
+                                   join pago in _context.VDetallePagoVenta1s.AsNoTracking()
+                                       on cabecera.IdComprobante equals pago.IdComprobante
+                                   join almacen in _context.Almacens.AsNoTracking()
+                                       on cabecera.IdAlmacen equals almacen.IdAlmacen
+                                   where cabecera.Fecha >= fechaInicio
+                                         && cabecera.Fecha < fechaFinExclusiva
+                                         && cabecera.Estado != "A"
+                                         && almacen.Estado
+                                         && tiposIzipay.Contains(pago.IdTipoPagoVenta)
+                                   select new
+                                   {
+                                       cabecera.Fecha,
+                                       pago.IdTipoPagoVenta,
+                                       pago.Soles
+                                   }).ToListAsync();
+
+            var movimientos = registros
+                .Select(r =>
+                {
+                    var map = MapearCategoriaIzipay(r.IdTipoPagoVenta);
+                    return new
+                    {
+                        Anio = r.Fecha.Year,
+                        Categoria = map!.Value.Categoria,
+                        Costo = map.Value.Costo,
+                        r.Soles
+                    };
+                })
+                .ToList();
+
+            var respuesta = new ReporteComisionIzipayAnualResponseDTO
+            {
+                AnioDesde = anioDesde,
+                AnioHasta = anioHasta,
+                PorAnio = movimientos
+                    .GroupBy(m => m.Anio)
+                    .OrderBy(g => g.Key)
+                    .Select(g => ConstruirGrupo(g.Key.ToString(), g.Select(m => (m.Categoria, m.Costo, m.Soles))))
+                    .Where(g => g.TotalMovimientos > 0)
+                    .ToList(),
+                Total = ConstruirGrupo(
+                    "TOTAL GENERAL",
+                    movimientos.Select(m => (m.Categoria, m.Costo, m.Soles)))
+            };
+
+            return Ok(respuesta);
+        }
+
         [HttpPost("reporte-articulos-rango")]
         [Authorize(Roles = "ADMINISTRADOR,ALMACEN,CAJERO")]
         public async Task<IActionResult> ObtenerReporteArticulosRango([FromBody] ReporteArticulosRangoRequest req)

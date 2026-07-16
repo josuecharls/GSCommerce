@@ -205,6 +205,20 @@ public class ReporteService
         return resp ?? new ReportePagosTarjetaOnlineResponseDTO();
     }
 
+    public async Task<ReporteComisionIzipayResponseDTO> ObtenerComisionesIzipay(int anio, int mes)
+    {
+        var url = $"ventas/reporte-comisiones-izipay?anio={anio}&mes={mes}";
+        var resp = await _http.GetFromJsonAsync<ReporteComisionIzipayResponseDTO>(url);
+        return resp ?? new ReporteComisionIzipayResponseDTO { Anio = anio, Mes = mes };
+    }
+
+    public async Task<ReporteComisionIzipayAnualResponseDTO> ObtenerComisionesIzipayAnual(int anioDesde, int anioHasta)
+    {
+        var url = $"ventas/reporte-comisiones-izipay-anual?anioDesde={anioDesde}&anioHasta={anioHasta}";
+        var resp = await _http.GetFromJsonAsync<ReporteComisionIzipayAnualResponseDTO>(url);
+        return resp ?? new ReporteComisionIzipayAnualResponseDTO { AnioDesde = anioDesde, AnioHasta = anioHasta };
+    }
+
     public async Task<ReporteVentasTarjetaMensualResponseDTO> ObtenerVentasTarjetaOnlineMensual(int anio, string? nombreAlmacen = null)
     {
         var url = $"reporteshistoricos/ventas-tarjeta-online-mensual?anio={anio}";

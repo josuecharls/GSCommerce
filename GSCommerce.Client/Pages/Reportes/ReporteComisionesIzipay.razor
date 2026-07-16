@@ -1,0 +1,355 @@
+@page "/hubs/reportes/comisiones-izipay"
+@using System.Linq
+@using GSCommerce.Client.Components
+@using GSCommerce.Client.Models.DTOs.Reportes
+@using GSCommerce.Client.Services
+@inject ReporteService ReporteService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject AuthService AuthService
+
+<ReportsBreadcrumb Title="Comisiones Izipay" />
+
+<div class="container-fluid py-2">
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <label class="form-label">Ver por</label>
+            <select class="form-select" @bind="vista">
+                <option value="total">Total general</option>
+                <option value="razon">Por razón social</option>
+                <option value="almacen">Por almacén</option>
+                <option value="consolidado">Consolidado por años</option>
+            </select>
+        </div>
+        @if (vista == "consolidado")
+        {
+            <div class="col-md-2">
+                <label class="form-label">Desde año</label>
+                <select class="form-select" @bind="anioDesde">
+                    @foreach (var y in aniosDisponibles)
+                    {
+                        <option value="@y">@y</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Hasta año</label>
+                <select class="form-select" @bind="anioHasta">
+                    @foreach (var y in aniosDisponibles)
+                    {
+                        <option value="@y">@y</option>
+                    }
+                </select>
+            </div>
+        }
+        else
+        {
+            <div class="col-md-2">
+                <label class="form-label">Año</label>
+                <select class="form-select" @bind="anioSeleccionado">
+                    @foreach (var y in aniosDisponibles)
+                    {
+                        <option value="@y">@y</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Mes</label>
+                <select class="form-select" @bind="mesSeleccionado">
+                    @for (int m = 1; m <= 12; m++)
+                    {
+                        <option value="@m">@GetNombreMes(m)</option>
+                    }
+                </select>
+            </div>
+        }
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100" @onclick="Buscar" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                }
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-success w-100" @onclick="ExportarExcel" disabled="@(!HayDatos || isLoading)">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Exportar
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center my-4">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+    }
+    else if (HayDatos)
+    {
+        var grupos = GruposAMostrar();
+        if (grupos.Count == 0 || grupos.All(g => g.TotalMovimientos == 0))
+        {
+            <div class="alert alert-info text-center">
+                No hay cobros con Yape ni tarjeta en el periodo seleccionado.
+            </div>
+        }
+        else
+        {
+            @foreach (var grupo in grupos)
+            {
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between">
+                        <span>@grupo.Nombre</span>
+                        <span>@EtiquetaPeriodo</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0 align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Tipo de cobro</th>
+                                        <th class="text-center">N° cobros</th>
+                                        <th class="text-end">BRUTO</th>
+                                        <th class="text-end">COMISIÓN PAGADA</th>
+                                        <th class="text-end">NETO</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var fila in grupo.Filas)
+                                    {
+                                        <tr>
+                                            <td>@fila.Categoria</td>
+                                            <td class="text-center">@fila.Movimientos</td>
+                                            <td class="text-end">S/ @fila.Bruto.ToString("N2")</td>
+                                            <td class="text-end text-danger">S/ @fila.Comision.ToString("N2")</td>
+                                            <td class="text-end">S/ @fila.Neto.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-light fw-bold">
+                                    <tr>
+                                        <td>TOTAL</td>
+                                        <td class="text-center">@grupo.TotalMovimientos</td>
+                                        <td class="text-end">S/ @grupo.TotalBruto.ToString("N2")</td>
+                                        <td class="text-end text-danger">S/ @grupo.TotalComision.ToString("N2")</td>
+                                        <td class="text-end">S/ @grupo.TotalNeto.ToString("N2")</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+@code {
+    private int anioSeleccionado = DateTime.Today.Year;
+    private int mesSeleccionado = DateTime.Today.Month;
+    private int anioDesde = DateTime.Today.Year - 2;
+    private int anioHasta = DateTime.Today.Year;
+    private List<int> aniosDisponibles = new();
+    private string vista = "total";
+
+    private ReporteComisionIzipayResponseDTO? reporte;
+    private ReporteComisionIzipayAnualResponseDTO? reporteAnual;
+    private bool isLoading;
+    private int? userId;
+
+    private bool EsConsolidado => vista == "consolidado";
+    private bool HayDatos => EsConsolidado ? reporteAnual != null : reporte != null;
+
+    private string EtiquetaPeriodo => EsConsolidado
+        ? (reporteAnual != null ? $"{reporteAnual.AnioDesde} - {reporteAnual.AnioHasta}" : string.Empty)
+        : (reporte != null ? $"{GetNombreMes(reporte.Mes)} {reporte.Anio}" : string.Empty);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var y = DateTime.Today.Year;
+        aniosDisponibles = Enumerable.Range(y - 8, 10).ToList();
+        if (!aniosDisponibles.Contains(anioSeleccionado))
+        {
+            aniosDisponibles.Add(anioSeleccionado);
+            aniosDisponibles.Sort();
+        }
+
+        userId = await AuthService.GetUserId();
+        if (userId != 4004 && userId != 4023 && userId != 4033)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        isLoading = true;
+        reporte = null;
+        reporteAnual = null;
+        StateHasChanged();
+        try
+        {
+            if (EsConsolidado)
+            {
+                if (anioHasta < anioDesde)
+                {
+                    (anioDesde, anioHasta) = (anioHasta, anioDesde);
+                }
+                reporteAnual = await ReporteService.ObtenerComisionesIzipayAnual(anioDesde, anioHasta);
+            }
+            else
+            {
+                reporte = await ReporteService.ObtenerComisionesIzipay(anioSeleccionado, mesSeleccionado);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            if (EsConsolidado)
+                reporteAnual = new ReporteComisionIzipayAnualResponseDTO { AnioDesde = anioDesde, AnioHasta = anioHasta };
+            else
+                reporte = new ReporteComisionIzipayResponseDTO { Anio = anioSeleccionado, Mes = mesSeleccionado };
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<ComisionIzipayGrupoDTO> GruposAMostrar()
+    {
+        if (EsConsolidado)
+        {
+            if (reporteAnual == null)
+                return new();
+            var lista = new List<ComisionIzipayGrupoDTO>(reporteAnual.PorAnio);
+            if (reporteAnual.PorAnio.Count > 0)
+                lista.Add(reporteAnual.Total);
+            return lista;
+        }
+
+        if (reporte == null)
+            return new();
+
+        return vista switch
+        {
+            "razon" => reporte.PorRazonSocial,
+            "almacen" => reporte.PorAlmacen,
+            _ => new List<ComisionIzipayGrupoDTO> { reporte.Total }
+        };
+    }
+
+    private async Task ExportarExcel()
+    {
+        var grupos = GruposAMostrar();
+        if (grupos.Count == 0)
+            return;
+
+        var headers = new object[] { "Tipo de cobro", "N° cobros", "Bruto", "Comisión pagada", "Neto" };
+
+        object[][] FilasDeGrupo(ComisionIzipayGrupoDTO grupo)
+        {
+            var filas = new List<object[]>();
+            foreach (var fila in grupo.Filas)
+            {
+                filas.Add(new object[]
+                {
+                    fila.Categoria,
+                    fila.Movimientos,
+                    Math.Round(fila.Bruto, 2),
+                    Math.Round(fila.Comision, 2),
+                    Math.Round(fila.Neto, 2)
+                });
+            }
+            filas.Add(new object[]
+            {
+                "TOTAL",
+                grupo.TotalMovimientos,
+                Math.Round(grupo.TotalBruto, 2),
+                Math.Round(grupo.TotalComision, 2),
+                Math.Round(grupo.TotalNeto, 2)
+            });
+            return filas.ToArray();
+        }
+
+        // Por almacén o por razón social => una hoja por grupo.
+        if (vista == "razon" || vista == "almacen")
+        {
+            var usados = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var hojas = grupos.Select(g => new
+            {
+                headers,
+                rows = FilasDeGrupo(g),
+                sheetName = NombreHojaUnico(g.Nombre, usados)
+            }).ToArray();
+
+            var fileNameMulti = $"ComisionesIzipay_{anioSeleccionado}_{mesSeleccionado:D2}_{vista}";
+            await JS.InvokeVoidAsync("exportVentasArticuloExcel", hojas, fileNameMulti);
+            return;
+        }
+
+        // Total general o consolidado => una sola hoja con el grupo (o grupos) apilados.
+        var rows = new List<object[]>();
+        foreach (var grupo in grupos)
+        {
+            rows.Add(new object[] { grupo.Nombre, "", "", "", "" });
+            rows.AddRange(FilasDeGrupo(grupo));
+            rows.Add(new object[] { "", "", "", "", "" });
+        }
+
+        var fileName = EsConsolidado
+            ? $"ComisionesIzipay_Consolidado_{anioDesde}_{anioHasta}"
+            : $"ComisionesIzipay_{anioSeleccionado}_{mesSeleccionado:D2}_total";
+        await JS.InvokeVoidAsync("exportToExcel", headers, rows.ToArray(), fileName);
+    }
+
+    private static string NombreHojaUnico(string nombre, HashSet<string> usados)
+    {
+        var limpio = nombre;
+        foreach (var c in new[] { '\\', '/', '?', '*', '[', ']', ':' })
+        {
+            limpio = limpio.Replace(c, ' ');
+        }
+        limpio = limpio.Trim();
+        if (string.IsNullOrWhiteSpace(limpio))
+            limpio = "Hoja";
+        if (limpio.Length > 31)
+            limpio = limpio.Substring(0, 31);
+
+        var baseNombre = limpio;
+        var i = 2;
+        while (!usados.Add(limpio))
+        {
+            var sufijo = $" ({i})";
+            var maxBase = 31 - sufijo.Length;
+            limpio = (baseNombre.Length > maxBase ? baseNombre.Substring(0, maxBase) : baseNombre) + sufijo;
+            i++;
+        }
+        return limpio;
+    }
+
+    private static string GetNombreMes(int mes)
+    {
+        return mes switch
+        {
+            1 => "Enero",
+            2 => "Febrero",
+            3 => "Marzo",
+            4 => "Abril",
+            5 => "Mayo",
+            6 => "Junio",
+            7 => "Julio",
+            8 => "Agosto",
+            9 => "Septiembre",
+            10 => "Octubre",
+            11 => "Noviembre",
+            12 => "Diciembre",
+            _ => mes.ToString()
+        };
+    }
+}
