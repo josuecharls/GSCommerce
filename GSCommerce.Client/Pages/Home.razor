@@ -1,16 +1,242 @@
 ﻿@page "/"
 @using GSCommerce.Client.Services
 @using GSCommerce.Client.Models
+@using GSCommerce.Client.Models.DTOs.Reportes
 @using GSCommerce.Client.Helpers
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject IJSRuntime JS
 
-<h1>Bienvenido a GSCommerce</h1>
+<div class="dashboard">
+    <div class="dash-hero">
+        <div class="dash-hero-left">
+            <div class="dash-hero-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
+            <div>
+                <h1>Panel Principal</h1>
+                <span class="dash-hero-sub">
+                    Hola, @personalName
+                    @if (!esAdmin && !string.IsNullOrEmpty(nombreAlmacen))
+                    {
+                        <text> &middot; @nombreAlmacen</text>
+                    }
+                </span>
+            </div>
+        </div>
+        <div class="dash-hero-right">
+            <span class="dash-badge">Ayer &middot; @fechaResumen</span>
+        </div>
+    </div>
 
-<p>Hola, @personalName . Bienvenido al sistema de GSHOP.</p>
+    @if (cargando)
+    {
+        <div class="dash-loading">
+            <div class="spinner-border text-primary" role="status"></div>
+            <span>Cargando resumen...</span>
+        </div>
+    }
+    else if (esAdmin)
+    {
+        @* ===================== VISTA ADMINISTRADOR (todos los almacenes) ===================== *@
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Total ventas</span>
+                    <span class="kpi-chip chip-blue"><i class="bi bi-cash-coin"></i></span>
+                </div>
+                <span class="kpi-value">S/ @Corto(totalVentas)</span>
+                @RenderDelta(deltaTotal)
+            </div>
 
-<canvas id="ventasChart" width="400" height="200"></canvas>
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Promedio / almacén</span>
+                    <span class="kpi-chip chip-indigo"><i class="bi bi-graph-up-arrow"></i></span>
+                </div>
+                <span class="kpi-value">S/ @Corto(promedioVentas)</span>
+                @RenderDelta(deltaPromedio)
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Mejor almacén</span>
+                    <span class="kpi-chip chip-amber"><i class="bi bi-trophy-fill"></i></span>
+                </div>
+                <span class="kpi-value kpi-value-sm">@mejorAlmacen</span>
+                <span class="kpi-foot">S/ @Decimal2(mejorAlmacenTotal)</span>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Almacenes con venta</span>
+                    <span class="kpi-chip chip-green"><i class="bi bi-shop"></i></span>
+                </div>
+                <span class="kpi-value">@almacenesConVenta</span>
+                <span class="kpi-foot">de @ventasPorAlmacen.Count en total</span>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="panel panel-bar">
+                <div class="panel-header">
+                    <h2>Ventas por almacén</h2>
+                    <span class="panel-tag">S/</span>
+                </div>
+                @if (ventasPorAlmacen.Count == 0)
+                {
+                    <div class="empty-state"><i class="bi bi-inbox"></i><span>No hay ventas registradas para la fecha.</span></div>
+                }
+                else
+                {
+                    <div class="chart-wrapper"><canvas id="ventasBarChart"></canvas></div>
+                }
+            </div>
+
+            <div class="panel panel-donut">
+                <div class="panel-header">
+                    <h2>Participación</h2>
+                </div>
+                @if (ventasPorAlmacen.Count == 0)
+                {
+                    <div class="empty-state"><i class="bi bi-pie-chart"></i><span>Sin datos</span></div>
+                }
+                else
+                {
+                    <div class="chart-wrapper"><canvas id="ventasDonutChart"></canvas></div>
+                }
+            </div>
+        </div>
+
+        @if (ventasPorAlmacen.Count > 0)
+        {
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Detalle por almacén</h2>
+                </div>
+                <div class="table-responsive">
+                    <table class="dash-table">
+                        <thead>
+                            <tr>
+                                <th>Almacén</th>
+                                <th class="text-end">Ventas</th>
+                                <th style="width:35%">% del total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var v in ventasPorAlmacen.OrderByDescending(x => x.Total))
+                            {
+                                var pct = totalVentas > 0 ? (double)(v.Total / totalVentas) * 100 : 0;
+                                <tr class="@(v.IdAlmacen == idAlmacenUsuario ? "row-mine" : "")">
+                                    <td>
+                                        @v.NombreAlmacen
+                                        @if (v.IdAlmacen == idAlmacenUsuario)
+                                        {
+                                            <span class="mine-tag">tú</span>
+                                        }
+                                    </td>
+                                    <td class="text-end fw-semibold">S/ @Decimal2(v.Total)</td>
+                                    <td>
+                                        <div class="bar-track">
+                                            <div class="bar-fill" style="width:@pct.ToString("0.##")%"></div>
+                                            <span class="bar-pct">@pct.ToString("0.#")%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        @* ===================== VISTA CAJERO (solo su almacén) ===================== *@
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Ventas de mi tienda</span>
+                    <span class="kpi-chip chip-blue"><i class="bi bi-cash-coin"></i></span>
+                </div>
+                <span class="kpi-value">S/ @Corto(totalVentas)</span>
+                @RenderDelta(deltaTotal)
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Mejor vendedor(a)</span>
+                    <span class="kpi-chip chip-amber"><i class="bi bi-trophy-fill"></i></span>
+                </div>
+                <span class="kpi-value kpi-value-sm">@mejorVendedor</span>
+                <span class="kpi-foot">S/ @Decimal2(mejorVendedorTotal)</span>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">N° de ventas</span>
+                    <span class="kpi-chip chip-indigo"><i class="bi bi-receipt"></i></span>
+                </div>
+                <span class="kpi-value">@numeroVentas</span>
+                <span class="kpi-foot">comprobantes emitidos</span>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Ticket promedio</span>
+                    <span class="kpi-chip chip-green"><i class="bi bi-graph-up-arrow"></i></span>
+                </div>
+                <span class="kpi-value">S/ @Corto(ticketPromedio)</span>
+                <span class="kpi-foot">por venta</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Ventas por vendedor(a)</h2>
+                <span class="panel-tag">S/</span>
+            </div>
+            @if (vendedores.Count == 0)
+            {
+                <div class="empty-state"><i class="bi bi-inbox"></i><span>No hay ventas registradas para la fecha.</span></div>
+            }
+            else
+            {
+                <div class="chart-wrapper"><canvas id="ventasBarChart"></canvas></div>
+            }
+        </div>
+
+        @if (vendedores.Count > 0)
+        {
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Detalle por vendedor(a)</h2>
+                </div>
+                <div class="table-responsive">
+                    <table class="dash-table">
+                        <thead>
+                            <tr>
+                                <th>Vendedor(a)</th>
+                                <th class="text-end">N° ventas</th>
+                                <th class="text-end">Monto</th>
+                                <th class="text-end">Ticket prom.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var v in vendedores.OrderByDescending(x => x.MontoTotal))
+                            {
+                                <tr>
+                                    <td>@v.NombreVendedor</td>
+                                    <td class="text-end">@v.TotalVentas</td>
+                                    <td class="text-end fw-semibold">S/ @Decimal2(v.MontoTotal)</td>
+                                    <td class="text-end">S/ @Decimal2(v.TicketPromedio)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+</div>
 
 @code {
     [Inject] AuthService AuthService { get; set; } = null!;
@@ -19,7 +245,31 @@
     [Inject] VentaService VentaService { get; set; } = null!;
 
     private string? personalName;
+    private string fechaResumen = string.Empty;
+    private bool esAdmin;
+    private int? idAlmacenUsuario;
+    private string? nombreAlmacen;
+    private bool cargando = true;
+    private bool chartRenderizado;
+
+    // Admin
     private List<VentaDiariaAlmacenDTO> ventasPorAlmacen = new();
+    private decimal promedioVentas;
+    private decimal mejorAlmacenTotal;
+    private string mejorAlmacen = "-";
+    private int almacenesConVenta;
+    private double? deltaPromedio;
+
+    // Cajero
+    private List<ReporteVentasVendedorDTO> vendedores = new();
+    private string mejorVendedor = "-";
+    private decimal mejorVendedorTotal;
+    private int numeroVentas;
+    private decimal ticketPromedio;
+
+    // Comunes
+    private decimal totalVentas;
+    private double? deltaTotal;
 
     protected override async Task OnInitializedAsync()
     {
@@ -31,9 +281,176 @@
         }
 
         personalName = await AuthService.GetNombrePersonal();
+        var cargo = await AuthService.GetUserCargo();
+        esAdmin = string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
+        idAlmacenUsuario = await AuthService.GetUserAlmacenId();
+
         var fechaAyer = DateOnly.FromDateTime(DateTime.Today.AddDays(-1));
-        ventasPorAlmacen = await VentaService.ObtenerVentasPorAlmacenDiaAsync(fechaAyer);
-        var idAlmacen = await AuthService.GetUserAlmacenId();
-        await JS.InvokeVoidAsync("renderVentasDiaChart", "ventasChart", ventasPorAlmacen, idAlmacen);
+        var fechaAnteayer = DateOnly.FromDateTime(DateTime.Today.AddDays(-2));
+        fechaResumen = fechaAyer.ToString("dd/MM/yyyy");
+
+        if (esAdmin)
+        {
+            ventasPorAlmacen = await VentaService.ObtenerVentasPorAlmacenDiaAsync(fechaAyer);
+            var ventasAnteayer = await VentaService.ObtenerVentasPorAlmacenDiaAsync(fechaAnteayer);
+            CalcularKpisAdmin(ventasAnteayer);
+        }
+        else
+        {
+            await CalcularKpisCajeroAsync(fechaAyer, fechaAnteayer);
+        }
+
+        cargando = false;
+    }
+
+    private void CalcularKpisAdmin(List<VentaDiariaAlmacenDTO> anteayer)
+    {
+        totalVentas = ventasPorAlmacen.Sum(v => v.Total);
+        almacenesConVenta = ventasPorAlmacen.Count(v => v.Total > 0);
+        promedioVentas = ventasPorAlmacen.Count > 0 ? totalVentas / ventasPorAlmacen.Count : 0m;
+
+        var mejor = ventasPorAlmacen.OrderByDescending(v => v.Total).FirstOrDefault();
+        if (mejor != null && mejor.Total > 0)
+        {
+            mejorAlmacen = mejor.NombreAlmacen;
+            mejorAlmacenTotal = mejor.Total;
+        }
+
+        var totalAnteayer = anteayer.Sum(v => v.Total);
+        var promAnteayer = anteayer.Count > 0 ? totalAnteayer / anteayer.Count : 0m;
+        deltaTotal = CalcularDelta(totalVentas, totalAnteayer);
+        deltaPromedio = CalcularDelta(promedioVentas, promAnteayer);
+    }
+
+    private async Task CalcularKpisCajeroAsync(DateOnly fechaAyer, DateOnly fechaAnteayer)
+    {
+        // Sin almacén asignado no se muestra nada (evita traer todos los almacenes
+        // al desactivarse el filtro con idAlmacen nulo).
+        if (idAlmacenUsuario == null || idAlmacenUsuario <= 0)
+            return;
+
+        // Total del almacén propio (mismo cálculo que ve el administrador para esa tienda)
+        var propioAyer = await VentaService.ObtenerVentasPorAlmacenDiaAsync(fechaAyer, idAlmacenUsuario);
+        var propioAnteayer = await VentaService.ObtenerVentasPorAlmacenDiaAsync(fechaAnteayer, idAlmacenUsuario);
+        totalVentas = propioAyer.Sum(v => v.Total);
+        nombreAlmacen = propioAyer.FirstOrDefault()?.NombreAlmacen;
+        deltaTotal = CalcularDelta(totalVentas, propioAnteayer.Sum(v => v.Total));
+
+        // Vendedores del almacén propio
+        var desde = fechaAyer.ToDateTime(TimeOnly.MinValue);
+        var hasta = fechaAyer.ToDateTime(TimeOnly.MinValue);
+        vendedores = await VentaService.ObtenerReportePorVendedor(desde, hasta, idAlmacenUsuario);
+
+        numeroVentas = vendedores.Sum(v => v.TotalVentas);
+        var montoVendedores = vendedores.Sum(v => v.MontoTotal);
+        ticketPromedio = numeroVentas > 0 ? montoVendedores / numeroVentas : 0m;
+
+        var mejor = vendedores.OrderByDescending(v => v.MontoTotal).FirstOrDefault();
+        if (mejor != null && mejor.MontoTotal > 0)
+        {
+            mejorVendedor = string.IsNullOrWhiteSpace(mejor.NombreVendedor) ? "(sin nombre)" : mejor.NombreVendedor;
+            mejorVendedorTotal = mejor.MontoTotal;
+        }
+    }
+
+    private static double? CalcularDelta(decimal actual, decimal anterior)
+    {
+        if (anterior <= 0) return null;
+        return (double)((actual - anterior) / anterior) * 100;
+    }
+
+    private RenderFragment RenderDelta(double? delta) => builder =>
+    {
+        if (delta == null)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "kpi-delta neutral");
+            builder.AddContent(2, "sin comparación");
+            builder.CloseElement();
+            return;
+        }
+        var up = delta >= 0;
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", $"kpi-delta {(up ? "up" : "down")}");
+        builder.OpenElement(2, "i");
+        builder.AddAttribute(3, "class", up ? "bi bi-arrow-up-right" : "bi bi-arrow-down-right");
+        builder.CloseElement();
+        builder.AddContent(4, $" {Math.Abs(delta.Value):0.#}% vs anteayer");
+        builder.CloseElement();
+    };
+
+    private static string Corto(decimal valor)
+    {
+        if (Math.Abs(valor) >= 1_000_000) return (valor / 1_000_000m).ToString("0.##") + "M";
+        if (Math.Abs(valor) >= 1_000) return (valor / 1_000m).ToString("0.#") + "K";
+        return valor.ToString("0.##");
+    }
+
+    private static string Decimal2(decimal valor) => valor.ToString("N2");
+
+    // Debe coincidir con window.__DASH_VER en site.js y con el ?v= de index.html.
+    private const int VersionSiteJsEsperada = 3;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (cargando || chartRenderizado)
+            return;
+
+        var hayDatos = esAdmin ? ventasPorAlmacen.Count > 0 : vendedores.Count > 0;
+        if (!hayDatos)
+            return;
+
+        try
+        {
+            int versionActual = 0;
+            try { versionActual = await JS.InvokeAsync<int>("getDashVersion"); }
+            catch { versionActual = 0; }
+
+            if (versionActual < VersionSiteJsEsperada)
+            {
+                await ForzarRecargaSiEsNecesarioAsync();
+                return;
+            }
+
+            chartRenderizado = true;
+
+            if (esAdmin)
+            {
+                await JS.InvokeVoidAsync("renderVentasDashboard", "ventasBarChart", "ventasDonutChart", ventasPorAlmacen, idAlmacenUsuario);
+            }
+            else
+            {
+                var items = vendedores
+                    .OrderByDescending(v => v.MontoTotal)
+                    .Select((v, i) => new
+                    {
+                        idAlmacen = i,
+                        nombreAlmacen = string.IsNullOrWhiteSpace(v.NombreVendedor) ? "(sin nombre)" : v.NombreVendedor,
+                        total = v.MontoTotal
+                    })
+                    .ToList();
+                await JS.InvokeVoidAsync("renderVentasDashboard", "ventasBarChart", null, items, -1);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Dashboard] No se pudo renderizar el gráfico: {ex.Message}");
+        }
+    }
+
+    private async Task ForzarRecargaSiEsNecesarioAsync()
+    {
+        var clave = $"dashReloadV{VersionSiteJsEsperada}";
+        string? yaRecargo = null;
+        try { yaRecargo = await JS.InvokeAsync<string>("sessionStorage.getItem", clave); }
+        catch { /* ignore */ }
+
+        if (yaRecargo == "1")
+            return;
+
+        try { await JS.InvokeVoidAsync("sessionStorage.setItem", clave, "1"); }
+        catch { /* ignore */ }
+
+        Navigation.NavigateTo($"{Navigation.BaseUri}?_v={VersionSiteJsEsperada}", forceLoad: true);
     }
 }

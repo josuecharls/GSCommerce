@@ -1838,7 +1838,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("ventas-almacenes-dia")]
-        public async Task<IActionResult> ObtenerVentasAlmacenesDia([FromQuery] string fecha)
+        public async Task<IActionResult> ObtenerVentasAlmacenesDia([FromQuery] string fecha, [FromQuery] int? idAlmacen = null)
         {
             if (!DateOnly.TryParse(fecha, out var fechaDia))
                 return BadRequest("Fecha inválida");
@@ -1850,6 +1850,11 @@ namespace GSCommerceAPI.Controllers
             var ventasQuery = _context.VCierreVentaDiaria1s
                 .AsNoTracking()
                 .Where(v => v.Fecha >= inicio && v.Fecha <= fin);
+
+            // Si se especifica un almacén, se limita el cálculo a ese almacén
+            // (evita exponer datos de otros almacenes a usuarios no administradores).
+            if (idAlmacen.HasValue)
+                ventasQuery = ventasQuery.Where(v => v.IdAlmacen == idAlmacen.Value);
 
             ventasQuery = from v in ventasQuery
                           join c in _context.ComprobanteDeVentaCabeceras
@@ -2274,7 +2279,7 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet("reporte-vendedor")]
-        public async Task<IActionResult> ReportePorVendedor([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
+        public async Task<IActionResult> ReportePorVendedor([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta, [FromQuery] int? idAlmacen = null)
         {
             var fechaInicio = desde ?? DateTime.Today;
             var fechaFin = hasta ?? DateTime.Today;
@@ -2284,6 +2289,7 @@ namespace GSCommerceAPI.Controllers
                         from p in gj.DefaultIfEmpty()
                         where c.Fecha.Date >= fechaInicio.Date && c.Fecha.Date <= fechaFin.Date
                               && c.Estado == "E"
+                              && (idAlmacen == null || c.IdAlmacen == idAlmacen)
                         select new { c, p };
 
             var reporte = await query

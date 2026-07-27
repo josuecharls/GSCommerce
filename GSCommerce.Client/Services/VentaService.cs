@@ -16,10 +16,13 @@ namespace GSCommerce.Client.Services
             _authService = authService;
         }
 
-        public async Task<List<VentaDiariaAlmacenDTO>> ObtenerVentasPorAlmacenDiaAsync(DateOnly fecha)
+        public async Task<List<VentaDiariaAlmacenDTO>> ObtenerVentasPorAlmacenDiaAsync(DateOnly fecha, int? idAlmacen = null)
         {
             string fechaStr = fecha.ToString("yyyy-MM-dd");
-            var response = await _httpClient.GetFromJsonAsync<List<VentaDiariaAlmacenDTO>>($"ventas/ventas-almacenes-dia?fecha={fechaStr}");
+            string url = $"ventas/ventas-almacenes-dia?fecha={fechaStr}";
+            if (idAlmacen.HasValue)
+                url += $"&idAlmacen={idAlmacen.Value}";
+            var response = await _httpClient.GetFromJsonAsync<List<VentaDiariaAlmacenDTO>>(url);
             return response ?? new();
         }
 
@@ -77,9 +80,12 @@ namespace GSCommerce.Client.Services
             }
         }
 
-        public async Task<List<ReporteVentasVendedorDTO>> ObtenerReportePorVendedor(DateTime desde, DateTime hasta)
+        public async Task<List<ReporteVentasVendedorDTO>> ObtenerReportePorVendedor(DateTime desde, DateTime hasta, int? idAlmacen = null)
         {
-            var response = await _httpClient.GetFromJsonAsync<List<ReporteVentasVendedorDTO>>($"ventas/reporte-vendedor?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}");
+            string url = $"ventas/reporte-vendedor?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}";
+            if (idAlmacen.HasValue)
+                url += $"&idAlmacen={idAlmacen.Value}";
+            var response = await _httpClient.GetFromJsonAsync<List<ReporteVentasVendedorDTO>>(url);
             return response ?? new();
         }
 
