@@ -29,10 +29,13 @@ namespace GSCommerceAPI.Controllers
             try
             {
                 var articulos = await _context.Articulos
+                    .AsNoTracking()
+                    .OrderBy(a => a.IdArticulo)
                     .Select(a => new ArticuloDTO
                     {
                         IdArticulo = a.IdArticulo,
-                        Descripcion = a.Descripcion
+                        Descripcion = a.Descripcion,
+                        FechaRegistro = a.FechaRegistro
                     })
                     .ToListAsync();
 
