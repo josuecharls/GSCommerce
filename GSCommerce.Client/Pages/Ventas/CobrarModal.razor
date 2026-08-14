@@ -1,4 +1,4 @@
-﻿@using GSCommerce.Client.Models
+@using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
 @using System.Linq
 @using System
@@ -118,8 +118,10 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-success" @onclick="ConfirmarPago" disabled="@(!PuedeConfirmar)">Confirmar Pago</button>
-                <button type="button" class="btn btn-secondary" @onclick="Cerrar">Cancelar</button>
+                <button type="button" class="btn btn-success" @onclick="ConfirmarPago" disabled="@(!PuedeConfirmar || confirmandoPago)">
+                    @(confirmandoPago ? "Procesando..." : "Confirmar Pago")
+                </button>
+                <button type="button" class="btn btn-secondary" @onclick="Cerrar" disabled="@confirmandoPago">Cancelar</button>
             </div>
 
         </div>
@@ -135,6 +137,8 @@
     [Parameter] public int IdAlmacen { get; set; }
 
     public bool Mostrar { get; set; }
+
+    private bool confirmandoPago = false;
 
     private List<TipoPagoVentaDTO> tiposPago = new();
     private int idTipoPagoSeleccionado;
@@ -224,6 +228,7 @@
 
     public async Task Abrir()
     {
+        confirmandoPago = false;
         pagos.Clear();
         montoPago = MontoTotal;
         codigoVerificacion = null;
@@ -236,6 +241,9 @@
 
     private void Cerrar()
     {
+        if (confirmandoPago)
+            return;
+
         Mostrar = false;
         OnCancelado.InvokeAsync();
     }
@@ -493,6 +501,9 @@
 
     private async Task ConfirmarPago()
     {
+        if (confirmandoPago)
+            return;
+
         // Validar que haya al menos una forma de pago
         if (!pagos.Any())
         {
@@ -506,6 +517,9 @@
             await JS.InvokeVoidAsync("alert", $"⚠️ El monto pagado (S/ {TotalPagado:N2}) es menor al total a pagar (S/ {MontoTotal:N2}).");
             return;
         }
+
+        confirmandoPago = true;
+        await InvokeAsync(StateHasChanged);
 
         // Calculamos el vuelto total antes de enviar los pagos
         var vuelto = VueltoCalculado;

@@ -80,16 +80,10 @@ builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = 5 * 1024 * 1024; // 5 MB
 
-    // Configurar HTTPS en producción
+    // Producción detrás de Nginx: Kestrel solo HTTP (Nginx termina HTTPS público).
     if (!builder.Environment.IsDevelopment())
     {
-        // HTTP en puerto 5000 (para redirección)
         options.ListenAnyIP(5000);
-        // HTTPS en puerto 5001 (requiere certificado configurado)
-        options.ListenAnyIP(5001, listenOptions =>
-        {
-            listenOptions.UseHttps();
-        });
     }
 });
 
@@ -179,11 +173,7 @@ app.UseCors("AllowBlazor");
 // Rate limiting (antes de autenticación para proteger endpoints públicos)
 app.UseIpRateLimiting();
 
-// Redirección HTTPS solo en producción
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+// HTTPS lo termina Nginx; no redirigir aquí (rompería proxy_pass HTTP interno).
 
 app.UseAuthentication();
 app.UseAuthorization();

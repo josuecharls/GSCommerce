@@ -141,7 +141,7 @@
                                         <input type="number" class="form-control form-control-sm" step="1" min="1"
                                                @bind-value="detalle.Cantidad"
                                                @bind-value:event="oninput"
-                                               @bind-value:after="OnCantidadChanged" />
+                                               @bind-value:after="() => OnCantidadChanged(detalle)" />
                                     </td>
                                     <td><input type="number" class="form-control form-control-sm" step="0.01" @bind="detalle.PrecioUnitario" @oninput="RecalcularTotales" disabled /></td>
                                     <td><input type="number" class="form-control form-control-sm" step="0.01" @bind="detalle.PorcentajeDescuento" @oninput="RecalcularTotales" disabled /></td>
@@ -214,12 +214,18 @@
     <div class="text-end mb-4">
         @if (monedaAlmacen == "USD")
         {
-            <button class="btn btn-success me-2" @onclick="() => AbrirCobrar(true)">Cobrar Dólares</button>
-            <button class="btn btn-success" @onclick="() => AbrirCobrar(false)">Cobrar Soles</button>
+            <button class="btn btn-success me-2" disabled="@procesandoCobro" @onclick="() => AbrirCobrar(true)">
+                @(procesandoCobro ? "Procesando..." : "Cobrar Dólares")
+            </button>
+            <button class="btn btn-success" disabled="@procesandoCobro" @onclick="() => AbrirCobrar(false)">
+                @(procesandoCobro ? "Procesando..." : "Cobrar Soles")
+            </button>
         }
         else
         {
-            <button class="btn btn-success" @onclick="() => AbrirCobrar(false)">Cobrar</button>
+            <button class="btn btn-success" disabled="@procesandoCobro" @onclick="() => AbrirCobrar(false)">
+                @(procesandoCobro ? "Procesando..." : "Cobrar")
+            </button>
         }
     </div>
 }
@@ -389,6 +395,7 @@ else
     private ElementReference variantePopupContentRef;
     private List<DetallePagoDTO> pagosRealizados = new();
     private bool ventaCobrada = false;
+    private bool procesandoCobro = false;
     private bool mostrarArticuloModal = false;
     private string? fotoArticuloSeleccionada;
     private string? descripcionArticuloSeleccionada;
@@ -398,6 +405,9 @@ else
     private DateTime ultimaEntrada = DateTime.MinValue;
     private bool entradaManual = false;
     private DateTime ultimoEnter = DateTime.MinValue;
+    private CancellationTokenSource? _debounceCts;
+    // Stock disponible por línea (artículo + variante) para validar cantidad en grilla
+    private readonly Dictionary<string, int> stockPorLinea = new();
     //private string? tipoDocumentoSeleccionado;
     private int? idAlmacenActual;
     private int? idUsuarioActual;
@@ -679,6 +689,7 @@ else
     private void EliminarProducto(VentaDetalleDTO detalle)
     {
         int itemEliminado = detalle.Item;
+        stockPorLinea.Remove(ClaveStockLinea(detalle.CodigoItem, detalle.IdVariante));
         venta.Detalles.Remove(detalle);
         int item = 1;
         foreach (var d in venta.Detalles)
@@ -699,6 +710,9 @@ else
         RecalcularTotales();
     }
 
+    private static string ClaveStockLinea(string? codigo, int? idVariante) =>
+        $"{codigo ?? string.Empty}|{idVariante?.ToString() ?? "null"}";
+
     private void RecalcularTotales()
     {
         foreach (var detalle in venta.Detalles)
@@ -716,9 +730,46 @@ else
         venta.APagar = venta.Total;
     }
 
-    private void OnCantidadChanged()
+    private async Task OnCantidadChanged(VentaDetalleDTO detalle)
     {
         RecalcularTotales();
+
+        if (detalle is null || string.IsNullOrWhiteSpace(detalle.CodigoItem))
+            return;
+
+        var clave = ClaveStockLinea(detalle.CodigoItem, detalle.IdVariante);
+        int stockDisponible;
+
+        if (stockPorLinea.TryGetValue(clave, out var stockCacheado))
+        {
+            stockDisponible = stockCacheado;
+        }
+        else if (idAlmacenActual.HasValue)
+        {
+            stockDisponible = await StockService.GetStockCantidadFila(
+                detalle.CodigoItem, idAlmacenActual.Value, detalle.IdVariante);
+            stockPorLinea[clave] = stockDisponible;
+        }
+        else
+        {
+            return;
+        }
+
+        if (detalle.Cantidad > stockDisponible)
+        {
+            var solicitada = detalle.Cantidad;
+            detalle.Cantidad = stockDisponible;
+            await JS.InvokeVoidAsync("alert",
+                $"❌ Solo hay {stockDisponible} en stock para este artículo. Cantidad solicitada: {solicitada}.");
+            RecalcularTotales();
+            await InvokeAsync(StateHasChanged);
+        }
+        else if (detalle.Cantidad < 1 && stockDisponible >= 1)
+        {
+            detalle.Cantidad = 1;
+            RecalcularTotales();
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task BuscarAlPresionarEnter(KeyboardEventArgs e)
@@ -780,7 +831,16 @@ else
 
         if (codigoBusqueda.Length >= 6 && !entradaManual)
         {
-            await BuscarCodigoAsync();
+            _debounceCts?.Cancel();
+            _debounceCts = new CancellationTokenSource();
+            var token = _debounceCts.Token;
+            try
+            {
+                await Task.Delay(120, token);
+                if (!token.IsCancellationRequested)
+                    await BuscarCodigoAsync();
+            }
+            catch (TaskCanceledException) { }
         }
     }
 
@@ -790,12 +850,33 @@ else
     private static readonly char[] SeparadoresIndiceVarianteLectora =
     [
         '-',        // guion ASCII (esperado en etiqueta)
+        '\u2212',   // minus sign (−)
+        '\u2013',   // en dash (–)
+        '\u2014',   // em dash (—)
         '\'',       // apóstrofo ASCII
         '\u2019',   // ’ comilla tipográfica derecha
         '\u2018',   // ‘ comilla tipográfica izquierda
         '\u00B4',   // ´ acento agudo (teclado ES)
-        '`', '_', '.', '/', '|', '\\',
+        '`', '_', '.', '/', '\u2215', '\u2044', '|', '\\',
     ];
+
+    private static string NormalizarSeparadoresIndiceVariante(string codigo)
+    {
+        if (string.IsNullOrWhiteSpace(codigo))
+            return codigo;
+
+        // Normalizamos al guion '-' para que el parsing sea consistente
+        // aunque el lector entregue otros caracteres parecidos (ej. '/' o '−').
+        foreach (var sep in SeparadoresIndiceVarianteLectora)
+        {
+            if (sep == '-')
+                continue;
+
+            codigo = codigo.Replace(sep, '-');
+        }
+
+        return codigo;
+    }
 
     /// <summary>
     /// Formato "dígitos del artículo + separador + índice de variante" (1-based), p. ej. 000010-3 o 000010'3.
@@ -832,7 +913,7 @@ else
         if (string.IsNullOrWhiteSpace(codigoBusqueda))
             return;
 
-        var codigoOriginal = codigoBusqueda.Trim();
+        var codigoOriginal = NormalizarSeparadoresIndiceVariante(codigoBusqueda.Trim());
         codigoBusqueda = string.Empty;
         ultimaEntrada = DateTime.MinValue;
         entradaManual = false;
@@ -918,11 +999,22 @@ else
                     ? await StockService.GetStockCantidadFila(articulo.IdArticulo, idAlmacenActual.Value, varianteSeleccionada.IdVariante)
                     : 0;
                 await AgregarArticuloALaVenta(articulo, descripcionVariante, precioUnitario, esPromo, stockFila, varianteSeleccionada.IdVariante);
+                
+                // Si el popup se había mostrado antes por una lectura parcial,
+                // aseguremos que al reconocer el sufijo articulo-idxVariante se cierre.
+                mostrarSeleccionVariante = false;
+                articuloPendiente = null;
+                variantesPendientes.Clear();
+                indiceVarianteSeleccionada = 0;
                 return;
             }
             else
             {
                 await JS.InvokeVoidAsync("alert", $"❌ Variante {indiceVariante.Value} no existe. El artículo tiene {variantes.Count} variante(s).");
+                mostrarSeleccionVariante = false;
+                articuloPendiente = null;
+                variantesPendientes.Clear();
+                indiceVarianteSeleccionada = 0;
                 return;
             }
         }
@@ -1024,6 +1116,12 @@ else
 
     private async Task AbrirCobrar(bool enDolares)
     {
+        if (procesandoCobro || ventaCobrada)
+            return;
+
+        if (cobrarModalRef?.Mostrar == true)
+            return;
+
         if (venta.Detalles.Count == 0)
         {
             await JS.InvokeVoidAsync("alert", "⚠️ Debes agregar al menos un producto.");
@@ -1180,6 +1278,14 @@ else
 
     private async Task CobroConfirmado(List<DetallePagoDTO> pagos)
     {
+        if (procesandoCobro || ventaCobrada)
+            return;
+
+        procesandoCobro = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
         // Validar que haya al menos una forma de pago
         if (pagos == null || !pagos.Any())
         {
@@ -1344,6 +1450,12 @@ else
         await LimpiarFormulario(tipoAnterior, vendedorAnterior, nombreVendedorAnterior);
         // Refrescar completamente la página para iniciar una nueva venta
         Navigation.NavigateTo($"/ventass/crear/{modo}", true);
+        }
+        finally
+        {
+            if (!ventaCobrada)
+                procesandoCobro = false;
+        }
     }
 
     private string GenerarHtmlDelTicket()
@@ -1554,6 +1666,8 @@ else
         };
 
         pagosRealizados.Clear();
+        stockPorLinea.Clear();
+        procesandoCobro = false;
         ventaCobrada = false;
         fotoArticuloSeleccionada = null;
         descripcionArticuloSeleccionada = null;
@@ -1628,13 +1742,19 @@ else
         // Limpiar datos pendientes
         articuloPendiente = null;
         variantesPendientes.Clear();
+
+        await Task.Delay(50);
+        try { await inputCodigoRef.FocusAsync(); } catch { }
     }
 
-    private void CancelarSeleccionVariante()
+    private async Task CancelarSeleccionVariante()
     {
         mostrarSeleccionVariante = false;
         articuloPendiente = null;
         variantesPendientes.Clear();
+
+        await Task.Delay(50);
+        try { await inputCodigoRef.FocusAsync(); } catch { }
     }
 
     private async Task OnKeyDownVariante(KeyboardEventArgs e)
@@ -1657,6 +1777,9 @@ else
 
     private async Task AgregarArticuloALaVenta(ArticuloDTO articulo, string descripcion, decimal precioUnitario, bool esPromo, int stockDisponible, int? idVariante)
     {
+        var clave = ClaveStockLinea(articulo.IdArticulo, idVariante);
+        stockPorLinea[clave] = stockDisponible;
+
         var existente = venta.Detalles.FirstOrDefault(d =>
             d.CodigoItem == articulo.IdArticulo && d.IdVariante == idVariante && d.DescripcionItem == descripcion);
         VentaDetalleDTO? detalleSeleccionado = null;
@@ -1665,7 +1788,8 @@ else
         {
             if (existente.Cantidad + 1 > stockDisponible)
             {
-                await JS.InvokeVoidAsync("alert", "❌ Stock insuficiente para este artículo.");
+                await JS.InvokeVoidAsync("alert",
+                    $"❌ Solo hay {stockDisponible} en stock para este artículo.");
                 return;
             }
             existente.Cantidad += 1;
