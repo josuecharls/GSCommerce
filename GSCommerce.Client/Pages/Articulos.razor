@@ -13,7 +13,12 @@
 <h3><i class="bi bi-box-seam-fill"></i>  Lista de Artículos</h3>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <button class="btn btn-success" @onclick="CreateNewArticulo">+ Nuevo Artículo</button>
+    <div>
+        <button class="btn btn-success" @onclick="CreateNewArticulo">+ Nuevo Artículo</button>
+        <button class="btn btn-outline-success ms-2" @onclick="AbrirModalExportar">
+            <i class="bi bi-file-earmark-excel"></i> Exportar Articulos
+        </button>
+    </div>
     <div class="input-group w-50">
         <input type="text"
                class="form-control"
@@ -104,6 +109,95 @@
         Siguiente <i class="bi bi-arrow-right"></i>
     </button>
 </div>
+
+<!-- Modal Exportar Artículos -->
+@if (showExportModal)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Exportar Articulos</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalExportar" disabled="@exportando"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="chkExportarTodos"
+                               checked="@seleccionarTodosExport"
+                               @onchange="OnSeleccionarTodosExportChanged"
+                               disabled="@exportando" />
+                        <label class="form-check-label" for="chkExportarTodos">
+                            Seleccionar todos
+                        </label>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(mensajeExport))
+                    {
+                        <div class="alert alert-warning py-2">@mensajeExport</div>
+                    }
+
+                    @if (seleccionarTodosExport)
+                    {
+                        <div class="alert alert-info mb-0">
+                            Se exportarán todos los artículos (Código y Fecha de Registro).
+                        </div>
+                    }
+                    else
+                    {
+                        <label class="form-label">Buscar por código</label>
+                        <input type="text"
+                               class="form-control"
+                               placeholder="Ingrese el código y presione Enter"
+                               @bind="codigoExportar"
+                               @bind:event="oninput"
+                               @onkeydown="OnExportCodigoKeyDown"
+                               @ref="exportCodigoInput"
+                               disabled="@exportando" />
+
+                        @if (articulosExportarSeleccionados.Any())
+                        {
+                            <div class="mt-3">
+                                <small class="text-muted">Seleccionados: @articulosExportarSeleccionados.Count</small>
+                                <ul class="list-group mt-1" style="max-height: 280px; overflow-y: auto;">
+                                    @foreach (var art in articulosExportarSeleccionados)
+                                    {
+                                        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                            <span>
+                                                <strong>@art.IdArticulo</strong>
+                                                <span class="text-muted ms-2">@art.FechaRegistro.ToString("dd/MM/yyyy")</span>
+                                            </span>
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                    @onclick="() => RemoverArticuloExport(art)"
+                                                    disabled="@exportando"
+                                                    title="Quitar">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted mt-3 mb-0">Ningún artículo seleccionado.</p>
+                        }
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" @onclick="ExportarArticulos" disabled="@exportando">
+                        @if (exportando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        }
+                        Exportar
+                    </button>
+                    <button class="btn btn-secondary" @onclick="CerrarModalExportar" disabled="@exportando">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <!-- Modal de Confirmación para Eliminar -->
 @if (showDeleteModal)
@@ -365,6 +459,15 @@
     private string currentSortColumn = "Codigo";
     private bool sortAscending = true;
 
+    private bool showExportModal = false;
+    private bool seleccionarTodosExport = false;
+    private bool exportando = false;
+    private bool focusExportInput = false;
+    private string codigoExportar = "";
+    private string mensajeExport = "";
+    private List<ArticuloDTO> articulosExportarSeleccionados = new();
+    private ElementReference exportCodigoInput;
+
     protected override async Task OnInitializedAsync()
     {
         if (page.HasValue && page.Value > 0)
@@ -378,6 +481,143 @@
         }
 
         await LoadArticulos();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (focusExportInput && showExportModal && !seleccionarTodosExport)
+        {
+            focusExportInput = false;
+            try
+            {
+                await exportCodigoInput.FocusAsync();
+            }
+            catch
+            {
+                // El input puede no estar en el DOM si se marcó "Seleccionar todos"
+            }
+        }
+    }
+
+    private void AbrirModalExportar()
+    {
+        showExportModal = true;
+        seleccionarTodosExport = false;
+        exportando = false;
+        codigoExportar = "";
+        mensajeExport = "";
+        articulosExportarSeleccionados.Clear();
+        focusExportInput = true;
+    }
+
+    private void CerrarModalExportar()
+    {
+        if (exportando)
+            return;
+
+        showExportModal = false;
+        seleccionarTodosExport = false;
+        codigoExportar = "";
+        mensajeExport = "";
+        articulosExportarSeleccionados.Clear();
+    }
+
+    private void OnSeleccionarTodosExportChanged(ChangeEventArgs e)
+    {
+        seleccionarTodosExport = e.Value is bool b && b;
+        mensajeExport = "";
+        if (!seleccionarTodosExport)
+        {
+            focusExportInput = true;
+        }
+    }
+
+    private async Task OnExportCodigoKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await AgregarArticuloPorCodigo();
+        }
+    }
+
+    private async Task AgregarArticuloPorCodigo()
+    {
+        mensajeExport = "";
+        var codigo = ArticuloService.NormalizarCodigoArticulo(codigoExportar);
+        if (string.IsNullOrEmpty(codigo))
+            return;
+
+        if (articulosExportarSeleccionados.Any(a => a.IdArticulo == codigo))
+        {
+            mensajeExport = $"El artículo {codigo} ya está seleccionado.";
+            codigoExportar = "";
+            focusExportInput = true;
+            return;
+        }
+
+        var articulo = await ArticuloService.BuscarPorCodigoAsync(codigo);
+        if (articulo == null)
+        {
+            mensajeExport = $"No se encontró el artículo {codigo}.";
+            focusExportInput = true;
+            return;
+        }
+
+        articulosExportarSeleccionados.Add(articulo);
+        codigoExportar = "";
+        focusExportInput = true;
+    }
+
+    private void RemoverArticuloExport(ArticuloDTO art)
+    {
+        articulosExportarSeleccionados.Remove(art);
+    }
+
+    private async Task ExportarArticulos()
+    {
+        mensajeExport = "";
+
+        if (!seleccionarTodosExport && !articulosExportarSeleccionados.Any())
+        {
+            mensajeExport = "Seleccione al menos un artículo o marque 'Seleccionar todos'.";
+            focusExportInput = true;
+            return;
+        }
+
+        exportando = true;
+        try
+        {
+            var aExportar = seleccionarTodosExport
+                ? await ArticuloService.ObtenerTodos()
+                : articulosExportarSeleccionados;
+
+            if (aExportar == null || !aExportar.Any())
+            {
+                mensajeExport = "No hay artículos para exportar.";
+                return;
+            }
+
+            var headers = new[] { "Codigo", "Fecha de Registro" };
+            var rows = aExportar
+                .Select(a => new object[]
+                {
+                    a.IdArticulo,
+                    a.FechaRegistro.ToString("dd/MM/yyyy")
+                })
+                .ToArray();
+
+            await JS.InvokeVoidAsync("exportToExcel", headers, rows, "Articulos");
+            exportando = false;
+            CerrarModalExportar();
+        }
+        catch (Exception ex)
+        {
+            mensajeExport = $"No se pudo generar el Excel: {ex.Message}";
+        }
+        finally
+        {
+            exportando = false;
+        }
     }
 
     private async Task LoadArticulos()
