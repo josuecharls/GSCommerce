@@ -7,6 +7,7 @@ using GSCommerceAPI.Services;
 using GSCommerceAPI.Services.Caja;
 using GSCommerceAPI.Services.Reportes;
 using GSCommerceAPI.Services.SUNAT;
+using GSCommerceAPI.Services.TipoCambio;
 using ServicioSunat;
 using AspNetCoreRateLimit;
 
@@ -41,6 +42,7 @@ builder.Services.AddDbContext<SysDbHistoricalContext>(options =>
            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 builder.Services.Configure<ReporteAvanceHoraEmailOptions>(builder.Configuration.GetSection(ReporteAvanceHoraEmailOptions.SectionName));
 builder.Services.Configure<CuadroCajaEmailOptions>(builder.Configuration.GetSection(CuadroCajaEmailOptions.SectionName));
+builder.Services.Configure<TipoCambioDiarioOptions>(builder.Configuration.GetSection(TipoCambioDiarioOptions.SectionName));
 Console.WriteLine(
     "Cadena de conexi�n: " + builder.Configuration.GetConnectionString("DefaultConnection"));
 
@@ -51,10 +53,12 @@ builder.Services.AddScoped<IReporteAvanceHoraEmailService, ReporteAvanceHoraEmai
 builder.Services.AddScoped<ICajaVentasDiariasService, CajaVentasDiariasService>();
 builder.Services.AddScoped<ICuadroCajaReportProvider, CuadroCajaReportProvider>();
 builder.Services.AddScoped<ICuadroCajaEmailService, CuadroCajaEmailService>();
+builder.Services.AddScoped<TipoCambioDiarioService>();
 builder.Services.AddScoped<GSCommerceAPI.Services.PasswordHasherService>();
 builder.Services.AddHostedService<TicketValidationBackgroundService>();
 builder.Services.AddHostedService<ReporteAvanceHoraEmailBackgroundService>();
 builder.Services.AddHostedService<CuadroCajaEmailBackgroundService>();
+builder.Services.AddHostedService<TipoCambioDiarioBackgroundService>();
 
 // Habilitar CORS para permitir llamadas desde el frontend
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()

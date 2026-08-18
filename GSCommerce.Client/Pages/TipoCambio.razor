@@ -8,6 +8,11 @@
 
 <h3><i class="bi bi-currency-exchange"></i> Mantenimiento de Tipo de Cambio</h3>
 
+<div class="alert alert-info">
+    Cada día a las <strong>6:00 a.m.</strong> el sistema copia automáticamente el último tipo de cambio registrado hacia el día actual.
+    Basta con ingresar el valor cuando cambie. Si el tipo de cambio de hoy debe ser distinto, regístrelo <strong>después de las 6:00 a.m.</strong>
+</div>
+
 <div class="row mb-3">
     <div class="col-md-4">
         <label>Seleccionar fecha:</label>
@@ -25,6 +30,7 @@
 
 <div class="mb-3">
     <button class="btn btn-success me-2" @onclick="Guardar"><i class="bi bi-floppy2"></i>  Guardar</button>
+    <button class="btn btn-outline-primary me-2" @onclick="ReplicarHoy"><i class="bi bi-arrow-repeat"></i> Replicar de ayer a hoy</button>
     <button class="btn btn-danger" @onclick="Eliminar"><i class="bi bi-trash"></i> Eliminar</button>
 </div>
 
@@ -107,6 +113,21 @@
         {
             await JS.InvokeVoidAsync("alert", "❌ Error al guardar el tipo de cambio.");
         }
+    }
+
+    private async Task ReplicarHoy()
+    {
+        var resultado = await tipoCambioService.ReplicarDiarioAsync();
+        if (resultado == null)
+        {
+            await JS.InvokeVoidAsync("alert", "❌ No hay un tipo de cambio anterior para replicar a hoy.");
+            return;
+        }
+
+        await JS.InvokeVoidAsync("alert",
+            $"✅ Tipo de cambio {resultado.Accion.ToLower()} para hoy (desde {resultado.FechaOrigen:dd/MM/yyyy}). Compra: {resultado.Compra:N3} / Venta: {resultado.Venta:N3}");
+        fechaSeleccionada = DateTime.Today;
+        await CargarTipoCambio();
     }
 
     private async Task Eliminar()

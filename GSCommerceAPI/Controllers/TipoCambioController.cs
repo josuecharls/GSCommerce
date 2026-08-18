@@ -1,6 +1,8 @@
 ﻿using GSCommerce.Client.Models;
 using GSCommerceAPI.Data;
 using GSCommerceAPI.Models;
+using GSCommerceAPI.Services.TipoCambio;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,10 +13,12 @@ namespace GSCommerceAPI.Controllers
     public class TipoCambioController : ControllerBase
     {
         private readonly SyscharlesContext _context;
+        private readonly TipoCambioDiarioService _tipoCambioDiarioService;
 
-        public TipoCambioController(SyscharlesContext context)
+        public TipoCambioController(SyscharlesContext context, TipoCambioDiarioService tipoCambioDiarioService)
         {
             _context = context;
+            _tipoCambioDiarioService = tipoCambioDiarioService;
         }
         // GET: api/TipoCambio
         [HttpGet("hoy")]
@@ -89,6 +93,18 @@ namespace GSCommerceAPI.Controllers
             await _context.SaveChangesAsync();
 
             return Ok();
+        }
+
+        // POST: api/tipocambio/replicar-diario
+        [HttpPost("replicar-diario")]
+        [Authorize(Roles = "ADMINISTRADOR")]
+        public async Task<ActionResult<TipoCambioReplicacionResultadoDTO>> ReplicarDiario()
+        {
+            var resultado = await _tipoCambioDiarioService.ReplicarAsync();
+            if (string.Equals(resultado.Accion, "SIN_ORIGEN", StringComparison.OrdinalIgnoreCase))
+                return NotFound("No existe un tipo de cambio anterior para replicar a hoy.");
+
+            return Ok(resultado);
         }
 
         // ✅ DELETE: api/tipocambio/2025-06-16

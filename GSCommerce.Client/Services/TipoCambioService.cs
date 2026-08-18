@@ -38,4 +38,13 @@ public class TipoCambioService
         var response = await _http.DeleteAsync($"tipocambio/{fechaStr}");
         return response.IsSuccessStatusCode;
     }
+
+    public async Task<TipoCambioReplicacionResultadoDTO?> ReplicarDiarioAsync()
+    {
+        var response = await _http.PostAsync("tipocambio/replicar-diario", null);
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        return await response.Content.ReadFromJsonAsync<TipoCambioReplicacionResultadoDTO>();
+    }
 }
