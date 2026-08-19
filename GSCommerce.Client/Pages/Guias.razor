@@ -4,10 +4,13 @@
 @inject AuthService AuthService
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using GSCommerce.Client.Helpers
 @using Microsoft.AspNetCore.WebUtilities
+@using System.Linq
 @inject NavigationManager Navigation
 @inject MovimientoGuiaService MovimientoGuiaService
 @inject AuxiliaresVariosService AuxiliaresVariosService
+@inject AlmacenService AlmacenService
 @inject IJSRuntime JS
 
 <h3><i class="bi bi-file-earmark-ruled"></i> Guías de Movimiento</h3>
@@ -25,6 +28,17 @@
         <option value="@mot">@mot</option>
     }
 </select>
+
+@if (esAdministrador)
+{
+    <select class="form-select mb-2" @bind="idAlmacenFiltro" @bind:event="onchange">
+        <option value="0">Todos los almacenes</option>
+        @foreach (var a in almacenes)
+        {
+            <option value="@a.IdAlmacen">@a.Nombre</option>
+        }
+    </select>
+}
 
 <button @onclick="CreateNewGuia" class="btn btn-success mb-3">+ Nueva Guía</button>
 
@@ -61,21 +75,28 @@
                         {
                             <span class="badge bg-danger">Anulado</span>
                         }
+                        else if (g.Estado?.Trim() == "C" || g.IdUsuarioConfirma.HasValue)
+                        {
+                            <span class="badge bg-success">Confirmado</span>
+                        }
                         else
                         {
-                            <span class="badge bg-success">Emitido</span>
+                            <span class="badge bg-primary">Emitido</span>
                         }
                     </td>
                     <td class="text-center">
                         <button @onclick="() => VerDetalle(g.IdMovimiento)" class="btn btn-info btn-sm me-1">
                             <i class="bi bi-eye"></i> Ver Detalle
                         </button>
-                        <button @onclick="() => EditGuia(g.IdMovimiento)" class="btn btn-warning btn-sm me-1" disabled="@(g.Estado?.Trim() == "A" || EsTransferenciaConfirmada(g))">
+                        <button @onclick="() => EditGuia(g.IdMovimiento)" class="btn btn-warning btn-sm me-1" disabled="@(!GuiaTransferenciaReglas.PuedeEditar(g))">
                             <i class="bi bi-pencil-square"></i> Editar
                         </button>
-                        <button class="btn btn-danger btn-sm me-1" @onclick="() => AnularGuia(g.IdMovimiento)" disabled="@(g.Estado?.Trim() == "A")">
-                            🛑 Anular
-                        </button>
+                        @if (GuiaTransferenciaReglas.MostrarBotonAnular(g, DateTime.Now))
+                        {
+                            <button class="btn btn-danger btn-sm me-1" @onclick="() => AnularGuia(g.IdMovimiento)" disabled="@(!GuiaTransferenciaReglas.PuedeAnular(g, DateTime.Now))">
+                                🛑 Anular
+                            </button>
+                        }
                         @if (EsPendienteDeRecepcion(g, idAlmacenUsuario))
                         {
                             <button class="btn btn-info btn-sm" @onclick="() => Confirmar(g.IdMovimiento)">✅ Confirmar</button>
@@ -119,6 +140,23 @@
         }
     }
     private int? idAlmacenUsuario;
+    private bool esAdministrador;
+    private List<AlmacenDTO> almacenes = new();
+    private bool _filtroAlmacenListo;
+    private int _idAlmacenFiltro = 0;
+    private int idAlmacenFiltro
+    {
+        get => _idAlmacenFiltro;
+        set
+        {
+            if (_idAlmacenFiltro != value)
+            {
+                _idAlmacenFiltro = value;
+                if (_filtroAlmacenListo)
+                    _ = SearchGuias();
+            }
+        }
+    }
     private string _motivoFiltro = "";
     private string motivoFiltro
     {
@@ -142,17 +180,31 @@
             _tipoFiltro = tipoQuery.ToString();
         }
 
-        // Obtén el almacén real del usuario
-        //idAlmacenUsuario = await AuthService.GetIdAlmacenAsync();
-        idAlmacenUsuario = idAlmacenUsuario ?? 0; // no olvidar quitarlo al usar AuthService
+        var cargo = await AuthService.GetUserCargo();
+        esAdministrador = string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase);
+        if (esAdministrador)
+        {
+            almacenes = (await AlmacenService.GetAlmacenes() ?? new())
+                .OrderBy(a => a.Nombre)
+                .ToList();
+        }
+        else
+        {
+            idAlmacenUsuario = await AuthService.GetUserAlmacenId();
+        }
+
         await CargarMotivos();
         await LoadGuias();
+        _filtroAlmacenListo = true;
     }
 
     private async Task LoadGuias()
     {
+        int? idAlmacenConsulta = esAdministrador
+            ? (_idAlmacenFiltro > 0 ? _idAlmacenFiltro : null)
+            : idAlmacenUsuario;
         var result = await MovimientoGuiaService.GetGuiasList(
-            currentPage, pageSize, searchTerm, tipoFiltro, motivoFiltro, idAlmacenUsuario);
+            currentPage, pageSize, searchTerm, tipoFiltro, motivoFiltro, idAlmacenConsulta);
         guias = result.Data;
         totalPages = result.TotalPages;
     }
@@ -186,10 +238,6 @@
         && string.Equals(g.Estado?.Trim(), "E", StringComparison.OrdinalIgnoreCase)
         && g.IdUsuarioConfirma == null
         && (idAlmacenUsuario == null || idAlmacenUsuario == 0 || g.IdAlmacen == idAlmacenUsuario);
-
-    private static bool EsTransferenciaConfirmada(MovimientoGuiaDTO g)
-        => g?.Tipo?.Equals("T", StringComparison.OrdinalIgnoreCase) == true
-        && g.IdUsuarioConfirma.HasValue;
 
     private async Task SearchGuias()
     {

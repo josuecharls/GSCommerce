@@ -129,13 +129,41 @@ namespace GSCommerceAPI.Controllers
             if (!string.Equals(ingreso.Estado?.Trim(), "E", StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { mensaje = "El movimiento debe estar en estado 'Emitido'" });
 
-            // 2) Ubica la guía espejo de EGRESO (origen) pendiente
+            if (!ingreso.IdMovimientoEspejo.HasValue || ingreso.IdMovimientoEspejo.Value <= 0)
+                return BadRequest(new { mensaje = "La guía de ingreso no tiene egreso espejo enlazado. No se confirma para evitar cruzar transferencias." });
+
+            // 2) Ubica la guía espejo de EGRESO (origen) y valida que sea exactamente ese par
             var egreso = await _context.MovimientosCabeceras
                 .Include(m => m.MovimientosDetalles)
                 .FirstOrDefaultAsync(m => m.IdMovimiento == ingreso.IdMovimientoEspejo);
 
             if (egreso == null)
                 return BadRequest(new { mensaje = "No se encontró la guía de TRANSFERENCIA EGRESO asociada y pendiente." });
+
+            if (!string.Equals(egreso.Motivo?.Trim(), "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { mensaje = $"El espejo #{egreso.IdMovimiento} no es una TRANSFERENCIA EGRESO. No se confirma." });
+
+            if (!string.Equals(egreso.Estado?.Trim(), "E", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { mensaje = $"El egreso espejo #{egreso.IdMovimiento} no está pendiente (estado '{egreso.Estado}'). No se confirma." });
+
+            if (egreso.IdAlmacen != ingreso.IdAlmacenDestinoOrigen
+                || egreso.IdAlmacenDestinoOrigen != ingreso.IdAlmacen)
+            {
+                return BadRequest(new { mensaje = $"El egreso #{egreso.IdMovimiento} no corresponde a la ruta de almacenes de la guía #{ingreso.IdMovimiento}. No se confirma." });
+            }
+
+            if (egreso.IdMovimientoEspejo.HasValue && egreso.IdMovimientoEspejo.Value != ingreso.IdMovimiento)
+            {
+                return BadRequest(new { mensaje = $"El egreso #{egreso.IdMovimiento} está enlazado a otra guía (#{egreso.IdMovimientoEspejo}), no a la #{ingreso.IdMovimiento}. No se confirma." });
+            }
+
+            if (!DetallesTransferenciaCoinciden(ingreso.MovimientosDetalles, egreso.MovimientosDetalles, out var detalleMismatch))
+            {
+                return BadRequest(new
+                {
+                    mensaje = $"El detalle de TRANSFERENCIA INGRESO Nro: {ingreso.IdMovimiento} no coincide con TRANSFERENCIA EGRESO Nro: {egreso.IdMovimiento}. {detalleMismatch} No se movió stock ni kardex."
+                });
+            }
 
             // 🔒 valida que el usuario logueado pertenezca al almacén destino o sea administrador
             var userIdClaim = User.FindFirst("userId")?.Value;
@@ -157,6 +185,9 @@ namespace GSCommerceAPI.Controllers
             // 3) Marcar ambas como confirmadas (no se persiste si el SP falla porque hay tx)
             var fechaConf = DateTime.Now;
 
+            if (!egreso.IdMovimientoEspejo.HasValue)
+                egreso.IdMovimientoEspejo = ingreso.IdMovimiento;
+
             ingreso.IdUsuarioConfirma = userId;
             ingreso.FechaHoraConfirma = fechaConf;
             ingreso.Estado = "C";
@@ -167,8 +198,8 @@ namespace GSCommerceAPI.Controllers
 
             await _context.SaveChangesAsync();
 
-            // 4) Actualiza stock y registra en kardex: resta en ORIGEN y suma en DESTINO
-            foreach (var detalle in egreso.MovimientosDetalles)
+            // 4) Stock y kardex con el detalle del INGRESO que se confirma (ya validado contra el egreso)
+            foreach (var detalle in ingreso.MovimientosDetalles)
             {
                 var stockOrigen = await IdVarianteUtil.BuscarStockAlmacenAsync(
                     _context.StockAlmacens, egreso.IdAlmacen, detalle.IdArticulo);
@@ -285,6 +316,9 @@ namespace GSCommerceAPI.Controllers
                 IdOc = cabecera.IdOc,
                 IdUsuario = cabecera.IdUsuario,
                 Estado = cabecera.Estado,
+                FechaHoraRegistro = cabecera.FechaHoraRegistro,
+                IdUsuarioConfirma = cabecera.IdUsuarioConfirma,
+                FechaHoraConfirma = cabecera.FechaHoraConfirma,
                 Detalles = cabecera.MovimientosDetalles.Select(d => new MovimientoDetalleDTO
                 {
                     IdMovimiento = d.IdMovimiento,
@@ -553,8 +587,27 @@ namespace GSCommerceAPI.Controllers
                 !string.Equals(estadoOriginal, "C", StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { mensaje = "Solo se pueden anular guías emitidas o confirmadas" });
 
-            var esTransferencia = string.Equals(motivoNormalizado, "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(motivoNormalizado, "TRANSFERENCIA INGRESO", StringComparison.OrdinalIgnoreCase);
+            var esEgresoTransferencia = string.Equals(motivoNormalizado, "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase);
+            var esIngresoTransferencia = string.Equals(motivoNormalizado, "TRANSFERENCIA INGRESO", StringComparison.OrdinalIgnoreCase);
+            var esTransferencia = esEgresoTransferencia || esIngresoTransferencia;
+            var confirmada = string.Equals(estadoOriginal, "C", StringComparison.OrdinalIgnoreCase)
+                || movimiento.IdUsuarioConfirma.HasValue;
+
+            if (esTransferencia)
+            {
+                if (esEgresoTransferencia && confirmada)
+                    return BadRequest(new { mensaje = "Después de confirmar, anule desde la TRANSFERENCIA INGRESO (solo durante las primeras 72 horas)." });
+
+                if (esIngresoTransferencia && !confirmada)
+                    return BadRequest(new { mensaje = "Antes de confirmar, anule desde la TRANSFERENCIA EGRESO." });
+
+                if (confirmada)
+                {
+                    var fechaConfirma = movimiento.FechaHoraConfirma;
+                    if (!fechaConfirma.HasValue || DateTime.Now - fechaConfirma.Value > TimeSpan.FromHours(72))
+                        return BadRequest(new { mensaje = "Han pasado más de 72 horas desde la confirmación. Esta transferencia ya no se puede anular." });
+                }
+            }
 
             movimiento.Estado = "A";
 
@@ -684,9 +737,10 @@ namespace GSCommerceAPI.Controllers
 
                 if (movimiento == null) return NotFound();
 
-                // Si es transferencia, validar que no esté confirmada
                 var esTransferencia = movimiento.Tipo == "T";
-                if (esTransferencia && movimiento.IdUsuarioConfirma.HasValue)
+                var confirmada = string.Equals(movimiento.Estado?.Trim(), "C", StringComparison.OrdinalIgnoreCase)
+                    || movimiento.IdUsuarioConfirma.HasValue;
+                if (esTransferencia && confirmada)
                 {
                     return BadRequest(new { mensaje = "No se puede editar una transferencia confirmada." });
                 }
@@ -700,7 +754,8 @@ namespace GSCommerceAPI.Controllers
                         .FirstOrDefaultAsync(m => m.IdMovimiento == movimiento.IdMovimientoEspejo);
 
                     // Validar que la guía espejo tampoco esté confirmada
-                    if (guiaEspejo != null && guiaEspejo.IdUsuarioConfirma.HasValue)
+                    if (guiaEspejo != null && (guiaEspejo.IdUsuarioConfirma.HasValue
+                        || string.Equals(guiaEspejo.Estado?.Trim(), "C", StringComparison.OrdinalIgnoreCase)))
                     {
                         return BadRequest(new { mensaje = "No se puede editar una transferencia cuya guía espejo está confirmada." });
                     }
@@ -839,6 +894,62 @@ namespace GSCommerceAPI.Controllers
                     Console.WriteLine("❌ Inner: " + ex.InnerException.Message);
                 return StatusCode(500, $"❌ Error al ejecutar SP: {ex.Message}");
             }
+        }
+
+        private static Dictionary<(string Articulo, int? Variante), int> AgruparDetalleTransferencia(
+            IEnumerable<MovimientosDetalle> detalles)
+        {
+            return detalles
+                .GroupBy(d => (
+                    Articulo: (d.IdArticulo ?? string.Empty).Trim(),
+                    Variante: IdVarianteUtil.Normalizar(d.IdVariante)))
+                .ToDictionary(g => g.Key, g => g.Sum(d => d.Cantidad));
+        }
+
+        private static bool DetallesTransferenciaCoinciden(
+            ICollection<MovimientosDetalle> ingresoDetalles,
+            ICollection<MovimientosDetalle> egresoDetalles,
+            out string mismatch)
+        {
+            var ingreso = AgruparDetalleTransferencia(ingresoDetalles);
+            var egreso = AgruparDetalleTransferencia(egresoDetalles);
+
+            if (ingreso.Count == 0)
+            {
+                mismatch = "La guía de ingreso no tiene detalle.";
+                return false;
+            }
+
+            if (egreso.Count == 0)
+            {
+                mismatch = "La guía de egreso espejo no tiene detalle.";
+                return false;
+            }
+
+            var claves = ingreso.Keys.Union(egreso.Keys).ToList();
+            var diferencias = new List<string>();
+
+            foreach (var clave in claves)
+            {
+                ingreso.TryGetValue(clave, out var cantIn);
+                egreso.TryGetValue(clave, out var cantEg);
+                if (cantIn == cantEg)
+                    continue;
+
+                var variante = clave.Variante.HasValue ? $" var:{clave.Variante}" : string.Empty;
+                diferencias.Add($"{clave.Articulo}{variante} ingreso={cantIn} egreso={cantEg}");
+                if (diferencias.Count >= 8)
+                    break;
+            }
+
+            if (diferencias.Count == 0)
+            {
+                mismatch = string.Empty;
+                return true;
+            }
+
+            mismatch = "Diferencias: " + string.Join("; ", diferencias) + ".";
+            return false;
         }
     }
 }

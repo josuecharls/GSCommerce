@@ -1,6 +1,7 @@
 @page "/guias/detalle/{id:int}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using GSCommerce.Client.Helpers
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
@@ -133,10 +134,16 @@ else
             <button class="btn btn-secondary" @onclick="Volver">
                 <i class="bi bi-arrow-left"></i> Volver
             </button>
-            @if (guia.Estado != "A" && !esTransferenciaConfirmada)
+            @if (GuiaTransferenciaReglas.PuedeEditar(guia))
             {
                 <button class="btn btn-warning ms-2" @onclick="Editar">
                     <i class="bi bi-pencil-square"></i> Editar
+                </button>
+            }
+            @if (GuiaTransferenciaReglas.MostrarBotonAnular(guia, DateTime.Now))
+            {
+                <button class="btn btn-danger ms-2" @onclick="Anular" disabled="@(!GuiaTransferenciaReglas.PuedeAnular(guia, DateTime.Now))">
+                    🛑 Anular
                 </button>
             }
         </div>
@@ -152,10 +159,8 @@ else
     private string titulo = "Guía";
     private string proveedorNombre = string.Empty;
     private string? returnUrl = null;
-    private bool esTransferenciaConfirmada = false;
 
-    private bool esTransferencia => guia.Tipo == "T" && 
-        (guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO" || guia.Motivo?.Trim() == "TRANSFERENCIA INGRESO");
+    private bool esTransferencia => GuiaTransferenciaReglas.EsTransferencia(guia);
     
     private bool esIngresoEgreso => guia.Tipo == "I" || guia.Tipo == "E";
     private bool mostrarProveedor => esIngresoEgreso && guia.IdProveedor.HasValue;
@@ -231,8 +236,6 @@ else
             "T" => guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO" ? "Transferencia - Egreso" : "Transferencia - Ingreso",
             _ => "Guía"
         };
-
-        esTransferenciaConfirmada = guia.Tipo == "T" && guia.IdUsuarioConfirma.HasValue;
         
         isLoading = false;
     }
@@ -240,6 +243,22 @@ else
     private void Volver()
     {
         Navigation.NavigateTo(returnUrl ?? "/guias");
+    }
+
+    private async Task Anular()
+    {
+        if (!GuiaTransferenciaReglas.PuedeAnular(guia, DateTime.Now))
+            return;
+
+        var confirmado = await JS.InvokeAsync<bool>("confirm", $"¿Estás seguro de anular la guía #{guia.IdMovimiento}?");
+        if (!confirmado) return;
+
+        var resp = await MovimientoGuiaService.AnularGuia(guia.IdMovimiento);
+        await JS.InvokeVoidAsync("alert", resp.Mensaje);
+        if (resp.Ok)
+        {
+            Navigation.NavigateTo(returnUrl ?? "/guias");
+        }
     }
 
     private void Editar()

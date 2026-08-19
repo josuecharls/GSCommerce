@@ -1,6 +1,7 @@
 ﻿@page "/guias/edit/{id:int}"
 @using GSCommerce.Client.Models
 @using GSCommerce.Client.Services
+@using GSCommerce.Client.Helpers
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject MovimientoGuiaService MovimientoGuiaService
@@ -210,6 +211,13 @@ else
         {
             await MostrarAlerta("❌ No se pudo cargar la guía.");
             Navigation.NavigateTo("/guias");
+            return;
+        }
+
+        if (!GuiaTransferenciaReglas.PuedeEditar(guia))
+        {
+            await MostrarAlerta("No se puede editar una guía anulada o una transferencia confirmada.");
+            Navigation.NavigateTo($"/guias/detalle/{id}");
             return;
         }
 
