@@ -368,48 +368,34 @@ else
         CalcularTotalArticulos();
         StateHasChanged();
 
-        // Validar stock para transferencias de egreso y egresos
-        if (((esTransferencia && guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO") || guia.Tipo == "E") 
+        // Validar stock para transferencias de egreso y egresos (suma de todas las líneas del mismo código)
+        if (((esTransferencia && guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO") || guia.Tipo == "E")
             && !string.IsNullOrWhiteSpace(d.IdArticulo))
         {
             var codigoNormalizado = d.IdArticulo.Trim();
             var idAlmacen = esTransferencia ? almacenOrigenId : guia.IdAlmacen;
+            var cantidadTotalCodigo = guia.Detalles
+                .Where(x => string.Equals(x.IdArticulo?.Trim(), codigoNormalizado, StringComparison.OrdinalIgnoreCase))
+                .Sum(x => x.Cantidad);
 
-            if (stockPorArticulo.ContainsKey(codigoNormalizado))
-            {
-                var stockDisponible = stockPorArticulo[codigoNormalizado];
+            if (idAlmacen <= 0)
+                return;
 
-                if (d.Cantidad > stockDisponible)
-                {
-                    await MostrarAlerta($"❌ No hay stock suficiente ({stockDisponible} en total) para el artículo '{codigoNormalizado}'. Cantidad solicitada: {d.Cantidad}.");
-                    d.Cantidad = stockDisponible;
-                    CalcularTotalArticulos();
-                    StateHasChanged();
-                }
-            }
-            else if (idAlmacen > 0)
+            if (!stockPorArticulo.TryGetValue(codigoNormalizado, out var stockDisponible))
             {
-                int stockDisponible;
-                
-                // Para transferencias de egreso, usar el método que considera transferencias pendientes (excluyendo la actual)
-                if (esTransferencia && guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO")
-                {
-                    stockDisponible = await StockService.GetStockDisponibleParaTransferencia(codigoNormalizado, idAlmacen, guia.IdMovimiento);
-                }
-                else
-                {
-                    stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, idAlmacen);
-                }
-                
+                stockDisponible = esTransferencia && guia.Motivo?.Trim() == "TRANSFERENCIA EGRESO"
+                    ? await StockService.GetStockDisponibleParaTransferencia(codigoNormalizado, idAlmacen, guia.IdMovimiento)
+                    : await StockService.GetStockDisponible(codigoNormalizado, idAlmacen);
                 stockPorArticulo[codigoNormalizado] = stockDisponible;
+            }
 
-                if (d.Cantidad > stockDisponible)
-                {
-                    await MostrarAlerta($"❌ No hay stock suficiente ({stockDisponible} en total) para el artículo '{codigoNormalizado}'. Cantidad solicitada: {d.Cantidad}.");
-                    d.Cantidad = stockDisponible;
-                    CalcularTotalArticulos();
-                    StateHasChanged();
-                }
+            if (cantidadTotalCodigo > stockDisponible)
+            {
+                var exceso = cantidadTotalCodigo - stockDisponible;
+                d.Cantidad = Math.Max(0, d.Cantidad - exceso);
+                await MostrarAlerta($"❌ No hay stock suficiente ({stockDisponible} en total) para el artículo '{codigoNormalizado}'. Cantidad solicitada (todas las líneas): {cantidadTotalCodigo}.");
+                CalcularTotalArticulos();
+                StateHasChanged();
             }
         }
     }
@@ -436,10 +422,9 @@ else
     {
         if (guardando) return;
 
-        // Limpiar detalles vacíos o inválidos
-        guia.Detalles = guia.Detalles
-            .Where(d => !string.IsNullOrWhiteSpace(d.IdArticulo) && d.Cantidad > 0)
-            .ToList();
+        // Limpia vacíos y une el mismo código en una sola línea (suma cantidades)
+        guia.Detalles = MovimientoDetalleConsolidacion.ConsolidarPorCodigo(guia.Detalles);
+        CalcularTotalArticulos();
 
         if (!guia.Detalles.Any())
         {

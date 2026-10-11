@@ -15,9 +15,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
+using System.Text;
 
 
 namespace GSCommerceAPI.Controllers
@@ -4710,6 +4712,501 @@ namespace GSCommerceAPI.Controllers
             {
                 return StatusCode(500, $"Error al obtener metas diarias: {ex.Message}");
             }
+        }
+
+        [HttpGet("meta-diaria-plantilla")]
+        [Authorize]
+        public async Task<IActionResult> DescargarPlantillaMetaDiaria([FromQuery] DateOnly fecha)
+        {
+            var cargo = User.FindFirst("Cargo")?.Value;
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "Solo los administradores pueden descargar la plantilla de cuotas.");
+            }
+
+            var almacenes = await ObtenerAlmacenesParaCuotasAsync();
+            var fechaStr = fecha.ToString("yyyyMMdd");
+            var claves = almacenes.Select(a => $"META_DIARIA_{a.IdAlmacen}_{fechaStr}").ToList();
+
+            var configuraciones = await _context.Configuracions
+                .AsNoTracking()
+                .Where(c => claves.Contains(c.Configuracion1))
+                .ToListAsync();
+
+            var metasConfig = new Dictionary<int, decimal>();
+            foreach (var config in configuraciones)
+            {
+                var partes = config.Configuracion1.Split('_');
+                if (partes.Length >= 3 && int.TryParse(partes[2], out var idAlm) &&
+                    (decimal.TryParse(config.Valor, NumberStyles.Any, CultureInfo.InvariantCulture, out var meta) ||
+                     decimal.TryParse(config.Valor, NumberStyles.Any, CultureInfo.GetCultureInfo("es-PE"), out meta)))
+                {
+                    metasConfig[idAlm] = meta;
+                }
+            }
+
+            var idsAlmacen = almacenes.Select(a => a.IdAlmacen).ToList();
+            var metasTabla = await _context.AlmacenMetaVentasDiarias.AsNoTracking()
+                .Where(m => m.Fecha == fecha && idsAlmacen.Contains(m.IdAlmacen))
+                .ToDictionaryAsync(m => m.IdAlmacen, m => m.MetaMontoDiario);
+
+            using var workbook = new XLWorkbook();
+            var hoja = workbook.Worksheets.Add("Cuotas");
+
+            hoja.Cell(1, 1).Value = "Fecha";
+            hoja.Cell(1, 2).Value = "IdAlmacen";
+            hoja.Cell(1, 3).Value = "Tienda";
+            hoja.Cell(1, 4).Value = "Cuota";
+
+            var headerRange = hoja.Range(1, 1, 1, 4);
+            headerRange.Style.Font.SetBold();
+            headerRange.Style.Fill.BackgroundColor = XLColor.FromArgb(198, 239, 206);
+            headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+            var fila = 2;
+            foreach (var almacen in almacenes)
+            {
+                hoja.Cell(fila, 1).Value = fecha.ToDateTime(TimeOnly.MinValue);
+                hoja.Cell(fila, 1).Style.DateFormat.Format = "dd/MM/yyyy";
+                hoja.Cell(fila, 2).Value = almacen.IdAlmacen;
+                hoja.Cell(fila, 3).Value = almacen.Nombre;
+
+                if (metasConfig.TryGetValue(almacen.IdAlmacen, out var metaConfig))
+                {
+                    hoja.Cell(fila, 4).Value = metaConfig;
+                }
+                else if (metasTabla.TryGetValue(almacen.IdAlmacen, out var metaTabla))
+                {
+                    hoja.Cell(fila, 4).Value = metaTabla;
+                }
+                else
+                {
+                    hoja.Cell(fila, 4).Value = 0m;
+                }
+
+                hoja.Cell(fila, 4).Style.NumberFormat.Format = "#,##0.00";
+                fila++;
+            }
+
+            hoja.Column(1).Width = 14;
+            hoja.Column(2).Width = 14;
+            hoja.Column(3).Width = 36;
+            hoja.Column(4).Width = 16;
+            hoja.SheetView.FreezeRows(1);
+
+            var instrucciones = workbook.Worksheets.Add("Instrucciones");
+            instrucciones.Cell(1, 1).Value = "Cómo cargar cuotas por tienda";
+            instrucciones.Cell(1, 1).Style.Font.SetBold();
+            instrucciones.Cell(1, 1).Style.Font.FontSize = 14;
+            instrucciones.Cell(3, 1).Value = "1. Complete una fila por tienda. Cada tienda puede tener una cuota distinta.";
+            instrucciones.Cell(4, 1).Value = "2. No cambie el IdAlmacen. Puede identificar la tienda por ese código o por el nombre.";
+            instrucciones.Cell(5, 1).Value = "3. La columna Cuota es el monto diario en soles (sin el símbolo S/).";
+            instrucciones.Cell(6, 1).Value = "4. Si deja Fecha vacía, se usará la fecha seleccionada en el reporte.";
+            instrucciones.Cell(7, 1).Value = "5. Guarde el archivo y use Importar Excel en Avance de Ventas por Hora.";
+            instrucciones.Column(1).Width = 110;
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+
+            var fileName = $"Plantilla_Cuotas_{fecha:yyyyMMdd}.xlsx";
+            return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+
+        [HttpPost("meta-diaria-importar")]
+        [Authorize]
+        [RequestSizeLimit(5_000_000)]
+        public async Task<IActionResult> ImportarMetaDiariaExcel([FromForm] IFormFile? archivo, [FromQuery] DateOnly fecha)
+        {
+            var cargo = User.FindFirst("Cargo")?.Value;
+            var idUsuarioClaim = User.FindFirst("IdUsuario")?.Value ?? User.FindFirst("UserId")?.Value ?? User.FindFirst("userId")?.Value ?? "0";
+
+            if (!int.TryParse(idUsuarioClaim, out var idUsuario))
+            {
+                return Unauthorized("Usuario no válido.");
+            }
+
+            if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "Solo los administradores pueden importar cuotas.");
+            }
+
+            if (archivo == null || archivo.Length == 0)
+            {
+                return BadRequest("Debe seleccionar un archivo Excel.");
+            }
+
+            var extension = Path.GetExtension(archivo.FileName);
+            if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest("El archivo debe ser Excel (.xlsx). Descargue la plantilla si no tiene el formato.");
+            }
+
+            var resultado = new MetaDiariaImportResultDTO();
+            var almacenes = await ObtenerAlmacenesParaCuotasAsync();
+            var porId = almacenes.ToDictionary(a => a.IdAlmacen);
+            var porNombre = almacenes
+                .GroupBy(a => NormalizarNombreAlmacen(a.Nombre))
+                .Where(g => !string.IsNullOrEmpty(g.Key))
+                .ToDictionary(g => g.Key, g => g.First());
+
+            try
+            {
+                using var stream = new MemoryStream();
+                await archivo.CopyToAsync(stream);
+                stream.Position = 0;
+                using var workbook = new XLWorkbook(stream);
+                var hoja = workbook.Worksheets.FirstOrDefault();
+                if (hoja == null)
+                {
+                    return BadRequest("El archivo no contiene hojas.");
+                }
+
+                var used = hoja.RangeUsed();
+                if (used == null)
+                {
+                    return BadRequest("El archivo está vacío.");
+                }
+
+                var primeraFila = used.FirstRow().RowNumber();
+                var ultimaFila = used.LastRow().RowNumber();
+                var ultimaColumna = used.LastColumn().ColumnNumber();
+
+                var colFecha = 0;
+                var colIdAlmacen = 0;
+                var colTienda = 0;
+                var colCuota = 0;
+                DetectarColumnasCuotas(hoja, primeraFila, ultimaColumna, ref colFecha, ref colIdAlmacen, ref colTienda, ref colCuota);
+
+                var filaInicio = primeraFila;
+                if (colFecha > 0 || colIdAlmacen > 0 || colTienda > 0 || colCuota > 0)
+                {
+                    filaInicio = primeraFila + 1;
+                }
+                else
+                {
+                    colFecha = 1;
+                    colIdAlmacen = 2;
+                    colTienda = 3;
+                    colCuota = 4;
+                    filaInicio = primeraFila + 1;
+                }
+
+                if (colCuota == 0 || (colIdAlmacen == 0 && colTienda == 0))
+                {
+                    return BadRequest("No se encontraron las columnas requeridas. Use la plantilla: Fecha, IdAlmacen, Tienda, Cuota.");
+                }
+
+                for (var fila = filaInicio; fila <= ultimaFila; fila++)
+                {
+                    var fechaFila = fecha;
+                    if (colFecha > 0 && !TryObtenerFechaCelda(hoja.Cell(fila, colFecha), fecha, out fechaFila))
+                    {
+                        resultado.Errores.Add($"Fila {fila}: fecha inválida.");
+                        resultado.Omitidas++;
+                        continue;
+                    }
+
+                    Almacen? almacen = null;
+                    if (colIdAlmacen > 0)
+                    {
+                        var celdaId = hoja.Cell(fila, colIdAlmacen);
+                        if (celdaId.TryGetValue(out int idNumerico) && porId.TryGetValue(idNumerico, out var porCodigoNum))
+                        {
+                            almacen = porCodigoNum;
+                        }
+                        else if (celdaId.TryGetValue(out double idDecimal) &&
+                                 porId.TryGetValue(Convert.ToInt32(idDecimal), out var porCodigoDec))
+                        {
+                            almacen = porCodigoDec;
+                        }
+                        else
+                        {
+                            var idTexto = celdaId.GetString()?.Trim();
+                            if (!string.IsNullOrWhiteSpace(idTexto) &&
+                                int.TryParse(idTexto, NumberStyles.Integer, CultureInfo.InvariantCulture, out var idAlm) &&
+                                porId.TryGetValue(idAlm, out var porCodigo))
+                            {
+                                almacen = porCodigo;
+                            }
+                        }
+                    }
+
+                    if (almacen == null && colTienda > 0)
+                    {
+                        var nombre = hoja.Cell(fila, colTienda).GetString()?.Trim();
+                        var nombreNorm = NormalizarNombreAlmacen(nombre);
+                        if (!string.IsNullOrEmpty(nombreNorm) && porNombre.TryGetValue(nombreNorm, out var porNom))
+                        {
+                            almacen = porNom;
+                        }
+                    }
+
+                    if (almacen == null)
+                    {
+                        var identificador = colTienda > 0
+                            ? hoja.Cell(fila, colTienda).GetString()
+                            : hoja.Cell(fila, colIdAlmacen).GetString();
+                        if (string.IsNullOrWhiteSpace(identificador))
+                        {
+                            resultado.Omitidas++;
+                            continue;
+                        }
+
+                        resultado.Errores.Add($"Fila {fila}: no se encontró la tienda '{identificador.Trim()}'.");
+                        resultado.Omitidas++;
+                        continue;
+                    }
+
+                    if (!TryObtenerDecimalCelda(hoja.Cell(fila, colCuota), out var cuota) || cuota <= 0)
+                    {
+                        resultado.Advertencias.Add($"Fila {fila} ({almacen.Nombre}): cuota vacía o inválida, se omitió.");
+                        resultado.Omitidas++;
+                        continue;
+                    }
+
+                    await UpsertMetaDiariaAsync(almacen.IdAlmacen, fechaFila, cuota, idUsuario);
+                    resultado.Importadas++;
+                }
+
+                await _context.SaveChangesAsync();
+                return Ok(resultado);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error al importar el Excel: {ex.Message}");
+            }
+        }
+
+        private async Task<List<Almacen>> ObtenerAlmacenesParaCuotasAsync()
+        {
+            var almacenes = await _context.Almacens
+                .AsNoTracking()
+                .Where(a => a.Estado)
+                .OrderBy(a => a.Nombre)
+                .ToListAsync();
+
+            return almacenes
+                .Where(a => !string.Equals(a.Nombre, "PRINCIPAL", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        private async Task UpsertMetaDiariaAsync(int idAlmacen, DateOnly fecha, decimal meta, int idUsuario)
+        {
+            var clave = $"META_DIARIA_{idAlmacen}_{fecha:yyyyMMdd}";
+            var configuracion = _context.Configuracions.Local
+                .FirstOrDefault(c => c.Configuracion1 == clave)
+                ?? await _context.Configuracions
+                    .FirstOrDefaultAsync(c => c.Configuracion1 == clave);
+
+            var valor = meta.ToString("F2", CultureInfo.InvariantCulture);
+            var descripcion = $"Meta diaria para almacén {idAlmacen} - {fecha:dd/MM/yyyy} - Usuario: {idUsuario}";
+
+            if (configuracion != null)
+            {
+                configuracion.Valor = valor;
+                configuracion.Descripcion = descripcion;
+            }
+            else
+            {
+                _context.Configuracions.Add(new Configuracion
+                {
+                    Configuracion1 = clave,
+                    Valor = valor,
+                    Descripcion = descripcion
+                });
+            }
+
+            var filaTabla = _context.AlmacenMetaVentasDiarias.Local
+                .FirstOrDefault(m => m.IdAlmacen == idAlmacen && m.Fecha == fecha)
+                ?? await _context.AlmacenMetaVentasDiarias
+                    .FirstOrDefaultAsync(m => m.IdAlmacen == idAlmacen && m.Fecha == fecha);
+            if (filaTabla == null)
+            {
+                _context.AlmacenMetaVentasDiarias.Add(new AlmacenMetaVentasDiaria
+                {
+                    IdAlmacen = idAlmacen,
+                    Fecha = fecha,
+                    MetaMontoDiario = meta
+                });
+            }
+            else
+            {
+                filaTabla.MetaMontoDiario = meta;
+            }
+        }
+
+        private static void DetectarColumnasCuotas(
+            IXLWorksheet hoja,
+            int filaEncabezado,
+            int ultimaColumna,
+            ref int colFecha,
+            ref int colIdAlmacen,
+            ref int colTienda,
+            ref int colCuota)
+        {
+            for (var col = 1; col <= ultimaColumna; col++)
+            {
+                var encabezado = NormalizarEncabezado(hoja.Cell(filaEncabezado, col).GetString());
+                if (string.IsNullOrEmpty(encabezado))
+                {
+                    continue;
+                }
+
+                if (colFecha == 0 && (encabezado is "fecha" or "date"))
+                {
+                    colFecha = col;
+                }
+                else if (colIdAlmacen == 0 && (encabezado is "idalmacen" or "id" or "codigo" or "codigoalmacen" or "codalmacen"))
+                {
+                    colIdAlmacen = col;
+                }
+                else if (colTienda == 0 && (encabezado is "tienda" or "almacen" or "nombrealmacen" or "nombre" or "nombretienda"))
+                {
+                    colTienda = col;
+                }
+                else if (colCuota == 0 && (encabezado is "cuota" or "meta" or "metadiaria" or "cuotadiaria" or "metamontodiario" or "cuota(s/)"))
+                {
+                    colCuota = col;
+                }
+            }
+        }
+
+        private static bool TryObtenerFechaCelda(IXLCell cell, DateOnly fechaPredeterminada, out DateOnly fecha)
+        {
+            fecha = fechaPredeterminada;
+            if (cell.IsEmpty())
+            {
+                return true;
+            }
+
+            if (cell.TryGetValue(out DateTime fechaDt))
+            {
+                fecha = DateOnly.FromDateTime(fechaDt.Date);
+                return true;
+            }
+
+            if (cell.TryGetValue(out double oaDate) && oaDate > 20000)
+            {
+                try
+                {
+                    fecha = DateOnly.FromDateTime(DateTime.FromOADate(oaDate).Date);
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            var texto = cell.GetString()?.Trim();
+            if (string.IsNullOrWhiteSpace(texto))
+            {
+                return true;
+            }
+
+            var formatos = new[] { "dd/MM/yyyy", "d/M/yyyy", "yyyy-MM-dd", "dd-MM-yyyy", "d-M-yyyy", "dd/MM/yy" };
+            if (DateTime.TryParseExact(texto, formatos, CultureInfo.GetCultureInfo("es-PE"), DateTimeStyles.None, out var parsed) ||
+                DateTime.TryParse(texto, CultureInfo.GetCultureInfo("es-PE"), DateTimeStyles.None, out parsed) ||
+                DateTime.TryParse(texto, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsed))
+            {
+                fecha = DateOnly.FromDateTime(parsed.Date);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryObtenerDecimalCelda(IXLCell cell, out decimal valor)
+        {
+            valor = 0m;
+            if (cell.IsEmpty())
+            {
+                return false;
+            }
+
+            if (cell.TryGetValue(out decimal decimalVal))
+            {
+                valor = decimalVal;
+                return true;
+            }
+
+            if (cell.TryGetValue(out double doubleVal))
+            {
+                valor = Convert.ToDecimal(doubleVal);
+                return true;
+            }
+
+            var texto = cell.GetString()?.Trim();
+            if (string.IsNullOrWhiteSpace(texto))
+            {
+                return false;
+            }
+
+            texto = texto.Replace("S/", "", StringComparison.OrdinalIgnoreCase)
+                .Replace("s/.", "", StringComparison.OrdinalIgnoreCase)
+                .Replace(" ", "")
+                .Trim();
+
+            return decimal.TryParse(texto, NumberStyles.Number, CultureInfo.GetCultureInfo("es-PE"), out valor) ||
+                   decimal.TryParse(texto, NumberStyles.Number, CultureInfo.InvariantCulture, out valor);
+        }
+
+        private static string NormalizarEncabezado(string? valor)
+        {
+            if (string.IsNullOrWhiteSpace(valor))
+            {
+                return string.Empty;
+            }
+
+            var texto = valor.Trim().ToLowerInvariant();
+            var sb = new StringBuilder(texto.Length);
+            foreach (var c in texto.Normalize(NormalizationForm.FormD))
+            {
+                var categoria = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (categoria == UnicodeCategory.NonSpacingMark)
+                {
+                    continue;
+                }
+
+                if (char.IsLetterOrDigit(c) || c is '(' or ')' or '/')
+                {
+                    sb.Append(c);
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        private static string NormalizarNombreAlmacen(string? nombre)
+        {
+            if (string.IsNullOrWhiteSpace(nombre))
+            {
+                return string.Empty;
+            }
+
+            var texto = nombre.Trim().ToLowerInvariant();
+            var sb = new StringBuilder(texto.Length);
+            var espacio = false;
+            foreach (var c in texto.Normalize(NormalizationForm.FormD))
+            {
+                var categoria = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (categoria == UnicodeCategory.NonSpacingMark)
+                {
+                    continue;
+                }
+
+                if (char.IsLetterOrDigit(c))
+                {
+                    sb.Append(c);
+                    espacio = false;
+                }
+                else if (!espacio)
+                {
+                    espacio = true;
+                }
+            }
+
+            return sb.ToString();
         }
 
         private async Task<HashSet<int>> ObtenerIdsAlmacenesActivosAsync()

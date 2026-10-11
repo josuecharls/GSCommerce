@@ -1,0 +1,106 @@
+@using System.Linq
+@inject IJSRuntime JS
+
+<div class="multi-select dropdown">
+    <button type="button"
+            @ref="toggleBtn"
+            class="btn btn-outline-secondary dropdown-toggle w-100 d-flex align-items-center justify-content-between text-start"
+            data-bs-toggle="dropdown"
+            data-bs-auto-close="outside"
+            @onclick="OnOpen">
+        <span class="multi-select-button-text text-truncate">@ButtonText</span>
+        <i class="bi bi-chevron-down ms-2"></i>
+    </button>
+    <div class="dropdown-menu w-100 p-0 multi-select-menu">
+        <div class="p-2">
+            <div class="mb-2">
+                <input class="form-control form-control-sm"
+                       type="text"
+                       placeholder="@SearchPlaceholder"
+                       @bind="searchText"
+                       @bind:event="oninput"
+                       @onclick:stopPropagation="true" />
+            </div>
+
+            <div class="multi-select-options">
+                <button type="button"
+                        class="dropdown-item @(string.IsNullOrEmpty(Value) ? "active" : "")"
+                        @onclick="() => Seleccionar(string.Empty)">
+                    @EmptyOptionText
+                </button>
+
+                @{
+                    var filtered = GetFilteredItems();
+                }
+                @if (!filtered.Any())
+                {
+                    <div class="text-muted small py-2 px-1">@NoResultsText</div>
+                }
+                else
+                {
+                    @foreach (var item in filtered)
+                    {
+                        var selected = string.Equals(item, Value, StringComparison.OrdinalIgnoreCase);
+                        <button type="button"
+                                class="dropdown-item @(selected ? "active" : "")"
+                                @onclick="() => Seleccionar(item)">
+                            @item
+                        </button>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public IEnumerable<string> Items { get; set; } = Enumerable.Empty<string>();
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Seleccionar...";
+    [Parameter] public string EmptyOptionText { get; set; } = "-- Todas --";
+    [Parameter] public string SearchPlaceholder { get; set; } = "Escriba para filtrar...";
+    [Parameter] public string NoResultsText { get; set; } = "Sin resultados";
+
+    private string searchText = string.Empty;
+    private ElementReference toggleBtn;
+
+    private string ButtonText =>
+        string.IsNullOrWhiteSpace(Value) ? Placeholder : Value.Trim();
+
+    private void OnOpen()
+    {
+        searchText = string.Empty;
+    }
+
+    private IReadOnlyList<string> GetFilteredItems()
+    {
+        var items = (Items ?? Enumerable.Empty<string>())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase);
+
+        if (string.IsNullOrWhiteSpace(searchText))
+            return items.ToList();
+
+        var term = searchText.Trim();
+        return items
+            .Where(x => x.StartsWith(term, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private async Task Seleccionar(string value)
+    {
+        Value = value ?? string.Empty;
+        searchText = string.Empty;
+        if (ValueChanged.HasDelegate)
+            await ValueChanged.InvokeAsync(Value);
+
+        try
+        {
+            await JS.InvokeVoidAsync("hideBootstrapDropdown", toggleBtn);
+        }
+        catch { /* ignore si el dropdown ya se cerró */ }
+    }
+}

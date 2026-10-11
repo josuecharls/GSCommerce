@@ -1,8 +1,10 @@
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using GSCommerce.Client.Models;
+using GSCommerce.Client.Models.DTOs.Reportes;
 
 namespace GSCommerce.Client.Services
 {
@@ -85,6 +87,32 @@ namespace GSCommerce.Client.Services
             {
                 return new List<MetaDiariaResponse>();
             }
+        }
+
+        public async Task<HttpResponseMessage> DescargarPlantilla(DateOnly fecha)
+        {
+            return await _httpClient.GetAsync($"ventas/meta-diaria-plantilla?fecha={fecha:yyyy-MM-dd}");
+        }
+
+        public async Task<MetaDiariaImportResultDTO?> ImportarExcel(Stream archivo, string nombreArchivo, DateOnly fecha)
+        {
+            using var content = new MultipartFormDataContent();
+            var streamContent = new StreamContent(archivo);
+            streamContent.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            content.Add(streamContent, "archivo", nombreArchivo);
+
+            var response = await _httpClient.PostAsync($"ventas/meta-diaria-importar?fecha={fecha:yyyy-MM-dd}", content);
+            if (!response.IsSuccessStatusCode)
+            {
+                var detalle = await response.Content.ReadAsStringAsync();
+                return new MetaDiariaImportResultDTO
+                {
+                    Errores = { string.IsNullOrWhiteSpace(detalle) ? "No se pudo importar el archivo." : detalle.Trim('"') }
+                };
+            }
+
+            return await response.Content.ReadFromJsonAsync<MetaDiariaImportResultDTO>()
+                ?? new MetaDiariaImportResultDTO();
         }
     }
 

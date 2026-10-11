@@ -46,7 +46,10 @@ namespace GSCommerceAPI.Controllers
 
             var query = _context.MovimientosCabeceras
                 .Include(m => m.IdAlmacenNavigation)
-                .Where(m => m.Tipo == tipoMap);
+                .Where(m => m.Tipo == tipoMap)
+                // Ingresos por NC se mantienen en BD pero no se muestran en el listado de guías
+                .Where(m => m.Motivo != "NC"
+                    && (m.Descripcion == null || !m.Descripcion.StartsWith("Ingreso por NC")));
 
             var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
             var userIdClaim = User.FindFirst("userId")?.Value;
@@ -198,26 +201,45 @@ namespace GSCommerceAPI.Controllers
 
             await _context.SaveChangesAsync();
 
-            // 4) Stock y kardex con el detalle del INGRESO que se confirma (ya validado contra el egreso)
-            foreach (var detalle in ingreso.MovimientosDetalles)
+            var nombreAlmacenOrigen = await _context.Almacens
+                .Where(a => a.IdAlmacen == egreso.IdAlmacen)
+                .Select(a => a.Nombre)
+                .FirstOrDefaultAsync() ?? $"Almacén {egreso.IdAlmacen}";
+
+            // 4) Stock y kardex: agrupar por código para no descontar dos veces el mismo artículo
+            //    (si había filas duplicadas 3+2 con stock 4, línea a línea fallaba al confirmar)
+            var detallesConfirmacion = ingreso.MovimientosDetalles
+                .GroupBy(d => (
+                    Articulo: (d.IdArticulo ?? string.Empty).Trim(),
+                    Variante: IdVarianteUtil.Normalizar(d.IdVariante)))
+                .Select(g => new
+                {
+                    IdArticulo = g.Key.Articulo,
+                    IdVariante = g.Key.Variante,
+                    Cantidad = g.Sum(x => x.Cantidad),
+                    Valor = g.First().Valor
+                })
+                .Where(d => !string.IsNullOrWhiteSpace(d.IdArticulo) && d.Cantidad > 0)
+                .ToList();
+
+            foreach (var detalle in detallesConfirmacion)
             {
                 var stockOrigen = await IdVarianteUtil.BuscarStockAlmacenAsync(
                     _context.StockAlmacens, egreso.IdAlmacen, detalle.IdArticulo);
                 if (stockOrigen == null || stockOrigen.Stock < detalle.Cantidad)
                 {
                     await tx.RollbackAsync();
-                    return BadRequest(new { mensaje = $"Stock insuficiente en almacén de origen para el artículo {detalle.IdArticulo}" });
+                    return BadRequest(new { mensaje = $"Stock insuficiente en almacén de origen para el artículo {detalle.IdArticulo} (requerido: {detalle.Cantidad}, disponible: {stockOrigen?.Stock ?? 0})" });
                 }
 
                 var saldoInicialOrigen = stockOrigen.Stock;
                 stockOrigen.Stock -= detalle.Cantidad;
 
-                var nvDet = IdVarianteUtil.Normalizar(detalle.IdVariante);
                 _context.Kardices.Add(new Kardex
                 {
                     IdAlmacen = egreso.IdAlmacen,
                     IdArticulo = detalle.IdArticulo,
-                    IdVariante = nvDet,
+                    IdVariante = detalle.IdVariante,
                     TipoMovimiento = "E",
                     Fecha = fechaConf,
                     SaldoInicial = saldoInicialOrigen,
@@ -258,14 +280,14 @@ namespace GSCommerceAPI.Controllers
                 {
                     IdAlmacen = ingreso.IdAlmacen,
                     IdArticulo = detalle.IdArticulo,
-                    IdVariante = nvDet,
+                    IdVariante = detalle.IdVariante,
                     TipoMovimiento = "I",
                     Fecha = fechaConf,
                     SaldoInicial = saldoInicialDestino,
                     Cantidad = detalle.Cantidad,
                     SaldoFinal = saldoInicialDestino + detalle.Cantidad,
                     Valor = detalle.Valor,
-                    Origen = $"TRANSFERENCIA INGRESO Nro: {ingreso.IdMovimiento}"
+                    Origen = $"TRANSFERENCIA INGRESO Nro: {ingreso.IdMovimiento} ({nombreAlmacenOrigen})"
                 });
             }
 
@@ -342,6 +364,9 @@ namespace GSCommerceAPI.Controllers
 
             try
             {
+                // Mismo código en varias filas → una sola línea con la suma (evita pasar validación línea a línea)
+                dto.Detalles = MovimientoDetalleConsolidacion.ConsolidarPorCodigo(dto.Detalles);
+
                 var esTransferenciaInit = string.Equals(dto.Tipo?.Trim(), "T", StringComparison.OrdinalIgnoreCase);
                 if (esTransferenciaInit)
                 {
@@ -765,6 +790,22 @@ namespace GSCommerceAPI.Controllers
                 movimiento.Descripcion = dto.Descripcion;
                 movimiento.Estado = dto.Estado;
                 // Nota: Motivo, IdAlmacen, IdProveedor e IdAlmacenDestinoOrigen NO se actualizan
+
+                dto.Detalles = MovimientoDetalleConsolidacion.ConsolidarPorCodigo(dto.Detalles);
+
+                if (esTransferencia && string.Equals(movimiento.Motivo?.Trim(), "TRANSFERENCIA EGRESO", StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (var d in dto.Detalles)
+                    {
+                        var stock = await IdVarianteUtil.BuscarStockAlmacenAsync(
+                            _context.StockAlmacens, movimiento.IdAlmacen, d.IdArticulo);
+                        if (stock == null || stock.Stock < d.Cantidad)
+                        {
+                            await transaction.RollbackAsync();
+                            return BadRequest(new { mensaje = $"Stock insuficiente para el artículo {d.IdArticulo} en el almacén origen." });
+                        }
+                    }
+                }
 
                 // Eliminar detalles anteriores
                 _context.MovimientosDetalles.RemoveRange(movimiento.MovimientosDetalles);

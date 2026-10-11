@@ -366,10 +366,9 @@ else
             guardando = true;
             StateHasChanged(); // Actualizar UI inmediatamente
 
-            // Limpia detalles vacíos o inválidos
-            guia.Detalles = guia.Detalles
-                .Where(d => !string.IsNullOrWhiteSpace(d.IdArticulo) && d.Cantidad > 0)
-                .ToList();
+            // Limpia vacíos y une el mismo código en una sola línea (suma cantidades)
+            guia.Detalles = MovimientoDetalleConsolidacion.ConsolidarPorCodigo(guia.Detalles);
+            CalcularTotalArticulos();
 
             if (!guia.Detalles.Any())
             {
@@ -501,7 +500,7 @@ else
         totalArticulos = guia.Detalles.Sum(d => d.Cantidad);
     }
 
-    // Validar cantidad vs stock disponible
+    // Validar cantidad vs stock disponible (suma de todas las líneas del mismo código)
     private async Task OnCantidadChange(MovimientoDetalleDTO d)
     {
         CalcularTotalArticulos();
@@ -511,47 +510,33 @@ else
         if ((tipo == "Transferencia" || tipo == "Egreso") && !string.IsNullOrWhiteSpace(d.IdArticulo))
         {
             var codigoNormalizado = d.IdArticulo.Trim();
-            
-            // Si tenemos el stock almacenado, validar
-            if (stockPorArticulo.ContainsKey(codigoNormalizado))
+            var cantidadTotalCodigo = guia.Detalles
+                .Where(x => string.Equals(x.IdArticulo?.Trim(), codigoNormalizado, StringComparison.OrdinalIgnoreCase))
+                .Sum(x => x.Cantidad);
+
+            async Task<int> ObtenerStockAsync()
             {
-                var stockDisponible = stockPorArticulo[codigoNormalizado];
-                
-                if (d.Cantidad > stockDisponible)
-                {
-                    await MostrarAlerta($"❌ No hay stock suficiente ({stockDisponible} en total) para el artículo '{codigoNormalizado}'. Cantidad solicitada: {d.Cantidad}.");
-                    // Restaurar cantidad al stock disponible
-                    d.Cantidad = stockDisponible;
-                    CalcularTotalArticulos();
-                    StateHasChanged();
-                }
+                if (stockPorArticulo.TryGetValue(codigoNormalizado, out var cached))
+                    return cached;
+
+                if (guia.IdAlmacen <= 0)
+                    return 0;
+
+                var stock = tipo == "Transferencia"
+                    ? await StockService.GetStockDisponibleParaTransferencia(codigoNormalizado, guia.IdAlmacen)
+                    : await StockService.GetStockDisponible(codigoNormalizado, guia.IdAlmacen);
+                stockPorArticulo[codigoNormalizado] = stock;
+                return stock;
             }
-            else
+
+            var stockDisponible = await ObtenerStockAsync();
+            if (cantidadTotalCodigo > stockDisponible)
             {
-                // Si no tenemos el stock almacenado, consultarlo
-                if (guia.IdAlmacen > 0)
-                {
-                    int stockDisponible;
-                    // Para transferencias, usar el método que considera transferencias pendientes
-                    if (tipo == "Transferencia")
-                    {
-                        stockDisponible = await StockService.GetStockDisponibleParaTransferencia(codigoNormalizado, guia.IdAlmacen);
-                    }
-                    else
-                    {
-                        stockDisponible = await StockService.GetStockDisponible(codigoNormalizado, guia.IdAlmacen);
-                    }
-                    stockPorArticulo[codigoNormalizado] = stockDisponible;
-                    
-                    if (d.Cantidad > stockDisponible)
-                    {
-                        await MostrarAlerta($"❌ No hay stock suficiente ({stockDisponible} en total) para el artículo '{codigoNormalizado}'. Cantidad solicitada: {d.Cantidad}.");
-                        // Restaurar cantidad al stock disponible
-                        d.Cantidad = stockDisponible;
-                        CalcularTotalArticulos();
-                        StateHasChanged();
-                    }
-                }
+                var exceso = cantidadTotalCodigo - stockDisponible;
+                d.Cantidad = Math.Max(0, d.Cantidad - exceso);
+                await MostrarAlerta($"❌ No hay stock suficiente ({stockDisponible} en total) para el artículo '{codigoNormalizado}'. Cantidad solicitada (todas las líneas): {cantidadTotalCodigo}.");
+                CalcularTotalArticulos();
+                StateHasChanged();
             }
         }
     }

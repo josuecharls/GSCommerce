@@ -159,6 +159,12 @@
                 console.error("Error generando código de barras:", error);
             }
         };
+
+        window.hideBootstrapDropdown = function (element) {
+            if (!element || !window.bootstrap) return;
+            const instance = bootstrap.Dropdown.getInstance(element);
+            if (instance) instance.hide();
+        };
     </script>
     <script src="js/sessionSync.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>

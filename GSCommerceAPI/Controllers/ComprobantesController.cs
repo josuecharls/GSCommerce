@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using GSCommerce.Client.Models.SUNAT;
@@ -23,16 +24,26 @@ namespace GSCommerceAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<PendienteSunatDTO>>> Get(
-            [FromQuery] DateTime? desde = null,
-            [FromQuery] DateTime? hasta = null,
+        public async Task<IActionResult> Get(
+            [FromQuery] string? desde = null,
+            [FromQuery] string? hasta = null,
             [FromQuery] int? idAlmacen = null,
             [FromQuery] string? estado = null,
-            [FromQuery(Name = "tipoDoc")] int? idTipoDoc = null)
+            [FromQuery(Name = "tipoDoc")] int? idTipoDoc = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var cargo = User.FindFirst("Cargo")?.Value ?? string.Empty;
             if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
                 return Forbid();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 200) pageSize = 200;
+
+            // Fechas como calendario local (sin UTC): evita que "01/08" arrastre el 31/07
+            var dDesde = ParseFechaCalendario(desde);
+            var dHasta = ParseFechaCalendario(hasta);
 
             var query = from f in _context.Comprobantes.AsNoTracking()
                         join c in _context.ComprobanteDeVentaCabeceras.AsNoTracking() on f.IdComprobante equals c.IdComprobante
@@ -60,10 +71,18 @@ namespace GSCommerceAPI.Controllers
                             f.IdComprobante
                         };
 
-            if (desde.HasValue)
-                query = query.Where(x => x.FechaEnvio >= desde.Value);
-            if (hasta.HasValue)
-                query = query.Where(x => x.FechaEnvio < hasta.Value.AddDays(1));
+            if (dDesde.HasValue)
+            {
+                var desdeInicio = dDesde.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
+                query = query.Where(x => x.FechaEnvio != null && x.FechaEnvio >= desdeInicio);
+            }
+
+            if (dHasta.HasValue)
+            {
+                var hastaExclusivo = dHasta.Value.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
+                query = query.Where(x => x.FechaEnvio != null && x.FechaEnvio < hastaExclusivo);
+            }
+
             if (idAlmacen.HasValue)
                 query = query.Where(x => x.IdAlmacen == idAlmacen.Value);
             if (idTipoDoc.HasValue)
@@ -79,12 +98,17 @@ namespace GSCommerceAPI.Controllers
                     query = query.Where(x => (x.EnviadoSunat == true && !x.Estado) || (x.EnviadoSunat != true && x.RespuestaSunat != null && x.RespuestaSunat != ""));
             }
 
+            var totalItems = await query.CountAsync();
+            var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)pageSize);
+
             var rows = await query
                 .OrderByDescending(x => x.FechaEnvio)
                 .ThenBy(x => x.Numero)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            var result = rows.Select(x => new PendienteSunatDTO
+            var data = rows.Select(x => new PendienteSunatDTO
             {
                 IdFe = x.IdFe,
                 Tienda = x.Tienda,
@@ -106,7 +130,35 @@ namespace GSCommerceAPI.Controllers
                     : (string.IsNullOrWhiteSpace(x.RespuestaSunat) ? "Pendiente" : "Rechazado")
             }).ToList();
 
-            return Ok(result);
+            return Ok(new
+            {
+                TotalItems = totalItems,
+                TotalPages = totalPages,
+                Page = page,
+                PageSize = pageSize,
+                Data = data
+            });
+        }
+
+        /// <summary>
+        /// Interpreta yyyy-MM-dd (o fecha ISO) como día de calendario, sin convertir a UTC.
+        /// </summary>
+        private static DateOnly? ParseFechaCalendario(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            var s = value.Trim();
+            if (s.Length >= 10)
+                s = s[..10];
+
+            if (DateOnly.TryParseExact(s, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+                return d;
+
+            if (DateOnly.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out d))
+                return d;
+
+            return null;
         }
     }
 }

@@ -115,12 +115,19 @@
         <div class="col-md-3 d-flex align-items-end">
             <button class="btn btn-warning w-100" @onclick="MostrarModalMetaMultiple" disabled="@cargando"><i class="bi bi-gear"></i> Meta Múltiple</button>
         </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-info w-100" @onclick="MostrarModalImportarCuotas" disabled="@cargando"><i class="bi bi-upload"></i> Importar Excel</button>
+        </div>
     }
 </div>
 
 @if (!string.IsNullOrWhiteSpace(mensajeError))
 {
     <div class="alert alert-danger">@mensajeError</div>
+}
+@if (!string.IsNullOrWhiteSpace(mensajeExito))
+{
+    <div class="alert alert-success">@mensajeExito</div>
 }
 @{
     var detallesVisibles = ObtenerDetallesParaMostrar().ToList();
@@ -264,6 +271,89 @@ else
     <div class="modal-backdrop fade show"></div>
 }
 
+<!-- Modal para importar cuotas por tienda -->
+@if (mostrarModalImportarCuotas)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Importar cuotas por tienda</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalImportarCuotas" disabled="@importandoCuotas"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Cada tienda puede tener una cuota distinta. Use la plantilla, complete la columna <strong>Cuota</strong> y vuelva a importar el archivo.</p>
+                    <ul class="small text-muted">
+                        <li>Columnas: Fecha, IdAlmacen, Tienda, Cuota</li>
+                        <li>Si deja Fecha vacía, se usará <strong>@fechaSeleccionada.ToString("dd/MM/yyyy")</strong></li>
+                        <li>Solo se aceptan archivos .xlsx</li>
+                    </ul>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button type="button" class="btn btn-outline-primary" @onclick="DescargarPlantillaCuotas" disabled="@descargandoPlantilla">
+                            @if (descargandoPlantilla)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-download me-1"></i>
+                            }
+                            Descargar plantilla
+                        </button>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(mensajeModalImportar))
+                    {
+                        <div class="alert alert-danger">@mensajeModalImportar</div>
+                    }
+                    <div class="mb-3">
+                        <label class="form-label">Archivo Excel</label>
+                        <InputFile class="form-control" accept=".xlsx" OnChange="OnArchivoCuotasSeleccionado" disabled="@importandoCuotas" />
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(nombreArchivoCuotas))
+                    {
+                        <p class="small mb-2">Archivo seleccionado: <strong>@nombreArchivoCuotas</strong></p>
+                    }
+                    @if (resultadoImportacion != null)
+                    {
+                        <div class="alert @(resultadoImportacion.Errores.Any() ? "alert-warning" : "alert-success") mb-0">
+                            <div>Importadas: @resultadoImportacion.Importadas — Omitidas: @resultadoImportacion.Omitidas</div>
+                            @if (resultadoImportacion.Advertencias.Any())
+                            {
+                                <ul class="mb-0 mt-2 small">
+                                    @foreach (var advertencia in resultadoImportacion.Advertencias.Take(8))
+                                    {
+                                        <li>@advertencia</li>
+                                    }
+                                </ul>
+                            }
+                            @if (resultadoImportacion.Errores.Any())
+                            {
+                                <ul class="mb-0 mt-2 small text-danger">
+                                    @foreach (var error in resultadoImportacion.Errores.Take(8))
+                                    {
+                                        <li>@error</li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalImportarCuotas" disabled="@importandoCuotas">Cerrar</button>
+                    <button type="button" class="btn btn-primary" @onclick="ImportarCuotasExcel" disabled="@(importandoCuotas || archivoCuotas == null)">
+                        @if (importandoCuotas)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Importar cuotas
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
 @code {
     private readonly List<int> horas = Enumerable.Range(0, 24).ToList();
     private const decimal MetaPredeterminada = 4500m;
@@ -274,6 +364,7 @@ else
     private string cargo = string.Empty;
     private bool cargando;
     private string? mensajeError;
+    private string? mensajeExito;
     private ReporteAvanceHoraDTO avance = new();
     private decimal metaActual = MetaPredeterminada;
     private decimal metaAnterior = MetaPredeterminada;
@@ -307,6 +398,14 @@ else
     private decimal metaMultiple = MetaPredeterminada;
     private HashSet<int> almacenesSeleccionados = new();
     private bool guardandoMetaMultiple = false;
+
+    private bool mostrarModalImportarCuotas = false;
+    private bool descargandoPlantilla = false;
+    private bool importandoCuotas = false;
+    private IBrowserFile? archivoCuotas;
+    private string? nombreArchivoCuotas;
+    private string? mensajeModalImportar;
+    private MetaDiariaImportResultDTO? resultadoImportacion;
 
     private decimal Meta
     {
@@ -827,6 +926,112 @@ else
         finally
         {
             guardandoMetaMultiple = false;
+        }
+    }
+
+    private void MostrarModalImportarCuotas()
+    {
+        mostrarModalImportarCuotas = true;
+        archivoCuotas = null;
+        nombreArchivoCuotas = null;
+        resultadoImportacion = null;
+        mensajeModalImportar = null;
+        mensajeError = null;
+        mensajeExito = null;
+    }
+
+    private void CerrarModalImportarCuotas()
+    {
+        mostrarModalImportarCuotas = false;
+        archivoCuotas = null;
+        nombreArchivoCuotas = null;
+        resultadoImportacion = null;
+        mensajeModalImportar = null;
+    }
+
+    private void OnArchivoCuotasSeleccionado(InputFileChangeEventArgs e)
+    {
+        archivoCuotas = e.File;
+        nombreArchivoCuotas = e.File?.Name;
+        resultadoImportacion = null;
+        mensajeModalImportar = null;
+    }
+
+    private async Task DescargarPlantillaCuotas()
+    {
+        descargandoPlantilla = true;
+        mensajeModalImportar = null;
+        try
+        {
+            var fecha = DateOnly.FromDateTime(fechaSeleccionada);
+            using var response = await MetaDiariaService.DescargarPlantilla(fecha);
+            if (!response.IsSuccessStatusCode)
+            {
+                mensajeModalImportar = "No se pudo descargar la plantilla. Inténtelo nuevamente.";
+                return;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var base64 = Convert.ToBase64String(bytes);
+            var nombreArchivo = $"Plantilla_Cuotas_{fecha:yyyyMMdd}.xlsx";
+            await JS.InvokeVoidAsync("downloadFileFromBytes", nombreArchivo, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
+        }
+        catch
+        {
+            mensajeModalImportar = "No se pudo descargar la plantilla. Inténtelo nuevamente.";
+        }
+        finally
+        {
+            descargandoPlantilla = false;
+        }
+    }
+
+    private async Task ImportarCuotasExcel()
+    {
+        if (archivoCuotas == null)
+        {
+            return;
+        }
+
+        importandoCuotas = true;
+        mensajeError = null;
+        mensajeExito = null;
+        mensajeModalImportar = null;
+        resultadoImportacion = null;
+
+        try
+        {
+            await using var stream = archivoCuotas.OpenReadStream(5_000_000);
+            using var memoria = new MemoryStream();
+            await stream.CopyToAsync(memoria);
+            memoria.Position = 0;
+
+            var fecha = DateOnly.FromDateTime(fechaSeleccionada);
+            resultadoImportacion = await MetaDiariaService.ImportarExcel(memoria, archivoCuotas.Name, fecha);
+
+            if (resultadoImportacion == null)
+            {
+                mensajeModalImportar = "No se pudo importar el archivo. Inténtelo nuevamente.";
+                return;
+            }
+
+            if (resultadoImportacion.Importadas > 0)
+            {
+                mensajeExito = $"Se importaron {resultadoImportacion.Importadas} cuota(s) por tienda.";
+                await CargarMetaDelServidorAsync();
+            }
+            else if (resultadoImportacion.Errores.Any() && resultadoImportacion.Importadas == 0)
+            {
+                mensajeModalImportar = resultadoImportacion.Errores.First();
+            }
+        }
+        catch
+        {
+            mensajeModalImportar = "No se pudo importar el archivo. Verifique que sea un Excel .xlsx válido.";
+        }
+        finally
+        {
+            importandoCuotas = false;
         }
     }
 }

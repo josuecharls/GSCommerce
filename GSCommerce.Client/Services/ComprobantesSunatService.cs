@@ -12,30 +12,48 @@ namespace GSCommerce.Client.Services
             _http = http;
         }
 
-        public async Task<List<PendienteSunatDTO>> ObtenerComprobantesAsync(
+        public async Task<ComprobantesSunatListResponse> ObtenerComprobantesAsync(
             DateTime? desde = null,
             DateTime? hasta = null,
             int? idAlmacen = null,
             string? estado = null,
-            int? tipoDoc = null)
+            int? tipoDoc = null,
+            int page = 1,
+            int pageSize = 20)
         {
-            var url = "comprobantes";
-            var q = new List<string>();
-            if (desde.HasValue) q.Add($"desde={desde:yyyy-MM-dd}");
-            if (hasta.HasValue) q.Add($"hasta={hasta:yyyy-MM-dd}");
+            var q = new List<string>
+            {
+                $"page={page}",
+                $"pageSize={pageSize}"
+            };
+
+            // Solo yyyy-MM-dd (día calendario) para evitar desfase UTC
+            if (desde.HasValue) q.Add($"desde={desde.Value:yyyy-MM-dd}");
+            if (hasta.HasValue) q.Add($"hasta={hasta.Value:yyyy-MM-dd}");
             if (idAlmacen.HasValue) q.Add($"idAlmacen={idAlmacen}");
-            if (!string.IsNullOrWhiteSpace(estado)) q.Add($"estado={estado}");
+            if (!string.IsNullOrWhiteSpace(estado)) q.Add($"estado={Uri.EscapeDataString(estado)}");
             if (tipoDoc.HasValue) q.Add($"tipoDoc={tipoDoc}");
-            if (q.Count > 0) url += "?" + string.Join("&", q);
+
+            var url = "comprobantes?" + string.Join("&", q);
 
             try
             {
-                return await _http.GetFromJsonAsync<List<PendienteSunatDTO>>(url) ?? new();
+                return await _http.GetFromJsonAsync<ComprobantesSunatListResponse>(url)
+                       ?? new ComprobantesSunatListResponse();
             }
             catch
             {
-                return new List<PendienteSunatDTO>();
+                return new ComprobantesSunatListResponse();
             }
+        }
+
+        public class ComprobantesSunatListResponse
+        {
+            public List<PendienteSunatDTO> Data { get; set; } = new();
+            public int TotalItems { get; set; }
+            public int TotalPages { get; set; }
+            public int Page { get; set; }
+            public int PageSize { get; set; }
         }
     }
 }

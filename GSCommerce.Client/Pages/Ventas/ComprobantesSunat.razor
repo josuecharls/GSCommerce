@@ -8,88 +8,144 @@
 @inject AlmacenService AlmacenService
 @inject TipoDocumentoVentaService TipoDocService
 
-<h3><i class="bi bi-file-earmark-zip-fill"></i> Comprobantes Enviados a SUNAT</h3>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h3 class="mb-0"><i class="bi bi-cloud-check"></i> Comprobantes Enviados a SUNAT</h3>
+    @if (busco && !cargando)
+    {
+        <span class="text-muted small">@totalItems registro(s)</span>
+    }
+</div>
 
-<div class="row g-3 mb-3">
-    <div class="col-md-2">
-        <label>Desde:</label>
-        <InputDate @bind-Value="desde" class="form-control" />
-    </div>
-    <div class="col-md-2">
-        <label>Hasta:</label>
-        <InputDate @bind-Value="hasta" class="form-control" />
-    </div>
-    <div class="col-md-2">
-        <label>Tienda:</label>
-        <select class="form-control" @bind="idAlmacen">
-            <option value="0">Todas</option>
-            @foreach (var a in almacenes)
-            {
-                <option value="@a.IdAlmacen">@a.Nombre</option>
-            }
-        </select>
-    </div>
-    <div class="col-md-2">
-        <label>Estado:</label>
-        <select class="form-control" @bind="estado">
-            <option value="">Todos</option>
-            <option value="enviado">Enviado</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="rechazado">Rechazado</option>
-        </select>
-    </div>
-    <div class="col-md-2">
-        <label>Tipo:</label>
-        <select class="form-control" @bind="tipoDoc">
-            <option value="0">Todos</option>
-            @foreach (var t in tiposDoc)
-            {
-                <option value="@t.IdTipoDocumentoVenta">@t.Descripcion</option>
-            }
-        </select>
-    </div>
-    <div class="col-md-2 d-flex align-items-end">
-        <button class="btn btn-primary w-100" @onclick="Buscar"><i class="bi bi-search"></i> Buscar</button>
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-6 col-md-2">
+                <label class="form-label mb-1">Desde (envío)</label>
+                <InputDate @bind-Value="desde" class="form-control" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label mb-1">Hasta (envío)</label>
+                <InputDate @bind-Value="hasta" class="form-control" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label mb-1">Tienda</label>
+                <select class="form-select" @bind="idAlmacen">
+                    <option value="0">Todas</option>
+                    @foreach (var a in almacenes)
+                    {
+                        <option value="@a.IdAlmacen">@a.Nombre</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label mb-1">Estado</label>
+                <select class="form-select" @bind="estado">
+                    <option value="">Todos</option>
+                    <option value="enviado">Enviado</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="rechazado">Rechazado</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label mb-1">Tipo</label>
+                <select class="form-select" @bind="tipoDoc">
+                    <option value="0">Todos</option>
+                    @foreach (var t in tiposDoc)
+                    {
+                        <option value="@t.IdTipoDocumentoVenta">@t.Descripcion</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <button class="btn btn-primary w-100" @onclick="Buscar" disabled="@cargando">
+                    @if (cargando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-search me-1"></i>
+                    }
+                    Buscar
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
 @if (cargando)
 {
-    <p>⏳ Cargando...</p>
+    <div class="text-center py-5 text-muted">
+        <div class="spinner-border text-primary mb-2" role="status"></div>
+        <div>Cargando comprobantes...</div>
+    </div>
 }
 else if (comprobantes.Any())
 {
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Tienda</th>
-                <th>Tipo</th>
-                <th>Número</th>
-                <th>Fecha</th>
-                <th>Monto</th>
-                <th>Estado</th>
-                <th>Respuesta</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var c in comprobantes)
-            {
-                <tr>
-                    <td>@c.Tienda</td>
-                    <td>@c.TipoDoc</td>
-                    <td>@c.Numero</td>
-                    <td>@c.Fecha</td>
-                    <td>@((c.Apagar ?? 0m).ToString("C"))</td>
-                    <td>@c.EstadoSunat</td>
-                    <td>@c.RespuestaSunat</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tienda</th>
+                        <th>Tipo</th>
+                        <th>Número</th>
+                        <th>Fecha doc.</th>
+                        <th>Fecha envío</th>
+                        <th class="text-end">Monto</th>
+                        <th>Estado</th>
+                        <th>Respuesta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in comprobantes)
+                    {
+                        <tr>
+                            <td>@c.Tienda</td>
+                            <td>@c.TipoDoc</td>
+                            <td><code class="small">@c.Numero</code></td>
+                            <td>@c.Fecha</td>
+                            <td>@(c.FechaEnvio?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            <td class="text-end">@((c.Apagar ?? 0m).ToString("N2"))</td>
+                            <td>
+                                <span class="badge @BadgeEstado(c.EstadoSunat)">@c.EstadoSunat</span>
+                            </td>
+                            <td class="small text-muted" style="max-width:280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="@c.RespuestaSunat">
+                                @(string.IsNullOrWhiteSpace(c.RespuestaSunat) ? "—" : c.RespuestaSunat)
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <label class="mb-0 small text-muted">Por página</label>
+                <select class="form-select form-select-sm" style="width:auto" @bind="pageSize" @bind:after="OnPageSizeChanged">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="PrevPage" disabled="@(!CanPrev)">
+                    <i class="bi bi-arrow-left"></i> Anterior
+                </button>
+                <span class="small">Página @currentPage de @(totalPages == 0 ? 1 : totalPages)</span>
+                <button class="btn btn-outline-secondary btn-sm" @onclick="NextPage" disabled="@(!CanNext)">
+                    Siguiente <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 }
 else if (busco)
 {
-    <p>No se encontraron comprobantes en el rango indicado.</p>
+    <div class="alert alert-light border text-center py-4">
+        <i class="bi bi-inbox fs-3 d-block mb-2 text-muted"></i>
+        No se encontraron comprobantes en el rango indicado.
+    </div>
 }
 
 @code {
@@ -104,22 +160,82 @@ else if (busco)
     private List<AlmacenDTO> almacenes = new();
     private List<TipoDocumentoVentaDTO> tiposDoc = new();
 
+    private int currentPage = 1;
+    private int pageSize = 20;
+    private int totalPages = 0;
+    private int totalItems = 0;
+
+    private bool CanPrev => currentPage > 1;
+    private bool CanNext => currentPage < totalPages;
+
     protected override async Task OnInitializedAsync()
     {
         almacenes = await AlmacenService.GetAlmacenes() ?? new();
         tiposDoc = await TipoDocService.GetTiposDocumento();
-        await Buscar();
+        await Cargar();
     }
 
     private async Task Buscar()
     {
+        currentPage = 1;
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
         cargando = true;
         busco = false;
-        int? idAlm = idAlmacen == 0 ? null : idAlmacen;
-        int? tipo = tipoDoc == 0 ? null : tipoDoc;
-        string? est = string.IsNullOrWhiteSpace(estado) ? null : estado;
-        comprobantes = await CompService.ObtenerComprobantesAsync(desde, hasta, idAlm, est, tipo);
-        cargando = false;
-        busco = true;
+        try
+        {
+            int? idAlm = idAlmacen == 0 ? null : idAlmacen;
+            int? tipo = tipoDoc == 0 ? null : tipoDoc;
+            string? est = string.IsNullOrWhiteSpace(estado) ? null : estado;
+
+            var result = await CompService.ObtenerComprobantesAsync(desde, hasta, idAlm, est, tipo, currentPage, pageSize);
+            comprobantes = result.Data ?? new();
+            totalPages = result.TotalPages;
+            totalItems = result.TotalItems;
+            if (totalPages > 0 && currentPage > totalPages)
+            {
+                currentPage = totalPages;
+                result = await CompService.ObtenerComprobantesAsync(desde, hasta, idAlm, est, tipo, currentPage, pageSize);
+                comprobantes = result.Data ?? new();
+                totalPages = result.TotalPages;
+                totalItems = result.TotalItems;
+            }
+        }
+        finally
+        {
+            cargando = false;
+            busco = true;
+        }
     }
+
+    private async Task PrevPage()
+    {
+        if (!CanPrev) return;
+        currentPage--;
+        await Cargar();
+    }
+
+    private async Task NextPage()
+    {
+        if (!CanNext) return;
+        currentPage++;
+        await Cargar();
+    }
+
+    private async Task OnPageSizeChanged()
+    {
+        currentPage = 1;
+        await Cargar();
+    }
+
+    private static string BadgeEstado(string? estadoSunat) => estadoSunat switch
+    {
+        "Enviado" => "bg-success",
+        "Pendiente" => "bg-warning text-dark",
+        "Rechazado" => "bg-danger",
+        _ => "bg-secondary"
+    };
 }

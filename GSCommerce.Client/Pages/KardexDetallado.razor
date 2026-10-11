@@ -7,6 +7,7 @@
 @attribute [Authorize]
 @inject KardexDetalladoService KardexDetalladoService
 @inject AlmacenService AlmacenService
+@inject ComplementoService ComplementoService
 @inject AuthService AuthService
 @inject IJSRuntime JS
 @inject HttpClient Http
@@ -44,11 +45,19 @@
     <div class="row mb-3">
         <div class="col-md-3">
             <label>Familia</label>
-            <input type="text" class="form-control" @bind="familia" />
+            <SearchableSelect Items="familias.Select(f => f.Descripcion)"
+                              @bind-Value="familia"
+                              Placeholder="-- Todas --"
+                              EmptyOptionText="-- Todas --"
+                              SearchPlaceholder="Escriba para filtrar..." />
         </div>
         <div class="col-md-3">
             <label>Línea</label>
-            <input type="text" class="form-control" @bind="linea" />
+            <SearchableSelect Items="lineas.Select(l => l.Descripcion)"
+                              @bind-Value="linea"
+                              Placeholder="-- Todas --"
+                              EmptyOptionText="-- Todas --"
+                              SearchPlaceholder="Escriba para filtrar..." />
         </div>
         @if (string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
         {
@@ -231,6 +240,8 @@
     private string textoBusqueda = "";
     private string familia = "";
     private string linea = "";
+    private List<ComplementoDTO> familias = new();
+    private List<ComplementoDTO> lineas = new();
     private bool isLoading = false;
     private bool soloLecturaAlmacen = false;
     private string? cargo;
@@ -242,6 +253,8 @@
     protected override async Task OnInitializedAsync()
     {
         almacenes = await AlmacenService.GetAlmacenes();
+        familias = await ComplementoService.GetByTipo("FAMILIA");
+        lineas = await ComplementoService.GetByTipo("LINEA");
         cargo = await AuthService.GetUserCargo();
         if (!string.Equals(cargo, "ADMINISTRADOR", StringComparison.OrdinalIgnoreCase))
         {
