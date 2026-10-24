@@ -201,10 +201,32 @@ namespace GSCommerceAPI.Controllers
 
             await _context.SaveChangesAsync();
 
-            var nombreAlmacenOrigen = await _context.Almacens
-                .Where(a => a.IdAlmacen == egreso.IdAlmacen)
-                .Select(a => a.Nombre)
-                .FirstOrDefaultAsync() ?? $"Almacén {egreso.IdAlmacen}";
+            // Tienda de donde viene = almacén del egreso (origen)
+            var idAlmacenOrigen = egreso.IdAlmacen > 0
+                ? egreso.IdAlmacen
+                : (ingreso.IdAlmacenDestinoOrigen ?? 0);
+            var idAlmacenDestino = ingreso.IdAlmacen;
+
+            var nombresAlmacen = await _context.Almacens
+                .AsNoTracking()
+                .Where(a => a.IdAlmacen == idAlmacenOrigen || a.IdAlmacen == idAlmacenDestino)
+                .Select(a => new { a.IdAlmacen, a.Nombre })
+                .ToListAsync();
+
+            var nombreAlmacenOrigen = nombresAlmacen
+                .FirstOrDefault(a => a.IdAlmacen == idAlmacenOrigen)?.Nombre?.Trim();
+            if (string.IsNullOrWhiteSpace(nombreAlmacenOrigen))
+                nombreAlmacenOrigen = $"Almacén {idAlmacenOrigen}";
+
+            var nombreAlmacenDestino = nombresAlmacen
+                .FirstOrDefault(a => a.IdAlmacen == idAlmacenDestino)?.Nombre?.Trim();
+            if (string.IsNullOrWhiteSpace(nombreAlmacenDestino))
+                nombreAlmacenDestino = $"Almacén {idAlmacenDestino}";
+
+            var textoKardexIngreso = KardexTransferenciaDescripcion.FormatearIngreso(
+                ingreso.IdMovimiento, nombreAlmacenOrigen);
+            var textoKardexEgreso = KardexTransferenciaDescripcion.FormatearEgreso(
+                egreso.IdMovimiento, nombreAlmacenDestino);
 
             // 4) Stock y kardex: agrupar por código para no descontar dos veces el mismo artículo
             //    (si había filas duplicadas 3+2 con stock 4, línea a línea fallaba al confirmar)
@@ -246,7 +268,7 @@ namespace GSCommerceAPI.Controllers
                     Cantidad = detalle.Cantidad,
                     SaldoFinal = saldoInicialOrigen - detalle.Cantidad,
                     Valor = detalle.Valor,
-                    Origen = $"TRANSFERENCIA EGRESO Nro: {egreso.IdMovimiento}"
+                    Origen = textoKardexEgreso
                 });
 
                 var stockDestino = IdVarianteUtil.BuscarStockAlmacenLocal(
@@ -287,7 +309,7 @@ namespace GSCommerceAPI.Controllers
                     Cantidad = detalle.Cantidad,
                     SaldoFinal = saldoInicialDestino + detalle.Cantidad,
                     Valor = detalle.Valor,
-                    Origen = $"TRANSFERENCIA INGRESO Nro: {ingreso.IdMovimiento} ({nombreAlmacenOrigen})"
+                    Origen = textoKardexIngreso
                 });
             }
 

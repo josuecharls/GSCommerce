@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GSCommerceAPI.Models;
 using GSCommerceAPI.Data;
+using GSCommerceAPI.Helpers;
 using System.Security.Claims;
 using System.Linq;
 
@@ -134,7 +135,7 @@ namespace GSCommerceAPI.Controllers
 
             var comparador = StringComparer.OrdinalIgnoreCase;
 
-            var resultadoOrdenado = string.Equals(ordenAlmacen, "desc", StringComparison.OrdinalIgnoreCase)
+            var lista = (string.Equals(ordenAlmacen, "desc", StringComparison.OrdinalIgnoreCase)
                 ? calculado
                     .OrderByDescending(k => k.Almacen ?? string.Empty, comparador)
                     .ThenBy(k => k.Fecha ?? DateOnly.MinValue)
@@ -150,9 +151,19 @@ namespace GSCommerceAPI.Controllers
                         .OrderBy(k => k.Fecha ?? DateOnly.MinValue)
                         .ThenBy(k => k.Almacen ?? string.Empty, comparador)
                         .ThenBy(k => k.Codigo, comparador)
-                        .ThenBy(k => k.IdKardex);
+                        .ThenBy(k => k.IdKardex))
+                .ToList();
 
-            return Ok(resultadoOrdenado);
+            // Completa "TRANSFERENCIA INGRESO Nro: X" → "... (Tienda origen)" también en registros viejos
+            var operaciones = lista.Select(k => k.Operacion).Cast<string?>().ToList();
+            await KardexTransferenciaDescripcion.CompletarTiendaOrigenAsync(_context, operaciones);
+            for (var i = 0; i < lista.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(operaciones[i]))
+                    lista[i].Operacion = operaciones[i]!;
+            }
+
+            return Ok(lista);
         }
     }
 }
