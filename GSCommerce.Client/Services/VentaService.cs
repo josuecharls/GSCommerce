@@ -354,6 +354,39 @@ namespace GSCommerce.Client.Services
                 return null;
             }
         }
+
+        /// <summary>
+        /// Actualiza el IdVendedor de un comprobante (exclusivo IdUsuario = 4033).
+        /// </summary>
+        public async Task<(bool Success, string? ErrorMessage, string? NombreVendedor)> ActualizarVendedorAsync(int idComprobante, int idVendedor)
+        {
+            try
+            {
+                var response = await _httpClient.PutAsJsonAsync(
+                    $"ventas/{idComprobante}/vendedor",
+                    new { IdVendedor = idVendedor });
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var msg = await response.Content.ReadAsStringAsync();
+                    return (false, string.IsNullOrWhiteSpace(msg) ? "No se pudo actualizar el vendedor." : msg, null);
+                }
+
+                var resultado = await response.Content.ReadFromJsonAsync<ActualizarVendedorResponse>();
+                return (true, null, resultado?.NombreVendedor);
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Error de comunicación: {ex.Message}", null);
+            }
+        }
+
+        private class ActualizarVendedorResponse
+        {
+            public int IdComprobante { get; set; }
+            public int IdVendedor { get; set; }
+            public string? NombreVendedor { get; set; }
+        }
         public async Task<CorrelativoReenvioDTO?> ObtenerNuevoCorrelativoAsync(int idComprobante)
         {
             return await _httpClient.GetFromJsonAsync<CorrelativoReenvioDTO>($"ventas/nuevo-correlativo/{idComprobante}");

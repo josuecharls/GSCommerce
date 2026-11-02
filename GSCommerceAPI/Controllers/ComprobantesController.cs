@@ -16,6 +16,14 @@ namespace GSCommerceAPI.Controllers
     [Authorize]
     public class ComprobantesController : ControllerBase
     {
+        // Tipos que no se declaran ante SUNAT / no deben listarse aquí
+        private static readonly int[] TiposExcluidos =
+        {
+            4,  // TICKET
+            10, // NOTA CREDITO M
+            11  // NOTA CREDITO T
+        };
+
         private readonly SyscharlesContext _context;
 
         public ComprobantesController(SyscharlesContext context)
@@ -45,31 +53,71 @@ namespace GSCommerceAPI.Controllers
             var dDesde = ParseFechaCalendario(desde);
             var dHasta = ParseFechaCalendario(hasta);
 
-            var query = from f in _context.Comprobantes.AsNoTracking()
-                        join c in _context.ComprobanteDeVentaCabeceras.AsNoTracking() on f.IdComprobante equals c.IdComprobante
-                        join a in _context.Almacens.AsNoTracking() on c.IdAlmacen equals a.IdAlmacen
-                        join t in _context.TipoDocumentoVenta.AsNoTracking() on c.IdTipoDocumento equals t.IdTipoDocumentoVenta
-                        select new
-                        {
-                            f.IdFe,
-                            Tienda = a.Nombre,
-                            a.IdAlmacen,
-                            TipoDoc = t.Descripcion,
-                            IdTipoDoc = t.IdTipoDocumentoVenta,
-                            c.Serie,
-                            c.Numero,
-                            c.Apagar,
-                            c.Fecha,
-                            f.Hash,
-                            f.EnviadoSunat,
-                            f.Estado,
-                            f.FechaEnvio,
-                            f.FechaRespuestaSunat,
-                            f.RespuestaSunat,
-                            f.TicketSunat,
-                            f.Xml,
-                            f.IdComprobante
-                        };
+            // Ventas (boleta/factura/etc.) — FE.EsNota = false
+            var ventasQuery =
+                from f in _context.Comprobantes.AsNoTracking()
+                where !f.EsNota
+                join c in _context.ComprobanteDeVentaCabeceras.AsNoTracking()
+                    on f.IdComprobante equals c.IdComprobante
+                where !TiposExcluidos.Contains(c.IdTipoDocumento)
+                join a in _context.Almacens.AsNoTracking() on c.IdAlmacen equals a.IdAlmacen
+                join t in _context.TipoDocumentoVenta.AsNoTracking()
+                    on c.IdTipoDocumento equals t.IdTipoDocumentoVenta
+                select new ComprobanteSunatRow
+                {
+                    IdFe = f.IdFe,
+                    Tienda = a.Nombre,
+                    IdAlmacen = a.IdAlmacen,
+                    TipoDoc = t.Descripcion,
+                    IdTipoDoc = t.IdTipoDocumentoVenta,
+                    Serie = c.Serie,
+                    Numero = c.Numero,
+                    Apagar = c.Apagar,
+                    Fecha = c.Fecha,
+                    Hash = f.Hash,
+                    EnviadoSunat = f.EnviadoSunat,
+                    Estado = f.Estado,
+                    FechaEnvio = f.FechaEnvio,
+                    FechaRespuestaSunat = f.FechaRespuestaSunat,
+                    RespuestaSunat = f.RespuestaSunat,
+                    TicketSunat = f.TicketSunat,
+                    Xml = f.Xml,
+                    IdComprobante = f.IdComprobante
+                };
+
+            // Notas de crédito — FE.EsNota = true (IdComprobante = IdNc)
+            var notasQuery =
+                from f in _context.Comprobantes.AsNoTracking()
+                where f.EsNota
+                join n in _context.NotaDeCreditoCabeceras.AsNoTracking()
+                    on f.IdComprobante equals n.IdNc
+                where !TiposExcluidos.Contains(n.IdTipoDocumento)
+                join a in _context.Almacens.AsNoTracking() on n.IdAlmacen equals a.IdAlmacen
+                join t in _context.TipoDocumentoVenta.AsNoTracking()
+                    on n.IdTipoDocumento equals t.IdTipoDocumentoVenta
+                select new ComprobanteSunatRow
+                {
+                    IdFe = f.IdFe,
+                    Tienda = a.Nombre,
+                    IdAlmacen = a.IdAlmacen,
+                    TipoDoc = t.Descripcion,
+                    IdTipoDoc = t.IdTipoDocumentoVenta,
+                    Serie = n.Serie,
+                    Numero = n.Numero,
+                    Apagar = n.Total,
+                    Fecha = n.Fecha,
+                    Hash = f.Hash,
+                    EnviadoSunat = f.EnviadoSunat,
+                    Estado = f.Estado,
+                    FechaEnvio = f.FechaEnvio,
+                    FechaRespuestaSunat = f.FechaRespuestaSunat,
+                    RespuestaSunat = f.RespuestaSunat,
+                    TicketSunat = f.TicketSunat,
+                    Xml = f.Xml,
+                    IdComprobante = f.IdComprobante
+                };
+
+            var query = ventasQuery.Concat(notasQuery);
 
             if (dDesde.HasValue)
             {
@@ -159,6 +207,28 @@ namespace GSCommerceAPI.Controllers
                 return d;
 
             return null;
+        }
+
+        private sealed class ComprobanteSunatRow
+        {
+            public int IdFe { get; set; }
+            public string Tienda { get; set; } = string.Empty;
+            public int IdAlmacen { get; set; }
+            public string TipoDoc { get; set; } = string.Empty;
+            public int IdTipoDoc { get; set; }
+            public string Serie { get; set; } = string.Empty;
+            public int Numero { get; set; }
+            public decimal? Apagar { get; set; }
+            public DateTime Fecha { get; set; }
+            public string Hash { get; set; } = string.Empty;
+            public bool? EnviadoSunat { get; set; }
+            public bool Estado { get; set; }
+            public DateTime? FechaEnvio { get; set; }
+            public DateTime? FechaRespuestaSunat { get; set; }
+            public string? RespuestaSunat { get; set; }
+            public string? TicketSunat { get; set; }
+            public string? Xml { get; set; }
+            public int IdComprobante { get; set; }
         }
     }
 }

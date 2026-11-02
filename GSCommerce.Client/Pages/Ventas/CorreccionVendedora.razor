@@ -1,0 +1,459 @@
+@page "/correccion-vendedora"
+@using GSCommerce.Client.Models
+@using GSCommerce.Client.Services
+@inject VentaService VentaService
+@inject PersonalService PersonalService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<div class="container-fluid py-2 py-md-3 px-2 px-md-3 correccion-vendedora">
+    <h4 class="mb-3">
+        <i class="bi bi-person-gear me-2"></i>Corrección de Vendedora
+    </h4>
+
+    <div class="card mb-3">
+        <div class="card-header bg-light py-2">
+            <i class="bi bi-receipt"></i> Búsqueda Directa por Comprobante
+        </div>
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-4 col-md-2">
+                    <label class="form-label small mb-1">Serie:</label>
+                    <input type="text" class="form-control" inputmode="numeric" @bind="serieBusqueda"
+                           placeholder="001" maxlength="4" />
+                </div>
+                <div class="col-8 col-md-3">
+                    <label class="form-label small mb-1">Número:</label>
+                    <input type="number" class="form-control" inputmode="numeric" @bind="numeroBusqueda"
+                           placeholder="12345678" />
+                </div>
+                <div class="col-12 col-md-3">
+                    <button class="btn btn-success w-100 btn-touch" @onclick="BuscarPorSerieNumero" disabled="@buscando">
+                        @if (buscando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-search"></i>
+                        }
+                        Buscar Comprobante
+                    </button>
+                </div>
+                @if (!string.IsNullOrEmpty(mensajeBusqueda))
+                {
+                    <div class="col-12 col-md-4">
+                        <div class="alert alert-warning py-2 px-2 mb-0 small">@mensajeBusqueda</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (resultadosBusqueda.Count > 1)
+    {
+        <div class="card mb-3">
+            <div class="card-header bg-light py-2">Seleccione el comprobante</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Serie-Número</th>
+                                <th class="d-none d-md-table-cell">Fecha</th>
+                                <th>Cliente</th>
+                                <th class="d-none d-sm-table-cell">Total</th>
+                                <th class="d-none d-lg-table-cell">Vendedor</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in resultadosBusqueda)
+                            {
+                                <tr>
+                                    <td>@r.TipoDocumento</td>
+                                    <td class="text-nowrap">@r.Serie-@r.Numero.ToString("D8")</td>
+                                    <td class="d-none d-md-table-cell">@r.Fecha.ToString("dd/MM/yyyy")</td>
+                                    <td>@r.NombreCliente</td>
+                                    <td class="d-none d-sm-table-cell">@r.Total.ToString("N2")</td>
+                                    <td class="d-none d-lg-table-cell">@(r.NombreVendedor ?? "-")</td>
+                                    <td>
+                                        <button class="btn btn-outline-primary btn-sm btn-touch" @onclick="() => CargarDetalle(r.IdComprobante)">
+                                            Ver
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (venta != null)
+    {
+        <div class="card mb-3">
+            <div class="card-header bg-light py-2 d-flex flex-wrap justify-content-between align-items-center gap-1">
+                <span><i class="bi bi-file-earmark-text me-1"></i> Datos del Comprobante</span>
+                <span class="badge bg-secondary">Id: @idComprobanteActual</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 g-md-3">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small text-muted mb-0">Tipo documento</label>
+                        <input class="form-control form-control-sm" value="@venta.TipoDocumento" readonly disabled />
+                    </div>
+                    <div class="col-3 col-md-2">
+                        <label class="form-label small text-muted mb-0">Serie</label>
+                        <input class="form-control form-control-sm" value="@venta.Serie" readonly disabled />
+                    </div>
+                    <div class="col-3 col-md-2">
+                        <label class="form-label small text-muted mb-0">Número</label>
+                        <input class="form-control form-control-sm" value="@venta.Numero.ToString("D8")" readonly disabled />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small text-muted mb-0">Fecha</label>
+                        <input class="form-control form-control-sm" value="@venta.Fecha.ToString("dd/MM/yyyy HH:mm")" readonly disabled />
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small text-muted mb-0">Estado SUNAT</label>
+                        <input class="form-control form-control-sm" value="@venta.EstadoSunat" readonly disabled />
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small text-muted mb-0">Documento cliente</label>
+                        <input class="form-control form-control-sm" value="@(venta.Dniruc ?? "")" readonly disabled />
+                    </div>
+                    <div class="col-12 col-md-5">
+                        <label class="form-label small text-muted mb-0">Cliente</label>
+                        <input class="form-control form-control-sm" value="@venta.Nombre" readonly disabled />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small text-muted mb-0">Almacén / Emisor</label>
+                        <input class="form-control form-control-sm" value="@(venta.RazonSocialEmisor ?? "")" readonly disabled />
+                    </div>
+
+                    <div class="col-4 col-md-2">
+                        <label class="form-label small text-muted mb-0">SubTotal</label>
+                        <input class="form-control form-control-sm" value="@venta.SubTotal.ToString("N2")" readonly disabled />
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <label class="form-label small text-muted mb-0">IGV</label>
+                        <input class="form-control form-control-sm" value="@venta.Igv.ToString("N2")" readonly disabled />
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <label class="form-label small text-muted mb-0">Total</label>
+                        <input class="form-control form-control-sm fw-bold" value="@venta.Total.ToString("N2")" readonly disabled />
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small text-muted mb-0">Cajero</label>
+                        <input class="form-control form-control-sm" value="@(venta.NombreCajero ?? "")" readonly disabled />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small text-muted mb-0">Vendedor actual</label>
+                        <input class="form-control mb-2" value="@(venta.NombreVendedor ?? "-")" readonly disabled />
+                        <button class="btn btn-warning w-100 btn-touch" type="button"
+                                @onclick="AbrirModalReemplazar" disabled="@cargandoVendedores">
+                            @if (cargandoVendedores)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-arrow-left-right me-1"></i>
+                            }
+                            Reemplazar vendedor
+                        </button>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(mensajeExito))
+                {
+                    <div class="alert alert-success mt-3 mb-0 py-2">@mensajeExito</div>
+                }
+                @if (!string.IsNullOrEmpty(mensajeError))
+                {
+                    <div class="alert alert-danger mt-3 mb-0 py-2">@mensajeError</div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@if (mostrarModalVendedores)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Seleccionar vendedor</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalVendedores"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-2">
+                        Vendedores activos del almacén del comprobante.
+                    </p>
+                    @if (vendedores.Count == 0)
+                    {
+                        <div class="alert alert-warning mb-0">No hay vendedores activos en este almacén.</div>
+                    }
+                    else
+                    {
+                        <div class="list-group">
+                            @foreach (var v in vendedores)
+                            {
+                                var nombre = $"{v.Nombres} {v.Apellidos}".Trim();
+                                var esActual = v.IdPersonal == venta?.IdVendedor;
+                                <button type="button"
+                                        class="list-group-item list-group-item-action py-3 @(esActual ? "disabled" : "")"
+                                        disabled="@esActual"
+                                        @onclick="() => SeleccionarVendedor(v)">
+                                    @nombre
+                                    @if (esActual)
+                                    {
+                                        <span class="badge bg-secondary ms-2">Actual</span>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary w-100 btn-touch" @onclick="CerrarModalVendedores">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (mostrarModalConfirmacion && vendedorSeleccionado != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar cambio</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalConfirmacion" disabled="@guardando"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">
+                        ¿Reemplazar el vendedor del comprobante
+                        <strong>@venta?.Serie-@venta?.Numero.ToString("D8")</strong>?
+                    </p>
+                    <p class="mb-1"><strong>Actual:</strong> @(venta?.NombreVendedor ?? "-")</p>
+                    <p class="mb-0">
+                        <strong>Nuevo:</strong>
+                        @($"{vendedorSeleccionado.Nombres} {vendedorSeleccionado.Apellidos}".Trim())
+                    </p>
+                </div>
+                <div class="modal-footer d-flex flex-column flex-sm-row gap-2">
+                    <button class="btn btn-secondary w-100 btn-touch order-2 order-sm-1"
+                            @onclick="CerrarModalConfirmacion" disabled="@guardando">Cancelar</button>
+                    <button class="btn btn-primary w-100 btn-touch order-1 order-sm-2"
+                            @onclick="ConfirmarCambio" disabled="@guardando">
+                        @if (guardando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        }
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .correccion-vendedora .btn-touch {
+        min-height: 44px;
+    }
+
+    .correccion-vendedora .form-control {
+        min-height: 42px;
+    }
+
+    .correccion-vendedora .form-control-sm {
+        min-height: 38px;
+    }
+
+    @@media (min-width: 768px) {
+        .correccion-vendedora .btn-touch {
+            min-height: 38px;
+        }
+
+        .correccion-vendedora .form-control {
+            min-height: auto;
+        }
+    }
+</style>
+
+@code {
+    private const int IdUsuarioSistemas = 4033;
+
+    private string serieBusqueda = string.Empty;
+    private int? numeroBusqueda;
+    private string mensajeBusqueda = string.Empty;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    private bool buscando;
+    private bool cargandoVendedores;
+    private bool guardando;
+
+    private List<VentaConsultaDTO> resultadosBusqueda = new();
+    private VentaDTO? venta;
+    private int idComprobanteActual;
+    private List<PersonalDTO> vendedores = new();
+    private PersonalDTO? vendedorSeleccionado;
+
+    private bool mostrarModalVendedores;
+    private bool mostrarModalConfirmacion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = await AuthService.GetUserId();
+        if (userId != IdUsuarioSistemas)
+        {
+            Navigation.NavigateTo("/", replace: true);
+        }
+    }
+
+    private async Task BuscarPorSerieNumero()
+    {
+        mensajeBusqueda = string.Empty;
+        mensajeExito = string.Empty;
+        mensajeError = string.Empty;
+        venta = null;
+        resultadosBusqueda = new();
+        idComprobanteActual = 0;
+
+        if (string.IsNullOrWhiteSpace(serieBusqueda) || !numeroBusqueda.HasValue)
+        {
+            mensajeBusqueda = "Ingrese Serie y Número";
+            return;
+        }
+
+        buscando = true;
+        try
+        {
+            var resultado = await VentaService.BuscarPorSerieNumeroAsync(serieBusqueda.Trim(), numeroBusqueda.Value);
+
+            if (resultado == null || !resultado.Any())
+            {
+                mensajeBusqueda = $"No se encontró comprobante {serieBusqueda}-{numeroBusqueda:D8}";
+                return;
+            }
+
+            resultadosBusqueda = resultado;
+
+            if (resultado.Count == 1)
+            {
+                await CargarDetalle(resultado[0].IdComprobante);
+            }
+        }
+        finally
+        {
+            buscando = false;
+        }
+    }
+
+    private async Task CargarDetalle(int idComprobante)
+    {
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        var detalle = await VentaService.ObtenerVentaPorId(idComprobante);
+        if (detalle == null)
+        {
+            mensajeBusqueda = "No se pudo cargar el detalle del comprobante.";
+            venta = null;
+            return;
+        }
+
+        idComprobanteActual = idComprobante;
+        venta = detalle;
+        resultadosBusqueda = new();
+    }
+
+    private async Task AbrirModalReemplazar()
+    {
+        if (venta == null || venta.IdAlmacen <= 0)
+            return;
+
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+        cargandoVendedores = true;
+
+        try
+        {
+            vendedores = (await PersonalService.ObtenerVendedoresPorAlmacen(venta.IdAlmacen))
+                .OrderBy(v => v.Nombres)
+                .ThenBy(v => v.Apellidos)
+                .ToList();
+            mostrarModalVendedores = true;
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar vendedores: {ex.Message}";
+        }
+        finally
+        {
+            cargandoVendedores = false;
+        }
+    }
+
+    private void CerrarModalVendedores()
+    {
+        mostrarModalVendedores = false;
+    }
+
+    private void SeleccionarVendedor(PersonalDTO vendedor)
+    {
+        vendedorSeleccionado = vendedor;
+        mostrarModalVendedores = false;
+        mostrarModalConfirmacion = true;
+    }
+
+    private void CerrarModalConfirmacion()
+    {
+        if (guardando) return;
+        mostrarModalConfirmacion = false;
+        vendedorSeleccionado = null;
+    }
+
+    private async Task ConfirmarCambio()
+    {
+        if (venta == null || vendedorSeleccionado == null || idComprobanteActual <= 0)
+            return;
+
+        guardando = true;
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        try
+        {
+            var (ok, error, nombreNuevo) = await VentaService.ActualizarVendedorAsync(
+                idComprobanteActual,
+                vendedorSeleccionado.IdPersonal);
+
+            if (!ok)
+            {
+                mensajeError = error ?? "No se pudo actualizar el vendedor.";
+                return;
+            }
+
+            venta.IdVendedor = vendedorSeleccionado.IdPersonal;
+            venta.NombreVendedor = nombreNuevo ?? $"{vendedorSeleccionado.Nombres} {vendedorSeleccionado.Apellidos}".Trim();
+            mensajeExito = $"Vendedor actualizado a: {venta.NombreVendedor}";
+            mostrarModalConfirmacion = false;
+            vendedorSeleccionado = null;
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+}

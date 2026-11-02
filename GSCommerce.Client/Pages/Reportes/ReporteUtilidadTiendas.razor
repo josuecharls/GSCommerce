@@ -54,10 +54,14 @@
 
 <div class="row mb-3">
     <div class="col-md-6 d-flex align-items-end">
-        <button class="btn btn-primary w-100" @onclick="Buscar"><i class="bi bi-search"></i> Buscar</button>
+        <button class="btn btn-primary w-100" @onclick="Buscar" disabled="@cargando">
+            <i class="bi bi-search"></i> @(cargando ? "Buscando..." : "Buscar")
+        </button>
     </div>
     <div class="col-md-6 d-flex align-items-end">
-        <button class="btn btn-success w-100" @onclick="ExportarPDF"><i class="bi bi-filetype-pdf"></i> Descargar PDF</button>
+        <button class="btn btn-success w-100" @onclick="ExportarPDF" disabled="@(!reporte.Any() || cargando)">
+            <i class="bi bi-filetype-pdf"></i> Descargar PDF
+        </button>
     </div>
 </div>
 
@@ -98,9 +102,11 @@
         UTILIDAD GLOBAL (%): @utilidadGlobal.ToString("N2")
     </div>
 
-    <canvas id="utilidadTiendasChart"></canvas>
+    <div class="utilidad-chart-wrap mb-3" style="height:360px;position:relative;">
+        <canvas id="utilidadTiendasChart"></canvas>
+    </div>
 }
-else
+else if (!cargando)
 {
     <div class="alert alert-info text-center">No se encontraron resultados.</div>
 }
@@ -113,11 +119,12 @@ else
     private int idAlmacenSeleccionado;
     private string? cargo;
     private bool renderChart;
+    private bool cargando;
     private IJSObjectReference? _chartModule;
 
-    private decimal totalVenta => reporte.Sum(r => r.Venta);
-    private decimal totalUtilidad => reporte.Sum(r => r.Utilidad);
-    private double utilidadGlobal => totalVenta > 0 ? (double)(totalUtilidad / totalVenta * 100) : 0;
+    private decimal totalVenta;
+    private decimal totalUtilidad;
+    private double utilidadGlobal;
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,32 +146,58 @@ else
     {
         if (firstRender)
         {
-            _chartModule = await JS.InvokeAsync<IJSObjectReference>("import", "/js/chartInterop.js?v=20250822");
+            _chartModule = await JS.InvokeAsync<IJSObjectReference>("import", "/js/chartInterop.js?v=20261024");
         }
 
-        if (renderChart && reporte.Any() && _chartModule is not null)
+        if (!renderChart || !reporte.Any() || _chartModule is null)
+            return;
+
+        renderChart = false;
+
+        // Solo enviar lo necesario al JS (evita serializar DTOs completos en cada render).
+        var payload = new
         {
-            renderChart = false;
-            await _chartModule.InvokeVoidAsync("renderUtilidadTiendasChart", "utilidadTiendasChart", reporte);
-        }
+            labels = reporte.Select(r => r.Tienda).ToArray(),
+            ventas = reporte.Select(r => (double)r.Venta).ToArray(),
+            utilidades = reporte.Select(r => (double)r.Utilidad).ToArray()
+        };
+
+        await _chartModule.InvokeVoidAsync("renderUtilidadTiendasChart", "utilidadTiendasChart", payload);
     }
 
     private async Task Buscar()
     {
-        int? idAlmacen = cargo == "ADMINISTRADOR"
-            ? (idAlmacenSeleccionado > 0 ? idAlmacenSeleccionado : (int?)null)
-            : idAlmacenSeleccionado;
+        cargando = true;
+        try
+        {
+            int? idAlmacen = cargo == "ADMINISTRADOR"
+                ? (idAlmacenSeleccionado > 0 ? idAlmacenSeleccionado : (int?)null)
+                : idAlmacenSeleccionado;
 
-        reporte = await ReporteService.ObtenerUtilidadTiendas(desde, hasta, idAlmacen);
-        renderChart = true;
-        StateHasChanged();
+            reporte = await ReporteService.ObtenerUtilidadTiendas(desde, hasta, idAlmacen) ?? new();
+            RecalcularTotales();
+            renderChart = reporte.Count > 0;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void RecalcularTotales()
+    {
+        totalVenta = reporte.Sum(r => r.Venta);
+        totalUtilidad = reporte.Sum(r => r.Utilidad);
+        utilidadGlobal = totalVenta > 0 ? (double)(totalUtilidad / totalVenta * 100) : 0;
     }
 
     private async Task ExportarPDF()
     {
-        // el gráfico en PDF
+        string? chartImg = null;
         if (_chartModule is not null && reporte.Any())
-            await _chartModule.InvokeVoidAsync("injectChartImageForPdf", "utilidadTiendasChart");
+        {
+            chartImg = await _chartModule.InvokeAsync<string?>("getChartImageDataUrl", "utilidadTiendasChart");
+        }
 
         var sb = new StringBuilder();
         sb.AppendLine(@"
@@ -217,17 +250,31 @@ else
 
   <div style='text-align:center; margin:6px 0 12px 0; color:#1a54d3; font-weight:bold;'>
     UTILIDAD GLOBAL (%): " + utilidadGlobal.ToString("N2") + @"
-  </div>
+  </div>");
 
-  <div id='chart-holder' style='width:100%; height:360px;'></div>
-</div>");
+        if (!string.IsNullOrEmpty(chartImg))
+        {
+            sb.AppendLine($"<div style='width:100%;'><img src='{chartImg}' style='width:100%;height:auto;' /></div>");
+        }
+
+        sb.AppendLine("</div>");
 
         await JS.InvokeVoidAsync("generarPDFDesdeHTML", sb.ToString(), $"Reporte_Utilidad_Tiendas_{DateTime.Now:yyyyMMdd_HHmmss}");
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_chartModule is not null)
-            await _chartModule.DisposeAsync();
+        try
+        {
+            if (_chartModule is not null)
+            {
+                await _chartModule.InvokeVoidAsync("destroyUtilidadTiendasChart", "utilidadTiendasChart");
+                await _chartModule.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuito cerrado; nada que limpiar.
+        }
     }
 }

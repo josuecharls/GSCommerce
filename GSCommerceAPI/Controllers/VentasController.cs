@@ -93,9 +93,9 @@ namespace GSCommerceAPI.Controllers
                                    Tipo = tp.Tipo
                                }).ToListAsync();
 
-            // Obtener estado SUNAT del comprobante
+            // Obtener estado SUNAT del comprobante (solo fila de venta, no NC)
             var estadoSunat = await _context.Comprobantes
-                .Where(c => c.IdComprobante == id)
+                .Where(c => c.IdComprobante == id && !c.EsNota)
                 .Select(c => new { c.EnviadoSunat, c.Estado, c.RespuestaSunat })
                 .FirstOrDefaultAsync();
 
@@ -152,6 +152,54 @@ namespace GSCommerceAPI.Controllers
             };
 
             return Ok(venta);
+        }
+
+        public class ActualizarVendedorRequest
+        {
+            public int IdVendedor { get; set; }
+        }
+
+        /// <summary>
+        /// Corrige el IdVendedor de un comprobante. Exclusivo para sistemas (IdUsuario = 4033).
+        /// </summary>
+        [HttpPut("{id:int}/vendedor")]
+        [Authorize]
+        public async Task<IActionResult> ActualizarVendedor(int id, [FromBody] ActualizarVendedorRequest? body)
+        {
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (!int.TryParse(userIdClaim, out var userId) || userId != 4033)
+                return Forbid();
+
+            if (body == null || body.IdVendedor <= 0)
+                return BadRequest("IdVendedor inválido.");
+
+            var cabecera = await _context.ComprobanteDeVentaCabeceras
+                .FirstOrDefaultAsync(c => c.IdComprobante == id);
+
+            if (cabecera == null)
+                return NotFound("Comprobante no encontrado.");
+
+            var vendedor = await _context.Personals
+                .FirstOrDefaultAsync(p =>
+                    p.IdPersonal == body.IdVendedor
+                    && p.Cargo == "VENDEDOR"
+                    && p.Estado
+                    && p.IdAlmacen == cabecera.IdAlmacen);
+
+            if (vendedor == null)
+                return BadRequest("El vendedor no es válido, no está activo o no pertenece al almacén del comprobante.");
+
+            cabecera.IdVendedor = body.IdVendedor;
+            await _context.SaveChangesAsync();
+
+            var nombreVendedor = $"{vendedor.Nombres} {vendedor.Apellidos}".Trim();
+
+            return Ok(new
+            {
+                IdComprobante = id,
+                IdVendedor = cabecera.IdVendedor,
+                NombreVendedor = nombreVendedor
+            });
         }
 
         [HttpGet("resumen-admin")]
@@ -1436,11 +1484,11 @@ namespace GSCommerceAPI.Controllers
                 }
             }
 
-            // Estado SUNAT de los comprobantes
+            // Estado SUNAT de los comprobantes (solo filas de venta, no NC)
             if (ids.Count > 0)
             {
                 var estadosSunat = await _context.Comprobantes
-                    .Where(c => ids.Contains(c.IdComprobante))
+                    .Where(c => ids.Contains(c.IdComprobante) && !c.EsNota)
                     .Select(c => new { c.IdComprobante, c.EnviadoSunat, c.Estado, c.RespuestaSunat })
                     .ToDictionaryAsync(c => c.IdComprobante, c => c);
 
@@ -1600,9 +1648,9 @@ namespace GSCommerceAPI.Controllers
                     }
                 }
                 
-                // Estado SUNAT de los comprobantes
+                // Estado SUNAT de los comprobantes (solo filas de venta, no NC)
                 var estadosSunat = await _context.Comprobantes
-                    .Where(c => ids.Contains(c.IdComprobante))
+                    .Where(c => ids.Contains(c.IdComprobante) && !c.EsNota)
                     .Select(c => new { c.IdComprobante, c.EnviadoSunat, c.Estado, c.RespuestaSunat })
                     .ToDictionaryAsync(c => c.IdComprobante, c => c);
 
@@ -1639,7 +1687,7 @@ namespace GSCommerceAPI.Controllers
                 return NotFound();
 
             var comp = await _context.Comprobantes
-                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante && !c.EsNota);
             
             // Aplicar la misma lógica que en ReenviarSunat para determinar si cambiará el correlativo
             bool nuncaLlegoASunat = false;
@@ -2133,16 +2181,19 @@ namespace GSCommerceAPI.Controllers
                     }
                 }
 
-                // Registrar como pendiente de envío a SUNAT
-                var compFe = new Comprobante
+                // Registrar stub FE solo para documentos que se declaran ante SUNAT (no TICKET)
+                if (cabecera.IdTipoDocumento != 4)
                 {
-                    IdComprobante = cabecera.IdComprobante,
-                    Hash = string.Empty,
-                    EnviadoSunat = false,
-                    Estado = false,
-                    EsNota = false
-                };
-                _context.Comprobantes.Add(compFe);
+                    var compFe = new Comprobante
+                    {
+                        IdComprobante = cabecera.IdComprobante,
+                        Hash = string.Empty,
+                        EnviadoSunat = false,
+                        Estado = false,
+                        EsNota = false
+                    };
+                    _context.Comprobantes.Add(compFe);
+                }
 
                 await _context.SaveChangesAsync(); // Guardar detalles, pagos y estado SUNAT
 
@@ -2247,7 +2298,7 @@ namespace GSCommerceAPI.Controllers
                 from c in _context.ComprobanteDeVentaCabeceras
                 join td in _context.TipoDocumentoVenta   // DbSet real
                     on c.IdTipoDocumento equals td.IdTipoDocumentoVenta
-                join s in _context.Comprobantes
+                join s in _context.Comprobantes.Where(x => !x.EsNota)
                     on c.IdComprobante equals s.IdComprobante into gj
                 from sub in gj.DefaultIfEmpty()
                 where c.Fecha >= ini && c.Fecha < finExclusivo
@@ -3223,7 +3274,8 @@ namespace GSCommerceAPI.Controllers
             var end = day.AddDays(1);
 
             var q = from c in _context.ComprobanteDeVentaCabeceras.AsNoTracking()
-                    join f in _context.Comprobantes.AsNoTracking() on c.IdComprobante equals f.IdComprobante into cf
+                    join f in _context.Comprobantes.AsNoTracking().Where(x => !x.EsNota)
+                        on c.IdComprobante equals f.IdComprobante into cf
                     from f in cf.DefaultIfEmpty()
                     join a in _context.Almacens.AsNoTracking() on c.IdAlmacen equals a.IdAlmacen
                     join t in _context.TipoDocumentoVenta.AsNoTracking() on c.IdTipoDocumento equals t.IdTipoDocumentoVenta
@@ -3287,7 +3339,7 @@ namespace GSCommerceAPI.Controllers
         public async Task<IActionResult> ObtenerXml(int idComprobante)
         {
             var xml = await _context.Comprobantes
-                .Where(c => c.IdComprobante == idComprobante)
+                .Where(c => c.IdComprobante == idComprobante && !c.EsNota)
                 .Select(c => c.Xml)
                 .FirstOrDefaultAsync();
 
@@ -3307,7 +3359,8 @@ namespace GSCommerceAPI.Controllers
             if (body is null || string.IsNullOrWhiteSpace(body.Xml))
                 return BadRequest("XML vacío.");
 
-            var comp = await _context.Comprobantes.FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+            var comp = await _context.Comprobantes
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante && !c.EsNota);
             if (comp == null) return NotFound("Comprobante no existe.");
 
             // Guardamos el XML editado y lo dejamos como pendiente
@@ -3327,9 +3380,9 @@ namespace GSCommerceAPI.Controllers
         [Authorize]
         public async Task<IActionResult> ReintentarDesdeXml(int idComprobante, [FromQuery] string modo = "bill")
         {
-            // 1) Comprobante (XML)
+            // 1) Comprobante (XML) — solo filas de venta (no NC)
             var comp = await _context.Comprobantes
-                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante && !c.EsNota);
             if (comp == null) return NotFound("Comprobante no existe.");
             if (string.IsNullOrWhiteSpace(comp.Xml)) return BadRequest("No hay XML para enviar.");
 
@@ -3478,8 +3531,9 @@ namespace GSCommerceAPI.Controllers
             var gen = await _facturacionService.GenerarYFirmarFacturaAsync(dto, xmlPath);
             if (!gen.exito) return BadRequest($"Error al firmar: {gen.mensaje}");
 
-            // 6) Guardar/actualizar en tabla Comprobantes
-            var comp = await _context.Comprobantes.FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+            // 6) Guardar/actualizar en tabla Comprobantes (solo filas de venta, no NC)
+            var comp = await _context.Comprobantes
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante && !c.EsNota);
             var xmlFirmado = await System.IO.File.ReadAllTextAsync(xmlPath);
 
             if (comp == null)
@@ -3490,7 +3544,8 @@ namespace GSCommerceAPI.Controllers
                     Hash = gen.hash ?? string.Empty,
                     Xml = xmlFirmado,
                     EnviadoSunat = false,
-                    Estado = true
+                    Estado = true,
+                    EsNota = false
                 };
                 _context.Comprobantes.Add(comp);
             }
@@ -3538,7 +3593,8 @@ namespace GSCommerceAPI.Controllers
                 return BadRequest("Configuración SUNAT incompleta para el almacén");
 
             var pendientes = await (from c in _context.ComprobanteDeVentaCabeceras
-                                    join f in _context.Comprobantes on c.IdComprobante equals f.IdComprobante into cf
+                                    join f in _context.Comprobantes.Where(x => !x.EsNota)
+                                        on c.IdComprobante equals f.IdComprobante into cf
                                     from f in cf.DefaultIfEmpty()
                                     where c.IdAlmacen == idAlmacen
                                           && c.Fecha.Date == fecha.Date
@@ -3790,9 +3846,9 @@ namespace GSCommerceAPI.Controllers
             if (cab.IdTipoDocumento != 5)
                 return BadRequest("Solo se puede editar BOLETA M.");
 
-            // Verificar que no esté ya enviada a SUNAT
+            // Verificar que no esté ya enviada a SUNAT (solo fila de venta, no NC)
             var comp = await _context.Comprobantes
-                .FirstOrDefaultAsync(c => c.IdComprobante == id);
+                .FirstOrDefaultAsync(c => c.IdComprobante == id && !c.EsNota);
             
             if (comp != null && comp.EnviadoSunat == true && !string.IsNullOrEmpty(comp.RespuestaSunat) && !comp.RespuestaSunat.Contains("Error"))
                 return BadRequest("El comprobante ya fue enviado a SUNAT y no puede ser editado.");
@@ -4007,7 +4063,7 @@ namespace GSCommerceAPI.Controllers
                 return BadRequest("El tipo de documento no permite reenvío a SUNAT.");
 
             var comp = await _context.Comprobantes
-                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante && !c.EsNota);
             
             // Verificar si el comprobante realmente llegó a SUNAT
             // NO cambiar correlativo si:

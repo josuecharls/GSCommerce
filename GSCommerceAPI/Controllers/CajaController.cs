@@ -21,17 +21,23 @@ public class CajaController : ControllerBase
     private readonly ICajaVentasDiariasService _cajaVentas;
     private readonly ICuadroCajaReportProvider _cuadroCajaReport;
     private readonly ICuadroCajaEmailService _cuadroCajaEmail;
+    private readonly IAproximacionGastosReportProvider _aproximacionGastosReport;
+    private readonly IAproximacionGastosEmailService _aproximacionGastosEmail;
 
     public CajaController(
         SyscharlesContext context,
         ICajaVentasDiariasService cajaVentas,
         ICuadroCajaReportProvider cuadroCajaReport,
-        ICuadroCajaEmailService cuadroCajaEmail)
+        ICuadroCajaEmailService cuadroCajaEmail,
+        IAproximacionGastosReportProvider aproximacionGastosReport,
+        IAproximacionGastosEmailService aproximacionGastosEmail)
     {
         _context = context;
         _cajaVentas = cajaVentas;
         _cuadroCajaReport = cuadroCajaReport;
         _cuadroCajaEmail = cuadroCajaEmail;
+        _aproximacionGastosReport = aproximacionGastosReport;
+        _aproximacionGastosEmail = aproximacionGastosEmail;
     }
 
     // 1. Verifica si hay apertura pendiente
@@ -713,6 +719,26 @@ public class CajaController : ControllerBase
         var billetera = await _cuadroCajaReport.ObtenerBilleteraVirtualAsync(fechaReporte);
         await _cuadroCajaEmail.EnviarCuadrosAsync(ventasEfectivo, billetera);
         return Ok(new { fecha = fechaReporte, tiendas = ventasEfectivo.Filas.Count });
+    }
+
+    [HttpPost("enviar-aproximacion-gastos-email")]
+    [Authorize(Roles = "ADMINISTRADOR")]
+    public async Task<IActionResult> EnviarAproximacionGastosEmail([FromQuery] DateOnly? fecha)
+    {
+        var fechaReporte = fecha ?? DateOnly.FromDateTime(DateTime.Today);
+        var reporte = await _aproximacionGastosReport.ObtenerReporteAsync(fechaReporte);
+        if (reporte.Filas.Count == 0)
+            return BadRequest($"No hay tiendas con ventas del {reporte.Desde:yyyy-MM-dd} al {reporte.Hasta:yyyy-MM-dd}.");
+
+        await _aproximacionGastosEmail.EnviarAsync(reporte);
+        return Ok(new
+        {
+            desde = reporte.Desde,
+            hasta = reporte.Hasta,
+            tiendas = reporte.Filas.Count,
+            totalVenta = reporte.TotalVenta,
+            totalUtilidad = reporte.TotalUtilidad
+        });
     }
 
     //desliquidar

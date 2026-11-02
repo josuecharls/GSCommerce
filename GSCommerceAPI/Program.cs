@@ -42,6 +42,7 @@ builder.Services.AddDbContext<SysDbHistoricalContext>(options =>
            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 builder.Services.Configure<ReporteAvanceHoraEmailOptions>(builder.Configuration.GetSection(ReporteAvanceHoraEmailOptions.SectionName));
 builder.Services.Configure<CuadroCajaEmailOptions>(builder.Configuration.GetSection(CuadroCajaEmailOptions.SectionName));
+builder.Services.Configure<AproximacionGastosEmailOptions>(builder.Configuration.GetSection(AproximacionGastosEmailOptions.SectionName));
 builder.Services.Configure<TipoCambioDiarioOptions>(builder.Configuration.GetSection(TipoCambioDiarioOptions.SectionName));
 Console.WriteLine(
     "Cadena de conexi�n: " + builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -53,11 +54,14 @@ builder.Services.AddScoped<IReporteAvanceHoraEmailService, ReporteAvanceHoraEmai
 builder.Services.AddScoped<ICajaVentasDiariasService, CajaVentasDiariasService>();
 builder.Services.AddScoped<ICuadroCajaReportProvider, CuadroCajaReportProvider>();
 builder.Services.AddScoped<ICuadroCajaEmailService, CuadroCajaEmailService>();
+builder.Services.AddScoped<IAproximacionGastosReportProvider, AproximacionGastosReportProvider>();
+builder.Services.AddScoped<IAproximacionGastosEmailService, AproximacionGastosEmailService>();
 builder.Services.AddScoped<TipoCambioDiarioService>();
 builder.Services.AddScoped<GSCommerceAPI.Services.PasswordHasherService>();
 builder.Services.AddHostedService<TicketValidationBackgroundService>();
 builder.Services.AddHostedService<ReporteAvanceHoraEmailBackgroundService>();
 builder.Services.AddHostedService<CuadroCajaEmailBackgroundService>();
+builder.Services.AddHostedService<AproximacionGastosEmailBackgroundService>();
 builder.Services.AddHostedService<TipoCambioDiarioBackgroundService>();
 
 // Habilitar CORS para permitir llamadas desde el frontend

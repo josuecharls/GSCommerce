@@ -29,6 +29,14 @@
                     <NavLink class="topbar-item text-primary text-decoration-none" href="/hubs/configuracion">
                         <i class="bi bi-gear me-1"></i>Configuración
                     </NavLink>
+                    @if (userId == 4033)
+                    {
+                        <NavLink class="topbar-item text-primary text-decoration-none" href="/correccion-vendedora" title="Corrección Vendedora">
+                            <i class="bi bi-person-gear me-1"></i>
+                            <span class="d-none d-lg-inline">Corrección Vendedora</span>
+                            <span class="d-inline d-lg-none">Vendedora</span>
+                        </NavLink>
+                    }
                 }
                 @if (cargo == "CAJERO")
                 {
@@ -139,6 +147,7 @@
 
     private string? cargo;
     private bool esContadorCentral;
+    private int? userId;
 
     // Variables para alerta de stock crítico (CAJEROS)
     private List<StockDTO> articulosStockCritico = new();
@@ -168,6 +177,7 @@
     {
         cargo = await AuthService.GetUserCargo();
         var idUsuario = await AuthService.GetUserId();
+        userId = idUsuario;
         esContadorCentral = ContadorCentralHelper.EsContadorCentral(idUsuario);
 
         // Inicializar session sync

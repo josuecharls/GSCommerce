@@ -184,14 +184,18 @@ namespace GSCommerceAPI.Services.SUNAT
 
         private async Task GuardarEstadoSunatAsync(int idComprobante, string hash, string xml, string ticket, string? respuestaSunat, bool exito, bool esNota)
         {
+            // Ventas y notas de crédito comparten secuencias numéricas distintas
+            // (IdComprobante vs IdNc). Hay que discriminar por EsNota para no
+            // sobrescribir el estado FE de un documento con el de otro.
             var comprobante = await _context.Comprobantes
-                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante);
+                .FirstOrDefaultAsync(c => c.IdComprobante == idComprobante && c.EsNota == esNota);
 
             if (comprobante == null)
             {
                 comprobante = new Comprobante
                 {
-                    IdComprobante = idComprobante
+                    IdComprobante = idComprobante,
+                    EsNota = esNota
                 };
                 _context.Comprobantes.Add(comprobante);
             }
@@ -204,7 +208,6 @@ namespace GSCommerceAPI.Services.SUNAT
             comprobante.RespuestaSunat = respuestaSunat;
             comprobante.FechaRespuestaSunat = DateTime.Now;
             comprobante.Estado = exito;
-            comprobante.EsNota = false;
             comprobante.EsNota = esNota;
 
             //Console.WriteLine($"[SUNAT] Guardado comprobante {idComprobante} - hash: {hash}, exito: {exito}");

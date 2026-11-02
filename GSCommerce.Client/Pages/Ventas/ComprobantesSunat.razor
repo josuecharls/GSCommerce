@@ -171,7 +171,16 @@ else if (busco)
     protected override async Task OnInitializedAsync()
     {
         almacenes = await AlmacenService.GetAlmacenes() ?? new();
-        tiposDoc = await TipoDocService.GetTiposDocumento();
+        // Solo tipos que se declaran ante SUNAT (excluye TICKET y NC internas M/T)
+        var excluidos = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "TICKET",
+            "NOTA CREDITO M",
+            "NOTA CREDITO T"
+        };
+        tiposDoc = (await TipoDocService.GetTiposDocumento())
+            .Where(t => !excluidos.Contains((t.Descripcion ?? string.Empty).Trim()))
+            .ToList();
         await Cargar();
     }
 
